@@ -23,7 +23,7 @@
 
 .approach-modal__container {
   background: var(--sw-bg-secondary);
-  border: 2px solid var(--sw-glass-border);
+  border: 3px solid var(--sw-frame);
   border-radius: var(--sw-radius-xl);
   max-width: 64rem;
   width: 100%;
@@ -31,7 +31,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--sw-pix-shadow-lg);
 }
 
 /* ===========================================
@@ -119,11 +119,13 @@
   position: relative;
   padding: var(--sw-space-4);
   border-radius: var(--sw-radius-lg);
-  border: 2px solid var(--sw-glass-border);
+  border: 2px solid var(--sw-frame-soft);
   background: var(--sw-bg-tertiary);
+  box-shadow: var(--sw-pix-shadow-sm);
   text-align: left;
   cursor: pointer;
-  transition: all var(--sw-transition-base);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    background var(--sw-transition-base), border-color var(--sw-transition-base);
   overflow: hidden;
 }
 
@@ -136,15 +138,20 @@
 }
 
 .approach-card--available:hover {
-  border-color: var(--sw-glass-border-highlight);
+  border-color: var(--sw-frame);
   background: var(--sw-bg-elevated);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow-lg);
+}
+
+.approach-card--available:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .approach-card--selected {
   border-color: var(--sw-room-current);
-  box-shadow: 0 0 0 2px var(--sw-room-current-glow), 0 8px 25px -5px rgba(34, 211, 238, 0.2);
+  box-shadow: var(--sw-pix-shadow), 0 0 14px var(--sw-room-current-glow);
 }
 
 .approach-card--disabled {
@@ -155,7 +162,7 @@
 
 .approach-card--disabled:hover {
   transform: none;
-  box-shadow: none;
+  box-shadow: var(--sw-pix-shadow-sm);
 }
 
 /* ===========================================

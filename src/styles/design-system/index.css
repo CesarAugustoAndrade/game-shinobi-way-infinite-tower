@@ -47,6 +47,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Pixel-arcade: titles, buttons and chrome use the Silkscreen display face */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.sw-title,
+button {
+  font-family: var(--sw-font-display);
+}
+
+/* Bridge the handful of Tailwind font utilities onto the pixel pairing so
+   inline-styled elements stay consistent with the design-system tokens. */
+.font-sans {
+  font-family: var(--sw-font-pixel) !important;
+}
+
+.font-serif {
+  font-family: var(--sw-font-display) !important;
+}
+
+.font-mono {
+  font-family: var(--sw-font-pixel) !important;
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;

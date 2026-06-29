@@ -124,14 +124,15 @@
   flex-direction: column;
   min-height: 22rem;
   padding: var(--sw-space-6);
-  background: var(--sw-glass-bg-dark);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 2px solid var(--sw-glass-border);
+  /* Pixel-arcade: solid blocky card, no blur, hard shadow. */
+  background: var(--sw-bg-secondary);
+  border: 2px solid var(--sw-frame-soft);
   border-radius: var(--sw-radius-lg);
+  box-shadow: var(--sw-pix-shadow-sm);
   overflow: hidden;
   cursor: pointer;
-  transition: all var(--sw-transition-slow);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    border-color var(--sw-transition-base);
   animation: sw-fade-in 0.4s ease-out backwards;
 }
 
@@ -143,9 +144,9 @@
 .clan-card:nth-child(5) { animation-delay: 200ms; }
 
 .clan-card:hover {
-  transform: translateY(-8px);
+  transform: translate(-3px, -3px);
   border-color: var(--sw-accent-primary);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 30px var(--sw-accent-glow);
+  box-shadow: var(--sw-pix-shadow-lg), 0 0 18px var(--sw-accent-glow);
 }
 
 .clan-card:focus-visible {
@@ -356,14 +357,16 @@
 .clan-card__select-text {
   display: none;
   padding: var(--sw-space-3) var(--sw-space-4);
-  background: rgba(245, 158, 11, 0.15);
-  border: 2px solid var(--sw-accent-primary);
+  background: var(--sw-accent-primary);
+  border: 2px solid var(--sw-frame);
   border-radius: var(--sw-radius-md);
+  font-family: var(--sw-font-display);
   font-size: var(--sw-text-xs);
   font-weight: 700;
-  letter-spacing: var(--sw-tracking-widest);
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-on-accent);
+  box-shadow: var(--sw-pix-shadow-sm);
   transition: all var(--sw-transition-base);
 }
 
@@ -379,8 +382,8 @@
 }
 
 .clan-card:hover .clan-card__select-text {
-  background: rgba(245, 158, 11, 0.25);
-  box-shadow: 0 0 20px var(--sw-accent-glow);
+  background: var(--sw-accent-tertiary);
+  box-shadow: var(--sw-pix-shadow), 0 0 14px var(--sw-accent-glow);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

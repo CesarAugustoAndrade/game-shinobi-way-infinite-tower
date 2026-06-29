@@ -31,6 +31,12 @@
   to { transform: translateY(-4px); }
 }
 
+/* Blocky ready pulse — opacity only, no soft blur (pixel-arcade vocabulary) */
+@keyframes sw-blocky-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    RISK/DANGER GLOW ANIMATIONS
    ───────────────────────────────────────────────────────────────────────────── */

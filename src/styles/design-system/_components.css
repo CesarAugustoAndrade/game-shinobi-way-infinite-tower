@@ -11,21 +11,23 @@
 
 .sw-panel {
   position: relative;
-  background: var(--sw-glass-bg);
-  backdrop-filter: blur(var(--sw-glass-blur));
-  -webkit-backdrop-filter: blur(var(--sw-glass-blur));
-  border: 1px solid var(--sw-glass-border);
+  /* Pixel-arcade: solid surface (no translucent blur — it fights the crisp look),
+     blocky 2px frame + hard shadow. */
+  background: var(--sw-bg-secondary);
+  border: 2px solid var(--sw-frame-soft);
   border-radius: var(--sw-radius-lg);
+  box-shadow: var(--sw-pix-shadow-sm);
   padding: var(--sw-space-4);
 }
 
 .sw-panel--dark {
-  background: var(--sw-glass-bg-dark);
+  background: var(--sw-bg-primary);
 }
 
 .sw-panel--elevated {
-  background: var(--sw-glass-bg-dark);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  background: var(--sw-bg-tertiary);
+  border-color: var(--sw-frame);
+  box-shadow: var(--sw-pix-shadow);
 }
 
 .sw-panel--bordered {
@@ -267,18 +269,26 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  background: var(--sw-glass-bg);
-  border: 2px solid var(--sw-glass-border);
+  /* Pixel-arcade: solid blocky card with a hard shadow it lifts toward on hover. */
+  background: var(--sw-bg-secondary);
+  border: 2px solid var(--sw-frame-soft);
   border-radius: var(--sw-radius-lg);
+  box-shadow: var(--sw-pix-shadow-sm);
   padding: var(--sw-space-4);
   cursor: pointer;
-  transition: all var(--sw-transition-slow);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    border-color var(--sw-transition-base);
 }
 
 .sw-card:hover:not(.sw-card--disabled):not(.sw-card--dimmed) {
-  transform: translateY(-6px);
-  border-color: var(--sw-glass-border-highlight);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+  transform: translate(-2px, -2px);
+  border-color: var(--sw-frame);
+  box-shadow: var(--sw-pix-shadow-lg);
+}
+
+.sw-card:active:not(.sw-card--disabled):not(.sw-card--dimmed) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .sw-card:focus-visible {
@@ -288,7 +298,7 @@
 
 .sw-card--selected {
   border-color: var(--sw-accent-primary);
-  box-shadow: 0 0 20px var(--sw-accent-glow);
+  box-shadow: var(--sw-pix-shadow), 0 0 16px var(--sw-accent-glow);
   animation: sw-select-pulse 0.4s ease-out;
 }
 
@@ -370,18 +380,32 @@
   justify-content: center;
   gap: var(--sw-space-2);
   padding: var(--sw-space-3) var(--sw-space-6);
-  font-family: var(--sw-font-sans);
+  /* Pixel-arcade: Silkscreen display face, solid fill, thick frame, hard shadow. */
+  font-family: var(--sw-font-display);
   font-size: var(--sw-text-xs);
   font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-widest);
-  border: 2px solid;
+  border: 2px solid var(--sw-frame);
   border-radius: var(--sw-radius-md);
   cursor: pointer;
-  transition: all var(--sw-transition-base);
-  background: transparent;
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    background var(--sw-transition-base);
+  background: var(--sw-bg-surface);
   color: var(--sw-text-primary);
+  box-shadow: var(--sw-pix-shadow-sm);
   text-decoration: none;
+}
+
+/* Shared blocky motion: lift toward the shadow on hover, sink into it on press. */
+.sw-button:hover:not(:disabled):not(.sw-button--disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--sw-pix-shadow);
+}
+
+.sw-button:active:not(:disabled):not(.sw-button--disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .sw-button:focus-visible {
@@ -391,78 +415,69 @@
 
 .sw-button:disabled,
 .sw-button--disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
   pointer-events: none;
+  transform: none;
+  box-shadow: var(--sw-pix-shadow-sm);
 }
 
-/* Primary button (golden/amber) */
+/* Primary button (golden/amber CTA — solid accent fill) */
 .sw-button--primary {
-  border-color: var(--sw-accent-primary);
-  color: var(--sw-accent-tertiary);
-  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--sw-frame);
+  color: var(--sw-on-accent);
+  background: var(--sw-accent-primary);
 }
 
 .sw-button--primary:hover:not(:disabled) {
-  background: rgba(245, 158, 11, 0.3);
-  box-shadow: 0 0 20px var(--sw-accent-glow);
-  transform: translateY(-2px);
-}
-
-.sw-button--primary:active:not(:disabled) {
-  transform: translateY(0);
+  background: var(--sw-accent-tertiary);
 }
 
 /* Danger button (red) */
 .sw-button--danger {
-  border-color: var(--sw-risk-high);
-  color: #fca5a5;
-  background: var(--sw-risk-high-bg);
+  border-color: var(--sw-frame);
+  color: #fff;
+  background: var(--sw-risk-high);
 }
 
 .sw-button--danger:hover:not(:disabled) {
-  background: rgba(185, 28, 28, 0.4);
-  box-shadow: 0 0 20px var(--sw-risk-high-glow);
-  transform: translateY(-2px);
+  background: var(--sw-risk-high-light);
 }
 
 /* Safe button (green) */
 .sw-button--safe {
-  border-color: var(--sw-risk-safe);
-  color: #86efac;
-  background: var(--sw-risk-safe-bg);
+  border-color: var(--sw-frame);
+  color: #fff;
+  background: var(--sw-risk-safe);
 }
 
 .sw-button--safe:hover:not(:disabled) {
-  background: rgba(21, 128, 61, 0.4);
-  box-shadow: 0 0 20px var(--sw-risk-safe-glow);
-  transform: translateY(-2px);
+  background: var(--sw-risk-safe-light);
 }
 
-/* Ghost button (subtle) */
+/* Ghost button (subtle, quieter frame) */
 .sw-button--ghost {
-  border-color: transparent;
-  color: var(--sw-text-tertiary);
-  background: transparent;
+  border-color: var(--sw-frame-soft);
+  color: var(--sw-text-secondary);
+  background: var(--sw-bg-secondary);
 }
 
 .sw-button--ghost:hover:not(:disabled) {
-  color: var(--sw-text-secondary);
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--sw-glass-border);
+  color: var(--sw-text-primary);
+  border-color: var(--sw-frame);
 }
 
 /* Secondary button (zinc) */
 .sw-button--secondary {
-  border-color: var(--sw-glass-border-highlight);
+  border-color: var(--sw-frame-soft);
   color: var(--sw-text-secondary);
-  background: rgba(63, 63, 70, 0.3);
+  background: var(--sw-bg-elevated);
 }
 
 .sw-button--secondary:hover:not(:disabled) {
-  background: rgba(63, 63, 70, 0.5);
+  background: var(--sw-bg-surface);
   color: var(--sw-text-primary);
-  transform: translateY(-2px);
+  border-color: var(--sw-frame);
 }
 
 /* Button sizes */

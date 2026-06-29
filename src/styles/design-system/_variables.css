@@ -23,7 +23,9 @@
   --sw-glass-bg-light: rgba(39, 39, 42, 0.6);
   --sw-glass-border: rgba(63, 63, 70, 0.5);
   --sw-glass-border-highlight: rgba(113, 113, 122, 0.5);
-  --sw-glass-blur: 12px;
+  /* Dark scrims behind headers/footers over illustrated backgrounds */
+  --sw-scrim: rgba(0, 0, 0, 0.85);
+  --sw-scrim-soft: rgba(0, 0, 0, 0.5);
 
   /* ─────────────────────────────────────────────────────────────────────────
      ACCENT COLORS (Golden/Amber theme)
@@ -33,6 +35,8 @@
   --sw-accent-tertiary: #fbbf24;
   --sw-accent-dim: #b45309;
   --sw-accent-glow: rgba(245, 158, 11, 0.25);
+  /* Text colour for content sitting on a solid accent fill (buttons, badges) */
+  --sw-on-accent: #1a1205;
 
   /* ─────────────────────────────────────────────────────────────────────────
      RISK/DANGER LEVELS
@@ -130,6 +134,10 @@
   --sw-chakra-fill: linear-gradient(to right, #2563eb, #3b82f6);
   --sw-chakra-color: #3b82f6;
 
+  /* Combat buff/debuff chip fills */
+  --sw-buff-positive-bg: rgb(20, 83, 45);
+  --sw-buff-negative-bg: rgb(127, 29, 29);
+
   /* ─────────────────────────────────────────────────────────────────────────
      SPACING SCALE
      ───────────────────────────────────────────────────────────────────────── */
@@ -148,24 +156,35 @@
   /* ─────────────────────────────────────────────────────────────────────────
      BORDER RADIUS
      ───────────────────────────────────────────────────────────────────────── */
-  --sw-radius-xs: 0.125rem;  /* 2px */
-  --sw-radius-sm: 0.25rem;   /* 4px */
-  --sw-radius-md: 0.375rem;  /* 6px */
-  --sw-radius-lg: 0.5rem;    /* 8px */
-  --sw-radius-xl: 0.75rem;   /* 12px */
-  --sw-radius-2xl: 1rem;     /* 16px */
+  /* Pixel-arcade: near-square corners (0–4px). Pills/circles keep --sw-radius-full. */
+  --sw-radius-xs: 1px;
+  --sw-radius-sm: 2px;
+  --sw-radius-md: 2px;
+  --sw-radius-lg: 3px;
+  --sw-radius-xl: 4px;
+  --sw-radius-2xl: 4px;
   --sw-radius-full: 9999px;
 
   /* ─────────────────────────────────────────────────────────────────────────
      TYPOGRAPHY
      ───────────────────────────────────────────────────────────────────────── */
-  --sw-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --sw-font-serif: 'Crimson Pro', 'Georgia', serif;
-  --sw-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  /* Pixel-arcade type pairing (loaded in index.html):
+     - Silkscreen → display / titles / buttons / chrome (blocky, reads like an arcade cabinet)
+     - VT323      → body / stats / numbers (monospaced pixel, legible at small sizes) */
+  --sw-font-display: 'Silkscreen', 'Press Start 2P', system-ui, sans-serif;
+  --sw-font-pixel: 'VT323', 'Courier New', monospace;
+
+  /* Existing tokens remapped onto the pixel pairing so every component that
+     already consumes them inherits the arcade look (no per-component rewrites). */
+  --sw-font-sans: var(--sw-font-pixel);
+  --sw-font-serif: var(--sw-font-display);
+  --sw-font-mono: var(--sw-font-pixel);
 
   /* Font sizes */
-  --sw-text-2xs: 0.625rem;   /* 10px */
-  --sw-text-xs: 0.75rem;     /* 12px */
+  /* VT323 is a pixel mono tuned for larger glyphs; small body sizes nudged up
+     +1px so dense stat/number panels stay legible without reflowing layout. */
+  --sw-text-2xs: 0.6875rem;  /* 11px */
+  --sw-text-xs: 0.8125rem;   /* 13px */
   --sw-text-sm: 0.875rem;    /* 14px */
   --sw-text-base: 1rem;      /* 16px */
   --sw-text-lg: 1.125rem;    /* 18px */
@@ -202,12 +221,24 @@
   /* ─────────────────────────────────────────────────────────────────────────
      SHADOWS
      ───────────────────────────────────────────────────────────────────────── */
-  --sw-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --sw-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --sw-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --sw-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  /* Pixel-arcade hard shadows: offset, NO blur. Remapped onto the existing
+     tokens so panels/cards/buttons already using them turn blocky automatically. */
+  --sw-shadow-sm: 2px 2px 0 0 var(--sw-hard);
+  --sw-shadow-md: 3px 3px 0 0 var(--sw-hard);
+  --sw-shadow-lg: 4px 4px 0 0 var(--sw-hard);
+  --sw-shadow-xl: 6px 6px 0 0 var(--sw-hard);
   --sw-shadow-glow: 0 0 20px rgba(245, 158, 11, 0.2);
-  --sw-shadow-inset: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  --sw-shadow-inset: inset 0 2px 0 0 rgba(0, 0, 0, 0.35);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     PIXEL-ARCADE CHROME (blocky frame + hard shadow vocabulary)
+     ───────────────────────────────────────────────────────────────────────── */
+  --sw-frame: #cdd9ef;                          /* block border (light on dark bg) */
+  --sw-frame-soft: rgba(205, 217, 239, 0.4);    /* quieter border for panels/cards */
+  --sw-hard: #04060d;                           /* hard-shadow colour (near-black) */
+  --sw-pix-shadow: 4px 4px 0 0 var(--sw-hard);
+  --sw-pix-shadow-sm: 3px 3px 0 0 var(--sw-hard);
+  --sw-pix-shadow-lg: 6px 6px 0 0 var(--sw-hard);
 
   /* ─────────────────────────────────────────────────────────────────────────
      Z-INDEX SCALE

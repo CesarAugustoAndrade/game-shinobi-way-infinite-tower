@@ -178,9 +178,7 @@
   gap: var(--sw-space-1);
   padding: var(--sw-space-1) var(--sw-space-2);
   border-radius: var(--sw-radius-sm);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--sw-frame-soft);
 }
 
 .location-panel__danger-label {
@@ -244,12 +242,13 @@
   width: 7rem;
   height: 9rem;
   border-radius: var(--sw-radius-lg);
-  border: 2px solid var(--sw-glass-border);
+  border: 2px solid var(--sw-frame-soft);
   overflow: hidden;
-  transition: all var(--sw-transition-slow);
-  background: rgba(24, 24, 27, 0.85);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    border-color var(--sw-transition-base), filter var(--sw-transition-base);
+  /* Pixel-arcade: solid blocky tile + hard shadow (no translucent blur). */
+  background: var(--sw-bg-tertiary);
+  box-shadow: var(--sw-pix-shadow-sm);
   cursor: pointer;
 }
 
@@ -258,8 +257,15 @@
 }
 
 .room-card--accessible:hover {
-  transform: scale(1.05);
+  transform: translate(-2px, -2px);
+  border-color: var(--sw-frame);
+  box-shadow: var(--sw-pix-shadow-lg);
   filter: brightness(1.1);
+}
+
+.room-card--accessible:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .room-card--current {
@@ -422,10 +428,12 @@
   width: 100%;
   border-radius: var(--sw-radius-xl);
   border: 2px solid;
-  transition: all var(--sw-transition-base);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    border-color var(--sw-transition-base);
   overflow: hidden;
-  background: rgba(24, 24, 27, 0.8);
-  backdrop-filter: blur(8px);
+  /* Pixel-arcade: solid blocky card + hard shadow. */
+  background: var(--sw-bg-tertiary);
+  box-shadow: var(--sw-pix-shadow-sm);
 }
 
 .location-card--default {
@@ -685,9 +693,8 @@
 
 .location-map__header {
   padding: var(--sw-space-4);
-  border-bottom: 1px solid var(--sw-glass-border);
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
+  border-bottom: 2px solid var(--sw-frame-soft);
+  background: var(--sw-scrim);
 }
 
 .location-map__header-content {
@@ -805,10 +812,9 @@
 
 /* Selected room panel */
 .location-map__selected {
-  border-top: 1px solid var(--sw-glass-border);
+  border-top: 2px solid var(--sw-frame-soft);
   padding: var(--sw-space-4);
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
+  background: var(--sw-scrim);
 }
 
 .location-map__selected-content {
@@ -919,8 +925,8 @@
 
 .region-map__header {
   padding: var(--sw-space-4);
-  border-bottom: 1px solid var(--sw-glass-border);
-  backdrop-filter: blur(8px);
+  border-bottom: 2px solid var(--sw-frame-soft);
+  background: var(--sw-scrim-soft);
 }
 
 .region-map__header-content {
@@ -1038,9 +1044,9 @@
   position: absolute;
   inset: 0;
   border-radius: var(--sw-radius-xl);
-  background: rgba(34, 211, 238, 0.2);
-  filter: blur(8px);
-  animation: sw-ready-pulse 2s ease-in-out infinite;
+  background: rgba(34, 211, 238, 0.12);
+  border: 2px solid var(--sw-room-current);
+  animation: sw-blocky-pulse 1.6s steps(2, jump-none) infinite;
 }
 
 .region-map__enter-text {
@@ -1063,7 +1069,7 @@
 .region-map__footer {
   padding: var(--sw-space-3) var(--sw-space-4);
   border-top: 1px solid rgba(39, 39, 42, 0.5);
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--sw-scrim-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;

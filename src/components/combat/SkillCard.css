@@ -15,16 +15,24 @@
   height: 7rem;
   border-radius: var(--sw-radius-lg);
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid;
-  transition: all var(--sw-transition-base);
+  /* Pixel-arcade: blocky 2px frame + hard shadow it lifts toward / sinks into. */
+  box-shadow: var(--sw-pix-shadow-sm);
+  border: 2px solid;
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    border-color var(--sw-transition-base);
   text-align: left;
-  background: transparent;
+  background: var(--sw-bg-tertiary);
   cursor: pointer;
 }
 
 .skill-card:hover:not(.skill-card--disabled):not(.skill-card--passive) {
-  transform: scale(1.02);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow-lg);
+}
+
+.skill-card:active:not(.skill-card--disabled):not(.skill-card--passive) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 /* Border Color Variants */
@@ -309,8 +317,6 @@
   inset: 0;
   z-index: 30;
   background: rgba(0, 0, 0, 0.8);
-  -webkit-backdrop-filter: blur(1px);
-  backdrop-filter: blur(1px);
   display: flex;
   align-items: center;
   justify-content: center;
