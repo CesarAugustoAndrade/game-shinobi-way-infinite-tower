@@ -21,10 +21,21 @@
       "Bash(git push:*)",
       "Bash(npm run test:quick:*)",
       "Bash(npx vitest:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Write(loop/VISION.md)",
+      "Write(loop/LOOP-TOPICS.md)",
+      "Write(loop/LOOP-STATE.md)",
+      "Write(loop/RULES.md)",
+      "Write(loop/logs/**)"
     ],
     "deny": [
-      "Write(*.md)",
+      "Write(src/**/*.md)",
+      "Write(CLAUDE.md)",
+      "Write(CHANGELOG.md)",
+      "Write(README.md)",
+      "Write(PLAN.md)",
+      "Write(REVIEW.md)",
+      "Write(GLOSSARY.md)",
       "Write(*.txt)"
     ],
     "ask": []
