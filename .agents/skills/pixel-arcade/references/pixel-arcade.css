@@ -1,0 +1,78 @@
+/* =====================================================================
+   PIXEL-ARCADE — hoja drop-in (tokens + botones + ventanas)
+   ---------------------------------------------------------------------
+   Cópiala y MAPEA sus variables a las de la UI destino (--accent, --surface,
+   --ink ya existirán con otro nombre). Pensada para fondo OSCURO; para fondo
+   claro, invierte: --frame oscuro (navy/negro) y --hard oscuro también.
+
+   Carga las fuentes primero:
+   <link rel="stylesheet"
+     href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=VT323&display=swap">
+   ===================================================================== */
+
+:root {
+  /* familias (cámbialas en TU token de fuente para propagar a todo) */
+  --pa-font-display: 'Silkscreen', system-ui, sans-serif;  /* títulos / botones / chrome */
+  --pa-font-body:    'VT323', monospace;                   /* cuerpo / stats / números */
+
+  /* chrome pixel */
+  --pa-frame: #cdd9ef;                          /* borde del bloque (claro sobre oscuro) */
+  --pa-frame-soft: rgba(205, 217, 239, 0.45);   /* borde de ventanas (más discreto) */
+  --pa-hard: #04060d;                           /* color de la sombra dura */
+  --pa-shadow: 4px 4px 0 0 var(--pa-hard);
+  --pa-shadow-sm: 3px 3px 0 0 var(--pa-hard);
+  --pa-shadow-lg: 6px 6px 0 0 var(--pa-hard);
+  --pa-radius: 3px;                             /* esquinas casi rectas */
+
+  /* mapea estas a tus colores reales */
+  --pa-accent: #3b82f6;     /* CTA / seleccionado */
+  --pa-accent-2: #60a5fa;   /* hover del CTA */
+  --pa-surface: #121826;    /* relleno de botón/ventana secundaria (más claro que el fondo) */
+  --pa-ink: #e2e8f0;        /* texto sobre superficie */
+}
+
+/* ---- TIPOGRAFÍA ---------------------------------------------------- */
+body { font-family: var(--pa-font-body); }
+h1, h2, h3, h4, .title, button, .btn { font-family: var(--pa-font-display); }
+
+/* ---- BOTONES (bloque + sombra dura; al pulsar se hunde) ------------ */
+.pa-btn, button.pa {
+  font-family: var(--pa-font-display);
+  font-weight: 700; letter-spacing: .02em; font-size: 13px;
+  background: var(--pa-accent); color: #fff;
+  border: 2px solid var(--pa-frame);
+  border-radius: var(--pa-radius);
+  padding: 9px 18px; cursor: pointer;
+  box-shadow: var(--pa-shadow);
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: transform .12s, box-shadow .12s, background .2s;
+}
+.pa-btn:hover  { transform: translate(-1px, -1px); box-shadow: var(--pa-shadow-lg); background: var(--pa-accent-2); }
+.pa-btn:active { transform: translate(3px, 3px);  box-shadow: 1px 1px 0 0 var(--pa-hard); }
+.pa-btn:disabled { opacity: .35; cursor: default; transform: none; box-shadow: var(--pa-shadow-sm); }
+.pa-btn:focus-visible { outline: 2px solid var(--pa-accent-2); outline-offset: 2px; }
+
+.pa-btn.ghost { background: var(--pa-surface); color: var(--pa-ink); border-color: var(--pa-frame-soft); box-shadow: var(--pa-shadow-sm); }
+.pa-btn.ghost:hover { border-color: var(--pa-frame); }
+
+/* ---- VENTANAS / TARJETAS / PANELES --------------------------------- */
+.pa-window, .pa-card, .pa-panel {
+  background: var(--pa-surface);
+  border: 2px solid var(--pa-frame-soft);
+  border-radius: var(--pa-radius);
+  box-shadow: var(--pa-shadow);
+  /* sin backdrop-filter: el blur translúcido pelea con el look pixel */
+}
+.pa-card { transition: transform .12s, box-shadow .12s, border-color .2s; }
+.pa-card:hover { transform: translate(-2px, -2px); box-shadow: var(--pa-shadow-lg); border-color: var(--pa-frame); }
+
+/* ---- REALCE DE TEXTO EN CAJA (vende el estilo) --------------------- */
+.pa-mark {
+  background: rgba(205, 217, 239, 0.12);
+  border: 1px solid var(--pa-frame-soft);
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
+/* ---- DIVISOR DENTADO/PUNTEADO -------------------------------------- */
+.pa-divider { border: 0; border-top: 2px dashed var(--pa-frame-soft); margin: 16px 0; }
