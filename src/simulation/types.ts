@@ -102,6 +102,10 @@ export interface BattleResult {
   // Resource metrics
   totalChakraUsed: number;
 
+  // AP economy metrics (T-004): how the deckbuilder turn played out
+  totalApUsed: number;
+  totalCardsPlayed: number;
+
   // Skill tracking
   skillsUsed: Record<string, number>;
 
@@ -164,6 +168,11 @@ export interface AggregatedStats {
   averageChakraUsedPerBattle: number;
   totalChakraUsed: number;
   chakraEfficiency: number;  // damage per chakra
+
+  // AP economy metrics (T-004): models the deckbuilder turn economy
+  averageApUsedPerBattle: number;
+  averageCardsPlayedPerBattle: number;
+  averageCardsPerTurn: number;  // cards played / round, the per-turn AP throughput
 
   // Skill breakdown
   skillUsageCount: Record<string, number>;

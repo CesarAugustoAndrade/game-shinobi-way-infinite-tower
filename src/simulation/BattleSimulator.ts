@@ -20,6 +20,7 @@ import {
   CharacterStats,
   TerrainType,
   TerrainDefinition,
+  Posture,
 } from '../game/types';
 import {
   calculateDerivedStats,
@@ -31,6 +32,13 @@ import {
   getEnemyFullStats
 } from '../game/systems/StatSystem';
 import { SKILLS } from '../game/constants';
+import { getApCost } from '../game/constants/combatCards';
+import { buildDeck, drawNewTurnHand } from '../game/systems/DeckSystem';
+import {
+  postureDamageMod,
+  postureDefenseMod,
+  stanceShiftFromSkill,
+} from '../game/systems/PostureSystem';
 import {
   BattleResult,
   SimulationConfig,
@@ -41,7 +49,7 @@ import {
 } from './types';
 import { EnemyArchetype, generateSimEnemy } from './EnemyArchetypes';
 import { createBuildFromConfig } from './BuildGenerator';
-import { selectBestSkill } from './SkillSelectionAI';
+import { selectBestSkill, selectBestCard } from './SkillSelectionAI';
 import {
   generateId,
   applyMitigation as applyMitigationCalc,
@@ -230,6 +238,14 @@ export interface BattleContext {
   isFirstTurn: boolean;
   firstHitMultiplier: number;
   approachSucceeded: boolean;  // Track actual approach success
+  // T-004 AP economy (player only): the deckbuilder state mirrored from the real
+  // game (DeckSystem/PostureSystem). The enemy keeps its 1-action-per-turn AI.
+  posture: Posture;            // Active player posture (BALANCED = neutral default)
+  deck: Skill[];               // Draw pile (non-PASSIVE cards not in hand/discard)
+  hand: Skill[];               // Cards available to play this turn
+  discard: Skill[];            // Spent/recycled cards, reshuffled when the deck runs low
+  currentAp: number;           // Action Points remaining this turn
+  maxAp: number;               // Action Points granted each turn (speed-derived)
   logs: TurnLog[];
   metrics: {
     totalDamageDealt: number;
@@ -240,18 +256,52 @@ export interface BattleContext {
     evasions: number;
     gutsTriggered: number;
     chakraUsed: number;
+    apUsed: number;            // Total AP spent across the battle (player)
+    cardsPlayed: number;       // Total cards played across the battle (player)
     skillsUsed: Record<string, number>;
   };
   artifactGutsUsed: boolean;
 }
 
 /**
- * Execute a single player turn
+ * Resolve a drawn card to its live skill state in `ctx.player.skills`.
+ *
+ * The deck/hand/discard piles are snapshots taken when the deck was built, so a
+ * card's cooldown can be stale. Cooldown/usability is authoritative on
+ * `ctx.player.skills` (ticked down each round), so we always score and play the
+ * live object, matched by id. Falls back to the snapshot if not found.
+ */
+function liveSkill(ctx: BattleContext, card: Skill): Skill {
+  return ctx.player.skills.find(s => s.id === card.id) ?? card;
+}
+
+/**
+ * Execute a single player turn under the AP/card/posture economy (T-004).
+ *
+ * Mirrors the real game's PlayerTurnSystem flow:
+ *   1. Upkeep: restore the AP budget and deal a fresh, posture-weighted hand
+ *      (`drawNewTurnHand`); the previous hand recycles into the discard.
+ *   2. Action: play cards from the hand until AP is exhausted or no card in
+ *      hand is playable — replacing the legacy fixed 1 MAIN + 2 SIDE economy.
+ *   3. A played card may shift the player's stance for free (on play).
  */
 function executePlayerTurn(ctx: BattleContext): boolean {
   const { player, enemy, playerDerived, enemyDerived } = ctx;
 
-  // Check stun
+  // ── Upkeep: refresh AP and draw a new posture-weighted hand ──
+  ctx.currentAp = ctx.maxAp;
+  const draw = drawNewTurnHand(
+    ctx.deck,
+    ctx.discard,
+    ctx.hand,
+    ctx.posture,
+    LaunchProperties.HAND_SIZE
+  );
+  ctx.hand = draw.hand;
+  ctx.deck = draw.deck;
+  ctx.discard = draw.discard;
+
+  // Stun check (after the draw, matching the upkeep → action order).
   if (player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN)) {
     ctx.logs.push({
       turn: ctx.turn,
@@ -267,54 +317,74 @@ function executePlayerTurn(ctx: BattleContext): boolean {
     return false;
   }
 
-  // Select skill
-  const simPlayer = toSimCombatant(player, playerDerived);
-  const simEnemy = toSimCombatant(enemy, enemyDerived);
+  let actedAtLeastOnce = false;
 
-  const skill = selectBestSkill(
-    player.skills,
-    simPlayer,
-    playerDerived,
-    simEnemy,
-    enemyDerived,
-    ctx.isFirstTurn,
-    ctx.firstHitMultiplier
-  );
+  // ── Action: spend AP playing cards from the hand ──
+  while (ctx.currentAp > 0 && ctx.hand.length > 0) {
+    // Score against live skill state (cooldown/chakra current), then pick the
+    // best card affordable with the remaining AP.
+    const liveHand = ctx.hand.map(card => liveSkill(ctx, card));
+    const simPlayer = toSimCombatant(ctx.player, playerDerived);
+    const simEnemy = toSimCombatant(ctx.enemy, enemyDerived);
 
-  // Check resources
-  if (player.currentChakra < skill.chakraCost || player.currentHp <= skill.hpCost) {
-    // Find a skill we can afford
-    const affordableSkill = player.skills.find(s =>
-      s.currentCooldown === 0 &&
-      player.currentChakra >= s.chakraCost &&
-      player.currentHp > s.hpCost
+    const card = selectBestCard(
+      liveHand,
+      ctx.currentAp,
+      simPlayer,
+      playerDerived,
+      simEnemy,
+      enemyDerived,
+      ctx.isFirstTurn,
+      ctx.firstHitMultiplier
     );
 
-    // Fallback to basic attack or first available skill
-    const fallbackSkill = affordableSkill ||
-      player.skills.find(s => s.id === 'basic_atk') ||
-      player.skills[0];
+    // Nothing in hand is both affordable and usable → end the turn.
+    if (!card) break;
 
-    if (!fallbackSkill) {
-      // No skills available at all - skip turn
-      ctx.logs.push({
-        turn: ctx.turn,
-        actor: 'player',
-        action: 'No skills available',
-        damage: 0,
-        isCrit: false,
-        isMiss: false,
-        isEvaded: false,
-        playerHp: player.currentHp,
-        enemyHp: ctx.enemy.currentHp
-      });
-      return false;
+    // Spend AP and move the card from hand to discard before resolving it.
+    const apCost = getApCost(card);
+    ctx.currentAp -= apCost;
+    ctx.metrics.apUsed += apCost;
+    ctx.metrics.cardsPlayed += 1;
+
+    const handIndex = ctx.hand.findIndex(c => c.id === card.id);
+    if (handIndex >= 0) {
+      ctx.hand = [...ctx.hand.slice(0, handIndex), ...ctx.hand.slice(handIndex + 1)];
+    }
+    ctx.discard = [...ctx.discard, card];
+
+    executeSkill(ctx, card, true);
+    actedAtLeastOnce = true;
+
+    // The opening ambush bonus applies to the first card only (mirrors useCombat).
+    ctx.isFirstTurn = false;
+
+    // A played card may shift the player's stance for free (on play).
+    const shift = stanceShiftFromSkill(card);
+    if (shift) {
+      ctx.posture = shift;
     }
 
-    return executeSkill(ctx, fallbackSkill, true);
+    // Stop early if the fight ended (enemy dead, or reflection/self-cost killed us).
+    if (ctx.enemy.currentHp <= 0 || ctx.player.currentHp <= 0) break;
   }
 
-  return executeSkill(ctx, skill, true);
+  if (!actedAtLeastOnce) {
+    // No playable card this turn (e.g. empty hand or all on cooldown/no chakra).
+    ctx.logs.push({
+      turn: ctx.turn,
+      actor: 'player',
+      action: 'No playable cards',
+      damage: 0,
+      isCrit: false,
+      isMiss: false,
+      isEvaded: false,
+      playerHp: ctx.player.currentHp,
+      enemyHp: ctx.enemy.currentHp
+    });
+  }
+
+  return actedAtLeastOnce;
 }
 
 /**
@@ -408,6 +478,13 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
     damage = Math.floor(damage * ctx.firstHitMultiplier);
   }
 
+  // T-004: light posture modifier on the player's OUTGOING damage. Mirrors
+  // PlayerTurnSystem.useSkill (applied before mitigation/execute). Base math
+  // (calculateDamage) stays frozen — this is an external posture multiplier.
+  if (isPlayer) {
+    damage = Math.floor(damage * postureDamageMod(ctx.posture));
+  }
+
   // Apply execute threshold for player
   if (isPlayer) {
     const enemyMaxHp = ctx.enemyStats.derived.maxHp;
@@ -420,6 +497,15 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
   const defenderName = 'name' in defender ? defender.name : defender.clan;
   const mitigation = applyMitigation(defender.activeBuffs, damage, defenderName);
   damage = mitigation.finalDamage;
+
+  // T-004: posture scales the post-mitigation damage the PLAYER actually takes
+  // from the enemy's direct attack (mirrors EnemyTurnSystem). Applied after the
+  // frozen base mitigation as an external posture multiplier. DoT and terrain
+  // hazards stay ×1 in both the sim and the real game (F2 scope), so DEFENSIVE
+  // is a symmetric trade-off (deal ×0.85 / take ×0.85) rather than strictly worse.
+  if (!isPlayer) {
+    damage = Math.floor(damage * postureDefenseMod(ctx.posture));
+  }
 
   if (isPlayer) {
     ctx.enemy.activeBuffs = mitigation.updatedBuffs;
@@ -683,6 +769,10 @@ export function simulateBattle(
   player.activeBuffs = [...player.activeBuffs, ...combatStartResult.player.activeBuffs];
   enemy.activeBuffs = [...enemy.activeBuffs, ...combatStartResult.enemy.activeBuffs];
 
+  // T-004: build the player's draw pile (non-PASSIVE cards) and open in the
+  // neutral BALANCED posture, mirroring the real game's combat opening.
+  const deck = buildDeck(player.skills);
+
   // Initialize battle context
   const ctx: BattleContext = {
     player: { ...player },
@@ -697,6 +787,13 @@ export function simulateBattle(
     // Only apply first hit multiplier if approach succeeded
     firstHitMultiplier: (approach === ApproachType.STEALTH_AMBUSH && approachSucceeded) ? 2.5 : 1.0,
     approachSucceeded,
+    // AP/card/posture economy (player). Hand is dealt on the first player turn.
+    posture: Posture.BALANCED,
+    deck,
+    hand: [],
+    discard: [],
+    currentAp: 0,
+    maxAp: playerStats.derived.actionPointsPerTurn,
     logs: [],
     metrics: {
       totalDamageDealt: 0,
@@ -707,6 +804,8 @@ export function simulateBattle(
       evasions: 0,
       gutsTriggered: 0,
       chakraUsed: 0,
+      apUsed: 0,
+      cardsPlayed: 0,
       skillsUsed: {}
     },
     artifactGutsUsed: false
@@ -870,7 +969,9 @@ export function simulateBattle(
       }
     }
 
-    ctx.isFirstTurn = false;
+    // Note: ctx.isFirstTurn is cleared after the player's first card is played
+    // (in executePlayerTurn), mirroring useCombat — so the opening ambush bonus
+    // lands on the first card only, even with multiple cards per turn.
   }
 
   // Determine winner
@@ -890,6 +991,8 @@ export function simulateBattle(
     playerFinalHp: ctx.player.currentHp,
     enemyFinalHp: ctx.enemy.currentHp,
     totalChakraUsed: ctx.metrics.chakraUsed,
+    totalApUsed: ctx.metrics.apUsed,
+    totalCardsPlayed: ctx.metrics.cardsPlayed,
     skillsUsed: ctx.metrics.skillsUsed,
     approachUsed: approach,
     approachSucceeded: ctx.approachSucceeded

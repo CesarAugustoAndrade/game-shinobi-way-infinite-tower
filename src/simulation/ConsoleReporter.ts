@@ -113,6 +113,11 @@ export function printMatchupResult(stats: AggregatedStats): void {
   console.log(`  Used/Battle: ${formatNumber(stats.averageChakraUsedPerBattle, 0)}`);
   console.log(`  Efficiency:  ${formatNumber(stats.chakraEfficiency, 2)} dmg/chakra`);
 
+  // AP Economy (T-004): cards/AP played per deckbuilder turn
+  printSection('AP Economy');
+  console.log(`  AP Used/Battle:    ${formatNumber(stats.averageApUsedPerBattle, 1)}`);
+  console.log(`  Cards Played/Turn: ${formatNumber(stats.averageCardsPerTurn, 2)}`);
+
   // Skill Usage
   if (Object.keys(stats.skillUsageCount).length > 0) {
     printSection('Skill Usage');

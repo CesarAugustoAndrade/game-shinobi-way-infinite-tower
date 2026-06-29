@@ -14,6 +14,7 @@ import {
 } from '../game/types';
 import { calculateDamage } from '../game/systems/StatSystem';
 import { getElementEffectiveness } from '../game/constants';
+import { getApCost } from '../game/constants/combatCards';
 import { SimCombatant } from './types';
 
 // ============================================================================
@@ -227,6 +228,52 @@ export function selectBestSkill(
 
   // Fallback to first skill (should be basic attack)
   return skills[0];
+}
+
+/**
+ * Select the best card to play from the current hand under the AP economy
+ * (T-004). Only cards whose AP cost fits the remaining budget are considered,
+ * mirroring the real game's PlayerTurnSystem where cards are played out of a
+ * drawn hand — not the full skill set — until Action Points run out.
+ *
+ * Returns `null` when no card in hand is both affordable (AP) and usable
+ * (chakra / HP / cooldown), which is the signal for the caller to end the turn.
+ *
+ * @param hand - The cards drawn for this turn (resolved to live skill state).
+ * @param availableAp - Action Points remaining this turn.
+ * @returns The chosen card, or `null` if nothing in hand is playable now.
+ */
+export function selectBestCard(
+  hand: Skill[],
+  availableAp: number,
+  attacker: SimCombatant,
+  attackerDerived: DerivedStats,
+  defender: SimCombatant,
+  defenderDerived: DerivedStats,
+  isFirstTurn: boolean = false,
+  firstHitMultiplier: number = 1.0
+): Skill | null {
+  // Only cards we can pay the AP for are candidates this play.
+  const affordable = hand.filter(card => getApCost(card) <= availableAp);
+  if (affordable.length === 0) {
+    return null;
+  }
+
+  const scores = affordable
+    .map(card =>
+      scoreSkill(card, attacker, attackerDerived, defender, defenderDerived, isFirstTurn, firstHitMultiplier)
+    )
+    .sort((a, b) => b.score - a.score);
+
+  // Best affordable card that is also otherwise usable (chakra/HP/cooldown).
+  for (const scored of scores) {
+    if (scored.score > SCORING_WEIGHTS.UNAVAILABLE_PENALTY) {
+      return scored.skill;
+    }
+  }
+
+  // Every affordable card is unusable right now (no chakra / on cooldown).
+  return null;
 }
 
 /**

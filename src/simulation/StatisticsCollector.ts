@@ -58,6 +58,11 @@ export function aggregateResults(
   // Resource metrics
   const totalChakraUsed = sum(results.map(r => r.totalChakraUsed));
 
+  // AP economy metrics (T-004)
+  const totalApUsed = sum(results.map(r => r.totalApUsed));
+  const totalCardsPlayed = sum(results.map(r => r.totalCardsPlayed));
+  const totalTurns = sum(allTurns);
+
   // Skill usage
   const skillUsageCount: Record<string, number> = {};
   const skillWinContribution: Record<string, number> = {};
@@ -120,6 +125,11 @@ export function aggregateResults(
     totalChakraUsed,
     averageChakraUsedPerBattle: totalChakraUsed / totalBattles,
     chakraEfficiency: totalChakraUsed > 0 ? totalDamageDealt / totalChakraUsed : totalDamageDealt,
+
+    // AP economy metrics (T-004)
+    averageApUsedPerBattle: totalApUsed / totalBattles,
+    averageCardsPlayedPerBattle: totalCardsPlayed / totalBattles,
+    averageCardsPerTurn: totalTurns > 0 ? totalCardsPlayed / totalTurns : 0,
 
     // Skill breakdown
     skillUsageCount,
@@ -212,6 +222,9 @@ function createEmptyStats(
     totalChakraUsed: 0,
     averageChakraUsedPerBattle: 0,
     chakraEfficiency: 0,
+    averageApUsedPerBattle: 0,
+    averageCardsPlayedPerBattle: 0,
+    averageCardsPerTurn: 0,
     skillUsageCount: {},
     skillWinContribution: {}
   };
