@@ -263,6 +263,12 @@
   color: var(--sw-risk-safe-light);
 }
 
+/* Action Point cost reads gold so it stands apart from chakra-blue (T-004) */
+.skill-card__cost-badge--ap {
+  border-color: var(--sw-accent-tertiary);
+  color: var(--sw-accent-tertiary);
+}
+
 /* ===========================================
    Damage Display
    =========================================== */

@@ -67,6 +67,16 @@ export { useSkill, processUpkeep, applyApproachEffects } from './PlayerTurnSyste
 // Re-export from EnemyTurnSystem
 export { processEnemyTurn } from './EnemyTurnSystem';
 
+// Re-export the deckbuilder/posture economy (T-004)
+export { buildDeck, drawHand, drawNewTurnHand, reshuffle } from './DeckSystem';
+export {
+  postureDamageMod,
+  postureDefenseMod,
+  stanceShiftFromSkill,
+  describePosture,
+} from './PostureSystem';
+export type { PostureProfile } from './PostureSystem';
+
 // ============================================================================
 // COMBAT STATE INITIALIZATION
 // ============================================================================

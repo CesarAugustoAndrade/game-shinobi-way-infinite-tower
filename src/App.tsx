@@ -20,15 +20,9 @@ import {
 import { generateEnemy } from './game/systems/EnemySystem';
 
 import {
-  CombatState,
-  createCombatState,
-  applyApproachEffects
-} from './game/systems/CombatWorkflowSystem';
-import {
   executeApproach,
   applyApproachCosts,
-  applyEnemyHpReduction,
-  getCombatModifiers
+  applyEnemyHpReduction
 } from './game/systems/ApproachSystem';
 import { TERRAIN_DEFINITIONS } from './game/constants/terrain';
 import {
@@ -289,14 +283,19 @@ const App: React.FC = () => {
     enemy,
     enemyStats,
     turnState,
-    turnPhase,
     combatRef,
     setEnemy,
     setTurnState,
     useSkill,
+    startCombat,
     autoCombatEnabled,
     setAutoCombatEnabled,
     autoPassTimeRemaining,
+    currentAp,
+    maxAp,
+    hand,
+    posture,
+    changePosture,
   } = useCombat({
     player,
     playerStats,
@@ -629,27 +628,16 @@ const App: React.FC = () => {
       addLog(`Your approach dealt ${Math.floor(targetEnemy.currentHp * result.enemyHpReduction)} damage!`, 'combat');
     }
 
-    // Apply approach effects to both combatants
-    const modifiers = getCombatModifiers(result);
-    const { player: preparedPlayer, enemy: preparedEnemy, logs: effectLogs } = applyApproachEffects(
-      playerAfterCosts,
-      combatEnemy,
-      modifiers
-    );
-    effectLogs.forEach(log => addLog(log, 'info'));
-
-    // Create combat state with modifiers
-    const newCombatState = createCombatState(modifiers, terrain);
-    setCombatState(newCombatState);
-
-    // Set up combat
+    // Hand off to the single combat-start entry point. startCombat applies the
+    // approach effects + on-combat-start passives and — critically — seeds the
+    // T-004 deck from the player's real skills, draws the opening hand, fills the
+    // AP budget, and skips the turn-1 upkeep so the opening hand survives the
+    // first render. The previous inline setup created combat state with an empty
+    // deck/hand (it never called buildDeck/drawHand), so combat opened with 0
+    // cards once the upkeep redrew from the empty pile.
     logStateChange('EXPLORE', 'COMBAT', 'approach selected - entering combat');
-    setPlayer(preparedPlayer);
-    setEnemy(preparedEnemy);
-    setTurnState('PLAYER');
     setShowApproachSelector(false);
-    setGameState(GameState.COMBAT);
-    addLog(`Engaged: ${combatEnemy.name}`, 'danger');
+    startCombat(combatEnemy, result, playerAfterCosts, terrain);
   };
 
   // Branching exploration handlers moved to useExploration hook
@@ -681,7 +669,7 @@ const App: React.FC = () => {
       setPlayer, setGameState, setMerchantItems, setMerchantDiscount, setTrainingData,
       setScrollDiscoveryData, setEliteChallengeData, setBranchingFloor, setLocationFloor,
       setSelectedBranchingRoom, setDroppedItems, setDroppedSkill, setActiveEvent,
-      setEnemy, setTurnState, setPendingArtifact, setShowApproachSelector, setCurrentIntel,
+      setPendingArtifact, setShowApproachSelector, setCurrentIntel,
       setEventOutcome, setIsProcessingLoot
     },
     {
@@ -689,7 +677,8 @@ const App: React.FC = () => {
       checkLevelUp,
       handleCombatVictory,
       returnToMap,
-      eventOutcome
+      eventOutcome,
+      startCombat
     }
   );
 
@@ -816,7 +805,11 @@ const App: React.FC = () => {
                 enemy={enemy}
                 enemyStats={enemyStats}
                 turnState={turnState}
-                turnPhase={turnPhase}
+                hand={hand}
+                currentAp={currentAp}
+                maxAp={maxAp}
+                posture={posture}
+                onChangePosture={changePosture}
                 onUseSkill={useSkill}
                 onPassTurn={() => {
                   addLog("You focus on defense and wait.", 'info');

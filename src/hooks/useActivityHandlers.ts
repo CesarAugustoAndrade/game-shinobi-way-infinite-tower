@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import {
   Player, Item, Skill, GameState, BranchingRoom, BranchingFloor,
   CharacterStats, PrimaryStat, TrainingIntensity, GameEvent, EventChoice,
-  Enemy, Region, LogEntry, TreasureQuality
+  Enemy, Region, LogEntry, TreasureQuality, ApproachType
 } from '../game/types';
 import {
   completeActivity, getCurrentRoom
@@ -17,6 +17,8 @@ import { generateEnemy } from '../game/systems/EnemySystem';
 import { generateLoot } from '../game/systems/LootSystem';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { canLearnSkill } from '../game/systems/StatSystem';
+import { ApproachResult } from '../game/systems/ApproachSystem';
+import { TERRAIN_DEFINITIONS } from '../game/constants/terrain';
 import { MERCHANT } from '../game/config';
 import { FeatureFlags, LaunchProperties } from '../config/featureFlags';
 import { logActivityComplete, logStateChange, logExplorationCheckpoint, logModalOpen, logModalClose, logIntelGain } from '../game/utils/explorationDebug';
@@ -56,8 +58,6 @@ export interface ActivitySetters {
   setDroppedItems: React.Dispatch<React.SetStateAction<Item[]>>;
   setDroppedSkill: React.Dispatch<React.SetStateAction<Skill | null>>;
   setActiveEvent: React.Dispatch<React.SetStateAction<GameEvent | null>>;
-  setEnemy: (enemy: Enemy | null) => void;
-  setTurnState: React.Dispatch<React.SetStateAction<any>>;
   setPendingArtifact: React.Dispatch<React.SetStateAction<Item | null>>;
   setShowApproachSelector: React.Dispatch<React.SetStateAction<boolean>>;
   setCurrentIntel: React.Dispatch<React.SetStateAction<number>>;
@@ -71,6 +71,18 @@ export interface ActivityDeps {
   handleCombatVictory: (defeatedEnemy: Enemy, combatStateAtVictory: any) => void;
   returnToMap: () => void;
   eventOutcome: any;
+  /**
+   * Single combat-start entry point (from useCombat). Seeds the T-004 deck,
+   * draws the opening hand, fills the AP budget and skips the turn-1 upkeep.
+   * Event-triggered combat routes through this so it opens with a real hand/AP
+   * instead of an empty deck.
+   */
+  startCombat: (
+    newEnemy: Enemy,
+    result: ApproachResult,
+    playerAfterCosts: Player,
+    terrain: any
+  ) => void;
 }
 
 export function useActivityHandlers(
@@ -89,11 +101,11 @@ export function useActivityHandlers(
     setPlayer, setGameState, setMerchantItems, setMerchantDiscount, setTrainingData,
     setScrollDiscoveryData, setEliteChallengeData, setBranchingFloor, setLocationFloor,
     setSelectedBranchingRoom, setDroppedItems, setDroppedSkill, setActiveEvent,
-    setEnemy, setTurnState, setPendingArtifact, setShowApproachSelector, setCurrentIntel,
+    setPendingArtifact, setShowApproachSelector, setCurrentIntel,
     setEventOutcome, setIsProcessingLoot
   } = setters;
 
-  const { addLog, checkLevelUp, handleCombatVictory, returnToMap, eventOutcome } = deps;
+  const { addLog, checkLevelUp, handleCombatVictory, returnToMap, eventOutcome, startCombat } = deps;
 
   const buyItem = useCallback((item: Item) => {
     if (!player || isProcessingLoot) return;
@@ -444,9 +456,14 @@ export function useActivityHandlers(
       return;
     }
 
+    // Track the player state that reflects this choice's outcome (HP/chakra/
+    // level changes). Event-triggered combat below hands this to startCombat so
+    // the fight begins from the post-event player, not the stale snapshot.
+    let postEventPlayer = player;
     if (result.player) {
       const leveledPlayer = checkLevelUp(result.player);
       setPlayer(leveledPlayer.player);
+      postEventPlayer = leveledPlayer.player;
     }
 
     const logType = result.outcome?.effects.logType || (
@@ -494,10 +511,32 @@ export function useActivityHandlers(
       }
 
       if (FeatureFlags.ENABLE_MANUAL_COMBAT) {
-        setEnemy(combatEnemy);
-        setTurnState('PLAYER');
+        // Event combat has no pre-fight approach, so hand a neutral FRONTAL_ASSAULT
+        // result (no buffs/debuffs, 1.0 multipliers) to the single combat-start
+        // entry point. startCombat seeds the T-004 deck from the player's skills,
+        // draws the opening hand and fills AP — the previous inline setEnemy/
+        // setGameState path left combatState null, so the fight opened with AP 0/0
+        // and an empty hand.
+        const neutralResult: ApproachResult = {
+          approach: ApproachType.FRONTAL_ASSAULT,
+          success: true,
+          successChance: 100,
+          roll: 0,
+          skipCombat: false,
+          guaranteedFirst: false,
+          initiativeBonus: 0,
+          firstHitMultiplier: 1.0,
+          enemyHpReduction: 0,
+          playerBuffs: [],
+          enemyDebuffs: [],
+          chakraCost: 0,
+          hpCost: 0,
+          xpMultiplier: 1.0,
+          description: '',
+        };
+        const combatTerrain = currentRoom ? TERRAIN_DEFINITIONS[currentRoom.terrain] : undefined;
         setActiveEvent(null);
-        setGameState(GameState.COMBAT);
+        startCombat(combatEnemy, neutralResult, postEventPlayer, combatTerrain);
       } else {
         addLog(`Engaging ${combatEnemy.name} from event...`, 'info');
         const simResult = simulateGameCombat(player, playerStats, combatEnemy, undefined, currentRoom?.terrain);
@@ -538,7 +577,7 @@ export function useActivityHandlers(
     } else {
       setGameState(GameState.EXPLORE);
     }
-  }, [player, playerStats, currentDangerLevel, difficulty, region, locationFloor, branchingFloor, setPlayer, setLocationFloor, setBranchingFloor, setEnemy, setTurnState, setActiveEvent, setGameState, setEventOutcome, addLog, checkLevelUp, handleCombatVictory]);
+  }, [player, playerStats, currentDangerLevel, difficulty, region, locationFloor, branchingFloor, setPlayer, setLocationFloor, setBranchingFloor, setActiveEvent, setGameState, setEventOutcome, addLog, checkLevelUp, handleCombatVictory, startCombat]);
 
   const handleEventOutcomeClose = useCallback(() => {
     logModalClose('EventOutcomeModal');

@@ -10,8 +10,10 @@ interface SkillCardProps {
   onClick: () => void;
   /** Whether to show simplified passive display (non-interactive) */
   showAsPassive?: boolean;
-  /** Keyboard shortcut key to display (e.g., "1", "2", "3", "4") */
+  /** Keyboard shortcut key to display (e.g., "Z", "X", "C", "V") */
   shortcutKey?: string;
+  /** Action Point cost to play this card (T-004). */
+  apCost?: number;
 }
 
 export const SkillCard: React.FC<SkillCardProps> = ({
@@ -21,7 +23,8 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   canUse,
   onClick,
   showAsPassive = false,
-  shortcutKey
+  shortcutKey,
+  apCost
 }) => {
   const actionType = skill.actionType || ActionType.MAIN;
   const isPassive = actionType === ActionType.PASSIVE || showAsPassive;
@@ -147,6 +150,15 @@ export const SkillCard: React.FC<SkillCardProps> = ({
             </div>
           </div>
           <div className="skill-card__badges">
+            {/* Action Point Cost Badge (T-004) */}
+            {!isPassive && apCost !== undefined && (
+              <div
+                className="skill-card__cost-badge skill-card__cost-badge--ap"
+                aria-label={`Costs ${apCost} action points`}
+              >
+                {apCost} AP
+              </div>
+            )}
             {/* Chakra Cost Badge */}
             {!isPassive && (
               <div

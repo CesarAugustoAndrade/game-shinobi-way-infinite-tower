@@ -15,7 +15,7 @@ _(sin reglas aún)_
 
 ## SISTEMA
 
-_(sin reglas aún)_
+- 2026-06-29 — Módulos de lógica de combate PUROS nuevos (combatCards en F1, DeckSystem/PostureSystem en F2) capan la lente SISTEMA <85 por "edge cases sin test", DOS veces. RULE: al planear un topic que añade lógica de combate pura load-bearing, **proponer proactivamente su test unitario al humano** (CLAUDE.md prohíbe tests sin pedir; el usuario los autoriza para lógica de combate clave — ya dijo sí a combatCards). Incluir el test en el mismo intento del maker, no como gap posterior. (candidate: que el maker, al crear un sistema puro en `game/systems`, incluya su `__tests__/<sistema>.test.ts` salvo veto explícito.)
 
 ## PRESENTACION
 

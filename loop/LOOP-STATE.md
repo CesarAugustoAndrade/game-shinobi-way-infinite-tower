@@ -10,8 +10,8 @@
 - run: 2026-06-29-A
 - mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: T-004 (F1 passed; PAUSADO para checkpoint humano antes de F2 — ver plan.md)
-- updatedAt: 2026-06-29T15:34:44Z
+- activeTopic: T-004 (F2 passed; PAUSADO para checkpoint humano antes de F4 — ver plan.md)
+- updatedAt: 2026-06-29T18:04:49Z
 
 ## Ledger
 
@@ -23,6 +23,9 @@
 | T-002 | 2 | 93 | 90 | 88 | 95 | PASS | passed | 2026-06-29T13:50:24Z | logs/T-002.md#a2 |
 | T-003 | 1 | 90 | 92 | 91 | 96 | PASS | passed | 2026-06-29T14:14:43Z | logs/T-003.md#a1 |
 | T-004·F1 | 1 | 91 | 88 | 92 | 92 | PASS | passed | 2026-06-29T15:34:44Z | logs/T-004.md#f1a1 |
+| T-004·F2 | 1 | — | FAIL | — | — | FAIL | iterating | 2026-06-29T17:03:54Z | logs/T-004.md#f2a1 |
+| T-004·F2 | 2 | 89 | 82 | 85 | 88 | FAIL | iterating | 2026-06-29T17:27:47Z | logs/T-004.md#f2a2 |
+| T-004·F2 | 3 | 93 | 90 | 85 | 88 | PASS | passed | 2026-06-29T18:04:49Z | logs/T-004.md#f2a3 |
 
 <!--
 Leyenda:

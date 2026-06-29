@@ -8,6 +8,7 @@ import {
   PrimaryStat,
   ActionType,
   EffectType,
+  Posture,
   Clan
 } from '../types';
 
@@ -187,6 +188,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.BASIC,
     description: 'Disrupts chakra flow to break illusions. Boosts Genjutsu Resistance.',
     actionType: ActionType.SIDE,  // Dispel + buff
+    stanceShift: Posture.BALANCED,  // releasing the technique re-centers your stance
     chakraCost: 10,
     hpCost: 0,
     cooldown: 2,
@@ -228,6 +230,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.BASIC,
     description: 'A powerful flying kick! Guaranteed first strike with high crit chance.',
     actionType: ActionType.MAIN,
+    stanceShift: Posture.AGGRESSIVE,  // committing rush drops you into an aggressive stance
     chakraCost: 0,
     hpCost: 0,
     cooldown: 3,
@@ -380,6 +383,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.BASIC,
     description: 'Regulate breathing to recover chakra.',
     actionType: ActionType.SIDE,
+    stanceShift: Posture.DEFENSIVE,  // centering your breathing eases you into a guard
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -693,6 +697,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.BASIC,
     description: 'Prepare for impact. Gain +30% defense until next turn.',
     actionType: ActionType.SIDE,
+    stanceShift: Posture.DEFENSIVE,  // settling in to guard shifts you defensive
     chakraCost: 0,
     hpCost: 0,
     cooldown: 3,
@@ -1027,6 +1032,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.ADVANCED,
     description: 'A swirling sphere of pure wind chakra that grinds into the target. PIERCING damage ignores flat defense.',
     actionType: ActionType.MAIN,
+    stanceShift: Posture.AGGRESSIVE,  // an all-in signature strike commits you to the offensive
     chakraCost: 35,
     hpCost: 0,
     cooldown: 3,
@@ -1053,6 +1059,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.ADVANCED,
     description: 'A massive, searing projectile of flame. Leaves the target burning.',
     actionType: ActionType.MAIN,
+    stanceShift: Posture.AGGRESSIVE,  // unleashing a fire nuke pushes you onto the attack
     chakraCost: 25,
     hpCost: 0,
     cooldown: 3,
@@ -1080,6 +1087,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.HIDDEN,
     description: 'Expels chakra while spinning to repel attacks. Reflects damage.',
     actionType: ActionType.SIDE,  // Defensive SIDE action
+    stanceShift: Posture.DEFENSIVE,  // the spinning guard locks you into a defensive stance
     chakraCost: 25,
     hpCost: 0,
     cooldown: 4,

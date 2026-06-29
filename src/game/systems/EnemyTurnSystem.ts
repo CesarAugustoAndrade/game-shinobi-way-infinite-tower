@@ -49,6 +49,7 @@ import {
   shouldCounterAttack,
   checkGutsPassive,
 } from './EquipmentPassiveSystem';
+import { postureDefenseMod } from './PostureSystem';
 import { chance } from '../utils/rng';
 import type { CombatState, EnemyTurnResult } from './combat-types';
 import { LaunchProperties } from '../../config/featureFlags';
@@ -403,15 +404,23 @@ export function executeEnemyAction(
     // Apply enemy damage multiplier from launch properties
     const modifiedDamage = Math.floor(damageResult.finalDamage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
 
-    // Apply mitigation
+    // Apply mitigation (base math — frozen; calculateDamage/applyMitigation untouched)
     const mitigation = applyMitigation(player.activeBuffs, modifiedDamage, 'You');
     updatedPlayer.activeBuffs = mitigation.updatedBuffs;
+
+    // Posture scales the post-mitigation damage the player actually takes, giving
+    // DEFENSIVE a real upside (T-004): inflict ×0.85 / take ×0.85 (tanky),
+    // AGGRESSIVE inflict ×1.15 / take ×1.15 (glass cannon), BALANCED neutral.
+    // Applied AFTER base mitigation/shields as an external posture modifier; the
+    // outgoing side is scaled symmetrically in PlayerTurnSystem via postureDamageMod.
+    const postureMod = combatState ? postureDefenseMod(combatState.posture) : 1;
+    const incomingDamage = Math.floor(mitigation.finalDamage * postureMod);
 
     // Check lethal damage
     const artifactGuts = checkGutsPassive(player);
     const lethalCheck = checkLethalDamage(
       updatedPlayer.currentHp,
-      mitigation.finalDamage,
+      incomingDamage,
       playerStats.derived.gutsChance,
       updatedGutsContext,
       artifactGuts,
@@ -424,7 +433,7 @@ export function executeEnemyAction(
     updatedGutsContext.artifactTriggered = lethalCheck.artifactGutsTriggered;
 
     // Build log message
-    let logMsg = `${enemy.name} uses ${selectedSkill.name} for ${mitigation.finalDamage} damage`;
+    let logMsg = `${enemy.name} uses ${selectedSkill.name} for ${incomingDamage} damage`;
     if (mitigation.messages.length > 0) {
       logMsg += ` [${mitigation.messages.join(', ')}]`;
     }

@@ -37,6 +37,7 @@ import {
   Buff,
   CharacterStats,
   ActionType,
+  Posture,
 } from '../types';
 import {
   calculateDamage,
@@ -55,6 +56,9 @@ import {
   processPassivesOnTurnStart,
   checkExecuteThreshold,
 } from './EquipmentPassiveSystem';
+import { getApCost } from '../constants/combatCards';
+import { postureDamageMod, stanceShiftFromSkill } from './PostureSystem';
+import { drawNewTurnHand } from './DeckSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
 
 // ============================================================================
@@ -104,15 +108,19 @@ export function applyApproachEffects(
  * - Auto-deactivates toggles if player can't afford upkeep
  * - Applies passive skill regeneration bonuses
  * - Applies artifact turn-start passives (regen, chakra restore)
+ * - T-004: restores the Action Point budget and deals a fresh, posture-weighted
+ *   hand for the new turn (the previous hand is recycled into the discard).
  *
  * @param player - Current player state
  * @param playerStats - Calculated player stats
+ * @param combatState - Current combat state (deck/discard/hand/posture)
  * @param enemy - Current enemy (optional, for artifact passives)
- * @returns Updated player state and log messages
+ * @returns Updated player state, logs and the new-turn AP/hand economy
  */
 export function processUpkeep(
   player: Player,
   playerStats: CharacterStats,
+  combatState: CombatState,
   enemy?: Enemy
 ): UpkeepResult {
   let updatedPlayer = { ...player };
@@ -193,10 +201,26 @@ export function processUpkeep(
     logs.push(...turnStartResult.logs);
   }
 
+  // T-004: restore the AP budget and deal a fresh, posture-weighted hand. The
+  // previous hand (whatever was left unplayed) recycles into the discard pile.
+  const maxAp = playerStats.derived.actionPointsPerTurn;
+  const { hand, deck, discard } = drawNewTurnHand(
+    combatState.deck,
+    combatState.discard,
+    combatState.hand,
+    combatState.posture,
+    LaunchProperties.HAND_SIZE
+  );
+
   return {
     player: updatedPlayer,
     logs,
-    togglesDeactivated
+    togglesDeactivated,
+    currentAp: maxAp,
+    maxAp,
+    hand,
+    deck,
+    discard,
   };
 }
 
@@ -251,7 +275,10 @@ export function useSkill(
     enemyName: enemy.name
   });
 
-  // Resource check
+  // T-004: AP cost to play this card (explicit Skill.apCost, else ActionType default).
+  const apCost = getApCost(skill);
+
+  // Resource check (chakra/HP and — when in the AP economy — Action Points).
   if (player.currentChakra < skill.chakraCost || player.currentHp <= skill.hpCost) {
     return {
       damageDealt: 0,
@@ -262,7 +289,23 @@ export function useSkill(
       newPlayerBuffs: player.activeBuffs,
       logMessage: "Insufficient Chakra or HP!",
       logType: 'danger',
-      enemyDefeated: false
+      enemyDefeated: false,
+      apCost: 0
+    };
+  }
+
+  if (combatState && combatState.currentAp < apCost) {
+    return {
+      damageDealt: 0,
+      newEnemyHp: enemy.currentHp,
+      newPlayerHp: player.currentHp,
+      newPlayerChakra: player.currentChakra,
+      newEnemyBuffs: enemy.activeBuffs,
+      newPlayerBuffs: player.activeBuffs,
+      logMessage: "Not enough Action Points!",
+      logType: 'danger',
+      enemyDefeated: false,
+      apCost: 0
     };
   }
 
@@ -279,9 +322,13 @@ export function useSkill(
       newPlayerBuffs: player.activeBuffs,
       logMessage: "You are stunned!",
       logType: 'danger',
-      enemyDefeated: false
+      enemyDefeated: false,
+      apCost: 0
     };
   }
+
+  // Active posture (defaults to BALANCED → neutral 1.0× when no combat state).
+  const posture: Posture = combatState?.posture ?? Posture.BALANCED;
 
   // Execute attack
   let newPlayerHp = player.currentHp - skill.hpCost;
@@ -329,6 +376,9 @@ export function useSkill(
 
     // Apply player damage multiplier from launch properties
     modifiedDamage = Math.floor(modifiedDamage * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
+
+    // T-004: light posture modifier on outgoing damage (base math untouched).
+    modifiedDamage = Math.floor(modifiedDamage * postureDamageMod(posture));
 
     // Apply Mitigation Logic
     const mitigation = applyMitigation(enemy.activeBuffs, modifiedDamage, enemy.name);
@@ -429,6 +479,9 @@ export function useSkill(
   // Update cooldowns
   const newSkills = player.skills.map(s => s.id === skill.id ? { ...s, currentCooldown: s.cooldown + 1 } : s);
 
+  // T-004: playing this card may shift the player's stance (free, on play).
+  const newPosture = stanceShiftFromSkill(skill);
+
   const result: CombatResult = {
     damageDealt: finalDamageToEnemy,
     newEnemyHp,
@@ -440,7 +493,9 @@ export function useSkill(
     logType: damageResult.isMiss || damageResult.isEvaded ? 'info' : 'combat',
     skillsUpdate: newSkills,
     enemyDefeated: newEnemyHp <= 0,
-    playerDefeated: newPlayerHp <= 0
+    playerDefeated: newPlayerHp <= 0,
+    apCost,
+    newPosture
   };
 
   logFlowCheckpoint('useSkill END', {

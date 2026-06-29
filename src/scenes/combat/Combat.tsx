@@ -8,7 +8,7 @@ import {
   CharacterStats,
   Rarity,
   ActionType,
-  TurnPhaseState,
+  Posture,
 } from '../../game/types';
 import StatBar from '../../components/shared/StatBar';
 import Tooltip from '../../components/shared/Tooltip';
@@ -16,7 +16,9 @@ import { SkillCard } from '../../components/combat/SkillCard';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
 import PlayerHUD from '../../components/character/PlayerHUD';
 import FloatingText, { FloatingTextItem, FloatingTextType } from '../../components/combat/FloatingText';
-import { FeatureFlags } from '../../config/featureFlags';
+import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
+import { getApCost } from '../../game/constants/combatCards';
+import { describePosture } from '../../game/systems/PostureSystem';
 import { Hourglass, Zap, ZapOff } from 'lucide-react';
 import { calculateDamage, formatPercent } from '../../game/systems/StatSystem';
 import { getElementEffectiveness } from '../../game/constants';
@@ -51,7 +53,16 @@ interface CombatProps {
   enemy: Enemy;
   enemyStats: CharacterStats;
   turnState: 'PLAYER' | 'ENEMY_TURN';
-  turnPhase: TurnPhaseState;
+  /** Cards available to play this turn (T-004 deckbuilder hand). */
+  hand: Skill[];
+  /** Action Points remaining this turn. */
+  currentAp: number;
+  /** Action Point budget for the turn. */
+  maxAp: number;
+  /** Active combat posture. */
+  posture: Posture;
+  /** Switch the active posture (costs AP). */
+  onChangePosture: (next: Posture) => void;
   onUseSkill: (skill: Skill) => void;
   onPassTurn: () => void;
   droppedSkill?: Skill | null;
@@ -62,13 +73,21 @@ interface CombatProps {
   autoPassTimeRemaining?: number | null;
 }
 
+/** Keyboard shortcuts for the 4 hand slots. */
+const HAND_SHORTCUTS = ['Z', 'X', 'C', 'V'];
+const POSTURE_ORDER: Posture[] = [Posture.AGGRESSIVE, Posture.BALANCED, Posture.DEFENSIVE];
+
 const Combat = forwardRef<CombatRef, CombatProps>(({
   player,
   playerStats,
   enemy,
   enemyStats,
   turnState,
-  turnPhase,
+  hand,
+  currentAp,
+  maxAp,
+  posture,
+  onChangePosture,
   onUseSkill,
   onPassTurn,
   getDamageTypeColor,
@@ -108,21 +127,21 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     spawnFloatingText
   }), [spawnFloatingText]);
 
-  // Group skills by ActionType
-  const mainSkills = player.skills.filter(s => s.actionType === ActionType.MAIN || !s.actionType);
-  const sideSkills = player.skills.filter(s => s.actionType === ActionType.SIDE);
-  const toggleSkills = player.skills.filter(s => s.actionType === ActionType.TOGGLE);
+  // Resolve hand cards to their live skill objects (cooldowns/active state live
+  // on player.skills; the hand only carries card identity).
+  const handCards = hand
+    .map((card) => player.skills.find((s) => s.id === card.id) ?? card)
+    .slice(0, HAND_SHORTCUTS.length);
 
-  // Helper to check if a skill can be used
+  // Helper to check if a card can be played this turn (resources + AP + state).
   const canUseSkill = useCallback((skill: Skill) => {
     const hasResources = player.currentChakra >= skill.chakraCost && player.currentHp > skill.hpCost;
     const noCooldown = skill.currentCooldown === 0;
     const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
-    const sideActionsAvailable = turnPhase.sideActionsUsed < turnPhase.maxSideActions;
-    const isSideSkill = skill.actionType === ActionType.SIDE;
+    const hasAp = currentAp >= getApCost(skill);
 
-    return (hasResources || skill.isActive) && noCooldown && !isStunned && (!isSideSkill || sideActionsAvailable);
-  }, [player, turnPhase]);
+    return (hasResources || skill.isActive) && noCooldown && !isStunned && hasAp;
+  }, [player, currentAp]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -144,35 +163,17 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         return;
       }
 
-      // Number keys 1-4 for MAIN skills
-      const mainKeyMap: Record<string, number> = {
-        'Digit1': 0, '1': 0,
-        'Digit2': 1, '2': 1,
-        'Digit3': 2, '3': 2,
-        'Digit4': 3, '4': 3,
+      // Z/X/C/V play the 4 hand slots
+      const handKeyMap: Record<string, number> = {
+        'KeyZ': 0, 'z': 0, 'Z': 0,
+        'KeyX': 1, 'x': 1, 'X': 1,
+        'KeyC': 2, 'c': 2, 'C': 2,
+        'KeyV': 3, 'v': 3, 'V': 3,
       };
 
-      const mainIndex = mainKeyMap[e.code] ?? mainKeyMap[e.key];
-      if (mainIndex !== undefined) {
-        const skill = mainSkills[mainIndex];
-        if (skill && canUseSkill(skill)) {
-          e.preventDefault();
-          onUseSkill(skill);
-        }
-        return;
-      }
-
-      // Q/W/E/R for SIDE skills
-      const sideKeyMap: Record<string, number> = {
-        'KeyQ': 0, 'q': 0, 'Q': 0,
-        'KeyW': 1, 'w': 1, 'W': 1,
-        'KeyE': 2, 'e': 2, 'E': 2,
-        'KeyR': 3, 'r': 3, 'R': 3,
-      };
-
-      const sideIndex = sideKeyMap[e.code] ?? sideKeyMap[e.key];
-      if (sideIndex !== undefined) {
-        const skill = sideSkills[sideIndex];
+      const handIndex = handKeyMap[e.code] ?? handKeyMap[e.key];
+      if (handIndex !== undefined) {
+        const skill = handCards[handIndex];
         if (skill && canUseSkill(skill)) {
           e.preventDefault();
           onUseSkill(skill);
@@ -183,17 +184,13 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [turnState, player, mainSkills, sideSkills, canUseSkill, onUseSkill, onPassTurn, onToggleAutoCombat]);
+  }, [turnState, handCards, canUseSkill, onUseSkill, onPassTurn, onToggleAutoCombat]);
 
-  // Render skill card with tooltip
-  const renderSkillCard = (skill: Skill, index: number, type: 'main' | 'side' | 'toggle') => {
-    const isSideSkill = skill.actionType === ActionType.SIDE;
-    const sideActionsAvailable = turnPhase.sideActionsUsed < turnPhase.maxSideActions;
+  // Render a hand card with tooltip
+  const renderSkillCard = (skill: Skill, index: number) => {
     const isEnemyTurn = turnState === 'ENEMY_TURN';
-    const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
-
-    const canUse = player.currentChakra >= skill.chakraCost && player.currentHp > skill.hpCost && skill.currentCooldown === 0;
-    const usable = (canUse || skill.isActive) && !isStunned && !isEnemyTurn && (!isSideSkill || sideActionsAvailable);
+    const apCost = getApCost(skill);
+    const usable = canUseSkill(skill) && !isEnemyTurn;
 
     const prediction = calculateDamage(
       playerStats.effectivePrimary,
@@ -208,13 +205,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     const effectiveness = getElementEffectiveness(skill.element, enemy.element);
     const isSuperEffective = effectiveness > 1.0;
 
-    // Determine shortcut key
-    let shortcutKey: string | undefined;
-    if (type === 'main' && index < 4) {
-      shortcutKey = String(index + 1);
-    } else if (type === 'side' && index < 4) {
-      shortcutKey = ['Q', 'W', 'E', 'R'][index];
-    }
+    // Hand slot shortcut (Z/X/C/V)
+    const shortcutKey = HAND_SHORTCUTS[index];
 
     return (
       <Tooltip
@@ -283,6 +275,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
             <div className="combat-tooltip__section">
               <div className="combat-tooltip__section-title">Cost</div>
               <div className="combat-tooltip__cost-row">
+                <span className="combat-tooltip__cost--ap">{apCost} AP</span>
                 <span className={skill.chakraCost > 0 ? 'combat-tooltip__cost--cp' : 'combat-tooltip__cost--none'}>
                   {skill.chakraCost} CP
                 </span>
@@ -360,6 +353,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           canUse={usable || false}
           onClick={() => onUseSkill(skill)}
           shortcutKey={shortcutKey}
+          apCost={apCost}
         />
       </Tooltip>
     );
@@ -554,24 +548,60 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
 
       {/* SKILL INTERFACE AREA */}
       <div className="combat__interface">
-        {/* Phase Indicator & Side Actions */}
-        <div className="combat__phase-bar">
-          <div className="combat__phase-left">
-            <div className="combat__phase-indicator">
-              <span className="combat__phase-label">Phase: </span>
-              <span className={turnPhase.phase === 'SIDE' ? 'combat__phase-value--side' : 'combat__phase-value--main'}>
-                {turnPhase.phase}
-              </span>
+        {/* AP & Posture Bar */}
+        <div className="combat__econ-bar">
+          {/* Action Points */}
+          <div className="combat__ap" aria-label={`Action Points ${currentAp} of ${maxAp}`}>
+            <span className="combat__ap-label">AP</span>
+            <div className="combat__ap-pips">
+              {Array.from({ length: Math.max(maxAp, currentAp) }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`combat__ap-pip ${i < currentAp ? 'combat__ap-pip--full' : 'combat__ap-pip--spent'}`}
+                />
+              ))}
             </div>
-            <div className="combat__side-actions">
-              <span className="combat__side-actions-label">Side Actions:</span>
-              <span className={`combat__side-actions-value ${
-                turnPhase.sideActionsUsed >= turnPhase.maxSideActions ? 'combat__side-actions-value--exhausted' : ''
-              }`}>
-                {turnPhase.sideActionsUsed}/{turnPhase.maxSideActions}
-              </span>
+            <span className="combat__ap-value">{currentAp}/{maxAp}</span>
+          </div>
+
+          {/* Posture Control */}
+          <div className="combat__posture">
+            <span className="combat__posture-title">Stance</span>
+            <div className="combat__posture-options">
+              {POSTURE_ORDER.map((p) => {
+                const profile = describePosture(p);
+                const isActive = p === posture;
+                const affordable = currentAp >= LaunchProperties.POSTURE_SWITCH_AP_COST;
+                const disabled = turnState !== 'PLAYER' || (!isActive && !affordable);
+                return (
+                  <Tooltip
+                    key={p}
+                    position="top"
+                    content={
+                      <div className="combat-tooltip">
+                        <div className="combat-tooltip__title">{profile.label} Stance</div>
+                        <div className="combat-tooltip__description">{profile.drawBias}.</div>
+                        <div className="combat-tooltip__mechanics">
+                          <div>- Damage dealt: {Math.round(profile.damageMod * 100)}%</div>
+                          {!isActive && <div>- Switch cost: {LaunchProperties.POSTURE_SWITCH_AP_COST} AP</div>}
+                        </div>
+                      </div>
+                    }
+                  >
+                    <button
+                      type="button"
+                      className={`combat__posture-btn ${isActive ? 'combat__posture-btn--active' : ''}`}
+                      onClick={() => { if (!isActive) onChangePosture(p); }}
+                      disabled={disabled}
+                    >
+                      {profile.label}
+                    </button>
+                  </Tooltip>
+                );
+              })}
             </div>
           </div>
+
           {/* Passive Skills Summary */}
           {player.skills.filter(s => s.actionType === ActionType.PASSIVE).length > 0 && (
             <Tooltip
@@ -596,55 +626,27 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         {/* Keyboard Hints */}
         <div className="combat__hints">
           <span className="combat__hint">
-            <span className="sw-shortcut">1</span>-<span className="sw-shortcut">4</span> Main Skills
+            <span className="sw-shortcut">Z</span><span className="sw-shortcut">X</span><span className="sw-shortcut">C</span><span className="sw-shortcut">V</span> Play Card
           </span>
-          {sideSkills.length > 0 && (
-            <span className="combat__hint">
-              <span className="sw-shortcut">Q</span><span className="sw-shortcut">W</span><span className="sw-shortcut">E</span><span className="sw-shortcut">R</span> Side Skills
-            </span>
-          )}
           <span className="combat__hint">
-            <span className="sw-shortcut">Space</span> Pass
+            <span className="sw-shortcut">Space</span> End Turn
           </span>
           <span className="combat__hint">
             <span className="sw-shortcut">Tab</span> Auto
           </span>
         </div>
 
-        {/* Skills Grid */}
-        <div className="combat__skills">
-          {/* SIDE Skills Row */}
-          {sideSkills.length > 0 && (
-            <div className="combat__skill-group">
-              <div className="combat__skill-group-label combat__skill-group-label--side">
-                Side Actions (Free)
-              </div>
-              <div className="combat__skill-grid combat__skill-grid--auxiliary">
-                {sideSkills.map((skill, index) => renderSkillCard(skill, index, 'side'))}
-              </div>
-            </div>
-          )}
-
-          {/* TOGGLE Skills Row */}
-          {toggleSkills.length > 0 && (
-            <div className="combat__skill-group">
-              <div className="combat__skill-group-label combat__skill-group-label--toggle">
-                Toggle Skills
-              </div>
-              <div className="combat__skill-grid combat__skill-grid--auxiliary">
-                {toggleSkills.map((skill, index) => renderSkillCard(skill, index, 'toggle'))}
-              </div>
-            </div>
-          )}
-
-          {/* MAIN Skills Row */}
-          <div className="combat__skill-group">
-            <div className="combat__skill-group-label combat__skill-group-label--main">
-              Main Actions (Ends Turn)
-            </div>
-            <div className="combat__skill-grid combat__skill-grid--main">
-              {mainSkills.map((skill, index) => renderSkillCard(skill, index, 'main'))}
-            </div>
+        {/* Hand */}
+        <div className="combat__hand">
+          <div className="combat__hand-label">
+            Hand · {handCards.length} card{handCards.length === 1 ? '' : 's'}
+          </div>
+          <div className="combat__hand-grid">
+            {handCards.length > 0 ? (
+              handCards.map((skill, index) => renderSkillCard(skill, index))
+            ) : (
+              <div className="combat__hand-empty">No cards left — end your turn (Space).</div>
+            )}
           </div>
         </div>
 
@@ -675,7 +677,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           >
             <Hourglass size={14} />
             <span className="combat__pass-label">
-              {turnState === 'ENEMY_TURN' ? 'Enemy Turn' : 'Pass Turn'}
+              {turnState === 'ENEMY_TURN' ? 'Enemy Turn' : 'End Turn'}
             </span>
           </button>
         </div>

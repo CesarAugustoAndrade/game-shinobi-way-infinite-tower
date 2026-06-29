@@ -7,8 +7,7 @@ import {
   EffectType,
   GameState,
   ActionType,
-  TurnPhaseState,
-  createInitialTurnPhaseState,
+  Posture,
   LogEntry,
 } from '../game/types';
 import { getEnemyFullStats } from '../game/systems/StatSystem';
@@ -19,7 +18,11 @@ import {
   createCombatState,
   applyApproachEffects,
   processUpkeep,
+  buildDeck,
+  drawHand,
 } from '../game/systems/CombatWorkflowSystem';
+import { getApCost } from '../game/constants/combatCards';
+import { LaunchProperties } from '../config/featureFlags';
 import { ApproachResult, getCombatModifiers } from '../game/systems/ApproachSystem';
 import { CombatRef } from '../scenes/combat';
 import { TIMING } from '../game/config';
@@ -57,7 +60,6 @@ export interface UseCombatReturn {
   enemy: Enemy | null;
   enemyStats: FullStats | null;
   turnState: TurnState;
-  turnPhase: TurnPhaseState;
   combatRef: React.RefObject<CombatRef | null>;
   setEnemy: React.Dispatch<React.SetStateAction<Enemy | null>>;
   setTurnState: React.Dispatch<React.SetStateAction<TurnState>>;
@@ -72,7 +74,12 @@ export interface UseCombatReturn {
   autoCombatEnabled: boolean;
   setAutoCombatEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   autoPassTimeRemaining: number | null;
-  endSidePhase: () => void;  // Manually end SIDE phase and go to MAIN
+  // T-004 deckbuilder/AP economy
+  currentAp: number;
+  maxAp: number;
+  hand: Skill[];
+  posture: Posture;
+  changePosture: (next: Posture) => void;
 }
 
 /**
@@ -98,7 +105,6 @@ export function useCombat({
   // Combat-only state (not shared with exploration)
   const [enemy, setEnemy] = useState<Enemy | null>(null);
   const [turnState, setTurnState] = useState<TurnState>('PLAYER');
-  const [turnPhase, setTurnPhase] = useState<TurnPhaseState>(createInitialTurnPhaseState());
   const [autoCombatEnabled, setAutoCombatEnabled] = useState(false);
   const [autoPassTimeRemaining, setAutoPassTimeRemaining] = useState<number | null>(null);
   const [upkeepProcessedThisTurn, setUpkeepProcessedThisTurn] = useState(false);
@@ -128,16 +134,17 @@ export function useCombat({
   }, [enemy, combatState, onVictory]);
 
   /**
-   * Use a skill during combat
-   * Handles action type logic:
-   * - SIDE: Free action, max 2 per turn, doesn't end turn
-   * - MAIN: Primary action, ends turn
-   * - TOGGLE: Activate/deactivate, ends turn
-   * - PASSIVE: Cannot be "used" (always active)
+   * Play a card from the hand during combat (T-004 AP economy).
+   *
+   * - Rejects if stunned, if the skill is PASSIVE, or if there isn't enough AP.
+   * - TOGGLE cards flip activation and pay their AP cost (they no longer end the turn).
+   * - Regular cards run the combat math, spend AP, may shift the player's stance,
+   *   and leave the hand (to the discard pile).
+   * - The player's turn ends when AP is exhausted (or via SPACE / changePosture).
    */
   const useSkill = useCallback(
     (skill: Skill) => {
-      if (!player || !enemy || !playerStats || !enemyStats) return;
+      if (!player || !enemy || !playerStats || !enemyStats || !combatState) return;
 
       logPlayerAction(skill.name, {
         enemyHpBefore: enemy.currentHp
@@ -150,21 +157,43 @@ export function useCombat({
         return;
       }
 
-      // PASSIVE skills cannot be used directly
+      // PASSIVE skills are always active and never played as cards
       if (skill.actionType === ActionType.PASSIVE) {
         addLog('Passive abilities are always active!', 'info');
         return;
       }
 
-      // SIDE action check - max 2 per turn
-      if (skill.actionType === ActionType.SIDE) {
-        if (turnPhase.sideActionsUsed >= turnPhase.maxSideActions) {
-          addLog('You have used all your SIDE actions this turn!', 'danger');
-          return;
-        }
+      // Action Point gate
+      const apCost = getApCost(skill);
+      if (combatState.currentAp < apCost) {
+        addLog(`Not enough Action Points (need ${apCost}, have ${combatState.currentAp}).`, 'danger');
+        return;
       }
 
-      // Handle toggle skills
+      const apAfter = combatState.currentAp - apCost;
+
+      // Shared bookkeeping after a card resolves: spend AP, move the played card
+      // to the discard pile, optionally shift posture, then end the turn if AP
+      // is exhausted.
+      const finishCardPlay = (shiftedPosture?: Posture) => {
+        setCombatState((prev) => {
+          if (!prev) return prev;
+          const newHand = prev.hand.filter((c) => c.id !== skill.id);
+          const playedFromHand = newHand.length !== prev.hand.length;
+          return {
+            ...prev,
+            currentAp: prev.currentAp - apCost,
+            hand: newHand,
+            discard: playedFromHand ? [...prev.discard, skill] : prev.discard,
+            posture: shiftedPosture ?? prev.posture,
+          };
+        });
+        if (apAfter <= 0) {
+          setTurnState('ENEMY_TURN');
+        }
+      };
+
+      // ── TOGGLE cards: flip activation, pay AP, do NOT end the turn directly ──
       if (skill.isToggle || skill.actionType === ActionType.TOGGLE) {
         const isActive = skill.isActive || false;
 
@@ -184,7 +213,7 @@ export function useCombat({
         setPlayer((prev) => {
           if (!prev) return null;
           let newBuffs = [...prev.activeBuffs];
-          let newSkills = prev.skills.map((s) =>
+          const newSkills = prev.skills.map((s) =>
             s.id === skill.id ? { ...s, isActive: !isActive } : s
           );
           let newChakra = prev.currentChakra;
@@ -213,30 +242,35 @@ export function useCombat({
 
           return { ...prev, skills: newSkills, activeBuffs: newBuffs, currentChakra: newChakra };
         });
-        // Toggle activation ends turn
-        setTurnState('ENEMY_TURN');
+
+        finishCardPlay();
         return;
       }
 
-      // Use CombatSystem for regular skills (MAIN and SIDE with damage)
+      // ── Regular cards: run the combat math ──
       const result = useSkillCombat(
         player,
         playerStats,
         enemy,
         enemyStats,
         skill,
-        combatState || undefined
+        combatState
       );
 
       if (!result) return;
 
-      // Mark first turn as complete if applicable
-      if (combatState?.isFirstTurn) {
-        setCombatState((prev) => (prev ? { ...prev, isFirstTurn: false } : null));
-      }
-
       // Apply result to game state
       addLog(result.logMessage, result.logType);
+
+      // A rejected action (e.g. insufficient chakra/HP) spends no AP and stays in hand.
+      if (result.apCost === 0 && result.damageDealt === 0 && result.logType === 'danger') {
+        return;
+      }
+
+      // Mark first turn as complete if applicable
+      if (combatState.isFirstTurn) {
+        setCombatState((prev) => (prev ? { ...prev, isFirstTurn: false } : null));
+      }
 
       // Spawn floating combat text
       if (result.damageDealt > 0) {
@@ -272,6 +306,11 @@ export function useCombat({
           : null
       );
 
+      // Announce a free stance shift granted by the card
+      if (result.newPosture && result.newPosture !== combatState.posture) {
+        addLog(`Stance shifted to ${result.newPosture}.`, 'info');
+      }
+
       // Check for victory/defeat
       if (result.enemyDefeated) {
         // Process on-kill passives (cooldown reset)
@@ -288,22 +327,39 @@ export function useCombat({
         return;
       } else if (result.playerDefeated) {
         setGameState(GameState.GAME_OVER);
-      } else {
-        // SIDE actions don't end turn - increment counter and stay in player turn
-        if (skill.actionType === ActionType.SIDE) {
-          setTurnPhase((prev) => ({
-            ...prev,
-            sideActionsUsed: prev.sideActionsUsed + 1,
-          }));
-          addLog(`SIDE action used (${turnPhase.sideActionsUsed + 1}/${turnPhase.maxSideActions})`, 'info');
-          // Stay in player turn
-        } else {
-          // MAIN action ends turn
-          setTurnState('ENEMY_TURN');
-        }
+        return;
+      }
+
+      finishCardPlay(result.newPosture);
+    },
+    [player, enemy, playerStats, enemyStats, combatState, addLog, setPlayer, setCombatState, handleVictory, setGameState, setTurnState]
+  );
+
+  /**
+   * Switch the active combat posture (T-004).
+   * Costs POSTURE_SWITCH_AP_COST AP; ends the turn if that exhausts AP.
+   */
+  const changePosture = useCallback(
+    (next: Posture) => {
+      if (!combatState || turnState !== 'PLAYER') return;
+      if (next === combatState.posture) return;
+
+      const cost = LaunchProperties.POSTURE_SWITCH_AP_COST;
+      if (combatState.currentAp < cost) {
+        addLog(`Not enough Action Points to change stance (need ${cost}).`, 'danger');
+        return;
+      }
+
+      const apAfter = combatState.currentAp - cost;
+      setCombatState((prev) =>
+        prev ? { ...prev, currentAp: prev.currentAp - cost, posture: next } : prev
+      );
+      addLog(`Stance: ${next}.`, 'info');
+      if (apAfter <= 0) {
+        setTurnState('ENEMY_TURN');
       }
     },
-    [player, enemy, playerStats, enemyStats, combatState, turnPhase, addLog, setPlayer, handleVictory, setGameState, setTurnState]
+    [combatState, turnState, addLog, setCombatState, setTurnState]
   );
 
   /**
@@ -345,8 +401,27 @@ export function useCombat({
       const newCombatState = createCombatState(modifiers, terrain);
       // Store skipFirstSkillCost from artifact passive
       newCombatState.skipFirstSkillCost = passiveResult.skipFirstSkillCost;
+
+      // T-004: initialise the deckbuilder/AP economy for turn 1. The deck is the
+      // player's non-PASSIVE skills; the opening hand is drawn under a neutral
+      // (BALANCED) posture and AP is filled from the player's speed-derived budget.
+      const maxAp = playerStats
+        ? playerStats.derived.actionPointsPerTurn
+        : LaunchProperties.AP_BASE;
+      const deck = buildDeck(preparedPlayer.skills);
+      const opening = drawHand(deck, Posture.BALANCED, LaunchProperties.HAND_SIZE);
+      newCombatState.maxAp = maxAp;
+      newCombatState.currentAp = maxAp;
+      newCombatState.posture = Posture.BALANCED;
+      newCombatState.deck = opening.deck;
+      newCombatState.hand = opening.hand;
+      newCombatState.discard = [];
+
       setCombatState(newCombatState);
       setApproachResult(result);
+
+      // startCombat handles turn-1 setup itself, so skip the first upkeep redraw.
+      setUpkeepProcessedThisTurn(true);
 
       // Set up combat
       setPlayer(preparedPlayer);
@@ -369,7 +444,7 @@ export function useCombat({
         }
       );
     },
-    [addLog, setPlayer, setGameState]
+    [addLog, setPlayer, setGameState, playerStats, setCombatState, setApproachResult]
   );
 
   /**
@@ -518,11 +593,13 @@ export function useCombat({
     }
   }, [turnState, player, enemy, playerStats, enemyStats, combatState, addLog, setPlayer, handleVictory, setGameState, setTurnState]);
 
-  // Process upkeep when turn changes to PLAYER (after enemy turn)
+  // Process upkeep when turn changes to PLAYER (after enemy turn).
+  // T-004: restores the AP budget and deals a fresh, posture-weighted hand.
   useEffect(() => {
-    if (turnState === 'PLAYER' && player && playerStats && enemy && !upkeepProcessedThisTurn) {
-      // Process toggle upkeep costs and artifact turn-start passives
-      const upkeepResult = processUpkeep(player, playerStats, enemy);
+    if (turnState === 'PLAYER' && player && playerStats && enemy && combatState && !upkeepProcessedThisTurn) {
+      // Process toggle upkeep costs, passive regen, artifact turn-start passives,
+      // and draw the new-turn AP/hand economy.
+      const upkeepResult = processUpkeep(player, playerStats, combatState, enemy);
 
       // Log upkeep messages
       upkeepResult.logs.forEach((msg) => {
@@ -535,16 +612,23 @@ export function useCombat({
         setPlayer(upkeepResult.player);
       }
 
-      // Reset turn phase for new turn
-      setTurnPhase({
-        phase: 'SIDE',
-        sideActionsUsed: 0,
-        maxSideActions: 2,
-        upkeepProcessed: true,
-      });
+      // Refill AP and deal the new hand for this turn
+      setCombatState((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentAp: upkeepResult.currentAp,
+              maxAp: upkeepResult.maxAp,
+              hand: upkeepResult.hand,
+              deck: upkeepResult.deck,
+              discard: upkeepResult.discard,
+            }
+          : prev
+      );
+
       setUpkeepProcessedThisTurn(true);
     }
-  }, [turnState, player, playerStats, enemy, upkeepProcessedThisTurn, addLog, setPlayer]);
+  }, [turnState, player, playerStats, enemy, combatState, upkeepProcessedThisTurn, addLog, setPlayer, setCombatState]);
 
   // Reset upkeep flag when turn changes to enemy
   useEffect(() => {
@@ -553,18 +637,10 @@ export function useCombat({
     }
   }, [turnState]);
 
-  /**
-   * Manually end SIDE phase and commit to MAIN phase
-   */
-  const endSidePhase = useCallback(() => {
-    setTurnPhase((prev) => ({ ...prev, phase: 'MAIN' }));
-  }, []);
-
   return {
     enemy,
     enemyStats,
     turnState,
-    turnPhase,
     combatRef,
     setEnemy,
     setTurnState,
@@ -574,6 +650,11 @@ export function useCombat({
     autoCombatEnabled,
     setAutoCombatEnabled,
     autoPassTimeRemaining,
-    endSidePhase,
+    // T-004 deckbuilder/AP economy (single source of truth lives in combatState)
+    currentAp: combatState?.currentAp ?? 0,
+    maxAp: combatState?.maxAp ?? 0,
+    hand: combatState?.hand ?? [],
+    posture: combatState?.posture ?? Posture.BALANCED,
+    changePosture,
   };
 }

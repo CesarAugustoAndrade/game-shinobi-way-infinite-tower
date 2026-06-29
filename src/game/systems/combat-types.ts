@@ -84,15 +84,31 @@ export interface CombatResult {
   enemyDefeated: boolean;
   /** True if player HP reached 0 (can happen from reflection damage) */
   playerDefeated?: boolean;
+  /** Action Points this card cost (0 if the action was rejected). T-004 */
+  apCost: number;
+  /** New posture if the card shifted the player's stance on play. T-004 */
+  newPosture?: Posture;
 }
 
 /**
  * Result of processing the upkeep phase.
+ * T-004: also restores the AP budget and deals a fresh, posture-weighted hand
+ * for the new player turn.
  */
 export interface UpkeepResult {
   player: Player;
   logs: string[];
   togglesDeactivated: string[];
+  /** Action Points available for the new turn (= maxAp). */
+  currentAp: number;
+  /** Action Point budget for the new turn (player's actionPointsPerTurn). */
+  maxAp: number;
+  /** Freshly drawn hand for the new turn. */
+  hand: Skill[];
+  /** Remaining draw pile after the new-turn draw. */
+  deck: Skill[];
+  /** Discard pile after folding in the previous hand (and any reshuffle). */
+  discard: Skill[];
 }
 
 /**
