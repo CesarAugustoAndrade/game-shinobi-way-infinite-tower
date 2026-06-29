@@ -12,7 +12,7 @@
  * =============================================================================
  */
 
-import { Buff, Player, Skill, TerrainDefinition } from '../types';
+import { Buff, Player, Posture, Skill, TerrainDefinition } from '../types';
 
 // ============================================================================
 // COMBAT STATE
@@ -34,6 +34,24 @@ export interface CombatState {
   skipFirstSkillCost: boolean;
   /** Tracks if artifact GUTS passive has been used this combat (one-time) */
   artifactGutsUsed: boolean;
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // DECKBUILDER / AP ECONOMY (T-004)
+  // Populated with safe defaults today; the combat flow does not consume these
+  // yet. Wired up in a later phase (deck/hand draw, AP spend, posture biasing).
+  // ──────────────────────────────────────────────────────────────────────────
+  /** Action Points available this turn */
+  currentAp: number;
+  /** Action Points budget restored each player turn */
+  maxAp: number;
+  /** Active combat posture (biases the weighted card draw) */
+  posture: Posture;
+  /** Cards drawn for the player to play this turn */
+  hand: Skill[];
+  /** Remaining draw pile */
+  deck: Skill[];
+  /** Played/discarded cards awaiting reshuffle */
+  discard: Skill[];
 }
 
 // ============================================================================

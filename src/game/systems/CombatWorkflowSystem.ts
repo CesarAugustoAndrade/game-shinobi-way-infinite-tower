@@ -54,7 +54,7 @@
  * =============================================================================
  */
 
-import { TerrainDefinition } from '../types';
+import { Posture, TerrainDefinition } from '../types';
 import { CombatModifiers } from './ApproachSystem';
 
 // Re-export types from combat-types.ts (single source of truth)
@@ -93,6 +93,14 @@ export function createCombatState(
     approachApplied: false,
     skipFirstSkillCost: false,
     artifactGutsUsed: false,
+    // Deckbuilder/AP economy (T-004) — safe defaults; not consumed by the
+    // combat flow yet. Initialized for real when the deck/hand system lands.
+    currentAp: 0,
+    maxAp: 0,
+    posture: Posture.BALANCED,
+    hand: [],
+    deck: [],
+    discard: [],
   };
 }
 

@@ -1,219 +1,158 @@
-# Feature Plan: AI Asset Companion Tool
+# Feature Plan: T-004 · Refactor de Combate — Cartas, Posturas y Action Points
 
-> Converting the AI Image Generator Test into a full companion tool for building game assets
+> Plan de diseño profundo (planck). Refactor del sistema de combate de SHINOBI WAY hacia un
+> modelo **deckbuilder + Action Points (AP) + posturas**. Decisiones de producto confirmadas
+> con el usuario. Ejecución prevista por **fases** a través del loop de desarrollo (`/loop-run`),
+> con gate de 4 lentes por fase.
 
-## Requirements Summary
+## Decisiones confirmadas (producto)
 
-- **Location:** Separate standalone scene from main menu
-- **Editing:** AI-only transformations (no manual canvas editing)
-- **Art Styles:** Both presets + custom prompts
-- **Transparency:** AI background removal using Gemini
-- **Export:** Multiple formats (PNG, WebP, JPG, base64)
-- **Integration:** Direct save to game asset folders
-- **Categories:** All game assets (characters, items, UI, backgrounds, icons)
+1. **Mazo con robo RNG ponderado.** Cada turno se roba una **mano de 4 cartas** del mazo del
+   jugador (sus skills), con **pesos según la postura** activa. No siempre tienes todas las skills.
+2. **AP reemplaza SIDE/MAIN.** Cada turno: `AP = base + f(velocidad)`. Cada carta cuesta AP. Juegas
+   cartas hasta agotar AP o pulsar **SPACE** para terminar. Elimina la estructura fija SIDE(2)/MAIN(1).
+3. **Posturas (3):** Agresiva / Equilibrada / Defensiva. El jugador puede **cambiar de postura**
+   (acción que cuesta **1 AP**) **y** ciertas skills **cambian la postura al golpear** (nuevo efecto).
+   La postura **sesga los pesos del robo** (y aplica un bono leve de daño/defensa).
+4. **Reemplazo total + actualizar simulador.** Se sustituye el flujo SIDE/MAIN por completo y se
+   actualiza `BattleSimulator`/`SkillSelectionAI` para modelar AP/cartas/posturas, de modo que el
+   gate de BALANCE del loop siga siendo válido. **La matemática base (`calculateDamage`/mitigación)
+   NO se toca** — solo la capa de economía/selección de turno.
 
----
+## Defaults de diseño (tunables; documentados para que el maker no invente)
 
-## UI Layout
+- `AP_BASE = 3`, `AP_PER_SPEED_DIV = 10` → AP/turno = `3 + floor(speed/10)` (speed 20 ⇒ 5 AP).
+- **Coste AP por carta** (`Skill.apCost`, nuevo campo; default derivado si falta):
+  ofensiva/MAIN = 2 · utilidad/SIDE = 1 · activación TOGGLE = 2. Tunable por skill.
+- **Cambio de postura manual = 1 AP.** Skills con efecto `stanceShift` cambian la postura **gratis**
+  al impactar (parte del golpe).
+- **Mano = 4 cartas.** Robo cada turno; las cartas no jugadas se descartan y se vuelve a robar
+  (mano fresca por turno). Reshuffle del mazo al agotarse.
+- **PASSIVE** no entra al mazo (siempre activas). **MAIN/SIDE/TOGGLE** son cartas del mazo.
+- **Pesos de robo:** cada skill tiene un peso base; la postura multiplica el peso de su categoría
+  (Agresiva ×skills ofensivas, Defensiva ×utilidad/defensa, Equilibrada plano). Categoría derivada
+  de `damageMult`/efectos (shield/heal/buff defensivo) si no hay tag explícito.
+- **Enemigo:** conserva su IA actual de 1 acción/turno (fuera de alcance darle cartas), pero el
+  **simulador** debe modelar la nueva economía del **jugador** (varias cartas/turno según AP).
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        ASSET COMPANION TOOL                    [Back to Menu]│
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────┐    ┌─────────────────────────────────────────────┐ │
-│  │   INPUT SOURCE      │    │              PREVIEW                        │ │
-│  │ ○ Generate New      │    │  ┌─────────────┐    ┌─────────────┐        │ │
-│  │ ○ Upload Image      │    │  │   SOURCE    │ → │   OUTPUT    │        │ │
-│  │ ○ Paste Clipboard   │    │  │  (drag &    │    │ (generated) │        │ │
-│  │ [📁 Upload] [📋 Paste]│    │  │   drop)     │    │             │        │ │
-│  └─────────────────────┘    │  └─────────────┘    └─────────────┘        │ │
-│                             └─────────────────────────────────────────────┘ │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │   TRANSFORMATION                                                        ││
-│  │ ○ Generate from Prompt   ○ Style Transfer   ○ Remove Background        ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │   STYLE PRESETS                                                         ││
-│  │  [Naruto Anime] [Pixel 16] [Pixel 32] [Chibi] [Cel-Shade] [Icon Flat]  ││
-│  │  [Portrait] [UI Element] [+ Custom Prompt]                              ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │   PROMPT: [                                                           ] ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-│  ┌───────────────────┐ ┌───────────────────┐ ┌───────────────────────────┐ │
-│  │  SIZE: ○1K ●2K ○4K│ │ CATEGORY: ▼Enemies│ │ FORMAT: PNG ▼  Name: [  ]│ │
-│  └───────────────────┘ └───────────────────┘ └───────────────────────────┘ │
-│  [  🎨 GENERATE  ]              [  💾 DOWNLOAD  ]       [ 📋 COPY BASE64 ] │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │   RECENT: [🖼️] [🖼️] [🖼️] [🖼️] [🖼️]  (click to re-use)                  ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+## Features Overview
+
+- **F1 — Modelo de datos y constantes:** enum `Posture`, campos AP/mano/postura en estado de
+  combate, `apCost`/`stanceShift` en `Skill`, AP en `DerivedStats`, constantes en `constants/`.
+- **F2 — Lógica core:** AP en `StatSystem`; nuevo `DeckSystem` (robo ponderado); `PlayerTurnSystem`
+  deduce AP y gestiona postura; `processUpkeep` roba mano + restaura AP. Math base intacta.
+- **F3 — UI de combate:** mano de 4 (Z/X/C/V), barra de AP, indicador de postura, SPACE termina;
+  reutiliza `SkillCard`; estilo pixel-arcade (T-001).
+- **F4 — Simulador:** `BattleSimulator` + `SkillSelectionAI` modelan AP/cartas/posturas para que
+  el gate de BALANCE mida el sistema nuevo.
+- **F5 — Limpieza legacy:** eliminar la economía fija SIDE/MAIN/`TurnPhaseState`, la UI de grids
+  por ActionType, y campos obsoletos.
 
 ---
 
-## Files to Create
+## Detailed Plans
 
-| File | Purpose |
-|------|---------|
-| `src/scenes/AssetCompanion/AssetCompanion.tsx` | Main scene orchestrator |
-| `src/scenes/AssetCompanion/AssetCompanion.css` | Scene styling |
-| `src/components/assetCompanion/ImageInputPanel.tsx` | Upload, drag-drop, paste |
-| `src/components/assetCompanion/StylePresetSelector.tsx` | Style preset grid |
-| `src/components/assetCompanion/ExportPanel.tsx` | Export format & download |
-| `src/components/assetCompanion/ImagePreview.tsx` | Before/after display |
-| `src/hooks/useAssetGeneration.ts` | Enhanced generation hook |
-| `src/config/assetCompanionConfig.ts` | Presets & categories |
+### F1 · Modelo de datos y constantes
 
-## Files to Modify
+**Goal:** Tipos y constantes base para AP, mano, postura. Sin cambiar comportamiento aún.
+**Files to modify:**
+- `src/game/types.ts` — `enum Posture { AGGRESSIVE, BALANCED, DEFENSIVE }`; `Skill.apCost?: number`,
+  `Skill.stanceShift?: Posture`; `DerivedStats.actionPointsPerTurn: number`.
+- `src/game/systems/combat-types.ts` — extender `CombatState`: `currentAp`, `maxAp`,
+  `posture: Posture`, `hand: Skill[]` (4), `deck: Skill[]`, `discard: Skill[]`.
+- `src/config/featureFlags.ts` (`LaunchProperties`) — `AP_BASE`, `AP_PER_SPEED_DIV`,
+  `HAND_SIZE`, `POSTURE_SWITCH_AP_COST`, pesos de postura.
+**Files to create:**
+- `src/game/constants/combatCards.ts` — categorización ofensiva/utilidad/defensa por skill +
+  tabla de pesos por postura + `apCost` default por `ActionType`.
 
-| File | Changes |
-|------|---------|
-| `src/game/types.ts` | Add `ASSET_COMPANION` to GameState enum |
-| `src/config/featureFlags.ts` | Add `ENABLE_ASSET_COMPANION` flag |
-| `src/scenes/MainMenu.tsx` | Add Asset Companion button (dev mode) |
-| `src/App.tsx` | Add routing for ASSET_COMPANION state |
+### F2 · Lógica core (sin tocar la math base)
 
-## Files to Delete
+**Goal:** Robo ponderado, AP, posturas — en funciones puras + workflow.
+**Files to create:**
+- `src/game/systems/DeckSystem.ts` — `buildDeck(player)`, `drawHand(deck, posture, handSize)`
+  (robo ponderado, puro y testeable; usa `Math.random`), `reshuffle(...)`, `getCardApCost(skill)`,
+  `weightFor(skill, posture)`.
+- `src/game/systems/PostureSystem.ts` — `applyPosture(state, next)`, `postureDamageMod(posture)`,
+  `postureDefenseMod(posture)`, `stanceShiftFromSkill(skill)`.
+**Files to modify:**
+- `src/game/systems/StatSystem.ts` — en `calculateDerivedStats()` añadir
+  `actionPointsPerTurn = AP_BASE + floor(speed / AP_PER_SPEED_DIV)`.
+- `src/game/systems/PlayerTurnSystem.ts` — `useSkill`: deducir **AP** además de chakra/HP;
+  aplicar `stanceShift` de la skill al impactar; quitar la lógica SIDE-count/MAIN-ends-turn.
+- `src/game/systems/CombatWorkflowSystem.ts` / `processUpkeep` — al iniciar el turno del jugador:
+  restaurar AP (`maxAp`), robar mano de 4 ponderada por postura, mantener PASSIVE/TOGGLE upkeep.
+- `src/hooks/useCombat.ts` — orquestar: `currentAp`, `hand`, `posture` en estado; acción
+  "cambiar postura" (−1 AP); el turno del jugador termina por **SPACE** o AP agotado, no por MAIN;
+  `startCombat` inicializa mazo/mano/AP/postura.
 
-| File | Reason |
-|------|--------|
-| `src/scenes/ImageTest.tsx` | Replaced by AssetCompanion |
+### F3 · UI de combate
 
----
+**Goal:** Mano de 4 cartas con teclas, barra de AP, indicador de postura, SPACE termina.
+**Files to create:**
+- `src/components/combat/Hand.tsx` (+ CSS) — 4 `SkillCard` con `shortcutKey` Z/X/C/V; muestra
+  coste AP por carta; deshabilita cartas sin AP suficiente.
+- `src/components/combat/PostureIndicator.tsx` (+ CSS) — postura activa + control de cambio
+  (patrón visual de `ApproachSelector`), estilo pixel-arcade.
+**Files to modify:**
+- `src/scenes/combat/Combat.tsx` — reemplazar los grids MAIN/SIDE/TOGGLE por `<Hand>`; extender el
+  `keydown` (líneas ~128-186) con Z/X/C/V (jugar carta) y un atajo de cambio de postura; SPACE ya
+  pasa turno; pasar `hand`, `currentAp`, `maxAp`, `posture` como props.
+- `src/components/character/PlayerHUD.tsx` (+ CSS) — barra de **AP** (StatBar `gold`) + postura,
+  bajo HP/CP.
+- `src/components/combat/SkillCard.tsx` — soportar badge de **coste AP** (además del de chakra) y
+  `shortcutKey` Z/X/C/V (ya soporta shortcutKey).
 
-## Implementation Phases
+### F4 · Simulador (gate de BALANCE válido)
 
-### Phase 1: Foundation
+**Goal:** El simulador modela la nueva economía del jugador para que las métricas sigan siendo reales.
+**Files to modify:**
+- `src/simulation/BattleSimulator.ts` — bucle de turno del jugador: AP/turno, robar mano ponderada
+  por postura, jugar cartas hasta agotar AP (en vez de 1 MAIN + 2 SIDE). Reusar `DeckSystem`.
+- `src/simulation/SkillSelectionAI.ts` — elegir cartas de la **mano** respetando AP; heurística de
+  postura.
+- `src/simulation/types.ts` — métricas nuevas si aplica (AP usado/turno, cartas/turno, uso por postura).
+- (verificar) los tests de `__tests__/` que asuman SIDE/MAIN.
 
-1. Add `ASSET_COMPANION` to GameState enum in `types.ts`
-2. Add `ENABLE_ASSET_COMPANION` feature flag
-3. Create `assetCompanionConfig.ts` with style presets:
-   - Naruto Anime Style
-   - Pixel Art (16x16, 32x32, 64x64)
-   - Chibi/SD Style
-   - Cel-Shaded
-   - Icon Flat Style
-   - Portrait Frame
-   - UI Element Style
-4. Create empty `AssetCompanion.tsx` scaffold
-5. Wire routing in `App.tsx` and button in `MainMenu.tsx`
+### F5 · Limpieza legacy (OBLIGATORIA — sin dead code)
 
-### Phase 2: Generation Hook
-
-1. Create `useAssetGeneration.ts` hook with methods:
-   - `generateFromPrompt(prompt, options)` - Text-to-image
-   - `transformWithStyle(sourceImage, stylePreset)` - Style transfer
-   - `removeBackground(sourceImage)` - AI background removal
-2. Support image-to-image via Gemini contents array:
-   ```typescript
-   contents: { parts: [{ text: prompt }, { inlineData: { data, mimeType } }] }
-   ```
-
-### Phase 3: Input System
-
-1. Create `ImageInputPanel.tsx` with:
-   - File input (`<input type="file" accept="image/*">`)
-   - Drag-and-drop zone with `onDragOver`/`onDrop`
-   - Clipboard paste via `navigator.clipboard.read()`
-2. Convert uploaded images to base64 for API
-
-### Phase 4: Style & Transformation UI
-
-1. Create `StylePresetSelector.tsx` - clickable preset cards
-2. Add transformation mode radio buttons:
-   - Generate from Prompt
-   - Style Transfer
-   - Remove Background
-3. Wire style selection to prompt templates
-
-### Phase 5: Export System
-
-1. Create `ExportPanel.tsx` with:
-   - Format selector (PNG, WebP, JPG, base64)
-   - Auto-generated filename based on category
-   - Download via `<a download>` element
-   - Copy base64 to clipboard
-2. Asset categories for organization:
-   - Enemies & Bosses
-   - Characters & NPCs
-   - Items & Equipment
-   - UI Elements
-   - Backgrounds
-   - Icons
-
-### Phase 6: Polish
-
-1. Create `ImagePreview.tsx` with source/output comparison
-2. Add generation history (max 10 items, clickable to re-use)
-3. Loading states and error handling
-4. Match existing game theme styling
-5. Delete `ImageTest.tsx`
-
----
-
-## Style Preset Prompts
-
-```typescript
-const PRESETS = {
-  'naruto-anime': `Dark fantasy, gritty anime style. High contrast,
-    detailed, atmospheric lighting. Naruto-inspired aesthetic.`,
-
-  'pixel-16': `16x16 pixel art with limited color palette.
-    Clean pixel edges, no anti-aliasing, retro game aesthetic.`,
-
-  'chibi-sd': `Chibi/super-deformed style with large head, small body,
-    cute proportions. Expressive eyes, simplified details.`,
-
-  'cel-shaded': `Cel-shaded 3D render style. Bold outlines,
-    flat color regions, anime-influenced shading.`,
-
-  'icon-flat': `Flat design icon style. Minimal, clean lines,
-    limited colors, no gradients, vector-like.`,
-
-  'portrait-frame': `Character portrait for game UI. Close-up face/bust,
-    dramatic lighting, dark background.`,
-
-  'background-removal': `Remove the background completely, making it
-    transparent. Keep only the main subject with clean edges.`
-};
-```
-
----
-
-## Technical Notes
-
-**Gemini Image-to-Image:**
-- Same model (`gemini-3-pro-image-preview`) supports both modes
-- Send image as `inlineData` part alongside text prompt
-
-**Background Removal Limitation:**
-- Gemini doesn't produce true transparent PNGs
-- Outputs image with solid/clean background for easy manual cleanup
-- Document this limitation in UI
-
-**Memory Management:**
-- Limit history to 10 items
-- Clear old base64 data when not needed
+Ver sección "Legacy Code Removal".
 
 ---
 
 ## Legacy Code Removal
 
-**Delete entirely:**
+**Code to remove / replace:**
+- `src/game/types.ts` — `TurnPhaseState` (UPKEEP/SIDE/MAIN/END, `sideActionsUsed`, `maxSideActions`)
+  y `Skill.sideActionLimit`: reemplazados por AP. Evaluar si `ActionType` se conserva solo como
+  **categoría de carta** (ofensiva/utilidad) o se sustituye por la categorización de `combatCards.ts`.
+- `src/scenes/combat/Combat.tsx` — los 3 grids (mainSkills/sideSkills/toggleSkills, líneas ~111-114
+  y ~615-649) y la `phase-bar` "SIDE/MAIN" + contador "0/2": reemplazados por `<Hand>` + barra AP.
+- `src/hooks/useCombat.ts` — lógica `sideActionsUsed++` / "MAIN ⇒ ENEMY_TURN": reemplazada por
+  "SPACE o AP=0 ⇒ ENEMY_TURN".
+- `src/game/systems/PlayerTurnSystem.ts` — ramas que dependen de `ActionType.SIDE`/`MAIN` para
+  decidir fin de turno.
+- Teclas 1-4 / Q-W-E-R (Combat.tsx) → reemplazadas por Z/X/C/V de la mano.
 
-- `src/scenes/ImageTest.tsx` - All functionality migrated to AssetCompanion
+**Migration notes:**
+- `player.skills` se mantiene como **mazo**; PASSIVE siguen siempre activas (no entran al mazo).
+- La math base (`calculateDamage`, `applyMitigation`, defensa, crítico) **no cambia** → los tests de
+  `CombatCalculation.test.ts` deben seguir verdes sin tocarse.
+- El `BattleSimulator` se actualiza en F4 **en el mismo refactor** para no dejar el gate de BALANCE
+  midiendo un sistema inexistente.
 
-**Remove from App.tsx:**
+---
 
-- `GameState.IMAGE_TEST` case (lines ~1779)
-- `onImageTest` callback to MainMenu
+## Ejecución a través del loop (propuesta)
 
-**Remove from MainMenu.tsx:**
+Por tamaño/riesgo, ejecutar T-004 como **fases secuenciales** vía `/loop-run`, cada una con su gate
+de 4 lentes (umbral ≥85) y `maxAttempts`:
 
-- "AI Image Generator Test" button
-- `onImageTest` prop
+1. **T-004.1** = F1 (datos/constantes) — fundacional, bajo riesgo.
+2. **T-004.2** = F2 (lógica core) — el corazón; gate ARQ/SIS fuerte.
+3. **T-004.3** = F3 (UI) — gate PRESENTACION con screenshots de combate.
+4. **T-004.4** = F4 (simulador) — restaura validez del gate de BALANCE.
+5. **T-004.5** = F5 (limpieza legacy) — sin dead code.
 
-**Update types.ts:**
-
-- Remove `IMAGE_TEST` from GameState enum (replaced by `ASSET_COMPANION`)
+Checkpoint humano entre fases grandes (F2, F4). La math base intacta mantiene `calculateDamage`
+verde durante todo el refactor.

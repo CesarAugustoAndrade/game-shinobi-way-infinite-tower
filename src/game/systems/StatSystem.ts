@@ -76,6 +76,7 @@ import {
 } from '../types';
 import { ELEMENTAL_CYCLE } from '../constants';
 import { BALANCE } from '../config';
+import { LaunchProperties } from '../../config/featureFlags';
 import { percentChance, chance } from '../utils/rng';
 
 // ============================================================================
@@ -326,6 +327,13 @@ export function calculateDerivedStats(
   // ─────────────────────────────────────────────────────────────────────────
   const initiative = F.INIT_BASE + (effective.speed * F.INIT_PER_SPEED);
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // ACTION POINTS - Per-turn AP budget for the deckbuilder economy (T-004)
+  // Faster shinobi play more cards per turn. Purely additive: this value is
+  // not yet consumed by the combat flow (wired up in a later phase).
+  // ─────────────────────────────────────────────────────────────────────────
+  const actionPointsPerTurn = LaunchProperties.AP_BASE + Math.floor(effective.speed / LaunchProperties.AP_PER_SPEED_DIV);
+
   return {
     maxHp,
     currentHp: maxHp,
@@ -347,7 +355,8 @@ export function calculateDerivedStats(
     critChance,
     critDamageMelee,
     critDamageRanged,
-    initiative
+    initiative,
+    actionPointsPerTurn
   };
 }
 

@@ -1,0 +1,173 @@
+/**
+ * =============================================================================
+ * COMBAT CARDS - Card categorization, AP costs & posture draw weights (T-004)
+ * =============================================================================
+ *
+ * Pure, side-effect-free helpers that classify a `Skill` for the deckbuilder
+ * combat economy. These are the foundation the DeckSystem (a later phase) will
+ * consume to build draw piles and weight the per-turn hand by posture.
+ *
+ * Design notes:
+ * - No React, no mutation, no `Math.random` — every function is deterministic.
+ * - Balance dials (the offensive damage threshold, base weight) live here in
+ *   `constants/`; the posture multipliers live in `LaunchProperties`.
+ * - PASSIVE skills are always active and never enter the deck; helpers still
+ *   accept them and return sensible, non-blocking values.
+ *
+ * =============================================================================
+ */
+
+import { ActionType, EffectType, Posture, PrimaryStat, Skill } from '../types';
+import { LaunchProperties } from '../../config/featureFlags';
+
+// ============================================================================
+// CARD CATEGORY
+// ============================================================================
+
+/**
+ * The three draw-weighting buckets a card can fall into.
+ * - `offensive`: the card's primary purpose is dealing damage.
+ * - `defensive`: the card protects or restores the player (shield/heal/etc.).
+ * - `utility`: setup, buffs, debuffs, control and resource manipulation.
+ */
+export type CardCategory = 'offensive' | 'utility' | 'defensive';
+
+/**
+ * A skill counts as offensive when its damage multiplier exceeds this floor.
+ * Tuned so pure attacks (lowest real attack ≈ 0.8) read as offensive while
+ * defensive techniques that deal incidental chip damage (e.g. Rotation at 0.5)
+ * fall through to their protective classification.
+ */
+export const CARD_OFFENSIVE_DAMAGE_THRESHOLD = 0.5;
+
+/** Flat starting weight for every card before posture multipliers apply. */
+export const CARD_BASE_WEIGHT = 1.0;
+
+/** Effect types that directly prevent or recover damage → defensive. */
+const DEFENSIVE_EFFECT_TYPES: ReadonlySet<EffectType> = new Set([
+  EffectType.SHIELD,
+  EffectType.INVULNERABILITY,
+  EffectType.REFLECTION,
+  EffectType.HEAL,
+  EffectType.REGEN,
+]);
+
+/** Primary stats whose self-BUFF signals a defensive intent (survival stats). */
+const DEFENSIVE_BUFF_STATS: ReadonlySet<PrimaryStat> = new Set([
+  PrimaryStat.WILLPOWER,
+  PrimaryStat.CALMNESS,
+]);
+
+/**
+ * Classify a skill into an offensive / defensive / utility card bucket.
+ *
+ * Resolution order (first match wins):
+ *   1. Deals meaningful damage          → `offensive`
+ *   2. Applies a shield/heal/reflect/etc → `defensive`
+ *   3. Buffs a survival stat (WIL/CAL)   → `defensive`
+ *   4. Anything else (buffs, debuffs,
+ *      control, resource manipulation)   → `utility`
+ *
+ * @param skill - The skill to categorize.
+ * @returns The card category used for draw weighting.
+ */
+export function getCardCategory(skill: Skill): CardCategory {
+  if (skill.damageMult > CARD_OFFENSIVE_DAMAGE_THRESHOLD) {
+    return 'offensive';
+  }
+
+  const effects = skill.effects ?? [];
+
+  const hasDefensiveEffect = effects.some((effect) =>
+    DEFENSIVE_EFFECT_TYPES.has(effect.type)
+  );
+  if (hasDefensiveEffect) {
+    return 'defensive';
+  }
+
+  const hasDefensiveBuff = effects.some(
+    (effect) =>
+      effect.type === EffectType.BUFF &&
+      effect.targetStat !== undefined &&
+      DEFENSIVE_BUFF_STATS.has(effect.targetStat)
+  );
+  if (hasDefensiveBuff) {
+    return 'defensive';
+  }
+
+  return 'utility';
+}
+
+// ============================================================================
+// ACTION POINT COST
+// ============================================================================
+
+/**
+ * Derive the default Action Point cost for a card from its `ActionType`.
+ * Used as a fallback when `Skill.apCost` is not explicitly set.
+ *
+ * - MAIN   → 2 (heavy techniques / primary attacks)
+ * - TOGGLE → 2 (activating a stance)
+ * - SIDE   → 1 (light support actions)
+ * - PASSIVE → 0 (never played as a card; always active)
+ *
+ * @param skill - The skill to price.
+ * @returns The AP cost to play this card.
+ */
+export function getDefaultApCost(skill: Skill): number {
+  switch (skill.actionType) {
+    case ActionType.MAIN:
+      return 2;
+    case ActionType.TOGGLE:
+      return 2;
+    case ActionType.SIDE:
+      return 1;
+    case ActionType.PASSIVE:
+      return 0;
+    default:
+      return 1;
+  }
+}
+
+/**
+ * The effective AP cost of a card: an explicit `Skill.apCost` when provided,
+ * otherwise the `ActionType`-derived default.
+ *
+ * @param skill - The skill to price.
+ * @returns The AP cost to play this card.
+ */
+export function getApCost(skill: Skill): number {
+  return skill.apCost ?? getDefaultApCost(skill);
+}
+
+// ============================================================================
+// POSTURE DRAW WEIGHTS
+// ============================================================================
+
+/**
+ * Posture → per-category draw multipliers, mapped from `LaunchProperties` onto
+ * the `Posture` enum for type-safe lookup. (LaunchProperties keys are plain
+ * strings to avoid a circular import with `game/types`.)
+ */
+const POSTURE_WEIGHTS: Record<Posture, Record<CardCategory, number>> = {
+  [Posture.AGGRESSIVE]: LaunchProperties.POSTURE_DRAW_WEIGHTS.Aggressive,
+  [Posture.BALANCED]: LaunchProperties.POSTURE_DRAW_WEIGHTS.Balanced,
+  [Posture.DEFENSIVE]: LaunchProperties.POSTURE_DRAW_WEIGHTS.Defensive,
+};
+
+/**
+ * Compute a card's draw weight under a given posture:
+ * `CARD_BASE_WEIGHT × postureMultiplier(category)`.
+ *
+ * Higher weight ⇒ more likely to be drawn into the hand. The result is always
+ * positive so no card is ever fully excluded from a draw.
+ *
+ * @param skill - The card to weight.
+ * @param posture - The active combat posture.
+ * @returns The (non-negative) draw weight.
+ */
+export function weightFor(skill: Skill, posture: Posture): number {
+  const category = getCardCategory(skill);
+  const multiplier = POSTURE_WEIGHTS[posture][category];
+  return CARD_BASE_WEIGHT * multiplier;
+}

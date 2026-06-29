@@ -150,6 +150,35 @@ export const LaunchProperties = {
 
   /** Map pieces required by danger level */
   TREASURE_MAP_PIECES: { lowDanger: 2, midDanger: 3, highDanger: 4 },
+
+  // ─────────────────────────────────────────────────────────────
+  // Combat Economy — Action Points, Hand & Postures (T-004)
+  // ─────────────────────────────────────────────────────────────
+
+  /** Base Action Points granted at the start of every player turn */
+  AP_BASE: 3,
+
+  /** Speed required per +1 bonus AP/turn → AP = AP_BASE + floor(speed / AP_PER_SPEED_DIV) */
+  AP_PER_SPEED_DIV: 10,
+
+  /** Number of cards drawn into the player's hand each turn */
+  HAND_SIZE: 4,
+
+  /** AP cost of manually switching posture (skills that shift posture do so for free) */
+  POSTURE_SWITCH_AP_COST: 1,
+
+  /**
+   * Draw-weight multipliers per card category, keyed by posture.
+   * The weighted hand draw multiplies a card's base weight by the multiplier
+   * matching its category (offensive/utility/defensive). Keys mirror the
+   * Posture enum string values (kept as string literals to avoid a circular
+   * import between featureFlags and game/types).
+   */
+  POSTURE_DRAW_WEIGHTS: {
+    Aggressive: { offensive: 2.0, utility: 1.0, defensive: 0.5 },
+    Balanced:   { offensive: 1.0, utility: 1.0, defensive: 1.0 },
+    Defensive:  { offensive: 0.5, utility: 1.4, defensive: 2.0 },
+  },
 } as const;
 
 // Type exports for type-safe access

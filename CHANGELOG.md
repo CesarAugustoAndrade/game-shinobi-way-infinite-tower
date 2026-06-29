@@ -10,6 +10,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - Pixel-Arcade UI restyle (T-001): Silkscreen/VT323 pixel fonts, blocky panels/cards and hard-shadow buttons (no blur) applied through the design-system tokens across Main Menu, Character Select, Exploration and Combat. Sprites/illustrations untouched.
 - SkillCard chakra-cost badge (T-002): combat skill cards now show the chakra cost as a pixel-arcade chip (`{n} CP` / `FREE` for non-passive skills), consistent with the sibling badges. Also defined the missing `--sw-space-0-5`/`--sw-space-1-5` spacing tokens.
 - combat-art local skill (T-003): structured `.agents/skills/combat-art/` skill (layered scene composition, sprite style rules, CSS aura/CRT implementation, AI asset-prompt formulas) derived from `docs/guia_direccion_de_arte_combate.md`, for future combat art/asset work.
+- Combat refactor groundwork (T-004 phase F1): additive data model + constants for the upcoming cards/AP/posture combat system — `Posture` enum, `Skill.apCost`/`stanceShift`, derived `actionPointsPerTurn`, `CombatState` hand/deck/AP/posture fields, and pure `combatCards` helpers. Not yet wired into combat (no behavior change). See `plan.md`.
 
 ### Changed
 

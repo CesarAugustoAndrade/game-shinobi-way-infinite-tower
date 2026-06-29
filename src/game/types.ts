@@ -145,6 +145,10 @@ export interface DerivedStats {
 
   // Initiative (turn order in combat)
   initiative: number;
+
+  // Action economy (T-004 deckbuilder/AP system)
+  // AP regenerated at the start of each player turn: AP_BASE + floor(speed / AP_PER_SPEED_DIV)
+  actionPointsPerTurn: number;
 }
 
 // ============================================================================
@@ -222,6 +226,18 @@ export enum ActionType {
   TOGGLE = 'Toggle',   // Activate once (ends turn), pays upkeep each turn
   SIDE = 'Side',       // Free action BEFORE Main, max 2 per turn
   PASSIVE = 'Passive'  // Always active, no action required
+}
+
+// ============================================================================
+// POSTURE SYSTEM (T-004 — deckbuilder / Action Point combat refactor)
+// ============================================================================
+// The combatant's active stance. Posture biases the weighted card draw and
+// applies a light damage/defense modifier. Switching posture costs AP; some
+// skills shift posture for free on hit (see Skill.stanceShift).
+export enum Posture {
+  AGGRESSIVE = 'Aggressive', // Favors offensive cards in the draw
+  BALANCED = 'Balanced',     // Neutral draw weighting (default)
+  DEFENSIVE = 'Defensive'    // Favors utility/defensive cards in the draw
 }
 
 // Turn phase tracking for combat (Upkeep → Side → Main flow)
@@ -418,6 +434,11 @@ export interface Skill {
   // ACTION TYPE - Determines when/how skill can be used
   actionType: ActionType;        // MAIN/TOGGLE/SIDE/PASSIVE (required)
   sideActionLimit?: number;      // Max uses per turn for SIDE skills (default: 1)
+
+  // DECKBUILDER / AP ECONOMY (T-004) - optional during migration.
+  // When omitted, callers derive a default cost from ActionType (see combatCards.ts).
+  apCost?: number;               // Action Point cost to play this card
+  stanceShift?: Posture;         // If set, landing this card shifts the player's posture (free)
 
   // Costs
   chakraCost: number;

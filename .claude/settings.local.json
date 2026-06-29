@@ -31,11 +31,7 @@
     "deny": [
       "Write(src/**/*.md)",
       "Write(CLAUDE.md)",
-      "Write(CHANGELOG.md)",
       "Write(README.md)",
-      "Write(PLAN.md)",
-      "Write(REVIEW.md)",
-      "Write(GLOSSARY.md)",
       "Write(*.txt)"
     ],
     "ask": []
