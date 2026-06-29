@@ -49,7 +49,7 @@
 ## T-002 · SkillCard muestra el coste de chakra
 - id: T-002
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 60
 - targetScore: 85
 - lensFocus: [PRESENTACION, ARQUITECTURA]
@@ -96,4 +96,25 @@
     - src/game/systems/CombatWorkflowSystem.ts
     - src/scenes/combat/Combat.tsx
     - src/components/combat/SkillCard.tsx
+
+---
+
+## T-005 · Creación de Assets de Combate usando /generar-asset
+- id: T-005
+- section: presentation
+- status: pending
+- initialScore: 50
+- targetScore: 85
+- lensFocus: [PRESENTACION]
+- description: >
+    Generar y organizar los assets visuales necesarios para el combate (técnicas de jutsus, sprites de enemigos
+    y escenarios por capas) en formato Pixel-Art 16-Bit, siguiendo estrictamente las reglas estéticas
+    y técnicas definidas en la nueva skill local `.agents/skills/combat-art` (creada en T-003). El proceso utilizará
+    el comando `/generar-asset` (o la interfaz de generación de Asset Companion) y sus fórmulas de prompts.
+    1. Generar sprites y retratos de enemigos con delineados oscuros marcados (outlines) y preparados para recibir auras de chakra dinámicas por CSS.
+    2. Generar iconos de habilidades y herramientas con fondos transparentes y colores saturados/brillantes tipo Neo Geo.
+    3. Generar y deconstruir fondos en 3 láminas independientes (Foreground, Middleground con enmarcado, Background) preparadas para scroll paralláctico y compatibles con la capa del filtro CRT.
+- entryPoints:
+    - src/config/assetCompanionConfig.ts
+    - src/game/systems/EnemySystem.ts
 

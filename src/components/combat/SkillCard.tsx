@@ -147,6 +147,21 @@ export const SkillCard: React.FC<SkillCardProps> = ({
             </div>
           </div>
           <div className="skill-card__badges">
+            {/* Chakra Cost Badge */}
+            {!isPassive && (
+              <div
+                className={`skill-card__cost-badge ${
+                  skill.chakraCost > 0 ? '' : 'skill-card__cost-badge--free'
+                }`.trim()}
+                aria-label={
+                  skill.chakraCost > 0
+                    ? `Costs ${skill.chakraCost} chakra`
+                    : 'No chakra cost'
+                }
+              >
+                {skill.chakraCost > 0 ? `${skill.chakraCost} CP` : 'FREE'}
+              </div>
+            )}
             {/* Action Type Badge */}
             {actionBadge && (
               <div className={`skill-card__action-badge ${actionBadge.className}`}>
@@ -168,15 +183,12 @@ export const SkillCard: React.FC<SkillCardProps> = ({
           </div>
         </div>
 
-        {/* Cost Display */}
+        {/* Secondary Cost Display (chakra cost shown as a badge in the header) */}
         <div className="skill-card__costs">
           {isPassive ? (
             <span className="skill-card__cost--passive">Always Active</span>
           ) : (
             <>
-              <span className={skill.chakraCost > 0 ? 'skill-card__cost--cp' : 'skill-card__cost--cp-zero'}>
-                {skill.chakraCost > 0 ? `${skill.chakraCost} CP` : '-'}
-              </span>
               {skill.hpCost > 0 && (
                 <span className="skill-card__cost--hp">{skill.hpCost} HP</span>
               )}

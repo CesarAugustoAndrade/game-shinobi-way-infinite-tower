@@ -197,6 +197,7 @@
 .skill-card__action-badge {
   border-radius: var(--sw-radius-sm);
   padding: var(--sw-space-0-5) var(--sw-space-1-5);
+  box-shadow: var(--sw-shadow-sm);
 }
 
 .skill-card__action-badge-text {
@@ -231,12 +232,35 @@
   border: 1px solid var(--sw-glass-border);
   border-radius: var(--sw-radius-sm);
   padding: var(--sw-space-0-5) var(--sw-space-1-5);
+  box-shadow: var(--sw-shadow-sm);
 }
 
 .skill-card__level-text {
   font-size: 0.5rem;
   font-family: var(--sw-font-mono);
   color: #ca8a04;
+}
+
+/* Chakra Cost Badge — primary affordance, chakra-blue blocky chip */
+.skill-card__cost-badge {
+  background: var(--sw-scrim-soft);
+  border: 1px solid var(--sw-chakra-color);
+  border-radius: var(--sw-radius-sm);
+  padding: var(--sw-space-0-5) var(--sw-space-1-5);
+  box-shadow: var(--sw-shadow-sm);
+  font-size: 0.5rem;
+  font-family: var(--sw-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  color: var(--sw-chakra-color);
+  white-space: nowrap;
+}
+
+/* Free skills read green so "no cost" is unmistakable */
+.skill-card__cost-badge--free {
+  border-color: var(--sw-risk-safe-light);
+  color: var(--sw-risk-safe-light);
 }
 
 /* ===========================================
@@ -282,15 +306,6 @@
   margin-top: auto;
   font-size: var(--sw-text-2xs);
   font-family: var(--sw-font-mono);
-}
-
-.skill-card__cost--cp {
-  color: #60a5fa;
-  font-weight: 700;
-}
-
-.skill-card__cost--cp-zero {
-  color: var(--sw-text-muted);
 }
 
 .skill-card__cost--hp {
