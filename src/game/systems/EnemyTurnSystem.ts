@@ -642,6 +642,105 @@ export function applyTerrainHazardsPhase(
 }
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Helper to construct the EnemyTurnResult return object.
+ */
+function buildTurnResult(
+  player: Player,
+  enemy: Enemy,
+  logs: string[],
+  playerDefeated: boolean,
+  enemyDefeated: boolean,
+  artifactGutsTriggered?: boolean
+): EnemyTurnResult {
+  return {
+    newPlayerHp: player.currentHp,
+    newPlayerBuffs: player.activeBuffs,
+    newEnemyHp: enemy.currentHp,
+    newEnemyBuffs: enemy.activeBuffs,
+    logMessages: logs,
+    playerDefeated,
+    enemyDefeated,
+    playerSkills: player.skills,
+    artifactGutsTriggered
+  };
+}
+
+interface DoTDeathCheckResult {
+  player: Player;
+  playerDefeated: boolean;
+  enemyDefeated: boolean;
+  gutsContext: GutsContext;
+  logs: string[];
+}
+
+/**
+ * Checks if DoT effects caused lethal damage and processes guts for player survival.
+ */
+function checkDoTDeaths(
+  player: Player,
+  playerStats: CharacterStats,
+  enemyHp: number,
+  gutsContext: GutsContext,
+  combatState?: CombatState,
+  existingLogs: string[] = []
+): DoTDeathCheckResult {
+  let updatedPlayer = { ...player };
+  const logs = [...existingLogs];
+  let playerDefeated = false;
+  let enemyDefeated = false;
+  const updatedGutsContext = { ...gutsContext };
+
+  // Enemy died from DoT
+  if (enemyHp <= 0) {
+    enemyDefeated = true;
+    return {
+      player: updatedPlayer,
+      playerDefeated,
+      enemyDefeated,
+      gutsContext: updatedGutsContext,
+      logs
+    };
+  }
+
+  // Player died from DoT - check guts
+  if (updatedPlayer.currentHp <= 0) {
+    const artifactGuts = checkGutsPassive(updatedPlayer);
+    const lethalCheck = checkLethalDamage(
+      updatedPlayer.currentHp,
+      0, // No additional damage, just checking current HP
+      playerStats.derived.gutsChance,
+      updatedGutsContext,
+      artifactGuts,
+      combatState?.artifactGutsUsed,
+      playerStats.derived.maxHp
+    );
+
+    if (!lethalCheck.survived) {
+      playerDefeated = true;
+    } else {
+      updatedPlayer.currentHp = lethalCheck.newHp;
+      updatedGutsContext.triggered = lethalCheck.gutsTriggered;
+      updatedGutsContext.artifactTriggered = lethalCheck.artifactGutsTriggered;
+      if (lethalCheck.log) {
+        logs.push(lethalCheck.log);
+      }
+    }
+  }
+
+  return {
+    player: updatedPlayer,
+    playerDefeated,
+    enemyDefeated,
+    gutsContext: updatedGutsContext,
+    logs
+  };
+}
+
+// ============================================================================
 // ENEMY TURN ORCHESTRATOR
 // ============================================================================
 
@@ -743,52 +842,28 @@ export function processEnemyTurn(
   // ============================================
   // Phase 3: Check DoT Deaths
   // ============================================
-  // Enemy died from DoT
-  if (updatedEnemy.currentHp <= 0) {
-    return {
-      newPlayerHp: updatedPlayer.currentHp,
-      newPlayerBuffs: updatedPlayer.activeBuffs,
-      newEnemyHp: updatedEnemy.currentHp,
-      newEnemyBuffs: updatedEnemy.activeBuffs,
-      logMessages: logs,
-      playerDefeated: false,
-      enemyDefeated: true,
-      playerSkills: updatedPlayer.skills
-    };
-  }
+  const dotDeath = checkDoTDeaths(
+    updatedPlayer,
+    playerStats,
+    updatedEnemy.currentHp,
+    gutsContext,
+    combatState,
+    logs
+  );
+  updatedPlayer = dotDeath.player;
+  gutsContext = dotDeath.gutsContext;
+  logs.length = 0;
+  logs.push(...dotDeath.logs);
 
-  // Player died from DoT - check guts
-  if (updatedPlayer.currentHp <= 0) {
-    const artifactGuts = checkGutsPassive(updatedPlayer);
-    const lethalCheck = checkLethalDamage(
-      updatedPlayer.currentHp,
-      0, // No additional damage, just checking current HP
-      playerStats.derived.gutsChance,
-      gutsContext,
-      artifactGuts,
-      combatState?.artifactGutsUsed,
-      playerStats.derived.maxHp
+  if (dotDeath.enemyDefeated || dotDeath.playerDefeated) {
+    return buildTurnResult(
+      updatedPlayer,
+      updatedEnemy,
+      logs,
+      dotDeath.playerDefeated,
+      dotDeath.enemyDefeated,
+      gutsContext.artifactTriggered
     );
-
-    if (!lethalCheck.survived) {
-      return {
-        newPlayerHp: updatedPlayer.currentHp,
-        newPlayerBuffs: updatedPlayer.activeBuffs,
-        newEnemyHp: updatedEnemy.currentHp,
-        newEnemyBuffs: updatedEnemy.activeBuffs,
-        logMessages: logs,
-        playerDefeated: true,
-        enemyDefeated: false,
-        playerSkills: updatedPlayer.skills
-      };
-    }
-
-    updatedPlayer.currentHp = lethalCheck.newHp;
-    gutsContext.triggered = lethalCheck.gutsTriggered;
-    gutsContext.artifactTriggered = lethalCheck.artifactGutsTriggered;
-    if (lethalCheck.log) {
-      logs.push(lethalCheck.log);
-    }
   }
 
   // ============================================
@@ -809,32 +884,15 @@ export function processEnemyTurn(
   gutsContext = actionResult.gutsContext;
 
   // Check for defeats from enemy action
-  if (actionResult.playerDefeated) {
-    return {
-      newPlayerHp: updatedPlayer.currentHp,
-      newPlayerBuffs: updatedPlayer.activeBuffs,
-      newEnemyHp: updatedEnemy.currentHp,
-      newEnemyBuffs: updatedEnemy.activeBuffs,
-      logMessages: logs,
-      playerDefeated: true,
-      enemyDefeated: false,
-      playerSkills: updatedPlayer.skills,
-      artifactGutsTriggered: gutsContext.artifactTriggered
-    };
-  }
-
-  if (actionResult.enemyDefeated) {
-    return {
-      newPlayerHp: updatedPlayer.currentHp,
-      newPlayerBuffs: updatedPlayer.activeBuffs,
-      newEnemyHp: updatedEnemy.currentHp,
-      newEnemyBuffs: updatedEnemy.activeBuffs,
-      logMessages: logs,
-      playerDefeated: false,
-      enemyDefeated: true,
-      playerSkills: updatedPlayer.skills,
-      artifactGutsTriggered: gutsContext.artifactTriggered
-    };
+  if (actionResult.playerDefeated || actionResult.enemyDefeated) {
+    return buildTurnResult(
+      updatedPlayer,
+      updatedEnemy,
+      logs,
+      actionResult.playerDefeated,
+      actionResult.enemyDefeated,
+      gutsContext.artifactTriggered
+    );
   }
 
   // ============================================
@@ -869,56 +927,37 @@ export function processEnemyTurn(
     gutsContext = hazardResult.gutsContext;
 
     // Check for hazard defeats
-    if (hazardResult.enemyDefeated) {
-      return {
-        newPlayerHp: updatedPlayer.currentHp,
-        newPlayerBuffs: updatedPlayer.activeBuffs,
-        newEnemyHp: updatedEnemy.currentHp,
-        newEnemyBuffs: updatedEnemy.activeBuffs,
-        logMessages: logs,
-        playerDefeated: false,
-        enemyDefeated: true,
-        playerSkills: updatedPlayer.skills,
-        artifactGutsTriggered: gutsContext.artifactTriggered
-      };
-    }
-
-    if (hazardResult.playerDefeated) {
-      return {
-        newPlayerHp: updatedPlayer.currentHp,
-        newPlayerBuffs: updatedPlayer.activeBuffs,
-        newEnemyHp: updatedEnemy.currentHp,
-        newEnemyBuffs: updatedEnemy.activeBuffs,
-        logMessages: logs,
-        playerDefeated: true,
-        enemyDefeated: false,
-        playerSkills: updatedPlayer.skills,
-        artifactGutsTriggered: gutsContext.artifactTriggered
-      };
+    if (hazardResult.enemyDefeated || hazardResult.playerDefeated) {
+      return buildTurnResult(
+        updatedPlayer,
+        updatedEnemy,
+        logs,
+        hazardResult.playerDefeated,
+        hazardResult.enemyDefeated,
+        gutsContext.artifactTriggered
+      );
     }
   }
 
   // ============================================
   // Final Result
   // ============================================
-  const finalResult: EnemyTurnResult = {
-    newPlayerHp: updatedPlayer.currentHp,
-    newPlayerBuffs: updatedPlayer.activeBuffs,
-    newEnemyHp: updatedEnemy.currentHp,
-    newEnemyBuffs: updatedEnemy.activeBuffs,
-    logMessages: logs,
-    playerDefeated: false,
-    enemyDefeated: false,
-    playerSkills: updatedPlayer.skills,
-    artifactGutsTriggered: gutsContext.artifactTriggered,
-  };
+  const finalResult = buildTurnResult(
+    updatedPlayer,
+    updatedEnemy,
+    logs,
+    false,
+    false,
+    gutsContext.artifactTriggered
+  );
 
   combatLog('turn', `=== ENEMY TURN END ===`, {
     playerHpAfter: finalResult.newPlayerHp,
     enemyHpAfter: finalResult.newEnemyHp,
-    playerDefeated: finalResult.playerDefeated,
-    enemyDefeated: finalResult.enemyDefeated
+    playerDefeated: false,
+    enemyDefeated: false
   });
 
   return finalResult;
 }
+

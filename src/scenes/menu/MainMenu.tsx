@@ -1,21 +1,19 @@
 import React, { useEffect, useCallback } from 'react';
 import './MainMenu.css';
-import { BookOpen, Palette } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 
 interface MainMenuProps {
   difficulty: number;
   onDifficultyChange: (value: number) => void;
   onEnter: () => void;
   onGuide: () => void;
-  onAssetCompanion?: () => void;
 }
 
 const MainMenu: React.FC<MainMenuProps> = ({
   difficulty,
   onDifficultyChange,
   onEnter,
-  onGuide,
-  onAssetCompanion
+  onGuide
 }) => {
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -84,17 +82,6 @@ const MainMenu: React.FC<MainMenuProps> = ({
             <BookOpen size={14} />
             <span>Shinobi Handbook</span>
           </button>
-
-          {onAssetCompanion && (
-            <button
-              type="button"
-              onClick={onAssetCompanion}
-              className="main-menu__secondary main-menu__secondary--asset"
-            >
-              <Palette size={14} />
-              <span>Asset Companion</span>
-            </button>
-          )}
         </div>
       </div>
     </div>

@@ -126,3 +126,18 @@ export const getLocationTypeLabel = (type: LocationType): string => {
     default: return 'Unknown';
   }
 };
+
+// ============================================================================
+// DAMAGE TYPE COLORS
+// ============================================================================
+
+export const getDamageTypeColor = (dt: any): string => {
+  switch (dt) {
+    case 'PHYSICAL': return 'text-orange-500';
+    case 'ELEMENTAL': return 'text-purple-500';
+    case 'MENTAL': return 'text-indigo-500';
+    case 'TRUE': return 'text-red-500';
+    default: return 'text-zinc-400';
+  }
+};
+

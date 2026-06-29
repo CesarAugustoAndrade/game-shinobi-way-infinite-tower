@@ -257,7 +257,7 @@ export interface SimCombatant {
 
 export interface TurnLog {
   turn: number;
-  actor: 'player' | 'enemy';
+  actor: 'player' | 'enemy' | 'environment';
   action: string;
   damage: number;
   isCrit: boolean;

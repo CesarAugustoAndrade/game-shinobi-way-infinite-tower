@@ -4,9 +4,19 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Added
+
+- Self-improving development loop (`/loop-run`): lead-orchestrated maker/checker cycle with bounded retries and on-disk memory. Includes the `quality-scoring` skill (4 lenses: architecture, system, presentation, balance with a >=85 gate), the `loop-maker` and `loop-reviewer` agents, and `loop/` state files (VISION, LOOP-TOPICS, LOOP-STATE, RULES, logs).
+- Pixel-Arcade UI restyle (T-001): Silkscreen/VT323 pixel fonts, blocky panels/cards and hard-shadow buttons (no blur) applied through the design-system tokens across Main Menu, Character Select, Exploration and Combat. Sprites/illustrations untouched.
+
 ### Changed
 
 - Remove Ryo option from revealed treasure choices (players now pick only from items)
+- Enable ENABLE_MANUAL_COMBAT feature flag (manual/interactive combat instead of auto-simulated)
+
+### Removed
+
+- Removed Asset Companion tool and associated scenes, components, configs, hooks, and feature flags.
 
 ## 2025-12-29
 

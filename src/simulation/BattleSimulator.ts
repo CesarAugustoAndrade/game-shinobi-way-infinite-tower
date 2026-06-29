@@ -17,6 +17,9 @@ import {
   ApproachType,
   TreasureQuality,
   DEFAULT_MERCHANT_SLOTS,
+  CharacterStats,
+  TerrainType,
+  TerrainDefinition,
 } from '../game/types';
 import {
   calculateDerivedStats,
@@ -38,12 +41,25 @@ import {
 } from './types';
 import { EnemyArchetype, generateSimEnemy } from './EnemyArchetypes';
 import { createBuildFromConfig } from './BuildGenerator';
-import { selectBestSkill, AIStrategy, selectSkillByStrategy } from './SkillSelectionAI';
+import { selectBestSkill } from './SkillSelectionAI';
 import {
   generateId,
   applyMitigation as applyMitigationCalc,
   tickBuffDurations,
+  getTerrainElementAmplification,
+  applyTerrainHazard,
 } from '../game/systems/CombatCalculationSystem';
+import {
+  processPassivesOnCombatStart,
+  processPassivesOnHit,
+  processPassivesOnTurnStart,
+  shouldCounterAttack,
+  checkExecuteThreshold,
+  checkGutsPassive,
+} from '../game/systems/EquipmentPassiveSystem';
+import { LaunchProperties } from '../config/featureFlags';
+import { BIOME_TERRAINS, TERRAIN_DEFINITIONS } from '../game/constants/terrain';
+import { getStoryArcForFloor } from '../game/entities/Enemy';
 
 /**
  * Calculate approach success based on player stats and approach type
@@ -207,6 +223,9 @@ export interface BattleContext {
   enemy: Enemy;
   playerDerived: DerivedStats;
   enemyDerived: DerivedStats;
+  playerStats: CharacterStats;
+  enemyStats: CharacterStats;
+  terrain: TerrainDefinition | null;
   turn: number;
   isFirstTurn: boolean;
   firstHitMultiplier: number;
@@ -223,6 +242,7 @@ export interface BattleContext {
     chakraUsed: number;
     skillsUsed: Record<string, number>;
   };
+  artifactGutsUsed: boolean;
 }
 
 /**
@@ -303,8 +323,8 @@ function executePlayerTurn(ctx: BattleContext): boolean {
 function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): boolean {
   const attacker = isPlayer ? ctx.player : ctx.enemy;
   const defender = isPlayer ? ctx.enemy : ctx.player;
-  const attackerDerived = isPlayer ? ctx.playerDerived : ctx.enemyDerived;
-  const defenderDerived = isPlayer ? ctx.enemyDerived : ctx.playerDerived;
+  const attackerStats = isPlayer ? ctx.playerStats : ctx.enemyStats;
+  const defenderStats = isPlayer ? ctx.enemyStats : ctx.playerStats;
 
   // Deduct costs
   if (isPlayer) {
@@ -320,9 +340,9 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
   // Calculate damage
   const result = calculateDamage(
     attacker.primaryStats,
-    attackerDerived,
+    attackerStats.derived,
     defender.primaryStats,
-    defenderDerived,
+    defenderStats.derived,
     skill,
     attacker.element,
     defender.element
@@ -368,20 +388,60 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
     ctx.metrics.crits++;
   }
 
+  // Apply terrain element amplification for player
+  if (isPlayer && ctx.terrain) {
+    const terrainAmp = getTerrainElementAmplification(ctx.terrain, ctx.player.element);
+    if (terrainAmp > 1.0) {
+      damage = Math.floor(damage * terrainAmp);
+    }
+  }
+
+  // Apply LaunchProperties Multipliers
+  if (isPlayer) {
+    damage = Math.floor(damage * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
+  } else {
+    damage = Math.floor(damage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
+  }
+
   // Apply first hit multiplier
   if (ctx.isFirstTurn && isPlayer && ctx.firstHitMultiplier > 1.0) {
     damage = Math.floor(damage * ctx.firstHitMultiplier);
-    ctx.isFirstTurn = false;
+  }
+
+  // Apply execute threshold for player
+  if (isPlayer) {
+    const enemyMaxHp = ctx.enemyStats.derived.maxHp;
+    if (checkExecuteThreshold(ctx.player, ctx.enemy, enemyMaxHp)) {
+      damage = ctx.enemy.currentHp;
+    }
   }
 
   // Apply mitigation
-  const mitigation = applyMitigation(defender.activeBuffs, damage);
+  const defenderName = 'name' in defender ? defender.name : defender.clan;
+  const mitigation = applyMitigation(defender.activeBuffs, damage, defenderName);
   damage = mitigation.finalDamage;
 
   if (isPlayer) {
     ctx.enemy.activeBuffs = mitigation.updatedBuffs;
     ctx.enemy.currentHp -= damage;
     ctx.metrics.totalDamageDealt += damage;
+
+    // Process passives on hit
+    const onHitResult = processPassivesOnHit(ctx.player, ctx.enemy, damage, result.isCrit);
+    
+    // Apply lifesteal
+    if (onHitResult.healToPlayer > 0) {
+      ctx.player.currentHp = Math.min(ctx.playerStats.derived.maxHp, ctx.player.currentHp + onHitResult.healToPlayer);
+    }
+    // Apply chakra restore
+    if (onHitResult.chakraRestored > 0) {
+      ctx.player.currentChakra = Math.min(ctx.playerStats.derived.maxChakra, ctx.player.currentChakra + onHitResult.chakraRestored);
+    }
+    // Apply passive debuffs to enemy
+    const newPassiveDebuffs = onHitResult.enemy.activeBuffs.filter(
+      b => !ctx.enemy.activeBuffs.some(existing => existing.id === b.id)
+    );
+    ctx.enemy.activeBuffs = [...ctx.enemy.activeBuffs, ...newPassiveDebuffs];
 
     // Handle reflection
     if (mitigation.reflectedDamage > 0) {
@@ -391,21 +451,39 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
   } else {
     ctx.player.activeBuffs = mitigation.updatedBuffs;
 
-    // Store HP before damage to check guts properly
-    const hpBeforeDamage = ctx.player.currentHp;
-
     // Check guts
-    const gutsResult = checkGuts(hpBeforeDamage, damage, ctx.playerDerived.gutsChance);
-    if (!gutsResult.survived) {
-      ctx.player.currentHp = 0;
-    } else {
-      ctx.player.currentHp = gutsResult.newHp;
-      // Guts triggered if we would have died but survived at 1 HP
-      if (gutsResult.newHp === 1 && hpBeforeDamage - damage <= 0) {
+    const hpBeforeDamage = ctx.player.currentHp;
+    const hpAfterDamage = hpBeforeDamage - damage;
+    if (hpAfterDamage <= 0) {
+      const statGutsResult = checkGuts(hpBeforeDamage, damage, ctx.playerStats.derived.gutsChance);
+      if (statGutsResult.survived) {
+        ctx.player.currentHp = 1;
         ctx.metrics.gutsTriggered++;
+      } else {
+        const artifactGuts = checkGutsPassive(ctx.player);
+        if (artifactGuts.hasGuts && !ctx.artifactGutsUsed) {
+          const healAmount = Math.floor(ctx.playerStats.derived.maxHp * (artifactGuts.healPercent / 100));
+          ctx.player.currentHp = Math.max(1, healAmount);
+          ctx.artifactGutsUsed = true;
+          ctx.metrics.gutsTriggered++;
+        } else {
+          ctx.player.currentHp = 0;
+        }
       }
+    } else {
+      ctx.player.currentHp = hpAfterDamage;
     }
     ctx.metrics.totalDamageReceived += damage;
+
+    // Check counter attack if player survived
+    if (ctx.player.currentHp > 0) {
+      const counterCheck = shouldCounterAttack(ctx.player);
+      if (counterCheck.shouldCounter && Math.random() < counterCheck.chance / 100) {
+        const counterDamage = Math.floor(ctx.playerStats.effectivePrimary.strength * 0.3);
+        ctx.enemy.currentHp -= counterDamage;
+        ctx.metrics.totalDamageDealt += counterDamage;
+      }
+    }
 
     // Handle reflection
     if (mitigation.reflectedDamage > 0) {
@@ -439,8 +517,8 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
       } else {
         // Apply to defender with resistance check
         const targetResist = isPlayer
-          ? ctx.enemyDerived.statusResistance
-          : ctx.playerDerived.statusResistance;
+          ? ctx.enemyStats.derived.statusResistance
+          : ctx.playerStats.derived.statusResistance;
 
         if (resistStatus(effect.chance, targetResist)) {
           const buff: Buff = {
@@ -556,11 +634,20 @@ function executeEnemyTurn(ctx: BattleContext, useSmartAI: boolean = true): void 
   if (skill) {
     executeSkill(ctx, skill, false);
 
-    // Update cooldowns
+    // Update cooldowns (Only set the used skill's cooldown - main round loop decrements it)
     ctx.enemy.skills = ctx.enemy.skills.map(s =>
-      s.id === skill.id ? { ...s, currentCooldown: s.cooldown + 1 } : { ...s, currentCooldown: Math.max(0, s.currentCooldown - 1) }
+      s.id === skill.id ? { ...s, currentCooldown: s.cooldown + 1 } : s
     );
   }
+}
+
+/**
+ * Helper to get a random terrain type appropriate for a given floor.
+ */
+export function getRandomTerrainForFloor(floor: number): TerrainType {
+  const arc = getStoryArcForFloor(floor);
+  const terrains = BIOME_TERRAINS[arc.name] || BIOME_TERRAINS.ACADEMY_ARC;
+  return terrains[Math.floor(Math.random() * terrains.length)];
 }
 
 /**
@@ -571,7 +658,8 @@ export function simulateBattle(
   enemyArchetype: EnemyArchetype,
   config: SimulationConfig = DEFAULT_CONFIG,
   battleId: number = 0,
-  approach: ApproachType | null = null
+  approach: ApproachType | null = null,
+  terrain?: TerrainType
 ): BattleResult {
   // Create combatants
   const player = createSimPlayer(playerConfig);
@@ -581,10 +669,19 @@ export function simulateBattle(
   const playerStats = getPlayerFullStats(player);
   const enemyStats = getEnemyFullStats(enemy);
 
+  // Get/Determine terrain
+  const selectedTerrain = terrain || (config.floorNumber ? getRandomTerrainForFloor(config.floorNumber) : undefined);
+  const terrainDef = selectedTerrain ? TERRAIN_DEFINITIONS[selectedTerrain] : null;
+
   // Calculate approach success (only if approach is used)
   const approachSucceeded = approach
     ? calculateApproachSuccess(approach, { primary: playerStats.primary, derived: playerStats.derived })
     : false;
+
+  // Process passives on combat start
+  const combatStartResult = processPassivesOnCombatStart(player, enemy);
+  player.activeBuffs = [...player.activeBuffs, ...combatStartResult.player.activeBuffs];
+  enemy.activeBuffs = [...enemy.activeBuffs, ...combatStartResult.enemy.activeBuffs];
 
   // Initialize battle context
   const ctx: BattleContext = {
@@ -592,6 +689,9 @@ export function simulateBattle(
     enemy: { ...enemy },
     playerDerived: playerStats.derived,
     enemyDerived: enemyStats.derived,
+    playerStats,
+    enemyStats,
+    terrain: terrainDef,
     turn: 0,
     isFirstTurn: true,
     // Only apply first hit multiplier if approach succeeded
@@ -608,12 +708,14 @@ export function simulateBattle(
       gutsTriggered: 0,
       chakraUsed: 0,
       skillsUsed: {}
-    }
+    },
+    artifactGutsUsed: false
   };
 
   // Determine who goes first
   const playerInit = playerStats.derived.initiative +
-    ((approach === ApproachType.STEALTH_AMBUSH && approachSucceeded) ? 100 : 0);
+    ((approach === ApproachType.STEALTH_AMBUSH && approachSucceeded) ? 100 : 0) +
+    (terrainDef ? terrainDef.effects.initiativeModifier : 0);
   const enemyInit = enemyStats.derived.initiative;
   let playerGoesFirst = playerInit + Math.random() * 10 >= enemyInit + Math.random() * 10;
 
@@ -641,6 +743,15 @@ export function simulateBattle(
   while (ctx.turn < config.maxTurnsPerBattle) {
     ctx.turn++;
 
+    // Process passives on turn start (player only)
+    const turnStartResult = processPassivesOnTurnStart(ctx.player, ctx.enemy);
+    if (turnStartResult.healToPlayer > 0) {
+      ctx.player.currentHp = Math.min(ctx.playerStats.derived.maxHp, ctx.player.currentHp + turnStartResult.healToPlayer);
+    }
+    if (turnStartResult.chakraRestored > 0) {
+      ctx.player.currentChakra = Math.min(ctx.playerStats.derived.maxChakra, ctx.player.currentChakra + turnStartResult.chakraRestored);
+    }
+
     // Process DoTs and buffs at start of turn
     const enemyBuffResult = processBuffs(
       ctx.enemy.activeBuffs,
@@ -665,13 +776,23 @@ export function simulateBattle(
     ctx.player.activeBuffs = playerBuffResult.newBuffs;
     ctx.metrics.totalDamageReceived += playerBuffResult.dotDamage;
 
+    // Check player guts from DoT
     if (ctx.player.currentHp <= 0) {
-      const gutsResult = checkGuts(ctx.player.currentHp, 0, ctx.playerDerived.gutsChance);
-      if (!gutsResult.survived) {
-        break;
+      const statGutsResult = checkGuts(ctx.player.currentHp, 0, ctx.playerDerived.gutsChance);
+      if (statGutsResult.survived) {
+        ctx.player.currentHp = 1;
+        ctx.metrics.gutsTriggered++;
+      } else {
+        const artifactGuts = checkGutsPassive(ctx.player);
+        if (artifactGuts.hasGuts && !ctx.artifactGutsUsed) {
+          const healAmount = Math.floor(ctx.playerStats.derived.maxHp * (artifactGuts.healPercent / 100));
+          ctx.player.currentHp = Math.max(1, healAmount);
+          ctx.artifactGutsUsed = true;
+          ctx.metrics.gutsTriggered++;
+        } else {
+          break;
+        }
       }
-      ctx.player.currentHp = 1;
-      ctx.metrics.gutsTriggered++;
     }
 
     // Execute turns
@@ -702,6 +823,52 @@ export function simulateBattle(
       ...s,
       currentCooldown: Math.max(0, s.currentCooldown - 1)
     }));
+
+    // Apply terrain hazard at end of round
+    if (ctx.terrain?.effects.hazard) {
+      const hazard = ctx.terrain.effects.hazard;
+      
+      // Player hazard
+      if (hazard.affectsPlayer) {
+        const hazardRes = applyTerrainHazard(ctx.player, ctx.terrain, 'player');
+        if (hazardRes.log) {
+          ctx.metrics.totalDamageReceived += Math.max(0, ctx.player.currentHp - hazardRes.newHp);
+          ctx.player.currentHp = hazardRes.newHp;
+          ctx.logs.push({
+            turn: ctx.turn,
+            actor: 'environment',
+            action: `Hazard: ${hazard.type}`,
+            damage: hazard.value,
+            isCrit: false,
+            isMiss: false,
+            isEvaded: false,
+            playerHp: ctx.player.currentHp,
+            enemyHp: ctx.enemy.currentHp
+          });
+          if (ctx.player.currentHp <= 0) break;
+        }
+      }
+
+      // Enemy hazard
+      if (hazard.affectsEnemy && ctx.enemy.currentHp > 0) {
+        const hazardRes = applyTerrainHazard(ctx.enemy, ctx.terrain, ctx.enemy.name);
+        if (hazardRes.log) {
+          ctx.enemy.currentHp = hazardRes.newHp;
+          ctx.logs.push({
+            turn: ctx.turn,
+            actor: 'environment',
+            action: `Hazard: ${hazard.type}`,
+            damage: hazard.value,
+            isCrit: false,
+            isMiss: false,
+            isEvaded: false,
+            playerHp: ctx.player.currentHp,
+            enemyHp: ctx.enemy.currentHp
+          });
+          if (ctx.enemy.currentHp <= 0) break;
+        }
+      }
+    }
 
     ctx.isFirstTurn = false;
   }

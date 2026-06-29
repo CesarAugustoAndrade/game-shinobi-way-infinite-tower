@@ -250,7 +250,7 @@ export function useTreasureHandlers(
     } else {
       // Auto-simulate treasure guardian combat
       addLog(`Engaging Treasure Guardian...`, 'danger');
-      const simResult = simulateGameCombat(player, playerStats, guardian);
+      const simResult = simulateGameCombat(player, playerStats, guardian, undefined, selectedBranchingRoom?.terrain);
 
       // Update player HP and chakra
       setPlayer(prev => {

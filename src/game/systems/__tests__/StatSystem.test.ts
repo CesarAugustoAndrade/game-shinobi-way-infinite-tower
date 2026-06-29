@@ -277,9 +277,9 @@ describe('calculateDamage', () => {
 describe('aggregateEquipmentBonuses', () => {
   it('combines stats from multiple equipment slots', () => {
     const equipment: Record<EquipmentSlot, any> = {
-      [EquipmentSlot.SLOT_1]: createMockComponent(undefined, { strength: 10 }),
-      [EquipmentSlot.SLOT_2]: createMockComponent(undefined, { strength: 5, speed: 8 }),
-      [EquipmentSlot.SLOT_3]: null,
+      [EquipmentSlot.SLOT_1]: null,
+      [EquipmentSlot.SLOT_2]: createMockComponent(undefined, { strength: 10 }),
+      [EquipmentSlot.SLOT_3]: createMockComponent(undefined, { strength: 5, speed: 8 }),
       [EquipmentSlot.SLOT_4]: null,
     };
 

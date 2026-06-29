@@ -10,6 +10,3 @@ export { Loot, TreasureChoice, TreasureHuntReward, ScrollDiscovery } from './rew
 
 // Activity scenes
 export { Merchant, Training, Event } from './activities';
-
-// Dev tools
-export { default as AssetCompanion } from './AssetCompanion';
