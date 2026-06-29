@@ -286,21 +286,29 @@
   gap: var(--sw-space-1);
 }
 
+/* Pixel-arcade AP chips: blocky 2px frame, hard shadow (no blur). Full chips
+   sit raised in solid gold; spent chips read recessed and dim. */
 .combat__ap-pip {
-  width: 0.85rem;
-  height: 0.85rem;
-  border-radius: var(--sw-radius-sm);
-  border: 1px solid var(--sw-accent-tertiary);
+  width: 0.7rem;
+  height: 1rem;
+  border-radius: var(--sw-radius-xs);
+  border: 2px solid var(--sw-accent-dim);
+  background: var(--sw-scrim-soft);
+  box-shadow: var(--sw-shadow-sm);
+  transition: background var(--sw-transition-base), border-color var(--sw-transition-base),
+    box-shadow var(--sw-transition-base);
 }
 
 .combat__ap-pip--full {
   background: var(--sw-accent-tertiary);
-  box-shadow: 0 0 6px var(--sw-accent-tertiary);
+  border-color: var(--sw-accent-primary);
 }
 
 .combat__ap-pip--spent {
-  background: transparent;
-  opacity: 0.35;
+  background: var(--sw-scrim-soft);
+  border-color: var(--sw-frame-soft);
+  box-shadow: var(--sw-shadow-inset);
+  opacity: 0.6;
 }
 
 .combat__ap-value {
@@ -310,97 +318,7 @@
   color: var(--sw-accent-tertiary);
 }
 
-/* Posture control */
-.combat__posture {
-  display: flex;
-  align-items: center;
-  gap: var(--sw-space-2);
-}
-
-.combat__posture-title {
-  font-size: var(--sw-text-2xs);
-  font-family: var(--sw-font-mono);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-  color: var(--sw-text-muted);
-}
-
-.combat__posture-options {
-  display: flex;
-  gap: var(--sw-space-1);
-}
-
-.combat__posture-btn {
-  padding: var(--sw-space-1) var(--sw-space-3);
-  border: 1px solid var(--sw-frame-soft);
-  border-radius: var(--sw-radius-sm);
-  background: var(--sw-bg-secondary);
-  color: var(--sw-text-muted);
-  font-size: var(--sw-text-2xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-  cursor: pointer;
-  transition: color var(--sw-transition-base), border-color var(--sw-transition-base),
-    background var(--sw-transition-base);
-}
-
-.combat__posture-btn:hover:not(:disabled) {
-  color: var(--sw-text-secondary);
-  border-color: var(--sw-frame-strong, var(--sw-accent-tertiary));
-}
-
-.combat__posture-btn--active {
-  color: var(--sw-accent-tertiary);
-  border-color: var(--sw-accent-tertiary);
-  background: var(--sw-scrim-soft);
-}
-
-.combat__posture-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* ===========================================
-   Hand (T-004)
-   =========================================== */
-
-.combat__hand {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-2);
-}
-
-.combat__hand-label {
-  font-size: var(--sw-text-3xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-  color: var(--sw-accent-tertiary);
-}
-
-.combat__hand-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--sw-space-2);
-}
-
-.combat__hand-empty {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: var(--sw-space-4);
-  color: var(--sw-text-muted);
-  font-size: var(--sw-text-xs);
-  font-style: italic;
-}
-
-@media (min-width: 768px) {
-  .combat__hand-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--sw-space-4);
-  }
-}
+/* Posture control lives in PostureIndicator.tsx (posture-indicator__*). */
 
 /* Keyboard Hints */
 .combat__hints {

@@ -1,0 +1,42 @@
+/**
+ * Hand Component Styles (T-004 deckbuilder hand)
+ * BEM-style CSS for the per-turn hand of up to 4 skill cards.
+ */
+
+@import '../../styles/design-system/index.css';
+
+.hand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-2);
+}
+
+.hand__label {
+  font-size: var(--sw-text-3xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  color: var(--sw-accent-tertiary);
+}
+
+.hand__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sw-space-2);
+}
+
+.hand__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--sw-space-4);
+  color: var(--sw-text-muted);
+  font-size: var(--sw-text-xs);
+  font-style: italic;
+}
+
+@media (min-width: 768px) {
+  .hand__grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sw-space-4);
+  }
+}

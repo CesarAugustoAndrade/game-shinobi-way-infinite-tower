@@ -12,23 +12,18 @@ import {
 } from '../../game/types';
 import StatBar from '../../components/shared/StatBar';
 import Tooltip from '../../components/shared/Tooltip';
-import { SkillCard } from '../../components/combat/SkillCard';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
 import PlayerHUD from '../../components/character/PlayerHUD';
 import FloatingText, { FloatingTextItem, FloatingTextType } from '../../components/combat/FloatingText';
-import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
+import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
+import { PostureIndicator } from '../../components/combat/PostureIndicator';
+import { FeatureFlags } from '../../config/featureFlags';
 import { getApCost } from '../../game/constants/combatCards';
-import { describePosture } from '../../game/systems/PostureSystem';
 import { Hourglass, Zap, ZapOff } from 'lucide-react';
-import { calculateDamage, formatPercent } from '../../game/systems/StatSystem';
-import { getElementEffectiveness } from '../../game/constants';
+import { formatPercent } from '../../game/systems/StatSystem';
 import {
-  formatScalingStat,
-  getStatColor,
-  getElementColor,
   getEffectColor,
   getEffectIcon,
-  formatEffectDescription,
   getBuffDescription,
   getCategoryRanks,
   getRankColor,
@@ -37,9 +32,6 @@ import {
   getEffectSeverity,
   getSeverityColor,
   isPositiveEffect,
-  getAttackMethodDescription,
-  getDamagePropertyDescription,
-  getDamageTypeDescription,
 } from '../../game/utils/tooltipFormatters';
 import './Combat.css';
 
@@ -72,10 +64,6 @@ interface CombatProps {
   onToggleAutoCombat?: () => void;
   autoPassTimeRemaining?: number | null;
 }
-
-/** Keyboard shortcuts for the 4 hand slots. */
-const HAND_SHORTCUTS = ['Z', 'X', 'C', 'V'];
-const POSTURE_ORDER: Posture[] = [Posture.AGGRESSIVE, Posture.BALANCED, Posture.DEFENSIVE];
 
 const Combat = forwardRef<CombatRef, CombatProps>(({
   player,
@@ -134,13 +122,13 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     .slice(0, HAND_SHORTCUTS.length);
 
   // Helper to check if a card can be played this turn (resources + AP + state).
-  const canUseSkill = useCallback((skill: Skill) => {
+  const canUseSkill = useCallback((skill: Skill): boolean => {
     const hasResources = player.currentChakra >= skill.chakraCost && player.currentHp > skill.hpCost;
     const noCooldown = skill.currentCooldown === 0;
     const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
     const hasAp = currentAp >= getApCost(skill);
 
-    return (hasResources || skill.isActive) && noCooldown && !isStunned && hasAp;
+    return Boolean((hasResources || skill.isActive) && noCooldown && !isStunned && hasAp);
   }, [player, currentAp]);
 
   // Keyboard shortcuts
@@ -185,179 +173,6 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [turnState, handCards, canUseSkill, onUseSkill, onPassTurn, onToggleAutoCombat]);
-
-  // Render a hand card with tooltip
-  const renderSkillCard = (skill: Skill, index: number) => {
-    const isEnemyTurn = turnState === 'ENEMY_TURN';
-    const apCost = getApCost(skill);
-    const usable = canUseSkill(skill) && !isEnemyTurn;
-
-    const prediction = calculateDamage(
-      playerStats.effectivePrimary,
-      playerStats.derived,
-      enemyStats.effectivePrimary,
-      enemyStats.derived,
-      skill,
-      player.element,
-      enemy.element
-    );
-
-    const effectiveness = getElementEffectiveness(skill.element, enemy.element);
-    const isSuperEffective = effectiveness > 1.0;
-
-    // Hand slot shortcut (Z/X/C/V)
-    const shortcutKey = HAND_SHORTCUTS[index];
-
-    return (
-      <Tooltip
-        key={skill.id}
-        position="top"
-        content={
-          <div className="combat-tooltip combat-tooltip--wide">
-            {/* Header */}
-            <div className="combat-tooltip__header">
-              <div>
-                <div className="combat-tooltip__title">{skill.name}</div>
-                <div className="combat-tooltip__subtitle">
-                  <span className="combat-tooltip__tier">{skill.tier}</span>
-                  <span className={
-                    skill.actionType === ActionType.SIDE ? 'combat-tooltip__action--side' :
-                    skill.actionType === ActionType.TOGGLE ? 'combat-tooltip__action--toggle' :
-                    'combat-tooltip__action--main'
-                  }>
-                    {skill.actionType || 'MAIN'} Action
-                  </span>
-                </div>
-              </div>
-              <span className="combat-tooltip__level">Lv.{skill.level || 1}</span>
-            </div>
-
-            {/* Description */}
-            <div className="combat-tooltip__section">
-              <div className="combat-tooltip__description">{skill.description}</div>
-            </div>
-
-            {/* Damage Section */}
-            <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Damage</div>
-              <div className="combat-tooltip__damage-row">
-                <div className="combat-tooltip__scaling">
-                  <span className={`combat-tooltip__scaling-value ${getStatColor(skill.scalingStat)}`}>
-                    {Math.round(skill.damageMult * 100)}% {formatScalingStat(skill.scalingStat)}
-                  </span>
-                  <span className="combat-tooltip__scaling-label">scaling</span>
-                </div>
-                <div className="combat-tooltip__type-tags">
-                  <span className={getDamageTypeColor(skill.damageType)}>{skill.damageType}</span>
-                  <span className={getElementColor(skill.element)}>{skill.element}</span>
-                  {skill.damageProperty && skill.damageProperty !== 'Normal' && (
-                    <span className="combat-tooltip__damage-property">{skill.damageProperty}</span>
-                  )}
-                </div>
-                <div className="combat-tooltip__mechanics">
-                  <div>- {getDamageTypeDescription(skill.damageType)}</div>
-                  {skill.damageProperty && skill.damageProperty !== 'Normal' && (
-                    <div>- {getDamagePropertyDescription(skill.damageProperty)}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Hit Chance Section */}
-            <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Hit Chance</div>
-              <div className="combat-tooltip__hit-chance">
-                <span className="combat-tooltip__attack-method">{skill.attackMethod}</span> - {getAttackMethodDescription(skill.attackMethod)}
-              </div>
-            </div>
-
-            {/* Costs & Cooldown */}
-            <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Cost</div>
-              <div className="combat-tooltip__cost-row">
-                <span className="combat-tooltip__cost--ap">{apCost} AP</span>
-                <span className={skill.chakraCost > 0 ? 'combat-tooltip__cost--cp' : 'combat-tooltip__cost--none'}>
-                  {skill.chakraCost} CP
-                </span>
-                {skill.hpCost > 0 && (
-                  <span className="combat-tooltip__cost--hp">{skill.hpCost} HP</span>
-                )}
-                <span className={skill.cooldown > 0 ? 'combat-tooltip__cost--cd' : 'combat-tooltip__cost--none'}>
-                  {skill.cooldown > 0 ? `${skill.cooldown} turn cooldown` : 'No cooldown'}
-                </span>
-              </div>
-            </div>
-
-            {/* Effects Section */}
-            {skill.effects && skill.effects.length > 0 && (
-              <div className="combat-tooltip__section">
-                <div className="combat-tooltip__section-title">Effects</div>
-                <div className="combat-tooltip__effects">
-                  {skill.effects.map((effect, idx) => (
-                    <div key={idx} className="combat-tooltip__effect">
-                      <span className={getEffectColor(effect.type)}>{getEffectIcon(effect.type)}</span>
-                      <span className="combat-tooltip__effect-text">{formatEffectDescription(effect)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Bonus Stats */}
-            {(skill.critBonus || skill.penetration) && (
-              <div className="combat-tooltip__section combat-tooltip__bonus-row">
-                {skill.critBonus && (
-                  <div className="combat-tooltip__crit-bonus">+{skill.critBonus}% Crit Chance</div>
-                )}
-                {skill.penetration && (
-                  <div className="combat-tooltip__pen-bonus">{Math.round(skill.penetration * 100)}% Defense Penetration</div>
-                )}
-              </div>
-            )}
-
-            {/* Toggle Skill Info */}
-            {(skill.isToggle || skill.actionType === ActionType.TOGGLE) && (
-              <div className="combat-tooltip__section">
-                <div className="combat-tooltip__toggle-info">
-                  Toggle Skill - {skill.upkeepCost || 0} CP/turn upkeep
-                </div>
-              </div>
-            )}
-
-            {/* Damage Preview vs Enemy */}
-            <div className="combat-tooltip__section combat-tooltip__preview">
-              <div className="combat-tooltip__preview-target">vs {enemy.name}</div>
-              <div className="combat-tooltip__preview-row">
-                <div>
-                  <span className="combat-tooltip__preview-dmg-label">Predicted: </span>
-                  <span className={`combat-tooltip__preview-dmg ${isSuperEffective ? 'combat-tooltip__preview-dmg--effective' : ''}`}>
-                    {prediction.finalDamage} dmg
-                  </span>
-                  {prediction.isCrit && <span className="combat-tooltip__crit-marker">(CRIT)</span>}
-                </div>
-                {isSuperEffective && (
-                  <span className="combat-tooltip__effectiveness--super">SUPER EFFECTIVE!</span>
-                )}
-                {effectiveness < 1.0 && (
-                  <span className="combat-tooltip__effectiveness--resist">Resisted</span>
-                )}
-              </div>
-            </div>
-          </div>
-        }
-      >
-        <SkillCard
-          skill={skill}
-          predictedDamage={prediction.finalDamage}
-          isEffective={isSuperEffective}
-          canUse={usable || false}
-          onClick={() => onUseSkill(skill)}
-          shortcutKey={shortcutKey}
-          apCost={apCost}
-        />
-      </Tooltip>
-    );
-  };
 
   return (
     <div className="combat">
@@ -565,42 +380,12 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           </div>
 
           {/* Posture Control */}
-          <div className="combat__posture">
-            <span className="combat__posture-title">Stance</span>
-            <div className="combat__posture-options">
-              {POSTURE_ORDER.map((p) => {
-                const profile = describePosture(p);
-                const isActive = p === posture;
-                const affordable = currentAp >= LaunchProperties.POSTURE_SWITCH_AP_COST;
-                const disabled = turnState !== 'PLAYER' || (!isActive && !affordable);
-                return (
-                  <Tooltip
-                    key={p}
-                    position="top"
-                    content={
-                      <div className="combat-tooltip">
-                        <div className="combat-tooltip__title">{profile.label} Stance</div>
-                        <div className="combat-tooltip__description">{profile.drawBias}.</div>
-                        <div className="combat-tooltip__mechanics">
-                          <div>- Damage dealt: {Math.round(profile.damageMod * 100)}%</div>
-                          {!isActive && <div>- Switch cost: {LaunchProperties.POSTURE_SWITCH_AP_COST} AP</div>}
-                        </div>
-                      </div>
-                    }
-                  >
-                    <button
-                      type="button"
-                      className={`combat__posture-btn ${isActive ? 'combat__posture-btn--active' : ''}`}
-                      onClick={() => { if (!isActive) onChangePosture(p); }}
-                      disabled={disabled}
-                    >
-                      {profile.label}
-                    </button>
-                  </Tooltip>
-                );
-              })}
-            </div>
-          </div>
+          <PostureIndicator
+            posture={posture}
+            currentAp={currentAp}
+            isPlayerTurn={turnState === 'PLAYER'}
+            onChangePosture={onChangePosture}
+          />
 
           {/* Passive Skills Summary */}
           {player.skills.filter(s => s.actionType === ActionType.PASSIVE).length > 0 && (
@@ -637,18 +422,17 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         </div>
 
         {/* Hand */}
-        <div className="combat__hand">
-          <div className="combat__hand-label">
-            Hand · {handCards.length} card{handCards.length === 1 ? '' : 's'}
-          </div>
-          <div className="combat__hand-grid">
-            {handCards.length > 0 ? (
-              handCards.map((skill, index) => renderSkillCard(skill, index))
-            ) : (
-              <div className="combat__hand-empty">No cards left — end your turn (Space).</div>
-            )}
-          </div>
-        </div>
+        <Hand
+          cards={handCards}
+          player={player}
+          playerStats={playerStats}
+          enemy={enemy}
+          enemyStats={enemyStats}
+          isPlayerTurn={turnState === 'PLAYER'}
+          canUseSkill={canUseSkill}
+          onUseSkill={onUseSkill}
+          getDamageTypeColor={getDamageTypeColor}
+        />
 
         {/* Turn Control */}
         <div className="combat__controls">

@@ -86,6 +86,11 @@ export const SkillCard: React.FC<SkillCardProps> = ({
       classes.push('skill-card--effective');
     }
 
+    // Reserve room in the header for the absolute shortcut badge (Z/X/C/V)
+    if (shortcutKey) {
+      classes.push('skill-card--has-shortcut');
+    }
+
     return classes.join(' ');
   };
 
@@ -127,11 +132,13 @@ export const SkillCard: React.FC<SkillCardProps> = ({
         <div className="skill-card__shortcut">{shortcutKey}</div>
       )}
 
-      {/* Background Image Layer */}
+      {/* Background Image Layer (decorative — missing assets must not paint alt-text) */}
       <img
         src={bgImage}
-        alt={skill.name}
+        alt=""
+        aria-hidden="true"
         className="skill-card__bg"
+        onError={(e) => { e.currentTarget.style.display = 'none'; }}
       />
 
       {/* Gradient Overlay */}
@@ -141,7 +148,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
       <div className="skill-card__content">
         {/* Top Row: Name and Level */}
         <div className="skill-card__header">
-          <div>
+          <div className="skill-card__title-block">
             <h3 className="skill-card__name">{skill.name}</h3>
             <div className="skill-card__type-row">
               <span className={`skill-card__damage-type ${getDamageTypeClass()}`}>

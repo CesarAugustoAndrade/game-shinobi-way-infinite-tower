@@ -1,0 +1,89 @@
+/**
+ * Posture Indicator Component Styles (T-004)
+ * Pixel-arcade segmented stance control (blocky frame + hard shadow).
+ */
+
+@import '../../styles/design-system/index.css';
+
+.posture-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-2);
+}
+
+.posture-indicator__title {
+  font-size: var(--sw-text-2xs);
+  font-family: var(--sw-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  color: var(--sw-text-muted);
+}
+
+.posture-indicator__options {
+  display: flex;
+  gap: var(--sw-space-1);
+}
+
+/* Blocky toggle chip — 2px frame + hard shadow, matching the pixel-arcade
+   vocabulary used by the action buttons and skill cards (T-001). */
+.posture-indicator__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-1-5);
+  padding: var(--sw-space-1) var(--sw-space-2);
+  border: 2px solid var(--sw-frame-soft);
+  border-radius: var(--sw-radius-sm);
+  background: var(--sw-bg-tertiary);
+  color: var(--sw-text-muted);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  cursor: pointer;
+  box-shadow: var(--sw-pix-shadow-sm);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    color var(--sw-transition-base), border-color var(--sw-transition-base),
+    background var(--sw-transition-base);
+}
+
+.posture-indicator__btn:hover:not(:disabled):not(.posture-indicator__btn--active) {
+  color: var(--sw-text-secondary);
+  border-color: var(--sw-frame);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--sw-pix-shadow);
+}
+
+.posture-indicator__btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
+}
+
+/* Active stance: solid gold fill with dark glyphs reads unmistakably "on". */
+.posture-indicator__btn--active {
+  color: var(--sw-on-accent);
+  background: var(--sw-accent-tertiary);
+  border-color: var(--sw-accent-primary);
+  box-shadow: var(--sw-pix-shadow-sm);
+}
+
+.posture-indicator__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.posture-indicator__icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.posture-indicator__icon svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.posture-indicator__label {
+  line-height: 1;
+}

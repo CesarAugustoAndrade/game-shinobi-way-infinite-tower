@@ -153,6 +153,12 @@
   align-items: flex-start;
 }
 
+/* When a Z/X/C/V shortcut badge is present, indent the title block so the
+   absolute badge no longer overlaps the first glyph of the skill name. */
+.skill-card--has-shortcut .skill-card__title-block {
+  padding-left: 1.5rem;
+}
+
 .skill-card__name {
   font-size: var(--sw-text-xs);
   font-weight: 700;
@@ -186,12 +192,13 @@
   color: #a5b4fc;
 }
 
-/* Right Badges */
+/* Right Badges — tight vertical stack so the column stays clear of the
+   bottom-right damage readout (3-digit values used to graze the level badge). */
 .skill-card__badges {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--sw-space-1);
+  gap: var(--sw-space-0-5);
 }
 
 .skill-card__action-badge {
@@ -276,8 +283,10 @@
 .skill-card__damage {
   position: absolute;
   right: var(--sw-space-3);
-  bottom: var(--sw-space-3);
+  bottom: var(--sw-space-2);
   text-align: right;
+  /* Cap the footprint so a wide 3-digit value can never reach the badge stack. */
+  max-width: 60%;
 }
 
 .skill-card__damage-label {
@@ -290,10 +299,13 @@
 }
 
 .skill-card__damage-value {
-  font-size: 1.5rem;
+  /* Sized so 3 digits stay on one line and clear the badge column above. */
+  font-size: 1.25rem;
+  line-height: 1;
   font-weight: 900;
   font-family: var(--sw-font-serif);
   color: var(--sw-text-secondary);
+  white-space: nowrap;
   transition: color var(--sw-transition-base);
 }
 
