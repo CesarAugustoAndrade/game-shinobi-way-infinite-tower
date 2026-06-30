@@ -10,8 +10,8 @@
 - run: 2026-06-29-A
 - mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: (ninguno — T-004 COMPLETO 5/5 fases)
-- updatedAt: 2026-06-30T08:41:05Z
+- activeTopic: T-005 (pipeline VALIDADO con 1 asset — skill_shuriken OK; pendiente decisión de alcance del lote)
+- updatedAt: 2026-06-30T09:33:17Z
 
 ## Ledger
 

@@ -11,6 +11,9 @@ lerna-debug.log*
 !loop/logs/
 !loop/logs/**
 
+# Codex image-gen intermediates (generar-asset skill)
+tmp/
+
 node_modules
 dist
 dist-ssr
