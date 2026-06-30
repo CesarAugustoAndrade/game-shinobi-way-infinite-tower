@@ -10,8 +10,8 @@
 - run: 2026-06-29-A
 - mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: T-006 (Fase A passed; PAUSADO para checkpoint humano antes del tuning Fase B)
-- updatedAt: 2026-06-30T15:39:47Z
+- activeTopic: T-006 (fase B.2 — tuning de balance "endgame duro", midiendo con el LocationSimulator)
+- updatedAt: 2026-06-30T16:31:44Z
 
 ## Ledger
 
@@ -32,6 +32,8 @@
 | T-004·F5 | 1 | 95 | 95 | 92 | 92 | PASS | passed | 2026-06-30T08:41:05Z | logs/T-004.md#f5a1 |
 | T-005 | — | — | — | QA✓ | — | PASS | passed | 2026-06-30T13:08:11Z | logs/T-005.md |
 | T-006·A | 1 | 91 | 86 | 91 | 88 | PASS | passed | 2026-06-30T15:39:47Z | logs/T-006.md#faseA |
+| T-006·B1 | 1 | 84 | 89 | 90 | 92 | FAIL | iterating | 2026-06-30T16:23:18Z | logs/T-006.md#b1a1 |
+| T-006·B1 | 2 | 92 | 89 | 90 | 92 | PASS | passed | 2026-06-30T16:31:44Z | logs/T-006.md#b1a1 |
 
 <!--
 Leyenda:

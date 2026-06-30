@@ -21,6 +21,13 @@ import { printFullReport, printProgress, clearProgress, printHeader } from './Co
 import { exportToJson, exportSummaryToJson, exportToCsv } from './JsonExporter';
 import { runFullProgressionSimulation, printProgressionSummary } from './ProgressionSimulator';
 import { installSeededRandom, DEFAULT_SEED } from './seededRandom';
+import {
+  simulateLocationRuns,
+  printLocationReport,
+  LocationAggregate,
+  LocationRunConfig,
+  DEFAULT_LOCATION_CONFIG,
+} from './LocationSimulator';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -176,6 +183,45 @@ export async function runCustomSimulation(
 }
 
 // ============================================================================
+// LOCATION SIMULATION RUNNER (attrition / clear-rate)
+// ============================================================================
+
+/**
+ * Run the location-clear simulation across all builds × dangerLevel 1-7.
+ * Each cell is N full-location attempts with HP/chakra carry-over.
+ */
+export function runLocationSimulation(
+  runsPerCell: number,
+  config: LocationRunConfig,
+  seed: number
+): void {
+  const builds = generateAllBuilds(config.playerLevel);
+  const dangerLevels = [1, 2, 3, 4, 5, 6, 7];
+
+  console.log('\n╔════════════════════════════════════════════════════════════╗');
+  console.log('║      SHINOBI WAY - LOCATION CLEAR SIMULATION (attrition)    ║');
+  console.log('╚════════════════════════════════════════════════════════════╝\n');
+  console.log(`  Seed: ${seed}`);
+  console.log(`  Builds: ${builds.length}   Danger levels: 1-7   Runs/cell: ${runsPerCell}`);
+  console.log(`  Total location runs: ${builds.length * dangerLevels.length * runsPerCell}`);
+
+  const aggregates: LocationAggregate[] = [];
+  const totalCells = builds.length * dangerLevels.length;
+  let completed = 0;
+
+  for (const build of builds) {
+    for (const danger of dangerLevels) {
+      printProgress(completed, totalCells, 'Locations');
+      aggregates.push(simulateLocationRuns(build, danger, runsPerCell, config));
+      completed++;
+    }
+  }
+  clearProgress();
+
+  printLocationReport(aggregates, { seed, runsPerCell, config });
+}
+
+// ============================================================================
 // CLI MAIN
 // ============================================================================
 
@@ -205,6 +251,40 @@ async function main() {
   // real game is unaffected because this override only lives in the CLI process.
   const seed = parseSeed(args);
   installSeededRandom(seed);
+
+  // Check for location-clear (attrition) mode
+  const isLocation = args.includes('--location');
+  if (isLocation) {
+    const config: LocationRunConfig = { ...DEFAULT_LOCATION_CONFIG };
+    let runsPerCell = 100;
+
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--runs' || arg === '-r') {
+        runsPerCell = parseInt(args[++i]) || runsPerCell;
+      } else if (arg === '--level' || arg === '-l') {
+        config.playerLevel = parseInt(args[++i]) || config.playerLevel;
+      } else if (arg === '--difficulty' || arg === '-d') {
+        config.baseDifficulty = parseInt(args[++i]) || config.baseDifficulty;
+      } else if (arg === '--no-elite') {
+        config.fightEliteChallenges = false;
+      } else if (arg === '--quick' || arg === '-q') {
+        runsPerCell = 25;
+      } else if (arg === '--help' || arg === '-h') {
+        printHelp();
+        return;
+      }
+    }
+
+    try {
+      runLocationSimulation(runsPerCell, config, seed);
+      console.log('\nLocation simulation complete!');
+    } catch (error) {
+      console.error('Location simulation failed:', error);
+      process.exit(1);
+    }
+    return;
+  }
 
   // Check for progression mode
   const isProgression = args.includes('--progression') || args.includes('-p');
@@ -310,6 +390,24 @@ Examples:
   npx tsx src/simulation/index.ts --battles 500 --level 15
   npx tsx src/simulation/index.ts --quick
   npx tsx src/simulation/index.ts --quick --seed 777   (reproducible run)
+
+=== LOCATION MODE (attrition / clear-rate) ===
+Simulates clearing whole LOCATIONS (a sequence of rooms with HP/chakra
+carry-over) for every build × dangerLevel 1-7. Reports a clear-rate matrix.
+
+Options:
+  --location            Enable location-clear simulation
+  -r, --runs <n>        Location attempts per build×danger cell (default: 100)
+  -l, --level <n>       Player level (default: 10)
+  -d, --difficulty <n>  Region base difficulty 0-100 (default: 40)
+  --no-elite            Skip optional eliteChallenge rooms (still fight Guardian)
+  -q, --quick           Quick mode (25 runs per cell)
+  -s, --seed <n>        PRNG seed for deterministic runs (default: 12345)
+
+Examples:
+  npx tsx src/simulation/index.ts --location
+  npx tsx src/simulation/index.ts --location --quick
+  npx tsx src/simulation/index.ts --location -r 200 -d 50
 
 === PROGRESSION MODE ===
 Simulates full game runs from level 1 with leveling and skill acquisition.

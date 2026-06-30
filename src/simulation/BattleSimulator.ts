@@ -759,20 +759,45 @@ export function getRandomTerrainForFloor(floor: number): TerrainType {
 }
 
 /**
- * Run a single battle simulation
+ * Result of resolving one battle with carry-over awareness.
+ *
+ * `result` is the standard 1v1 `BattleResult` (whose `playerFinalHp` already
+ * carries the surviving HP). `playerFinalChakra` is exposed separately so an
+ * attrition driver (the LocationSimulator) can carry the player's chakra pool
+ * into the next encounter — `BattleResult` only tracked HP.
  */
-export function simulateBattle(
-  playerConfig: PlayerBuildConfig,
-  enemyArchetype: EnemyArchetype,
+export interface BattleResolution {
+  result: BattleResult;
+  playerFinalChakra: number;
+}
+
+/**
+ * Resolve a single battle between an ALREADY-BUILT player and enemy.
+ *
+ * Unlike `simulateBattle` (which mints a fresh, full-HP player every call), this
+ * takes the combatants as-is, so the player can enter with its CURRENT HP/chakra
+ * (and any cooldown/buff state the caller set up). This is the seam the
+ * LocationSimulator uses to chain rooms with state carry-over. The base combat
+ * math is untouched — this is the exact body the old `simulateBattle` ran, just
+ * parameterised on the entities instead of building them inline.
+ *
+ * Mutation contract: combat runs on shallow copies (`ctx.player`/`ctx.enemy`), so
+ * the input objects' HP/chakra/etc. are NOT mutated — read the surviving pools back
+ * from the returned resolution. The ONE exception is `activeBuffs`: combat-start
+ * passives are appended in place to `player.activeBuffs` and `enemy.activeBuffs`
+ * before the copy is taken. A caller that intends to reuse a combatant must
+ * therefore pass it with a throwaway `activeBuffs` array. The LocationSimulator
+ * already does this for the player (`prepareForCombat` resets `activeBuffs: []`)
+ * and uses each room's enemy for exactly one battle, so the mutation is inert.
+ */
+export function resolveBattle(
+  player: Player,
+  enemy: Enemy,
   config: SimulationConfig = DEFAULT_CONFIG,
   battleId: number = 0,
   approach: ApproachType | null = null,
   terrain?: TerrainType
-): BattleResult {
-  // Create combatants
-  const player = createSimPlayer(playerConfig);
-  const enemy = generateSimEnemy(enemyArchetype, config.floorNumber, config.difficulty);
-
+): BattleResolution {
   // Calculate derived stats
   const playerStats = getPlayerFullStats(player);
   const enemyStats = getEnemyFullStats(enemy);
@@ -1003,7 +1028,7 @@ export function simulateBattle(
   // Determine winner
   const won = ctx.enemy.currentHp <= 0;
 
-  return {
+  const result: BattleResult = {
     battleId,
     won,
     turns: ctx.turn,
@@ -1023,6 +1048,30 @@ export function simulateBattle(
     approachUsed: approach,
     approachSucceeded: ctx.approachSucceeded
   };
+
+  return { result, playerFinalChakra: ctx.player.currentChakra };
+}
+
+/**
+ * Run a single 1v1 battle simulation.
+ *
+ * Builds a fresh, full-HP player from the build config and a freshly-scaled
+ * archetype enemy, then delegates to `resolveBattle`. Keeping this a thin
+ * wrapper means the 1v1 sim and the carry-over LocationSimulator share one
+ * battle engine, and the RNG order is byte-identical to the pre-refactor flow
+ * (create player → create enemy → resolve).
+ */
+export function simulateBattle(
+  playerConfig: PlayerBuildConfig,
+  enemyArchetype: EnemyArchetype,
+  config: SimulationConfig = DEFAULT_CONFIG,
+  battleId: number = 0,
+  approach: ApproachType | null = null,
+  terrain?: TerrainType
+): BattleResult {
+  const player = createSimPlayer(playerConfig);
+  const enemy = generateSimEnemy(enemyArchetype, config.floorNumber, config.difficulty);
+  return resolveBattle(player, enemy, config, battleId, approach, terrain).result;
 }
 
 /**

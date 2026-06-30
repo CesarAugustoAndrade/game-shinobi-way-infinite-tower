@@ -215,7 +215,7 @@ function floorToDangerLevel(floor: number): number {
  * - Floors 21-30: ROGUE_ARC (Sasuke Retrieval)
  * - Floors 31+: WAR_ARC (Great Ninja War)
  */
-function getArcNameFromFloor(floor: number): string {
+export function getArcNameFromFloor(floor: number): string {
   if (floor <= 10) return 'WAVES_ARC';
   if (floor <= 20) return 'EXAMS_ARC';
   if (floor <= 30) return 'ROGUE_ARC';
