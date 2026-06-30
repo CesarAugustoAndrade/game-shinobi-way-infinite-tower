@@ -689,14 +689,25 @@ export interface GameEvent {
 // ============================================================================
 export const STAT_FORMULAS = {
   // Resource Pools
-  HP_PER_WILLPOWER: 12,
-  HP_BASE: 50,
+  // T-006 B.2: compressed the willpower→HP spread (was 12/50). A smaller
+  // per-point slope pulls tank builds down toward squishy builds so clear-rates
+  // converge instead of fanning out 5x by willpower alone. HP_BASE is kept
+  // modest so low-danger enemies (whose HP is dominated by the flat base) do
+  // not become disproportionately tanky and over-lengthen early fights.
+  HP_PER_WILLPOWER: 9,
+  HP_BASE: 80,
   CHAKRA_PER_CHAKRA: 8,
   CHAKRA_BASE: 30,
 
   // Regeneration
   HP_REGEN_PERCENT: 0.02,        // 2% of max HP per turn based on willpower
-  CHAKRA_REGEN_PER_INT: 0.2,    // Chakra regen per INT point
+  // T-006 B.2: 0.2→0.5. Caster/mental builds (Uchiha, Glass, Yamanaka, Mind)
+  // were running out of chakra mid-location, falling back to a weak basic attack
+  // and dragging fights into lethal attrition — while free-skill physical
+  // bruisers (Hyuga/Lee) never starved. Higher INT-scaled regen restores their
+  // nuke cadence so they kill on pace and converge upward, with negligible
+  // benefit to the low-INT bruisers who don't lean on chakra.
+  CHAKRA_REGEN_PER_INT: 0.5,    // Chakra regen per INT point
 
   // Defense Scaling (Diminishing Returns Formula)
   // Formula: stat / (stat + SOFT_CAP) = % reduction

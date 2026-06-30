@@ -128,7 +128,7 @@
 ## T-006 · Coordinación del Combate con Habilidades (Deep Dive & Licencia Creativa)
 - id: T-006
 - section: combat
-- status: pending
+- status: passed
 - initialScore: 50
 - targetScore: 90
 - lensFocus: [COMBAT, PRESENTACION, ARQUITECTURA]

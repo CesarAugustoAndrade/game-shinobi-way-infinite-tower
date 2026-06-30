@@ -108,11 +108,16 @@ export const LaunchProperties = {
   /** Enemy stat scaling multiplier */
   ENEMY_SCALING_MULTIPLIER: 1.0,
 
-  /** Enemy damage multiplier */
+  /** Enemy damage multiplier (T-006 B.2: kept at 1.0 — the endgame bite comes
+   * from steeper danger scaling + the danger-keyed enemy HP wall, which keeps
+   * low danger accessible instead of a flat lethality bump punishing it) */
   ENEMY_DAMAGE_MULTIPLIER: 1.0,
 
-  /** Player damage multiplier */
-  PLAYER_DAMAGE_MULTIPLIER: 1.0,
+  /** Player damage multiplier (T-006 B.2: +10%. Converges from below — faster
+   * kills cut attrition for slow-killing squishy/caster builds far more than for
+   * one-shotters (who gain nothing from overkill). The caster lift also comes
+   * from chakra regen; this stays modest to avoid re-inflating the bruisers) */
+  PLAYER_DAMAGE_MULTIPLIER: 1.10,
 
   // ─────────────────────────────────────────────────────────────
   // System Limits

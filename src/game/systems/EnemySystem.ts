@@ -154,6 +154,14 @@ export const generateEnemy = (
   const diffMult = DIFFICULTY.DIFFICULTY_BASE + (diff / DIFFICULTY.DIFFICULTY_DIVISOR);
   // Apply global ease factor (0.85 = 15% easier) and launch property multiplier
   const totalScaling = dangerMult * progressionMult * diffMult * DIFFICULTY.ENEMY_EASE_FACTOR * LaunchProperties.ENEMY_SCALING_MULTIPLIER;
+  // T-006 B.2: ENDGAME HP WALL — extra willpower(HP)-only scaling keyed to
+  // dangerLevel (see scaledStats below). ~nil at D1, large at D6-7 so endgame
+  // enemies survive a burst nuke and retaliate instead of being one-shot.
+  const hpDangerMult = 1 + (dangerLevel * DIFFICULTY.ENEMY_HP_DANGER_FACTOR);
+  // T-006 B.2: ENDGAME OFFENSE — extra scaling on enemy damage/crit/hit stats
+  // keyed to dangerLevel (see scaledStats below). ~nil at D1, large at D6-7 so
+  // the endgame hits hard enough to punish high-HP bruisers, not just survive.
+  const dmgDangerMult = 1 + (dangerLevel * DIFFICULTY.ENEMY_DMG_DANGER_FACTOR);
 
   if (type === 'BOSS') {
     const bossData = BOSS_NAMES[dangerLevel as keyof typeof BOSS_NAMES] || { name: 'Edo Tensei Legend', element: ElementType.FIRE, skill: SKILLS.RASENGAN };
@@ -168,15 +176,15 @@ export const generateEnemy = (
     }
     
     const bossStats: PrimaryAttributes = {
-      willpower: Math.floor(40 * totalScaling),
+      willpower: Math.floor(40 * totalScaling * hpDangerMult),
       chakra: Math.floor(30 * totalScaling),
-      strength: Math.floor(25 * totalScaling),
-      spirit: Math.floor(25 * totalScaling),
+      strength: Math.floor(25 * totalScaling * dmgDangerMult),
+      spirit: Math.floor(25 * totalScaling * dmgDangerMult),
       intelligence: Math.floor(20 * totalScaling),
-      calmness: Math.floor(18 * totalScaling),
+      calmness: Math.floor(18 * totalScaling * dmgDangerMult),
       speed: Math.floor(18 * totalScaling),
-      accuracy: Math.floor(15 * totalScaling),
-      dexterity: Math.floor(15 * totalScaling)
+      accuracy: Math.floor(15 * totalScaling * dmgDangerMult),
+      dexterity: Math.floor(15 * totalScaling * dmgDangerMult)
     };
     const derived = calculateDerivedStats(bossStats, {});
     return {
@@ -217,16 +225,24 @@ export const generateEnemy = (
       baseStats = { willpower: 14, chakra: 12, strength: 12, spirit: 12, intelligence: 12, calmness: 12, speed: 12, accuracy: 12, dexterity: 12 };
   }
 
+  // T-006 B.2: ENDGAME HP WALL. At the level-10 baseline the player builds
+  // out-stat the enemies so hard that high-mult nukes (Primary Lotus,
+  // Rasenshuriken, Gentle Fist crits) one-shot enemies before they ever
+  // retaliate — which is why tanky offense builds cleared 100% at every danger.
+  // This extra willpower (HP) scaling is keyed to dangerLevel so it is ~nil at
+  // D1 (keeps the early game accessible for squishy builds) but large at D6-7,
+  // letting endgame enemies SURVIVE a burst and hit back. Willpower is chosen so
+  // it raises HP/survivability without inflating enemy damage output.
   const scaledStats: PrimaryAttributes = {
-    willpower: Math.floor(baseStats.willpower * totalScaling),
+    willpower: Math.floor(baseStats.willpower * totalScaling * hpDangerMult),
     chakra: Math.floor(baseStats.chakra * totalScaling),
-    strength: Math.floor(baseStats.strength * totalScaling),
-    spirit: Math.floor(baseStats.spirit * totalScaling),
+    strength: Math.floor(baseStats.strength * totalScaling * dmgDangerMult),
+    spirit: Math.floor(baseStats.spirit * totalScaling * dmgDangerMult),
     intelligence: Math.floor(baseStats.intelligence * totalScaling),
-    calmness: Math.floor(baseStats.calmness * totalScaling),
+    calmness: Math.floor(baseStats.calmness * totalScaling * dmgDangerMult),
     speed: Math.floor(baseStats.speed * totalScaling),
-    accuracy: Math.floor(baseStats.accuracy * totalScaling),
-    dexterity: Math.floor(baseStats.dexterity * totalScaling)
+    accuracy: Math.floor(baseStats.accuracy * totalScaling * dmgDangerMult),
+    dexterity: Math.floor(baseStats.dexterity * totalScaling * dmgDangerMult)
   };
 
   let name = "";

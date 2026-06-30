@@ -1064,7 +1064,7 @@ export const SKILLS: Record<string, Skill> = {
     hpCost: 0,
     cooldown: 3,
     currentCooldown: 0,
-    damageMult: 3.5,  // BUFFED: Was 2.4 - main elemental nuke
+    damageMult: 4.2,  // T-006 B.2: 3.5→4.2 — cheap, reliable spirit-scaling nuke; the squishy Glass Cannon leans on it (its other pick, Chidori, wrongly scales SPEED which Glass dumps), so this lifts that floor build's kill speed
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
@@ -1140,7 +1140,7 @@ export const SKILLS: Record<string, Skill> = {
     hpCost: 0,
     cooldown: 2,
     currentCooldown: 0,
-    damageMult: 2.5,  // BUFFED: Was 1.4 - TRUE damage should hit harder
+    damageMult: 1.6,  // T-006 B.2: 2.5→2.0→1.6 — Gentle Fist (TRUE, scales Hyuga's high accuracy) kept Hyuga's clear-rate tail too high in the endgame; this is Hyuga's own skill so the nerf is targeted
     scalingStat: PrimaryStat.ACCURACY,
     damageType: DamageType.TRUE,
     damageProperty: DamageProperty.NORMAL,
@@ -1227,7 +1227,7 @@ export const SKILLS: Record<string, Skill> = {
     hpCost: 0,
     cooldown: 4,
     currentCooldown: 0,
-    damageMult: 2.8,  // BUFFED: Was 1.5 - mental damage should be reliable
+    damageMult: 3.5,  // T-006 B.2: 2.8→3.5 — mental builds (Mind/Yamanaka) kill too slowly vs the new endgame HP wall; their defended mental damage needs to keep pace
     scalingStat: PrimaryStat.CALMNESS,
     damageType: DamageType.MENTAL, // Uses Mental Defense!
     damageProperty: DamageProperty.NORMAL,
@@ -1253,7 +1253,7 @@ export const SKILLS: Record<string, Skill> = {
     hpCost: 0,
     cooldown: 4,
     currentCooldown: 0,
-    damageMult: 3.0,  // BUFFED: Was 1.8 - piercing mental should hit hard
+    damageMult: 4.5,  // T-006 B.2: 3.0→3.8→4.5 — Yamanaka/Mind's main PIERCING mental nuke. Mind Controller (calmness 45) leans on it to clear the D7 20% floor; no bruiser uses it and no enemy archetype has it, so this is an isolated player-side lever for the squishy mental cluster
     scalingStat: PrimaryStat.CALMNESS,
     damageType: DamageType.MENTAL,
     damageProperty: DamageProperty.PIERCING, // Pierces mental flat def
@@ -1749,10 +1749,10 @@ export const SKILLS: Record<string, Skill> = {
     description: 'A forbidden technique unlocking the body\'s limits. Devastating PIERCING physical damage at the cost of HP.',
     actionType: ActionType.MAIN,
     chakraCost: 0,
-    hpCost: 25,
+    hpCost: 15,  // T-006 B.2: 25→15 — the self-damage was disproportionately punishing the squishy Speed Demon (low HP) that leans on this skill
     cooldown: 4,
     currentCooldown: 0,
-    damageMult: 5.0,  // BUFFED: Was 3.8 - Lee's signature move
+    damageMult: 4.5,  // T-006 B.2: 5.0→4.5 — this PIERCING nuke (shared by Hyuga/Lee/Tank) was the common thread keeping the bruiser cluster's endgame clear-rate above band; gentle trim pulls that tail toward target
     scalingStat: PrimaryStat.STRENGTH,
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.PIERCING, // Ignores flat phys def
@@ -1841,7 +1841,7 @@ export const SKILLS: Record<string, Skill> = {
     hpCost: 0,
     cooldown: 4,
     currentCooldown: 0,
-    damageMult: 3.8,  // BUFFED: Was 2.6 - elemental nuke
+    damageMult: 5.8,  // T-006 B.2: 3.8→4.8→5.2→5.8 — the generalist Balanced build leans on this NORMAL elemental nuke (fully mitigated by defense, so it needs a higher mult than PIERCING/TRUE skills); nudged to keep Balanced's D7 clear-rate clear of the 20% floor (its true ~22% bounces under 20% on small samples) without a global knob that would also re-inflate the bruisers
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,

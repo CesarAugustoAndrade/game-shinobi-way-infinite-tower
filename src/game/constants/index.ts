@@ -84,7 +84,7 @@ export const CLAN_STATS: Record<Clan, PrimaryAttributes> = {
     intelligence: 14,
     calmness: 16,    // Byakugan mental clarity
     speed: 16,
-    accuracy: 22,    // Tenketsu precision
+    accuracy: 19,    // Tenketsu precision (T-006 B.2: 22→19, trims Hyuga's dominant hit/crit + Gentle Fist scaling)
     dexterity: 18    // Surgical strikes
   },
   [Clan.LEE]: {
@@ -115,25 +115,42 @@ export const CLAN_STATS: Record<Clan, PrimaryAttributes> = {
 // CLAN GROWTH RATES (Stats per Level)
 // ============================================================================
 export const CLAN_GROWTH: Record<Clan, Partial<PrimaryAttributes>> = {
-  [Clan.UZUMAKI]: { 
-    willpower: 4, chakra: 3, strength: 1, spirit: 3, 
-    intelligence: 1, calmness: 1, speed: 1, accuracy: 1, dexterity: 1 
+  // T-006 B.2: willpower growth 4→3 — at +4/level Uzumaki reached ~61 willpower
+  // (780+ HP), an unkillable tank-mage that cleared 100% deep into the endgame.
+  [Clan.UZUMAKI]: {
+    willpower: 3, chakra: 3, strength: 1, spirit: 3,
+    intelligence: 1, calmness: 1, speed: 1, accuracy: 1, dexterity: 1
   },
   [Clan.UCHIHA]: { 
     willpower: 1, chakra: 2, strength: 1, spirit: 3, 
     intelligence: 2, calmness: 1, speed: 2, accuracy: 2, dexterity: 3 
   },
-  [Clan.HYUGA]: { 
-    willpower: 2, chakra: 1, strength: 2, spirit: 1, 
-    intelligence: 2, calmness: 2, speed: 2, accuracy: 3, dexterity: 2 
+  // T-006 B.2: Hyuga was clearing 100% at every danger — its precision offense
+  // (high accuracy/dexterity/strength feeding Gentle Fist + Primary Lotus) deleted
+  // enemies before they could act, and high willpower kept it tanky. Trimmed
+  // accuracy/dexterity/strength AND willpower growth to break the one-shot loop
+  // and make it mortal in the endgame.
+  [Clan.HYUGA]: {
+    willpower: 1, chakra: 1, strength: 1, spirit: 1,
+    intelligence: 2, calmness: 2, speed: 2, accuracy: 2, dexterity: 1
   },
-  [Clan.LEE]: { 
-    willpower: 3, chakra: 0, strength: 3, spirit: 0, 
-    intelligence: 0, calmness: 1, speed: 4, accuracy: 1, dexterity: 2 
+  // T-006 B.2: Lee also cleared 100% everywhere — extreme strength + speed +
+  // willpower made it a one-shotting, evasive, tanky triple-threat. Trimmed
+  // strength/speed/willpower growth so the endgame can punish it.
+  [Clan.LEE]: {
+    willpower: 2, chakra: 0, strength: 2, spirit: 0,
+    intelligence: 0, calmness: 1, speed: 2, accuracy: 1, dexterity: 2
   },
-  [Clan.YAMANAKA]: { 
-    willpower: 1, chakra: 2, strength: 0, spirit: 2, 
-    intelligence: 3, calmness: 4, speed: 1, accuracy: 1, dexterity: 2 
+  // T-006 B.2: Yamanaka is the frail genjutsu clan (base willpower 12) and its
+  // preset doesn't override willpower, so it entered the endgame on ~222 HP and
+  // got deleted by the danger HP/offense walls — the earlier mental-damage buffs
+  // couldn't save it because the preset clamps int/calmness BELOW their natural
+  // growth, nullifying them. Raised willpower growth 1→3 (survivability lever,
+  // not damage) to bring it back into band (D1≈80, D7 in the 20-40 tail). Mind
+  // Controller is unaffected: it hard-overrides willpower to 15.
+  [Clan.YAMANAKA]: {
+    willpower: 3, chakra: 2, strength: 0, spirit: 2,
+    intelligence: 3, calmness: 4, speed: 1, accuracy: 1, dexterity: 2
   },
 };
 

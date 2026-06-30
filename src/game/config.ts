@@ -23,11 +23,37 @@ export const DIFFICULTY = {
   DIFFICULTY_DIVISOR: 200,       // difficulty / 200 added to base
 
   // Danger level scaling (enemy generation)
-  DANGER_BASE: 0.55,             // Base multiplier at danger 0
-  DANGER_PER_LEVEL: 0.15,        // +15% per danger level (D1=0.70, D4=1.15, D7=1.60)
+  // T-006 B.2: steepened so the endgame hurts. Low floor keeps D1-2 accessible
+  // while a big per-level step makes D6-7 a real wall (≈3.7x range D1→D7).
+  DANGER_BASE: 0.30,             // Base multiplier at danger 0
+  DANGER_PER_LEVEL: 0.24,        // +24% per danger level (D1=0.54, D4=1.26, D7=1.98)
 
   // Progression scaling (locations cleared globally)
   PROGRESSION_PER_LOCATION: 0.04, // +4% per location cleared
+
+  // T-006 B.2: ENDGAME HP WALL. Extra enemy-willpower(HP)-only multiplier per
+  // danger level: enemyWillpower ×= 1 + dangerLevel × this. ~nil at D1, +56% at
+  // D7. Lets high-danger enemies survive a burst nuke and retaliate (breaks the
+  // one-shot loop that made tanky offense builds clear 100%) WITHOUT inflating
+  // their damage or over-tanking the early game.
+  ENEMY_HP_DANGER_FACTOR: 0.08,
+
+  // T-006 B.2: ENDGAME OFFENSE. Companion to the HP wall — extra multiplier on
+  // enemy damage/crit/hit stats per danger level (strength/spirit/calmness/
+  // accuracy/dexterity ×= 1 + dangerLevel × this). ~nil at D1, +11.2% at D7.
+  // Note strength and calmness also feed enemy DEFENSE (flat def / percent def),
+  // so this knob hardens the endgame enemy on both offense AND survivability, not
+  // just its damage. The HP wall alone let high-HP bruisers grind through a tanky
+  // enemy and plateau high at D6-7; this makes the endgame hit back hard enough to
+  // threaten their HP and pull that tail down, again leaving the early game
+  // untouched. Kept GENTLE — enemy damage punishes low-HP builds more than evasive
+  // ones, so a big value craters the squishy mid-field (Balanced/Mind/Yamanaka)
+  // instead of converging it. 0.016 is the chosen value: paired with the squishy
+  // cluster's own survivability/nuke buffs it keeps Balanced/Mind/Yamanaka clear
+  // of the 20% D7 clear-rate floor while holding the Uchiha endgame tail inside
+  // the 20-40% band (0.015 over-inflated Uchiha above band; ≥0.018 dropped the
+  // squishy cluster back under the floor).
+  ENEMY_DMG_DANGER_FACTOR: 0.016,
 
   // Loot scaling (uses effective floor from dangerToFloor)
   FLOOR_SCALING: 0.08,           // +8% per effective floor for loot
