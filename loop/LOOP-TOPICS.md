@@ -82,7 +82,7 @@
 ## T-004 · Refactor del Sistema de Combate: Cartas, Posturas y Action Points
 - id: T-004
 - section: combat
-- status: active
+- status: passed
 - initialScore: 35
 - targetScore: 85
 - lensFocus: [COMBAT, PRESENTACION, ARQUITECTURA]

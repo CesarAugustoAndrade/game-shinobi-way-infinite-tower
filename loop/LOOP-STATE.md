@@ -10,8 +10,8 @@
 - run: 2026-06-29-A
 - mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: T-004 (F4 passed; PAUSADO para checkpoint humano antes de F5 — ver plan.md)
-- updatedAt: 2026-06-29T21:08:18Z
+- activeTopic: (ninguno — T-004 COMPLETO 5/5 fases)
+- updatedAt: 2026-06-30T08:41:05Z
 
 ## Ledger
 
@@ -29,6 +29,7 @@
 | T-004·F3 | 1 | 84 | 93 | 83 | 88 | FAIL | iterating | 2026-06-29T19:32:12Z | logs/T-004.md#f3a1 |
 | T-004·F3 | 2 | 90 | 93 | 89 | 88 | PASS | passed | 2026-06-29T19:39:04Z | logs/T-004.md#f3a2 |
 | T-004·F4 | 1 | 91 | 91 | 92 | 89 | PASS | passed | 2026-06-29T21:08:18Z | logs/T-004.md#f4a1 |
+| T-004·F5 | 1 | 95 | 95 | 92 | 92 | PASS | passed | 2026-06-30T08:41:05Z | logs/T-004.md#f5a1 |
 
 <!--
 Leyenda:

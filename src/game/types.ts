@@ -240,22 +240,6 @@ export enum Posture {
   DEFENSIVE = 'Defensive'    // Favors utility/defensive cards in the draw
 }
 
-// Turn phase tracking for combat (Upkeep → Side → Main flow)
-export interface TurnPhaseState {
-  phase: 'UPKEEP' | 'SIDE' | 'MAIN' | 'END';
-  sideActionsUsed: number;
-  maxSideActions: number;   // Default: 2
-  upkeepProcessed: boolean;
-}
-
-// Default turn phase state factory
-export const createInitialTurnPhaseState = (): TurnPhaseState => ({
-  phase: 'UPKEEP',
-  sideActionsUsed: 0,
-  maxSideActions: 2,
-  upkeepProcessed: false,
-});
-
 // Legacy ItemSlot - kept for migration compatibility
 export enum ItemSlot {
   WEAPON = 'Weapon',
@@ -433,7 +417,6 @@ export interface Skill {
 
   // ACTION TYPE - Determines when/how skill can be used
   actionType: ActionType;        // MAIN/TOGGLE/SIDE/PASSIVE (required)
-  sideActionLimit?: number;      // Max uses per turn for SIDE skills (default: 1)
 
   // DECKBUILDER / AP ECONOMY (T-004) - optional during migration.
   // When omitted, callers derive a default cost from ActionType (see combatCards.ts).
