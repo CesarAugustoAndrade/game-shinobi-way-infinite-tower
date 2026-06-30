@@ -674,6 +674,7 @@ function buildTurnResult(
     playerDefeated,
     enemyDefeated,
     playerSkills: player.skills,
+    enemySkills: enemy.skills,
     artifactGutsTriggered
   };
 }
@@ -786,6 +787,7 @@ function checkDoTDeaths(
  *
  * ### Phase 5: Resource Recovery
  * - Reduce all player skill cooldowns by 1
+ * - Reduce all enemy skill cooldowns by 1
  * - Restore chakra based on chakraRegen stat
  *
  * ### Phase 6: Terrain Hazards
@@ -915,6 +917,15 @@ export function processEnemyTurn(
   );
   updatedPlayer.skills = resources.skills;
   updatedPlayer.currentChakra = resources.newChakra;
+
+  // Reduce enemy skill cooldowns by 1 (mirrors the player's recovery above).
+  // Without this, a skill used by the enemy stays at cooldown+1 forever, the AI
+  // eventually finds no available skills, and falls back to spamming skills[0].
+  // The decremented skills are propagated to the caller via EnemyTurnResult.enemySkills.
+  updatedEnemy.skills = updatedEnemy.skills.map(s => ({
+    ...s,
+    currentCooldown: Math.max(0, s.currentCooldown - 1),
+  }));
 
   // ============================================
   // Phase 6: Terrain Hazards

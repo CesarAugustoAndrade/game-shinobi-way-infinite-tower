@@ -131,6 +131,12 @@ export interface EnemyTurnResult {
   enemyDefeated: boolean;
   /** Updated player skills with cooldowns reduced */
   playerSkills: Skill[];
+  /**
+   * Updated enemy skills (cooldown set on use, then decremented this turn).
+   * The caller MUST persist these onto the enemy so cooldowns advance between
+   * turns instead of being stuck at cooldown+1 forever.
+   */
+  enemySkills: Skill[];
   /** True if artifact GUTS passive was triggered this turn (caller should update combatState) */
   artifactGutsTriggered?: boolean;
 }

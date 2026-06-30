@@ -566,6 +566,7 @@ export function useCombat({
                 ...prev,
                 currentHp: result.newEnemyHp,
                 activeBuffs: result.newEnemyBuffs,
+                skills: result.enemySkills,
               }
             : null
         );
