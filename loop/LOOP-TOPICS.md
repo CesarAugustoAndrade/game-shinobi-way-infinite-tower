@@ -102,7 +102,12 @@
 ## T-005 · Creación de Assets de Combate usando /generar-asset
 - id: T-005
 - section: presentation
-- status: pending
+- status: passed
+- nota: >
+    Entregadas las partes 1-2 (8 skill backgrounds + 6 retratos de enemigos, vía /generar-asset
+    siguiendo combat-art; renderizando en el juego, versionados). La parte 3 (fondos por 3 láminas
+    para parallax + filtro CRT) se separó como **T-013** por ser una feature de escena de combate
+    (código del CinematicViewscreen + sprites de enemigo transparentes), no generación de assets pura.
 - initialScore: 50
 - targetScore: 85
 - lensFocus: [PRESENTACION]
@@ -160,4 +165,29 @@
     - src/components/exploration/RegionMap.tsx
     - src/components/exploration/LocationCardDisplay.tsx
     - src/components/exploration/exploration.css
+
+---
+
+## T-013 · Escena de combate por capas (parallax + filtro CRT)
+- id: T-013
+- section: combat
+- status: pending
+- initialScore: 40
+- targetScore: 85
+- lensFocus: [PRESENTACION, ARQUITECTURA, SISTEMA]
+- origen: separado de T-005 parte 3 (es feature de escena, no asset-gen puro)
+- description: >
+    Convertir el CinematicViewscreen de combate de una sola imagen (`enemy.image`) a la escena por
+    capas que describe la skill `.agents/skills/combat-art` (ver `references/css-implementation.css`):
+    1. Cablear el render de 3 láminas con z-index — Fondo (lejano, opaco), Plano Medio (enmarcado),
+       Primer Plano (oclusión) — más la capa de sprites del enemigo y un overlay CRT/scanlines + curvatura.
+    2. Re-cortar los 6 retratos de enemigos (hoy opacos, generados en T-005) a SPRITES TRANSPARENTES
+       para componer sobre las láminas (croma/alfa vía /generar-asset).
+    3. Generar los fondos de lámina por arco/bioma (Land of Waves, Forest of Death, etc.) y opcionalmente
+       auras de chakra por CSS (`drop-shadow` + `image-rendering: pixelated`) según la guía.
+    Mantener un fallback limpio (si falta una lámina, no romper la escena actual).
+- entryPoints:
+    - src/components/layout/CinematicViewscreen.tsx
+    - src/scenes/combat/Combat.tsx
+    - .agents/skills/combat-art/references/css-implementation.css
 

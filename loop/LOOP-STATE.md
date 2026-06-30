@@ -10,8 +10,8 @@
 - run: 2026-06-29-A
 - mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: T-005 (fases 1-2 hechas: 8 skill backgrounds + 6 enemy portraits, QA-OK y versionados; pendiente fase 3 = fondos por capas/parallax = feature de escena)
-- updatedAt: 2026-06-30T09:33:17Z
+- activeTopic: (ninguno — T-005 passed; parte 3 separada como T-013)
+- updatedAt: 2026-06-30T13:08:11Z
 
 ## Ledger
 
@@ -30,6 +30,7 @@
 | T-004·F3 | 2 | 90 | 93 | 89 | 88 | PASS | passed | 2026-06-29T19:39:04Z | logs/T-004.md#f3a2 |
 | T-004·F4 | 1 | 91 | 91 | 92 | 89 | PASS | passed | 2026-06-29T21:08:18Z | logs/T-004.md#f4a1 |
 | T-004·F5 | 1 | 95 | 95 | 92 | 92 | PASS | passed | 2026-06-30T08:41:05Z | logs/T-004.md#f5a1 |
+| T-005 | — | — | — | QA✓ | — | PASS | passed | 2026-06-30T13:08:11Z | logs/T-005.md |
 
 <!--
 Leyenda:
