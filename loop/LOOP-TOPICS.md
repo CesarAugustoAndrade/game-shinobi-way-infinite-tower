@@ -8,7 +8,7 @@
 > ```
 > ## <id> · <título>
 > - id: T-NNN
-> - section: combat | jutsu | exploration | presentation | balance | architecture
+> - section: combat | jutsu | exploration | presentation | balance | architecture | events
 > - status: pending | active | passed | escalated
 > - initialScore: 0-100      # diagnóstico de partida (informativo)
 > - targetScore: 0-100       # meta; el gate igual exige las 4 lentes >= 85
@@ -21,7 +21,7 @@
 > `section` decide qué skill de proyecto carga el maker:
 > combat→combat-system-creator · jutsu→jutsu-creator · exploration→exploration-creator ·
 > presentation→combat-ui-pattern-a / frontend-design · balance→qa-balance + simulador ·
-> architecture→a-review.
+> architecture→a-review · events→event-creator (skill creada en T-009).
 
 ---
 
@@ -168,6 +168,114 @@
 
 ---
 
+## T-008 · Motor de Eventos 2.0: Cadenas, Flags y Efectos
+- id: T-008
+- section: architecture
+- status: pending
+- initialScore: 35
+- targetScore: 85
+- lensFocus: [SISTEMA, ARQUITECTURA]
+- description: >
+    Extender el motor de eventos (hoy de un solo paso) de forma aditiva, sin romper los eventos existentes.
+    1. En `types.ts`: añadir `Player.eventFlags: Record<string, number>`; ampliar `EventOutcome.effects` con
+       `chainTo?`, `setFlags?`, `grantSkillById?`, `curse?`, `removeRandomItem?`; añadir `requiresFlags?`/`excludesFlags?`
+       en `GameEvent` y `EventChoice`.
+    2. En `EventSystem.ts` (puro): resolver cadenas (`chainTo`), aplicar/leer flags, gating por flags, y los efectos nuevos.
+    3. Cablear en `Event.tsx` + `useActivityHandlers.ts` para que una cadena (`chainTo`) abra el siguiente evento de verdad
+       y los flags persistan en el run (alcanzable, sin dead code).
+    4. Ampliar `EventSystem.test.ts` cubriendo cadenas, flags y efectos nuevos.
+    Fuera de alcance (YAGNI): reclutar aliados (no existe sistema de aliados).
+- entryPoints:
+    - src/game/types.ts
+    - src/game/systems/EventSystem.ts
+    - src/scenes/activities/Event.tsx
+    - src/hooks/useActivityHandlers.ts
+    - src/game/systems/__tests__/EventSystem.test.ts
+
+---
+
+## T-009 · Skill local event-creator + section 'events'
+- id: T-009
+- section: architecture
+- status: pending
+- initialScore: 50
+- targetScore: 90
+- lensFocus: [ARQUITECTURA]
+- description: >
+    Crear la skill local `.agents/skills/event-creator/SKILL.md` (el maker se apoya en la skill `skill-creator`)
+    que documente el modelo de eventos ya extendido en T-008: estructura `GameEvent`/`EventChoice`/`EventOutcome`,
+    reglas de oro (pesos que suman 100 por choice, `riskLevel` coherente con la varianza, `logType`/`logMessage`,
+    requisitos/costos, `chainTo` para cadenas, `setFlags`/`requiresFlags` para persistencia, efectos nuevos),
+    plantillas y ejemplos. La `section: events` y su mapeo (events→event-creator) ya están en el schema de este archivo.
+- entryPoints:
+    - .agents/skills/event-creator/SKILL.md
+    - loop/LOOP-TOPICS.md
+
+---
+
+## T-010 · Contenido de Eventos: relleno de arcos + cadenas
+- id: T-010
+- section: events
+- status: pending
+- initialScore: 45
+- targetScore: 85
+- lensFocus: [SISTEMA]
+- description: >
+    Escribir eventos nuevos guiado por la skill `event-creator`, usando el motor de T-008.
+    1. Rellenar arcos pobres, en especial el de guerra (hoy 2 eventos) hasta una cantidad pareja con los demás.
+    2. Añadir al menos 2 eventos encadenados multi-escena reales (`chainTo`) que usen flags para ramificar.
+    3. Añadir al menos 1 evento con consecuencia persistente que se note en un evento posterior (`requiresFlags`).
+    4. Usar los efectos nuevos (`grantSkillById`, `curse`, `removeRandomItem`) donde aporten trade-off legible.
+    Registrar los nuevos arrays en `ALL_EVENTS` (`src/game/constants/index.ts`).
+- entryPoints:
+    - src/game/constants/events/warArcEvents.ts
+    - src/game/constants/events/academyArcEvents.ts
+    - src/game/constants/events/genericEvents.ts
+    - src/game/constants/index.ts
+
+---
+
+## T-011 · Presentación de la escena Event
+- id: T-011
+- section: presentation
+- status: pending
+- initialScore: 55
+- targetScore: 85
+- lensFocus: [PRESENTACION]
+- description: >
+    Pulir la escena de eventos sobre el motor ya funcional de T-008.
+    1. Transición clara entre escenas encadenadas (que se entienda que la historia continúa, no un evento suelto).
+    2. Feedback de outcome más legible (qué cambió: stats/HP/chakra/ryo/intel/flags) con floating text/tooltips.
+    3. Estilo coherente con el chasis PIXEL-ARCADE (T-001): paneles blocky, sombras duras, jerarquía visual.
+    4. Indicador opcional de elecciones/flags relevantes cuando un choice está gated.
+    Entregar mockup ASCII-box (estilo CLAUDE.md) antes de implementar.
+- entryPoints:
+    - src/scenes/activities/Event.tsx
+    - src/components/events/EventChoicePanel.tsx
+    - src/scenes/activities/Event.css
+
+---
+
+## T-012 · Balance de Eventos
+- id: T-012
+- section: balance
+- status: pending
+- initialScore: 50
+- targetScore: 85
+- lensFocus: [BALANCE]
+- description: >
+    Rebalancear los eventos sobre el contenido real de T-010.
+    1. Revisar pesos de outcomes por riskLevel: que el riesgo alto pague de verdad y el bajo sea sólido pero modesto.
+    2. Ajustar costos (ryo) y recompensas (exp/ryo/intel/stats) a la curva de progresión por arco/danger.
+    3. Revisar frecuencia de aparición de salas de evento y peso de `triggerCombat` para no romper el ritmo (TTK/win rate del VISION).
+    4. Sin outcomes "trampa" sin contrajugada (agencia del jugador).
+- entryPoints:
+    - src/game/constants/events/
+    - src/game/systems/EventSystem.ts
+    - src/game/constants/index.ts
+
+---
+
 ## T-013 · Escena de combate por capas (parallax + filtro CRT)
 - id: T-013
 - section: combat
@@ -190,4 +298,32 @@
     - src/components/layout/CinematicViewscreen.tsx
     - src/scenes/combat/Combat.tsx
     - .agents/skills/combat-art/references/css-implementation.css
+
+---
+
+## T-014 · Overhaul Cinemático de la Pantalla de Combate
+- id: T-014
+- section: presentation
+- status: pending
+- initialScore: 35
+- targetScore: 85
+- lensFocus: [PRESENTACION]
+- origen: brainstorming docs/superpowers/specs/2026-06-30-combat-screen-overhaul-design.md
+- description: >
+    Rehacer el LAYOUT de la escena de combate a un formato cinemático legible y completo, con licencia de diseño.
+    El maker usa la skill `frontend-design` (NO `combat-ui-pattern-a`: se descarta el split-panel simétrico).
+    Deslinde: T-013 hace el contenido por capas del stage; este topic hace la estructura/arreglo de toda la escena.
+    1. Grid raíz `grid-template-rows: 1fr auto; height:100dvh`: stage cinemático (1fr) + deck anclado abajo (auto), sin huecos.
+    2. Stage: enemigo entero y centrado (sin recorte raro), compatible con las láminas de T-013; lower-third con scrim para el
+       nombre (con `clamp()`), HP a ancho completo, tags y defensa; buffs del enemigo overlay top-right.
+    3. Deck en orden HUD → econ (AP/postura/hints) → mano → controles; el `PlayerHUD` SIEMPRE visible (hoy queda fuera de pantalla).
+    4. Mejorar contraste/legibilidad de cartas (incl. estado sin recursos) y feedback (floating text anclado a stage/HUD).
+    5. Preservar TODAS las features de T-004 (mano, AP, posturas, atajos, auto-combat, floating text). Responsive: mobile compacta el stage.
+    Entregar mockup ASCII-box (estilo CLAUDE.md) antes de implementar.
+- entryPoints:
+    - src/scenes/combat/Combat.tsx
+    - src/scenes/combat/Combat.css
+    - src/components/layout/CinematicViewscreen.tsx
+    - src/components/character/PlayerHUD.tsx
+    - src/components/combat/SkillCard.css
 
