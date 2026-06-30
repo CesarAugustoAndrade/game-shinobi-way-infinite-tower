@@ -288,6 +288,24 @@ function liveSkill(ctx: BattleContext, card: Skill): Skill {
 function executePlayerTurn(ctx: BattleContext): boolean {
   const { player, enemy, playerDerived, enemyDerived } = ctx;
 
+  // ── Toggle upkeep (T-006 fidelity) ──
+  // Mirrors PlayerTurnSystem.processUpkeep: every active toggle pays its per-turn
+  // chakra upkeep at the start of the player's turn, or auto-deactivates (and drops
+  // its buffs) when chakra runs short. Without this, a toggle build looks more
+  // sustainable in the sim than it is in the real game.
+  ctx.player.skills = ctx.player.skills.map(skill => {
+    if (!skill.isToggle || !skill.isActive) return skill;
+    const upkeepCost = skill.upkeepCost ?? 0;
+    if (upkeepCost <= 0) return skill;
+    if (ctx.player.currentChakra >= upkeepCost) {
+      ctx.player.currentChakra -= upkeepCost;
+      return skill;
+    }
+    // Cannot afford upkeep → deactivate and remove this toggle's buffs.
+    ctx.player.activeBuffs = ctx.player.activeBuffs.filter(b => b.source !== skill.name);
+    return { ...skill, isActive: false };
+  });
+
   // ── Upkeep: refresh AP and draw a new posture-weighted hand ──
   ctx.currentAp = ctx.maxAp;
   const draw = drawNewTurnHand(
@@ -485,18 +503,22 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
     damage = Math.floor(damage * postureDamageMod(ctx.posture));
   }
 
-  // Apply execute threshold for player
+  // Apply mitigation
+  const defenderName = 'name' in defender ? defender.name : defender.clan;
+  const mitigation = applyMitigation(defender.activeBuffs, damage, defenderName);
+  damage = mitigation.finalDamage;
+
+  // T-006 (fidelity): apply the execute threshold AFTER mitigation, mirroring
+  // PlayerTurnSystem.useSkill. The execute overrides the post-mitigation damage
+  // (`= enemy.currentHp`), so an enemy shield can no longer block the execute —
+  // previously the sim ran execute BEFORE mitigation and a shield wrongly absorbed
+  // the kill. Player only.
   if (isPlayer) {
     const enemyMaxHp = ctx.enemyStats.derived.maxHp;
     if (checkExecuteThreshold(ctx.player, ctx.enemy, enemyMaxHp)) {
       damage = ctx.enemy.currentHp;
     }
   }
-
-  // Apply mitigation
-  const defenderName = 'name' in defender ? defender.name : defender.clan;
-  const mitigation = applyMitigation(defender.activeBuffs, damage, defenderName);
-  damage = mitigation.finalDamage;
 
   // T-004: posture scales the post-mitigation damage the PLAYER actually takes
   // from the enemy's direct attack (mirrors EnemyTurnSystem). Applied after the
@@ -851,7 +873,24 @@ export function simulateBattle(
       ctx.player.currentChakra = Math.min(ctx.playerStats.derived.maxChakra, ctx.player.currentChakra + turnStartResult.chakraRestored);
     }
 
-    // Process DoTs and buffs at start of turn
+    // Execute turns
+    if (playerGoesFirst) {
+      executePlayerTurn(ctx);
+      if (ctx.enemy.currentHp <= 0) break;
+      executeEnemyTurn(ctx);
+      if (ctx.player.currentHp <= 0) break;
+    } else {
+      executeEnemyTurn(ctx);
+      if (ctx.player.currentHp <= 0) break;
+      executePlayerTurn(ctx);
+      if (ctx.enemy.currentHp <= 0) break;
+    }
+
+    // Process DoTs and buffs (T-006 fidelity) — AFTER both combatants have acted.
+    // In the real game DoT/Regen ticks resolve inside the enemy turn (EnemyTurnSystem
+    // phases 1-3), i.e. AFTER the player has already taken their action this round.
+    // Running it here (instead of at the top of the round) mirrors that: a player
+    // with lethal DoT still gets to act this round before the DoT can kill them.
     const enemyBuffResult = processBuffs(
       ctx.enemy.activeBuffs,
       ctx.enemy.currentHp,
@@ -892,19 +931,6 @@ export function simulateBattle(
           break;
         }
       }
-    }
-
-    // Execute turns
-    if (playerGoesFirst) {
-      executePlayerTurn(ctx);
-      if (ctx.enemy.currentHp <= 0) break;
-      executeEnemyTurn(ctx);
-      if (ctx.player.currentHp <= 0) break;
-    } else {
-      executeEnemyTurn(ctx);
-      if (ctx.player.currentHp <= 0) break;
-      executePlayerTurn(ctx);
-      if (ctx.enemy.currentHp <= 0) break;
     }
 
     // Regenerate resources

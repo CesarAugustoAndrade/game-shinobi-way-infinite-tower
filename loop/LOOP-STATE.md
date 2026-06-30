@@ -10,8 +10,8 @@
 - run: 2026-06-29-A
 - mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: (ninguno — T-005 passed; parte 3 separada como T-013)
-- updatedAt: 2026-06-30T13:08:11Z
+- activeTopic: T-006 (Fase A passed; PAUSADO para checkpoint humano antes del tuning Fase B)
+- updatedAt: 2026-06-30T15:39:47Z
 
 ## Ledger
 
@@ -31,6 +31,7 @@
 | T-004·F4 | 1 | 91 | 91 | 92 | 89 | PASS | passed | 2026-06-29T21:08:18Z | logs/T-004.md#f4a1 |
 | T-004·F5 | 1 | 95 | 95 | 92 | 92 | PASS | passed | 2026-06-30T08:41:05Z | logs/T-004.md#f5a1 |
 | T-005 | — | — | — | QA✓ | — | PASS | passed | 2026-06-30T13:08:11Z | logs/T-005.md |
+| T-006·A | 1 | 91 | 86 | 91 | 88 | PASS | passed | 2026-06-30T15:39:47Z | logs/T-006.md#faseA |
 
 <!--
 Leyenda:

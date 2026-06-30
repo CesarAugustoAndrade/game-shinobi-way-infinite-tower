@@ -213,6 +213,7 @@ export interface SimulationOutput {
     timestamp: string;
     totalDuration: number;
     totalBattles: number;
+    seed: number;  // PRNG seed used for this run (reproducibility)
   };
   configurations: {
     simulationConfig: SimulationConfig;

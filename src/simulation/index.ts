@@ -20,6 +20,7 @@ import { aggregateResults, generateSummary } from './StatisticsCollector';
 import { printFullReport, printProgress, clearProgress, printHeader } from './ConsoleReporter';
 import { exportToJson, exportSummaryToJson, exportToCsv } from './JsonExporter';
 import { runFullProgressionSimulation, printProgressionSummary } from './ProgressionSimulator';
+import { installSeededRandom, DEFAULT_SEED } from './seededRandom';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -29,7 +30,8 @@ import { runFullProgressionSimulation, printProgressionSummary } from './Progres
  * Run full simulation across all builds and archetypes
  */
 export async function runFullSimulation(
-  config: SimulationConfig = DEFAULT_CONFIG
+  config: SimulationConfig = DEFAULT_CONFIG,
+  seed: number = DEFAULT_SEED
 ): Promise<SimulationOutput> {
   const startTime = Date.now();
 
@@ -42,6 +44,7 @@ export async function runFullSimulation(
   console.log('╚════════════════════════════════════════════════════════════╝\n');
 
   console.log(`Configuration:`);
+  console.log(`  Seed: ${seed}`);
   console.log(`  Battles per matchup: ${config.battlesPerConfig}`);
   console.log(`  Player Level: ${config.playerLevel}`);
   console.log(`  Floor: ${config.floorNumber}`);
@@ -98,7 +101,8 @@ export async function runFullSimulation(
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       totalDuration,
-      totalBattles: results.reduce((acc, r) => acc + r.battles.length, 0)
+      totalBattles: results.reduce((acc, r) => acc + r.battles.length, 0),
+      seed
     },
     configurations: {
       simulationConfig: config,
@@ -118,7 +122,8 @@ export async function runFullSimulation(
 export async function runCustomSimulation(
   builds: PlayerBuildConfig[],
   archetypes: EnemyArchetype[],
-  config: SimulationConfig = DEFAULT_CONFIG
+  config: SimulationConfig = DEFAULT_CONFIG,
+  seed: number = DEFAULT_SEED
 ): Promise<SimulationOutput> {
   const startTime = Date.now();
 
@@ -157,7 +162,8 @@ export async function runCustomSimulation(
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       totalDuration: Date.now() - startTime,
-      totalBattles: results.reduce((acc, r) => acc + r.battles.length, 0)
+      totalBattles: results.reduce((acc, r) => acc + r.battles.length, 0),
+      seed
     },
     configurations: {
       simulationConfig: config,
@@ -173,9 +179,32 @@ export async function runCustomSimulation(
 // CLI MAIN
 // ============================================================================
 
+/**
+ * Parse the `--seed <n>` / `-s <n>` flag. Falls back to DEFAULT_SEED so runs
+ * are reproducible by default.
+ */
+function parseSeed(args: string[]): number {
+  const idx = args.findIndex(a => a === '--seed' || a === '-s');
+  if (idx !== -1 && idx + 1 < args.length) {
+    const parsed = parseInt(args[idx + 1], 10);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return DEFAULT_SEED;
+}
+
 async function main() {
   // Parse command line arguments
   const args = process.argv.slice(2);
+
+  // Make the entire simulation process deterministic: install a seeded PRNG
+  // over the global Math.random BEFORE any battle runs. This covers every
+  // Math.random consumer (combat hit/crit rolls, DeckSystem.drawHand, the
+  // enemy AI, initiative, etc.) without touching the frozen game math. The
+  // real game is unaffected because this override only lives in the CLI process.
+  const seed = parseSeed(args);
+  installSeededRandom(seed);
 
   // Check for progression mode
   const isProgression = args.includes('--progression') || args.includes('-p');
@@ -206,6 +235,7 @@ async function main() {
     }
 
     try {
+      console.log(`\nSeed: ${seed} (use --seed <n> to change)`);
       const summaries = await runFullProgressionSimulation(progressionConfig);
       printProgressionSummary(summaries);
       console.log('\nProgression simulation complete!');
@@ -241,7 +271,7 @@ async function main() {
 
   try {
     // Run simulation
-    const output = await runFullSimulation(config);
+    const output = await runFullSimulation(config, seed);
 
     // Print results
     printFullReport(output);
@@ -272,12 +302,14 @@ Options:
   -f, --floor <n>       Floor number for enemy scaling (default: 10)
   -d, --difficulty <n>  Enemy difficulty 0-100 (default: 50)
   -q, --quick           Quick mode (100 battles per matchup)
+  -s, --seed <n>        PRNG seed for deterministic runs (default: 12345)
   -h, --help            Show this help message
 
 Examples:
   npx tsx src/simulation/index.ts
   npx tsx src/simulation/index.ts --battles 500 --level 15
   npx tsx src/simulation/index.ts --quick
+  npx tsx src/simulation/index.ts --quick --seed 777   (reproducible run)
 
 === PROGRESSION MODE ===
 Simulates full game runs from level 1 with leveling and skill acquisition.
@@ -289,6 +321,7 @@ Options:
   --battles-per-level <n>   Battles before level up (default: 2)
   --battles-per-skill <n>   Battles before skill gain (default: 3)
   -q, --quick               Quick mode (10 runs, 100 battles max)
+  -s, --seed <n>            PRNG seed for deterministic runs (default: 12345)
 
 Examples:
   npx tsx src/simulation/index.ts --progression

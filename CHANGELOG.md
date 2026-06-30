@@ -46,6 +46,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ### Fixed
 
+- Battle simulator fidelity + determinism (T-006 phase A): the simulator now mirrors the live game's turn order — player DoT ticks after the player acts (not before), toggle upkeep is charged, and execute applies after mitigation — and is now deterministic via a seeded PRNG (`--seed`, default 12345), so two same-seed runs produce identical metrics (previously up to 14 win-rate points of run-to-run noise). Makes the simulator trustworthy for balance tuning. Base damage math untouched.
 - Enemy skill cooldowns never decremented in live combat: `EnemyTurnResult` didn't carry the enemy's skills and the combat hook rebuilt the enemy without them, so cooldowns set on use were discarded every turn — enemies eventually fell back to spamming their first skill. Enemy cooldowns now tick down (and the skills persist through the turn result). Found by a holistic review of the T-004 combat refactor; pre-existing bug.
 - TreasureChoice card sizing (all options now same size)
 - Type safety improvements (removed `any` types in ImageTest and TreasureHuntReward)
