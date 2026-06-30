@@ -18,7 +18,9 @@ node_modules
 dist
 dist-ssr
 *.local
-assets
+/assets/*
+!/assets/skill_*.png
+!/assets/enemy_*.png
 simulation-output
 
 # Editor directories and files

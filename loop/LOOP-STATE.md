@@ -10,7 +10,7 @@
 - run: 2026-06-29-A
 - mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: T-005 (pipeline VALIDADO con 1 asset — skill_shuriken OK; pendiente decisión de alcance del lote)
+- activeTopic: T-005 (fases 1-2 hechas: 8 skill backgrounds + 6 enemy portraits, QA-OK y versionados; pendiente fase 3 = fondos por capas/parallax = feature de escena)
 - updatedAt: 2026-06-30T09:33:17Z
 
 ## Ledger
