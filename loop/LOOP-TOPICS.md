@@ -435,3 +435,204 @@
     - src/components/modals/EventResultModal.tsx
     - src/components/modals/DiceRollResultModal.tsx
 
+---
+
+## T-019 · Registry de arte + iconografía del juego
+- id: T-019
+- section: presentation
+- status: pending
+- initialScore: 35
+- targetScore: 85
+- lensFocus: [PRESENTACION, ARQUITECTURA]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA A)
+- description: >
+    Fundación del arte del juego. 1) Crear un REGISTRY central de arte (clave→asset, tipado, con fallback
+    emoji limpio y en cascada) que TODOS los consumidores usen — hoy cada uno improvisa (`item.icon || '?'`,
+    `icon.asset` apunta a `/assets/icons/locations/` que NO existe). 2) Generar con /generar-asset (estilo
+    combat-art, pixel-art 16-bit) la iconografía: iconos de items/componentes/artefactos (adiós emoji),
+    iconos de location (crear la carpeta referenciada), iconos de las 8 actividades de sala
+    (combat/eliteChallenge/merchant/event/scrollDiscovery/rest/training/treasure) y avatares de los 5 clanes.
+    3) Auditoría final: lista de toda clave sin arte, como backlog vivo para T-020/T-021.
+- entryPoints:
+    - src/game/constants/index.ts
+    - src/game/systems/LootSystem.ts
+    - src/game/constants/regions/landOfWaves.ts
+    - src/components/inventory/Bag.tsx
+    - src/components/character/PlayerHUD.tsx
+
+---
+
+## T-020 · Arte de skills (catálogo completo)
+- id: T-020
+- section: presentation
+- status: pending
+- initialScore: 40
+- targetScore: 85
+- lensFocus: [PRESENTACION]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA A)
+- description: >
+    Generar arte para las ~106 skills sin asset (de 114 en `skills.ts`) con /generar-asset siguiendo
+    combat-art (pixel-art 16-bit, colores saturados tipo Neo Geo). Trabajar por lotes por categoría
+    (taijutsu / ninjutsu elemental / genjutsu / herramientas / pasivas) con QA visual por lote.
+    Cablear vía el registry de T-019 en SkillCard, Loot, ScrollDiscovery y Training. Ninguna skill
+    debe caer a fallback al terminar.
+- entryPoints:
+    - src/game/constants/skills.ts
+    - src/components/combat/SkillCard.tsx
+    - src/scenes/rewards/Loot.tsx
+    - src/scenes/rewards/ScrollDiscovery.tsx
+
+---
+
+## T-021 · Retratos de enemigos + ilustraciones de eventos
+- id: T-021
+- section: presentation
+- status: pending
+- initialScore: 40
+- targetScore: 85
+- lensFocus: [PRESENTACION]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA A)
+- description: >
+    1) Retratos para el enemy pool completo de Land of Waves (dock_worker, corrupt_guard, smuggler,
+    beach_bandit, …), elites y bosses, más un set de FALLBACKS por arquetipo (TANK/ASSASSIN/BALANCED/
+    CASTER/GENJUTSU) para enemigos sin retrato dedicado → el juego deja de depender de GenAI en runtime.
+    2) Ilustraciones de eventos: 1 por evento clave + 1 por categoría como fallback (hoy la escena Event
+    es solo texto). Cablear vía registry de T-019 con cascada: dedicado → arquetipo/categoría → emoji.
+    Estilo combat-art vía /generar-asset.
+- entryPoints:
+    - src/game/systems/EnemySystem.ts
+    - src/game/constants/events/
+    - src/scenes/activities/Event.tsx
+
+---
+
+## T-022 · Exploración cinemática: overlays de mochila y ficha
+- id: T-022
+- section: presentation
+- status: pending
+- initialScore: 40
+- targetScore: 85
+- lensFocus: [PRESENTACION, ARQUITECTURA]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA B)
+- description: >
+    Despejar la pantalla de exploración: retirar los sidebars permanentes (LeftSidebarPanel: location+stats;
+    RightSidebarPanel: equipo+bag+síntesis) y dejar la escena full-bleed cinemática con el arte protagonista.
+    1) HUD mínimo persistente: nombre/Lv, HP/CP compactos, ryo, botones 🎒 y 📜.
+    2) Overlay MOCHILA (atajo I): equipo + bag + síntesis drag&drop sobre la escena (conservar dnd-kit,
+       reusar Bag/EquipmentPanel).
+    3) Overlay FICHA (atajo C): stats primarios + derivados + buffs (reusar PrimaryStatsPanel/DerivedStatsPanel).
+    4) ESC cierra; estilo pixel-arcade; sin dead code (retirar el layout viejo de sidebars en exploración).
+    El maker usa frontend-design; mockup ASCII-box antes de implementar.
+- entryPoints:
+    - src/components/layout/LeftSidebarPanel.tsx
+    - src/components/layout/RightSidebarPanel.tsx
+    - src/App.tsx
+    - src/components/inventory/Bag.tsx
+    - src/components/character/PrimaryStatsPanel.tsx
+
+---
+
+## T-023 · Esqueleto de campaña + interludio entre regiones
+- id: T-023
+- section: exploration
+- status: pending
+- initialScore: 30
+- targetScore: 85
+- lensFocus: [SISTEMA, ARQUITECTURA, PRESENTACION]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA C)
+- description: >
+    El arco macro del run: hoy solo se genera LAND_OF_WAVES_CONFIG y vencer al boss no lleva a nada.
+    1) `REGION_ORDER`: registro de las 4 regiones de la campaña con baseDifficulty creciente.
+    2) Al vencer al boss (isRegionBossDefeated ya existe) → escena INTERLUDIO: cierre narrativo del arco +
+       curación total + boon a elegir 1-de-3 (stat permanente / item / skill) + resumen del run → generar
+       la siguiente región de REGION_ORDER.
+    3) Tras la región 4: PANTALLA DE VICTORIA con stats del run. Debe funcionar desde el día 1 con solo
+       Waves (Waves → victoria provisional) para no depender de T-024..T-026.
+- entryPoints:
+    - src/App.tsx
+    - src/game/systems/RegionSystem.ts
+    - src/game/constants/regions/landOfWaves.ts
+    - src/game/types.ts
+
+---
+
+## T-024 · Región 2: Chunin Exams (Forest of Death)
+- id: T-024
+- section: exploration
+- status: pending
+- initialScore: 30
+- targetScore: 85
+- lensFocus: [SISTEMA, PRESENTACION, BALANCE]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA C)
+- description: >
+    Segunda región curada de la campaña, patrón `landOfWaves.ts` con paridad de tamaño: ~13 locations
+    (10 principales + 3 secretas), curva de danger Entry(1-2)→Boss(7), enemy pools del arco EXAMS, eventos
+    atados, boss temático. Incluye SU PROPIA ola de assets (fondos de location, iconos, retratos de
+    enemigos — patrón T-007/T-021, vía /generar-asset). Registrarla en REGION_ORDER (T-023). Validar curva
+    con el simulador multi-locación.
+- entryPoints:
+    - src/game/constants/regions/landOfWaves.ts
+    - src/game/systems/RegionSystem.ts
+    - src/game/systems/EnemySystem.ts
+
+---
+
+## T-025 · Región 3: Sasuke Retrieval (Valley of the End)
+- id: T-025
+- section: exploration
+- status: pending
+- initialScore: 30
+- targetScore: 85
+- lensFocus: [SISTEMA, PRESENTACION, BALANCE]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA C)
+- description: >
+    Tercera región curada, mismos criterios que T-024 (patrón landOfWaves, ~13 locations, curva de danger,
+    enemy pools del arco ROGUE, eventos atados, boss temático, ola propia de assets, registro en
+    REGION_ORDER, validación con simulador). Bioma: Valley of the End.
+- entryPoints:
+    - src/game/constants/regions/landOfWaves.ts
+    - src/game/systems/RegionSystem.ts
+    - src/game/systems/EnemySystem.ts
+
+---
+
+## T-026 · Región 4: Great Ninja War (Divine Tree Roots)
+- id: T-026
+- section: exploration
+- status: pending
+- initialScore: 30
+- targetScore: 85
+- lensFocus: [SISTEMA, PRESENTACION, BALANCE]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA C)
+- description: >
+    Cuarta y última región de la campaña, mismos criterios que T-024/T-025 (patrón landOfWaves, ~13
+    locations, enemy pools del arco WAR, eventos atados, ola propia de assets, REGION_ORDER, simulador).
+    Bioma: Divine Tree Roots. Su boss es el FINAL de la campaña: al vencerlo dispara la pantalla de
+    victoria de T-023 (ya no provisional).
+- entryPoints:
+    - src/game/constants/regions/landOfWaves.ts
+    - src/game/systems/RegionSystem.ts
+    - src/game/systems/EnemySystem.ts
+
+---
+
+## T-027 · Ascenso infinito (modo torre)
+- id: T-027
+- section: exploration
+- status: pending
+- initialScore: 30
+- targetScore: 85
+- lensFocus: [SISTEMA, BALANCE, ARQUITECTURA]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA C)
+- description: >
+    El modo que da nombre al juego. Al ganar la campaña (T-023..T-026) se desbloquea el ASCENSO INFINITO:
+    generador procedural de regiones que cicla los 4 arcos con baseDifficulty creciente sin tope, reusando
+    las piezas curadas (location configs, enemy pools, biomas) recombinadas. El run acaba solo al morir;
+    SCORE = altura alcanzada (regiones superadas), mostrado en GameOver. Lente BALANCE fuerte: curva de
+    escalado validada con el simulador multi-locación (T-015).
+- entryPoints:
+    - src/game/systems/RegionSystem.ts
+    - src/game/systems/ScalingSystem.ts
+    - src/scenes/menu/GameOver.tsx
+    - src/simulation/LocationSimulator.ts
+
