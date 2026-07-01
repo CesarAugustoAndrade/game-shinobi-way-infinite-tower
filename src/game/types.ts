@@ -545,6 +545,11 @@ export interface Player {
   treasureQuality: TreasureQuality;  // What tier items drop from treasure (upgradeable)
   merchantSlots: number;              // How many items shown at merchant (1-4)
   locationsCleared: number;           // Global count of locations cleared (enemy scaling)
+
+  // Event Engine 2.0 (T-008): persistent narrative flags for the current run.
+  // Set by event outcomes (effects.setFlags), read by event/choice gating
+  // (requiresFlags/excludesFlags). Values are counters (0 = unset/absent).
+  eventFlags: Record<string, number>;
 }
 
 export interface Enemy {
@@ -645,6 +650,21 @@ export interface EventOutcome {
       name?: string;
     };
 
+    // --- Event Engine 2.0 (T-008) — all optional, additive ---
+    // Chain into another event: after this outcome resolves, open the event
+    // whose GameEvent.id === chainTo instead of returning to exploration.
+    chainTo?: string;
+    // Persistent run flags written into player.eventFlags (immutable merge).
+    setFlags?: Record<string, number>;
+    // Grant a skill to the loadout, looked up by Skill.id from the SKILLS table.
+    grantSkillById?: string;
+    // Brand the player with a curse (damage-amplification Buff added to
+    // activeBuffs). value = extra damage taken fraction (default 0.5),
+    // duration = turns it persists into combat (default 3).
+    curse?: { value?: number; duration?: number };
+    // Remove one random item from the player's bag (uses the game PRNG).
+    removeRandomItem?: boolean;
+
     // Logging
     logMessage: string;
     logType: 'gain' | 'danger' | 'info' | 'loot';
@@ -661,6 +681,12 @@ export interface EventChoice {
 
   // Requirements (choice disabled if not met)
   requirements?: RequirementCheck;
+
+  // Event Engine 2.0 (T-008): flag gating. The choice is only offered when
+  // every requiresFlags entry is met (flag >= value) and no excludesFlags
+  // entry is met (flag < value). Optional → existing choices are unaffected.
+  requiresFlags?: Record<string, number>;
+  excludesFlags?: Record<string, number>;
 
   // Costs (paid upfront)
   costs?: EventCost;
@@ -681,6 +707,11 @@ export interface GameEvent {
   description: string;
   allowedArcs?: string[]; // Story arcs where this event can occur
   rarity?: Rarity; // How common is this event
+  // Event Engine 2.0 (T-008): flag gating for event eligibility. An event is
+  // only offered when every requiresFlags entry is met (flag >= value) and no
+  // excludesFlags entry is met (flag < value). Optional → additive.
+  requiresFlags?: Record<string, number>;
+  excludesFlags?: Record<string, number>;
   choices: EventChoice[];
 }
 

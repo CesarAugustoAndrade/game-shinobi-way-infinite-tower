@@ -171,7 +171,7 @@
 ## T-008 · Motor de Eventos 2.0: Cadenas, Flags y Efectos
 - id: T-008
 - section: architecture
-- status: pending
+- status: passed
 - initialScore: 35
 - targetScore: 85
 - lensFocus: [SISTEMA, ARQUITECTURA]

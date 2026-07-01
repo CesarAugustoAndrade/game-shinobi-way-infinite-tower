@@ -38,6 +38,7 @@ export const createPlayer = (clan: Clan): Player => {
     treasureQuality: TreasureQuality.BROKEN,  // Start with broken quality drops
     merchantSlots: DEFAULT_MERCHANT_SLOTS,     // Start with 1 merchant slot
     locationsCleared: 0,                       // Global progression counter
+    eventFlags: {},                            // T-008: no narrative flags at run start
   };
 };
 

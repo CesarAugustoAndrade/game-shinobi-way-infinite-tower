@@ -71,7 +71,11 @@ import {
   CharacterStats,
   TreasureQuality,
   MAX_MERCHANT_SLOTS,
+  Buff,
+  EffectType,
 } from '../types';
+import { SKILLS } from '../constants/skills';
+import { pick, generateId } from '../utils/rng';
 
 /**
  * Check if a player meets all requirements for an event choice.
@@ -107,6 +111,65 @@ export const checkRequirements = (
 
   return true;
 };
+
+/**
+ * Event Engine 2.0 (T-008) — flag gating.
+ *
+ * Flags live in `player.eventFlags` as counters (0 = unset/absent). A gate
+ * passes when:
+ *   - every `requiresFlags` entry is satisfied: flag value >= required value, and
+ *   - no `excludesFlags` entry is satisfied: flag value < the excluded value.
+ *
+ * Undefined gates always pass, so existing events/choices are unaffected.
+ */
+export const checkEventFlags = (
+  player: Player,
+  requiresFlags?: Record<string, number>,
+  excludesFlags?: Record<string, number>,
+): boolean => {
+  const flags = player.eventFlags ?? {};
+
+  if (requiresFlags) {
+    for (const [key, needed] of Object.entries(requiresFlags)) {
+      if ((flags[key] ?? 0) < needed) return false;
+    }
+  }
+
+  if (excludesFlags) {
+    for (const [key, blocked] of Object.entries(excludesFlags)) {
+      if ((flags[key] ?? 0) >= blocked) return false;
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Whether an event is eligible for a player given its flag gating.
+ */
+export const isEventAvailableForPlayer = (event: GameEvent, player: Player): boolean =>
+  checkEventFlags(player, event.requiresFlags, event.excludesFlags);
+
+/**
+ * Filter a pool of events down to those whose flag gating the player satisfies.
+ */
+export const getAvailableEventsForPlayer = (
+  events: GameEvent[],
+  player: Player,
+): GameEvent[] => events.filter((event) => isEventAvailableForPlayer(event, player));
+
+/**
+ * Return only the choices of an event whose flag gating the player satisfies.
+ * Requirement/cost gating is handled separately (choices stay visible but
+ * disabled); flag gating removes the choice from the offering entirely.
+ */
+export const getAvailableChoices = (
+  event: GameEvent,
+  player: Player,
+): EventChoice[] =>
+  event.choices.filter((choice) =>
+    checkEventFlags(player, choice.requiresFlags, choice.excludesFlags),
+  );
 
 /**
  * Check if a player can afford the cost of a choice
@@ -270,6 +333,55 @@ export const applyOutcomeEffects = (
     updated.merchantSlots += 1;
   }
 
+  // --- Event Engine 2.0 (T-008) effects ---
+
+  // Persist narrative flags for the run (immutable merge into eventFlags).
+  if (effects.setFlags) {
+    updated.eventFlags = { ...(updated.eventFlags ?? {}), ...effects.setFlags };
+  }
+
+  // Grant a skill by its Skill.id (from the SKILLS table). Deduped by id so a
+  // repeat grant is a no-op rather than a duplicate loadout entry.
+  if (effects.grantSkillById) {
+    const granted = Object.values(SKILLS).find((s) => s.id === effects.grantSkillById);
+    if (granted && !updated.skills.some((s) => s.id === granted.id)) {
+      updated.skills = [...updated.skills, { ...granted, level: 1 }];
+    }
+  }
+
+  // Brand the player with a curse: a damage-amplification Buff (EffectType.CURSE)
+  // stored in activeBuffs so the existing combat mitigation pipeline applies it.
+  if (effects.curse) {
+    const value = effects.curse.value ?? 0.5;
+    const duration = effects.curse.duration ?? 3;
+    const curseBuff: Buff = {
+      id: `event-curse-${generateId()}`,
+      name: 'Cursed Mark',
+      duration,
+      effect: {
+        type: EffectType.CURSE,
+        value,
+        duration,
+        chance: 1,
+      },
+      source: 'event',
+    };
+    updated.activeBuffs = [...updated.activeBuffs, curseBuff];
+  }
+
+  // Remove one random item from the bag using the game PRNG (immutable slot clear).
+  if (effects.removeRandomItem) {
+    const filledIndices = updated.bag.reduce<number[]>((acc, item, idx) => {
+      if (item) acc.push(idx);
+      return acc;
+    }, []);
+    if (filledIndices.length > 0) {
+      const targetIndex = pick(filledIndices) ?? filledIndices[0];
+      updated.bag = [...updated.bag];
+      updated.bag[targetIndex] = null;
+    }
+  }
+
   return updated;
 };
 
@@ -287,7 +399,19 @@ export const resolveEventChoice = (
   outcome: EventOutcome | null;
   message: string;
   triggerCombat?: boolean;
+  /** T-008: id of the next event to open when the outcome chains (effects.chainTo). */
+  nextEventId?: string;
 } => {
+  // Check flag gating (T-008) — a flag-locked choice cannot be resolved.
+  if (!checkEventFlags(player, choice.requiresFlags, choice.excludesFlags)) {
+    return {
+      success: false,
+      player: null,
+      outcome: null,
+      message: 'This path is not available to you.',
+    };
+  }
+
   // Check requirements
   if (!checkRequirements(player, choice.requirements, playerStats)) {
     return {
@@ -328,6 +452,7 @@ export const resolveEventChoice = (
     outcome,
     message: outcome.effects.logMessage,
     triggerCombat: !!outcome.effects.triggerCombat,
+    nextEventId: outcome.effects.chainTo,
   };
 };
 

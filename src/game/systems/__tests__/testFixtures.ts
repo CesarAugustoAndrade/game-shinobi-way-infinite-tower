@@ -217,6 +217,7 @@ export const createMockPlayer = (overrides: Partial<Player> = {}): Player => ({
   treasureQuality: TreasureQuality.BROKEN,
   merchantSlots: DEFAULT_MERCHANT_SLOTS,
   locationsCleared: 0,
+  eventFlags: {},
   ...overrides,
 });
 

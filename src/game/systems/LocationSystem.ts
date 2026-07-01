@@ -76,6 +76,7 @@ import {
   getRoomTypeConfig,
 } from '../constants/roomTypes';
 import { EVENTS } from '../constants';
+import { getAvailableEventsForPlayer } from './EventSystem';
 import { calculateXP, calculateRyo } from './ScalingSystem';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
 
@@ -375,14 +376,22 @@ function generateMerchantActivity(
  * Called only when weighted selection picks event for this room.
  */
 function generateEventActivity(
-  arc: string
+  arc: string,
+  player?: Player
 ): RoomActivities['event'] | undefined {
   // Check feature flag first
   if (!FeatureFlags.ENABLE_STORY_EVENTS) return undefined;
 
   const arcEvents = EVENTS.filter(e => !e.allowedArcs || e.allowedArcs.includes(arc));
-  const event = arcEvents.length > 0
-    ? arcEvents[Math.floor(Math.random() * arcEvents.length)]
+
+  // T-008: apply flag gating so events locked behind (or hidden by) the player's
+  // run flags are only offered when eligible. Falls back to the arc pool when no
+  // player is supplied (e.g. legacy callers) or when gating leaves nothing.
+  const eligible = player ? getAvailableEventsForPlayer(arcEvents, player) : arcEvents;
+  const pool = eligible.length > 0 ? eligible : arcEvents;
+
+  const event = pool.length > 0
+    ? pool[Math.floor(Math.random() * pool.length)]
     : EVENTS[0];
 
   if (!event) return undefined;
@@ -756,7 +765,7 @@ function generateActivityData(
     case 'merchant':
       return generateMerchantActivity(floor, difficulty, player);
     case 'event':
-      return generateEventActivity(arc);
+      return generateEventActivity(arc, player);
     case 'scrollDiscovery':
       return generateScrollDiscoveryActivity(floor);
     case 'rest':

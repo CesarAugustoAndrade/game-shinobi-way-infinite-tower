@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   GameEvent,
   Player,
@@ -12,6 +12,7 @@ import {
   checkRequirements,
   checkEventCost,
   getDisabledReason,
+  getAvailableChoices,
 } from '../../game/systems/EventSystem';
 import {
   Scroll,
@@ -348,6 +349,16 @@ const Event: React.FC<EventProps> = ({
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
+  // T-008: hide choices gated out by the player's run flags (requiresFlags /
+  // excludesFlags). Requirement/cost gating still shows-but-disables; flag
+  // gating removes the choice from the offering entirely.
+  const availableChoices = useMemo(() => {
+    const gated = player ? getAvailableChoices(activeEvent, player) : activeEvent.choices;
+    // Anti-softlock guard: if flag-gating removed EVERY choice, fall back to the
+    // full list so an event never opens with no selectable options.
+    return gated.length > 0 ? gated : activeEvent.choices;
+  }, [activeEvent, player]);
+
   const handleSelect = useCallback((index: number) => {
     setSelectedIndex((prev) => (prev === index ? null : index));
   }, []);
@@ -377,8 +388,8 @@ const Event: React.FC<EventProps> = ({
     if (key >= '1' && key <= '4') {
       e.preventDefault();
       const index = parseInt(key) - 1;
-      if (index < activeEvent.choices.length) {
-        const choice = activeEvent.choices[index];
+      if (index < availableChoices.length) {
+        const choice = availableChoices[index];
         if (isChoiceAvailable(choice)) {
           handleSelect(index);
         }
@@ -388,7 +399,7 @@ const Event: React.FC<EventProps> = ({
     // Enter to confirm selected choice
     if (key === 'Enter' && selectedIndex !== null) {
       e.preventDefault();
-      const choice = activeEvent.choices[selectedIndex];
+      const choice = availableChoices[selectedIndex];
       if (isChoiceAvailable(choice)) {
         onChoice(choice);
       }
@@ -399,7 +410,7 @@ const Event: React.FC<EventProps> = ({
       e.preventDefault();
       setSelectedIndex(null);
     }
-  }, [player, activeEvent.choices, selectedIndex, isChoiceAvailable, handleSelect, onChoice]);
+  }, [player, availableChoices, selectedIndex, isChoiceAvailable, handleSelect, onChoice]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -439,7 +450,7 @@ const Event: React.FC<EventProps> = ({
 
       {/* Choice Cards */}
       <div className="event__choices">
-        {activeEvent.choices.map((choice, idx) => (
+        {availableChoices.map((choice, idx) => (
           <ChoiceCard
             key={idx}
             choice={choice}

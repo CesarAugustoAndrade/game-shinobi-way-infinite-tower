@@ -8,10 +8,10 @@
 ## Run config
 
 - run: 2026-06-29-A
-- mode: interactive     <!-- auto | interactive — T-007 es presentación: el humano puntúa el visual -->
+- mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-007 PASS completo F1+F2; siguiente pendiente: T-008 Motor de Eventos 2.0)
-- updatedAt: 2026-07-01T11:02:09Z
+- activeTopic: T-008 (Motor de Eventos 2.0 — PASS 91/89/87/90; checkpoint humano: guardia anti-softlock de choices + commit)
+- updatedAt: 2026-07-01T11:30:40Z
 
 ## Ledger
 
@@ -38,6 +38,7 @@
 | T-006·B2 | 2 | 91 | 90 | 90 | 88 | PASS | passed | 2026-06-30T20:10:04Z | logs/T-006.md#b2a2 |
 | T-007·F1 | 1 | 90 | 90 | 88 | 90 | PASS | passed | 2026-06-30T22:51:12Z | logs/T-007.md#f1a1 |
 | T-007·F2 | 1 | 90 | 90 | 88 | 90 | PASS | passed | 2026-07-01T11:02:09Z | logs/T-007.md#f2a1 |
+| T-008 | 1 | 91 | 89 | 87 | 90 | PASS | passed | 2026-07-01T11:30:40Z | logs/T-008.md#a1 |
 
 <!--
 Leyenda:

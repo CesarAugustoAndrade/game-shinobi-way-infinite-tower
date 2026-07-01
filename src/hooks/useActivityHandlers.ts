@@ -13,6 +13,7 @@ import {
 } from '../game/systems/ScalingSystem';
 import { attemptEliteEscape } from '../game/systems/EliteChallengeSystem';
 import { resolveEventChoice } from '../game/systems/EventSystem';
+import { EVENTS } from '../game/constants';
 import { generateEnemy } from '../game/systems/EnemySystem';
 import { generateLoot } from '../game/systems/LootSystem';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
@@ -561,6 +562,19 @@ export function useActivityHandlers(
         }
       }
       return;
+    }
+
+    // T-008: chain into the next event. The eventFlags written by this outcome
+    // were already persisted via setPlayer(postEventPlayer) above, so the next
+    // event (and its choices) see them when gating. The room's event activity
+    // is intentionally left incomplete until the final link resolves normally.
+    if (result.nextEventId) {
+      const nextEvent = EVENTS.find(e => e.id === result.nextEventId);
+      if (nextEvent) {
+        setActiveEvent(nextEvent);
+        setGameState(GameState.EVENT);
+        return;
+      }
     }
 
     if (result.outcome) {

@@ -147,6 +147,7 @@ export function createSimPlayer(config: PlayerBuildConfig): Player {
     treasureQuality: TreasureQuality.BROKEN,
     merchantSlots: DEFAULT_MERCHANT_SLOTS,
     locationsCleared: 0,
+    eventFlags: {},
   };
 }
 
