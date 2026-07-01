@@ -95,6 +95,7 @@ import PlayerHUD from './components/character/PlayerHUD';
 // Modal components
 import RewardModal from './components/modals/RewardModal';
 import EventResultModal from './components/modals/EventResultModal';
+import { OutcomeChange } from './components/modals/eventOutcomeChanges';
 import { logVictory, logRewardModal, logFlowCheckpoint } from './game/utils/combatDebug';
 import {
   logRoomEnter, logRoomExit, logRoomSelect,
@@ -124,7 +125,12 @@ const App: React.FC = () => {
     message: string;
     outcome: EventOutcome;
     logType: 'gain' | 'danger' | 'info' | 'loot';
+    changes: OutcomeChange[];
+    nextEventId?: string;
   } | null>(null);
+  // T-011: true when the active event was reached by chaining from a prior
+  // outcome (drives the "chain" ribbon at the top of the Event scene).
+  const [cameFromChain, setCameFromChain] = useState(false);
   const [difficulty, setDifficulty] = useState<number>(40);
   const [isProcessingLoot, setIsProcessingLoot] = useState(false);
   const [merchantItems, setMerchantItems] = useState<Item[]>([]);
@@ -371,6 +377,7 @@ const App: React.FC = () => {
     setDroppedItems,
     setDroppedSkill,
     setActiveEvent,
+    setCameFromChain,
     // Treasure system
     setCurrentTreasure,
     setCurrentTreasureHunt,
@@ -671,7 +678,7 @@ const App: React.FC = () => {
       setScrollDiscoveryData, setEliteChallengeData, setBranchingFloor, setLocationFloor,
       setSelectedBranchingRoom, setDroppedItems, setDroppedSkill, setActiveEvent,
       setPendingArtifact, setShowApproachSelector, setCurrentIntel,
-      setEventOutcome, setIsProcessingLoot
+      setEventOutcome, setIsProcessingLoot, setCameFromChain
     },
     {
       addLog,
@@ -826,7 +833,7 @@ const App: React.FC = () => {
           )}
 
           {gameState === GameState.EVENT && activeEvent && (
-            <Event activeEvent={activeEvent} onChoice={handleEventChoice} player={player} playerStats={playerStats} />
+            <Event activeEvent={activeEvent} onChoice={handleEventChoice} player={player} playerStats={playerStats} cameFromChain={cameFromChain} />
           )}
 
           {gameState === GameState.ELITE_CHALLENGE && eliteChallengeData && player && playerStats && (

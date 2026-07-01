@@ -29,6 +29,8 @@ export interface ActivitySceneSetters {
   setDroppedItems: React.Dispatch<React.SetStateAction<Item[]>>;
   setDroppedSkill: React.Dispatch<React.SetStateAction<Skill | null>>;
   setActiveEvent: React.Dispatch<React.SetStateAction<GameEvent | null>>;
+  /** T-011: cleared when a fresh (non-chained) event opens from a room. */
+  setCameFromChain: React.Dispatch<React.SetStateAction<boolean>>;
   // Treasure system
   setCurrentTreasure: React.Dispatch<React.SetStateAction<TreasureActivity | null>>;
   setCurrentTreasureHunt: React.Dispatch<React.SetStateAction<TreasureHunt | null>>;
@@ -97,6 +99,7 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
     setDroppedItems,
     setDroppedSkill,
     setActiveEvent,
+    setCameFromChain,
     setCurrentTreasure,
     setCurrentTreasureHunt,
   } = activitySetters;
@@ -164,6 +167,8 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
         if (currentRoom.activities.event) {
           logActivityStart(currentRoom.id, 'event', { eventId: currentRoom.activities.event.definition.id });
           logStateChange(exploreState.toString(), 'EVENT', 'event activity');
+          // Fresh event from a room — not reached via a chain.
+          setCameFromChain(false);
           setActiveEvent(currentRoom.activities.event.definition);
           setGameState(GameState.EVENT);
         }
@@ -280,7 +285,7 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
   }, [
     playerStats, setPlayer, addLog, currentLocation, setGameState,
     setSelectedBranchingRoom, setShowApproachSelector,
-    setMerchantItems, setMerchantDiscount, setActiveEvent,
+    setMerchantItems, setMerchantDiscount, setActiveEvent, setCameFromChain,
     setTrainingData, setScrollDiscoveryData, setEliteChallengeData,
     setDroppedItems, setDroppedSkill, setCurrentIntel, currentIntel,
     setCurrentTreasure, setCurrentTreasureHunt, onAutoCombat, onAutoEliteCombat

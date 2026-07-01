@@ -1,0 +1,335 @@
+/**
+ * EventResultModal Styles (T-011)
+ * Pixel-arcade outcome panel: blocky frame, hard shadow (no blur),
+ * Silkscreen chrome + VT323 body. Palette scoped to .event-result.
+ */
+
+@import '../../styles/design-system/index.css';
+
+.event-result {
+  /* ── Approved event palette (scene-scoped tokens) ── */
+  --ev-panel: #141924;
+  --ev-border: #2b3242;
+  --ev-hard: #05070c;
+  --ev-title: #eef2f8;
+  --ev-body: #aeb9c8;
+  --ev-gold: #f2b134;
+  --ev-up: #43c26a;
+  --ev-down: #e6483f;
+  --ev-curse: #a95cff;
+  --ev-flag: #f2b134;
+  --ev-neutral: #5b6575;
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--sw-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sw-space-4);
+  background: rgba(3, 5, 10, 0.82);
+  animation: sw-fade-in 0.2s ease-out;
+}
+
+/* ===========================================
+   Panel
+   =========================================== */
+
+.event-result__panel {
+  width: 100%;
+  max-width: 30rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-3);
+  padding: var(--sw-space-5);
+  background: var(--ev-panel);
+  border: 2px solid var(--ev-border);
+  border-radius: var(--sw-radius-lg);
+  box-shadow: 6px 6px 0 0 var(--ev-hard);
+  animation: sw-scale-in 0.22s ease-out;
+}
+
+/* Left accent edge tinted by outcome tone. */
+.event-result__panel--gain {
+  border-left: 4px solid var(--ev-up);
+}
+
+.event-result__panel--danger {
+  border-left: 4px solid var(--ev-down);
+}
+
+.event-result__panel--loot {
+  border-left: 4px solid var(--ev-curse);
+}
+
+.event-result__panel--info {
+  border-left: 4px solid var(--ev-border);
+}
+
+/* ===========================================
+   Chain ribbon
+   =========================================== */
+
+.event-result__chain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sw-space-2);
+  padding: var(--sw-space-2);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-2xs);
+  letter-spacing: var(--sw-tracking-widest);
+  text-transform: uppercase;
+  color: var(--sw-on-accent);
+  background: var(--ev-gold);
+  border-radius: var(--sw-radius-sm);
+  box-shadow: 3px 3px 0 0 var(--ev-hard);
+}
+
+.event-result__chain-glyph {
+  font-size: var(--sw-text-sm);
+}
+
+/* ===========================================
+   Header
+   =========================================== */
+
+.event-result__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sw-space-3);
+}
+
+.event-result__header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--ev-border);
+  border-radius: var(--sw-radius-sm);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.event-result__header-icon--gain {
+  color: var(--ev-up);
+  border-color: var(--ev-up);
+}
+
+.event-result__header-icon--danger {
+  color: var(--ev-down);
+  border-color: var(--ev-down);
+}
+
+.event-result__header-icon--loot {
+  color: var(--ev-curse);
+  border-color: var(--ev-curse);
+}
+
+.event-result__header-icon--info {
+  color: var(--ev-body);
+}
+
+.event-result__title {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-xl);
+  letter-spacing: var(--sw-tracking-widest);
+  text-transform: uppercase;
+  color: var(--ev-title);
+  text-shadow: 0 0 8px rgba(242, 177, 52, 0.45);
+  margin: 0;
+}
+
+/* ===========================================
+   Narrative message
+   =========================================== */
+
+.event-result__message {
+  font-family: var(--sw-font-pixel);
+  font-size: var(--sw-text-base);
+  line-height: var(--sw-leading-snug);
+  text-align: center;
+  color: var(--ev-body);
+  padding: var(--sw-space-3);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--ev-border);
+  border-radius: var(--sw-radius-sm);
+  margin: 0;
+}
+
+/* ===========================================
+   Divider
+   =========================================== */
+
+.event-result__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-3);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-2xs);
+  letter-spacing: var(--sw-tracking-widest);
+  text-transform: uppercase;
+  color: var(--ev-gold);
+}
+
+.event-result__divider::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: var(--ev-border);
+}
+
+/* ===========================================
+   What changed — delta grid
+   =========================================== */
+
+.event-result__changes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sw-space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.event-result__change {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-2);
+  padding: var(--sw-space-2) var(--sw-space-3);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--ev-border);
+  border-left-width: 3px;
+  border-radius: var(--sw-radius-sm);
+  font-family: var(--sw-font-pixel);
+}
+
+.event-result__change-icon {
+  font-size: var(--sw-text-sm);
+  line-height: 1;
+}
+
+.event-result__change-label {
+  flex: 1;
+  font-size: var(--sw-text-xs);
+  letter-spacing: var(--sw-tracking-wide);
+  text-transform: uppercase;
+  color: var(--sw-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-result__change-value {
+  font-size: var(--sw-text-base);
+  font-weight: 700;
+}
+
+/* Tone colours (border edge + value) */
+.event-result__change--up {
+  border-left-color: var(--ev-up);
+}
+
+.event-result__change--up .event-result__change-value {
+  color: var(--ev-up);
+}
+
+.event-result__change--down {
+  border-left-color: var(--ev-down);
+}
+
+.event-result__change--down .event-result__change-value {
+  color: var(--ev-down);
+}
+
+.event-result__change--curse {
+  border-left-color: var(--ev-curse);
+}
+
+.event-result__change--curse .event-result__change-value {
+  color: var(--ev-curse);
+}
+
+.event-result__change--flag {
+  border-left-color: var(--ev-flag);
+}
+
+.event-result__change--flag .event-result__change-value {
+  color: var(--ev-flag);
+  font-size: var(--sw-text-sm);
+}
+
+.event-result__change--neutral {
+  border-left-color: var(--ev-neutral);
+}
+
+.event-result__change--neutral .event-result__change-value {
+  color: var(--ev-neutral);
+}
+
+.event-result__no-change {
+  padding: var(--sw-space-3);
+  text-align: center;
+  font-family: var(--sw-font-pixel);
+  font-size: var(--sw-text-sm);
+  color: var(--ev-neutral);
+  border: 1px dashed var(--ev-border);
+  border-radius: var(--sw-radius-sm);
+}
+
+/* ===========================================
+   Continue button
+   =========================================== */
+
+.event-result__continue {
+  margin-top: var(--sw-space-2);
+  padding: var(--sw-space-3) var(--sw-space-5);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-sm);
+  letter-spacing: var(--sw-tracking-wide);
+  text-transform: uppercase;
+  color: var(--ev-title);
+  background: var(--sw-bg-surface);
+  border: 2px solid var(--ev-border);
+  border-radius: var(--sw-radius-md);
+  box-shadow: 3px 3px 0 0 var(--ev-hard);
+  cursor: pointer;
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    background var(--sw-transition-base);
+}
+
+.event-result__continue:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 0 var(--ev-hard);
+  border-color: var(--sw-frame);
+}
+
+.event-result__continue:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 0 var(--ev-hard);
+}
+
+.event-result__continue:focus-visible {
+  outline: 2px solid var(--ev-gold);
+  outline-offset: 2px;
+}
+
+/* Chain CTA: solid gold, dark text — the primary "keep going" action. */
+.event-result__continue--chain {
+  color: var(--sw-on-accent);
+  background: var(--ev-gold);
+  border-color: var(--ev-gold);
+}
+
+.event-result__continue--chain:hover {
+  background: #ffca4d;
+}
+
+.event-result__hint {
+  text-align: center;
+  font-family: var(--sw-font-pixel);
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-text-muted);
+  margin: 0;
+}

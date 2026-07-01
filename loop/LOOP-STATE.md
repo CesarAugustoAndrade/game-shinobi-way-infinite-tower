@@ -8,10 +8,10 @@
 ## Run config
 
 - run: 2026-06-29-A
-- mode: auto            <!-- auto | interactive -->
+- mode: interactive     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-010 PASS 95/88/91/90; commit pendiente). Backlog: T-016 (limpieza campos muertos) añadido.
-- updatedAt: 2026-07-01T18:51:16Z
+- activeTopic: — (T-011 PASS 90/90/88/90 en intento 2; commit pendiente)
+- updatedAt: 2026-07-02T00:08:35Z
 
 ## Ledger
 
@@ -41,6 +41,8 @@
 | T-008 | 1 | 91 | 89 | 87 | 90 | PASS | passed | 2026-07-01T11:30:40Z | logs/T-008.md#a1 |
 | T-009 | 1 | 88 | 90 | 91 | 90 | PASS | passed | 2026-07-01T15:12:27Z | logs/T-009.md#a1 |
 | T-010 | 1 | 95 | 88 | 91 | 90 | PASS | passed | 2026-07-01T18:51:16Z | logs/T-010.md#a1 |
+| T-011 | 1 | 90 | 90 | 80 | 90 | FAIL | iterating | 2026-07-01T23:45:00Z | logs/T-011.md#a1 |
+| T-011 | 2 | 90 | 90 | 88 | 90 | PASS | passed | 2026-07-02T00:08:35Z | logs/T-011.md#a2 |
 
 <!--
 Leyenda:

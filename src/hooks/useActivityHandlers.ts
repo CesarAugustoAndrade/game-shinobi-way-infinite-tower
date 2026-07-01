@@ -24,6 +24,7 @@ import { MERCHANT } from '../game/config';
 import { FeatureFlags, LaunchProperties } from '../config/featureFlags';
 import { logActivityComplete, logStateChange, logExplorationCheckpoint, logModalOpen, logModalClose, logIntelGain } from '../game/utils/explorationDebug';
 import { INTEL_GAIN } from '../game/systems/RegionSystem';
+import { buildOutcomeChanges, OutcomeChange } from '../components/modals/eventOutcomeChanges';
 
 export interface ActivityState {
   player: Player | null;
@@ -64,6 +65,8 @@ export interface ActivitySetters {
   setCurrentIntel: React.Dispatch<React.SetStateAction<number>>;
   setEventOutcome: React.Dispatch<React.SetStateAction<any>>;
   setIsProcessingLoot: React.Dispatch<React.SetStateAction<boolean>>;
+  /** T-011: flags the Event scene that the current event was reached via a chain. */
+  setCameFromChain: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export interface ActivityDeps {
@@ -103,7 +106,7 @@ export function useActivityHandlers(
     setScrollDiscoveryData, setEliteChallengeData, setBranchingFloor, setLocationFloor,
     setSelectedBranchingRoom, setDroppedItems, setDroppedSkill, setActiveEvent,
     setPendingArtifact, setShowApproachSelector, setCurrentIntel,
-    setEventOutcome, setIsProcessingLoot
+    setEventOutcome, setIsProcessingLoot, setCameFromChain
   } = setters;
 
   const { addLog, checkLevelUp, handleCombatVictory, returnToMap, eventOutcome, startCombat } = deps;
@@ -475,6 +478,13 @@ export function useActivityHandlers(
 
     addLog(result.message || 'Choice resolved.', logType);
 
+    // T-011: describe the real changes this outcome made (before→after for
+    // resources, declared effects for the rest) so the result panel can show a
+    // legible "WHAT CHANGED" breakdown.
+    const outcomeChanges: OutcomeChange[] = result.outcome
+      ? buildOutcomeChanges(player, postEventPlayer, result.outcome)
+      : [];
+
     if (result.triggerCombat && result.outcome?.effects.triggerCombat) {
       const combatConfig = result.outcome.effects.triggerCombat;
       const combatDangerLevel = combatConfig.floor
@@ -564,13 +574,32 @@ export function useActivityHandlers(
       return;
     }
 
-    // T-008: chain into the next event. The eventFlags written by this outcome
-    // were already persisted via setPlayer(postEventPlayer) above, so the next
-    // event (and its choices) see them when gating. The room's event activity
-    // is intentionally left incomplete until the final link resolves normally.
+    // T-008/T-011: chain into the next event. The eventFlags written by this
+    // outcome were already persisted via setPlayer(postEventPlayer) above, so
+    // the next event (and its choices) see them when gating. In the location
+    // explorer the chain routes through the result panel first — the player
+    // sees WHAT CHANGED and an explicit "continue the story" step, and the hop
+    // to the next event happens on close (handleEventOutcomeClose). The room's
+    // event activity is intentionally left incomplete until the final link
+    // resolves normally.
+    const inLocationMode = Boolean(locationFloor && region && region.currentLocationId);
     if (result.nextEventId) {
+      if (inLocationMode && result.outcome) {
+        setEventOutcome({
+          message: result.message || 'Choice resolved.',
+          outcome: result.outcome,
+          logType: logType as 'gain' | 'danger' | 'info' | 'loot',
+          changes: outcomeChanges,
+          nextEventId: result.nextEventId,
+        });
+        setActiveEvent(null);
+        setGameState(GameState.LOCATION_EXPLORE);
+        return;
+      }
+      // Legacy branching explorer has no result panel — hop directly.
       const nextEvent = EVENTS.find(e => e.id === result.nextEventId);
       if (nextEvent) {
+        setCameFromChain(true);
         setActiveEvent(nextEvent);
         setGameState(GameState.EVENT);
         return;
@@ -581,20 +610,40 @@ export function useActivityHandlers(
       setEventOutcome({
         message: result.message || 'Choice resolved.',
         outcome: result.outcome,
-        logType: logType as 'gain' | 'danger' | 'info' | 'loot'
+        logType: logType as 'gain' | 'danger' | 'info' | 'loot',
+        changes: outcomeChanges,
       });
     }
 
     setActiveEvent(null);
-    if (locationFloor && region && region.currentLocationId) {
+    if (inLocationMode) {
       setGameState(GameState.LOCATION_EXPLORE);
     } else {
       setGameState(GameState.EXPLORE);
     }
-  }, [player, playerStats, currentDangerLevel, difficulty, region, locationFloor, branchingFloor, setPlayer, setLocationFloor, setBranchingFloor, setActiveEvent, setGameState, setEventOutcome, addLog, checkLevelUp, handleCombatVictory, startCombat]);
+  }, [player, playerStats, currentDangerLevel, difficulty, region, locationFloor, branchingFloor, setPlayer, setLocationFloor, setBranchingFloor, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, addLog, checkLevelUp, handleCombatVictory, startCombat]);
 
   const handleEventOutcomeClose = useCallback(() => {
     logModalClose('EventOutcomeModal');
+
+    // T-011: if this outcome chains, the "continue the story" button advances to
+    // the next event instead of closing back to the map. The room's event
+    // activity stays incomplete (and no intel is granted) until the final,
+    // non-chaining link resolves.
+    if (eventOutcome?.nextEventId) {
+      const nextEvent = EVENTS.find(e => e.id === eventOutcome.nextEventId);
+      if (nextEvent) {
+        setEventOutcome(null);
+        setCameFromChain(true);
+        setActiveEvent(nextEvent);
+        setGameState(GameState.EVENT);
+        return;
+      }
+    }
+
+    // Terminal link: the chain (if any) is over — clear the chain flag.
+    setCameFromChain(false);
+
     if (branchingFloor) {
       const currentRoom = getCurrentRoom(branchingFloor);
       if (currentRoom) {
@@ -618,7 +667,7 @@ export function useActivityHandlers(
     }
 
     setEventOutcome(null);
-  }, [branchingFloor, locationFloor, region, eventOutcome, currentIntel, setBranchingFloor, setLocationFloor, setCurrentIntel, setEventOutcome]);
+  }, [branchingFloor, locationFloor, region, eventOutcome, currentIntel, setBranchingFloor, setLocationFloor, setCurrentIntel, setEventOutcome, setCameFromChain, setActiveEvent, setGameState]);
 
   return {
     buyItem,

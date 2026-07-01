@@ -238,7 +238,7 @@
 ## T-011 · Presentación de la escena Event
 - id: T-011
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 55
 - targetScore: 85
 - lensFocus: [PRESENTACION]
