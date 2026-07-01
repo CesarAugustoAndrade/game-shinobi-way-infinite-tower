@@ -10,7 +10,7 @@
 - run: 2026-06-29-A
 - mode: interactive     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-011 PASS 90/90/88/90 en intento 2; commit pendiente)
+- activeTopic: — (T-011 PASS + commit d6a8213; siguiente natural: T-012 balance de eventos [cierra el clúster]. Pendientes: T-012..T-016)
 - updatedAt: 2026-07-02T00:08:35Z
 
 ## Ledger
