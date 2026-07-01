@@ -21,7 +21,9 @@ dist-ssr
 /assets/*
 !/assets/skill_*.png
 !/assets/enemy_*.png
+!/assets/location_*.png
 simulation-output
+.playwright-mcp/
 
 # Editor directories and files
 .vscode/*

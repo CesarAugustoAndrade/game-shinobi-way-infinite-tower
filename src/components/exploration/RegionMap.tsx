@@ -79,6 +79,10 @@ const RegionMap: React.FC<RegionMapProps> = ({
 
   return (
     <div className={`region-map ${getArcModifier()}`}>
+      {/* Decorative CRT layers (purely visual, never intercept clicks) */}
+      <div className="region-map__scanlines" aria-hidden="true" />
+      <div className="region-map__vignette" aria-hidden="true" />
+
       {/* Header */}
       <div className="region-map__header">
         <div className="region-map__header-content">
@@ -171,8 +175,9 @@ const RegionMap: React.FC<RegionMapProps> = ({
 
         {/* Instructions */}
         <div className="region-map__instructions">
-          <span className="region-map__key">1-3</span> select card •
-          <span className="region-map__key"> SPACE</span> or <span className="region-map__key">ENTER</span> to enter
+          <span className="region-map__key">1-3</span> Select Card
+          <span className="region-map__sep">♦</span>
+          <span className="region-map__key">Space</span> or <span className="region-map__key">Enter</span> to Enter Location
         </div>
       </div>
     </div>

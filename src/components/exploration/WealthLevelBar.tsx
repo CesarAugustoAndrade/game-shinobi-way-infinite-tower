@@ -35,9 +35,7 @@ const WealthLevelBar: React.FC<WealthLevelBarProps> = ({ level, showLabel = true
           <div key={seg} className={getSegmentClass(seg)} />
         ))}
       </div>
-      {level !== null && (
-        <span className={getValueClass()}>{level}</span>
-      )}
+      <span className={getValueClass()}>{level !== null ? level : '?'}</span>
     </div>
   );
 };

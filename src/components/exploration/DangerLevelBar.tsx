@@ -35,9 +35,7 @@ const DangerLevelBar: React.FC<DangerLevelBarProps> = ({ level, showLabel = true
           <div key={seg} className={getSegmentClass(seg)} />
         ))}
       </div>
-      {level !== null && (
-        <span className={getValueClass()}>{level}</span>
-      )}
+      <span className={getValueClass()}>{level !== null ? level : '?'}</span>
     </div>
   );
 };

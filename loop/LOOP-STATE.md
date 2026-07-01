@@ -8,10 +8,10 @@
 ## Run config
 
 - run: 2026-06-29-A
-- mode: auto            <!-- auto | interactive -->
+- mode: interactive     <!-- auto | interactive — T-007 es presentación: el humano puntúa el visual -->
 - maxAttempts: 3
-- activeTopic: — (T-006 B.2 PASS; backlog en pausa esperando decisión humana de commit / fase C opcional)
-- updatedAt: 2026-06-30T20:10:04Z
+- activeTopic: — (T-007 PASS completo F1+F2; siguiente pendiente: T-008 Motor de Eventos 2.0)
+- updatedAt: 2026-07-01T11:02:09Z
 
 ## Ledger
 
@@ -36,6 +36,8 @@
 | T-006·B1 | 2 | 92 | 89 | 90 | 92 | PASS | passed | 2026-06-30T16:31:44Z | logs/T-006.md#b1a1 |
 | T-006·B2 | 1 | 83 | 90 | 90 | 81 | FAIL | iterating | 2026-06-30T19:22:21Z | logs/T-006.md#b2a1 |
 | T-006·B2 | 2 | 91 | 90 | 90 | 88 | PASS | passed | 2026-06-30T20:10:04Z | logs/T-006.md#b2a2 |
+| T-007·F1 | 1 | 90 | 90 | 88 | 90 | PASS | passed | 2026-06-30T22:51:12Z | logs/T-007.md#f1a1 |
+| T-007·F2 | 1 | 90 | 90 | 88 | 90 | PASS | passed | 2026-07-01T11:02:09Z | logs/T-007.md#f2a1 |
 
 <!--
 Leyenda:
