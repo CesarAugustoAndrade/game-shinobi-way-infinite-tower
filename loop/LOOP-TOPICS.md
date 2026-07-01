@@ -148,7 +148,7 @@
 ## T-007 · Rediseño de la Selección de Ubicación al estilo Retro-Arcada (RegionMap UI)
 - id: T-007
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 55
 - targetScore: 85
 - lensFocus: [PRESENTACION, ARQUITECTURA]
@@ -326,4 +326,35 @@
     - src/components/layout/CinematicViewscreen.tsx
     - src/components/character/PlayerHUD.tsx
     - src/components/combat/SkillCard.css
+
+---
+
+## T-015 · Simulador Multi-Locación con Itemización
+- id: T-015
+- section: balance
+- status: pending
+- initialScore: 40
+- targetScore: 85
+- lensFocus: [BALANCE, ARQUITECTURA]
+- origen: brainstorming docs/superpowers/specs/2026-07-01-multi-location-itemization-sim-design.md
+- description: >
+    Extender el simulador de desgaste para medir runs de VARIAS locaciones con ITEMIZACIÓN (profundidad media).
+    1. Run multi-locación: encadenar N locaciones con dangerLevel creciente, carry-over de HP/chakra/ryo/equipment/componentBag/XP.
+       Leveling fiel reusando el cálculo real de XP/ryo (RegionSystem) y level-up (StatSystem); reusar el generador y la
+       navegación reales como el LocationSimulator actual.
+    2. Itemización: combates/treasure sueltan loot (LootSystem real). IA heurística determinista que equipa el item si sube el
+       score de build (por equipmentFocus) y vende/descarta el resto; merchant compra upgrades asequibles con ryo. Recalcular
+       stats con getPlayerFullStats + EquipmentPassiveSystem antes de cada combate.
+    3. Reporte: clear rate por profundidad de locación, curva de poder (stats del jugador vs escalado), y COMPARATIVA con/sin
+       itemización sobre el mismo seed para aislar el aporte del gear. Economía de ryo.
+    4. CLI: modo nuevo (p. ej. `--campaign` o `--location --locations <n> --items on|off`) + ayuda + script npm.
+    Síntesis (componentes→artefactos) es stretch opcional, no requerida para el gate. Todo determinista por seed; no tocar la
+    matemática de combate congelada.
+- entryPoints:
+    - src/simulation/LocationSimulator.ts
+    - src/simulation/BattleSimulator.ts
+    - src/simulation/index.ts
+    - src/game/systems/LootSystem.ts
+    - src/game/systems/StatSystem.ts
+    - src/game/systems/RegionSystem.ts
 
