@@ -388,3 +388,50 @@
     - src/game/systems/__tests__/EventSystem.test.ts
     - .agents/skills/event-creator/SKILL.md
 
+---
+
+## T-017 · Pixel-Arcade: pantallas de economía/recompensa
+- id: T-017
+- section: presentation
+- status: pending
+- initialScore: 45
+- targetScore: 85
+- lensFocus: [PRESENTACION]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-pixel-arcade-remaining-screens-design.md
+- description: >
+    Migrar al estilo PIXEL-ARCADE (skill local `pixel-arcade` + `frontend-design`, tokens del design-system) las pantallas
+    de mayor tráfico/economía, replicando el chasis de T-001 (botones/paneles blocky, sombras duras sin blur, Silkscreen/VT323).
+    Pantallas: Merchant (tienda), Loot, TreasureChoice, TreasureHuntReward, ScrollDiscovery, EliteChallenge, y el RewardModal.
+    Solo chasis de UI; mantener intactos sprites/ilustraciones. Sin valores hardcodeados; retirar estilos viejos reemplazados.
+    Entregar mockup ASCII-box antes de implementar.
+- entryPoints:
+    - src/scenes/activities/Merchant.tsx
+    - src/scenes/rewards/Loot.tsx
+    - src/scenes/rewards/TreasureChoice.tsx
+    - src/scenes/rewards/TreasureHuntReward.tsx
+    - src/scenes/rewards/ScrollDiscovery.tsx
+    - src/scenes/combat/EliteChallenge.tsx
+    - src/components/modals/RewardModal.tsx
+
+---
+
+## T-018 · Pixel-Arcade: pantallas secundarias
+- id: T-018
+- section: presentation
+- status: pending
+- initialScore: 50
+- targetScore: 85
+- lensFocus: [PRESENTACION]
+- origen: brainstorming docs/superpowers/specs/2026-07-02-pixel-arcade-remaining-screens-design.md
+- description: >
+    Continuar la migración PIXEL-ARCADE (skill local `pixel-arcade` + `frontend-design`, tokens del design-system) en las
+    pantallas secundarias, con los mismos criterios que T-017 (botones/paneles blocky, sombras duras, Silkscreen/VT323, sin
+    hardcodeados, sin dead code, arte intacto). Pantallas: Training, GameGuide, GameOver, y los modales EventResultModal y
+    DiceRollResultModal.
+- entryPoints:
+    - src/scenes/activities/Training.tsx
+    - src/scenes/menu/GameGuide.tsx
+    - src/scenes/menu/GameOver.tsx
+    - src/components/modals/EventResultModal.tsx
+    - src/components/modals/DiceRollResultModal.tsx
+
