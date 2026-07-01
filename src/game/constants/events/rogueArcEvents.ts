@@ -234,4 +234,164 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
       },
     ],
   },
+
+  // ==========================================================================
+  // CHAIN B — "The Abandoned Laboratory" (2 scenes, flag-branched)
+  // Scene 1 sets entered_lab + one of {subject_freed, subject_harvested} and
+  // chains into the reckoning scene. The branch flag decides its offering:
+  // mercy yields a clean reward; harvesting the serum grants a jutsu at the
+  // price of a curse (and a chance to lose a bag item).
+  // ==========================================================================
+  {
+    id: 'orochimaru_experiment',
+    title: 'The Abandoned Laboratory',
+    description:
+      'Behind a false wall, one of Orochimaru\'s hideouts festers. A stasis tube glows in the dark, and inside floats a half-formed test subject — still breathing, veined with the Sannin\'s serum.',
+    allowedArcs: ['ROGUE_ARC'],
+    rarity: Rarity.RARE,
+    choices: [
+      {
+        label: 'Free the Subject',
+        description: 'MEDIUM RISK - Shatter the tube and free whatever lives inside',
+        riskLevel: RiskLevel.MEDIUM,
+        hintText: 'Kindness in this place is rarer than the serum.',
+        outcomes: [
+          {
+            weight: 100,
+            effects: {
+              setFlags: { entered_lab: 1, subject_freed: 1 },
+              chainTo: 'orochimaru_experiment_result',
+              logMessage: 'You smash the glass. Fluid gushes across the floor as the subject gasps its first free breath.',
+              logType: 'info',
+            },
+          },
+        ],
+      },
+      {
+        label: 'Harvest the Specimen',
+        description: 'HIGH RISK - Extract Orochimaru\'s serum for yourself (needs 22 Intelligence)',
+        riskLevel: RiskLevel.HIGH,
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 22 } },
+        hintText: 'The Sannin\'s gifts always demand flesh in return.',
+        outcomes: [
+          {
+            weight: 100,
+            effects: {
+              setFlags: { entered_lab: 1, subject_harvested: 1 },
+              chainTo: 'orochimaru_experiment_result',
+              logMessage: 'You drain the tube into a vial. The subject withers as its serum fills your hand.',
+              logType: 'danger',
+            },
+          },
+        ],
+      },
+      {
+        label: 'Seal the Lab and Leave',
+        description: 'SAFE - Collapse the hideout and walk away',
+        riskLevel: RiskLevel.SAFE,
+        outcomes: [
+          {
+            weight: 100,
+            effects: {
+              exp: 90,
+              intelGain: 15,
+              logMessage: 'You bring the ceiling down on the whole cursed place and leave it buried.',
+              logType: 'gain',
+            },
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'orochimaru_experiment_result',
+    title: "The Specimen's Reckoning",
+    description:
+      'The lab\'s hum fades. What you did here in the dark now decides what you carry out of it.',
+    allowedArcs: ['ROGUE_ARC'],
+    // Reachable only after the lab scene sets entered_lab (chain lookup ignores
+    // this gate; it just prevents a standalone appearance without the setup).
+    requiresFlags: { entered_lab: 1 },
+    choices: [
+      {
+        // Freed path — the subject repays trust with knowledge. No curse.
+        label: 'Earn Its Trust',
+        description: 'LOW RISK - The grateful subject shares what it knows',
+        riskLevel: RiskLevel.LOW,
+        requiresFlags: { subject_freed: 1 },
+        outcomes: [
+          {
+            weight: 75,
+            effects: {
+              statChanges: { intelligence: 2, spirit: 1 },
+              exp: 130,
+              hpChange: { percent: 20 },
+              intelGain: 20,
+              logMessage: 'The subject presses a shaking hand to your brow and pours the lab\'s secrets into you before vanishing into the tunnels.',
+              logType: 'gain',
+            },
+          },
+          {
+            weight: 25,
+            effects: {
+              exp: 70,
+              intelGain: 15,
+              logMessage: 'It bolts before it can speak, but leaves a scrawled map of the hideout\'s vaults.',
+              logType: 'info',
+            },
+          },
+        ],
+      },
+      {
+        // Harvested path — inject the stolen serum: power, curse, and a real risk
+        // of rejection that costs both HP and a bag item.
+        label: 'Inject the Serum',
+        description: 'EXTREME RISK - Inject the stolen serum; your body may reject it',
+        riskLevel: RiskLevel.EXTREME,
+        requiresFlags: { subject_harvested: 1 },
+        hintText: 'Orochimaru\'s immortality was never free.',
+        outcomes: [
+          {
+            weight: 55,
+            effects: {
+              grantSkillById: 'poison_fog',
+              curse: { value: 0.5, duration: 3 },
+              intelGain: 20,
+              logMessage: 'The serum rewrites your chakra. Orochimaru\'s poison-fog jutsu is yours now — and so is the cursed hunger that comes with it.',
+              logType: 'loot',
+            },
+          },
+          {
+            weight: 45,
+            effects: {
+              curse: { value: 0.5, duration: 3 },
+              hpChange: { percent: -35 },
+              removeRandomItem: true,
+              intelGain: 10,
+              logMessage: 'Your body rejects the serum violently. You convulse, blood everywhere, and something in your pack shatters in the seizure.',
+              logType: 'danger',
+            },
+          },
+        ],
+      },
+      {
+        // Ungated safe exit for either branch (anti-softlock).
+        label: 'Destroy the Serum',
+        description: 'SAFE - Grind the vial underfoot and leave',
+        riskLevel: RiskLevel.SAFE,
+        outcomes: [
+          {
+            weight: 100,
+            effects: {
+              exp: 70,
+              intelGain: 15,
+              logMessage: 'Whatever you took here, you leave the serum a smear on the floor. Some doors are better shut.',
+              logType: 'info',
+            },
+          },
+        ],
+      },
+    ],
+  },
 ];

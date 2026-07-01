@@ -10,8 +10,8 @@
 - run: 2026-06-29-A
 - mode: auto            <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: T-009 (skill event-creator — PASS 88/90/91/90; correcciones de precisión aplicadas; checkpoint de commit)
-- updatedAt: 2026-07-01T15:12:27Z
+- activeTopic: — (T-010 PASS 95/88/91/90; commit pendiente). Backlog: T-016 (limpieza campos muertos) añadido.
+- updatedAt: 2026-07-01T18:51:16Z
 
 ## Ledger
 
@@ -40,6 +40,7 @@
 | T-007·F2 | 1 | 90 | 90 | 88 | 90 | PASS | passed | 2026-07-01T11:02:09Z | logs/T-007.md#f2a1 |
 | T-008 | 1 | 91 | 89 | 87 | 90 | PASS | passed | 2026-07-01T11:30:40Z | logs/T-008.md#a1 |
 | T-009 | 1 | 88 | 90 | 91 | 90 | PASS | passed | 2026-07-01T15:12:27Z | logs/T-009.md#a1 |
+| T-010 | 1 | 95 | 88 | 91 | 90 | PASS | passed | 2026-07-01T18:51:16Z | logs/T-010.md#a1 |
 
 <!--
 Leyenda:

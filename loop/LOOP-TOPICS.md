@@ -216,7 +216,7 @@
 ## T-010 · Contenido de Eventos: relleno de arcos + cadenas
 - id: T-010
 - section: events
-- status: pending
+- status: passed
 - initialScore: 45
 - targetScore: 85
 - lensFocus: [SISTEMA]
@@ -357,4 +357,34 @@
     - src/game/systems/LootSystem.ts
     - src/game/systems/StatSystem.ts
     - src/game/systems/RegionSystem.ts
+
+---
+
+## T-016 · Limpieza de campos muertos del motor de eventos
+- id: T-016
+- section: architecture
+- status: pending
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [ARQUITECTURA, SISTEMA]
+- origen: discrepancias destapadas al documentar el motor en T-009 (ver `.agents/skills/event-creator/SKILL.md`, Notas de discrepancia).
+- description: >
+    Poner honesto el tipo de eventos: 4 campos declarados pero hoy inertes (dead code / no-ops). Para CADA uno
+    decidir IMPLEMENTAR el comportamiento previsto o RETIRAR el campo (lo que deje el sistema más limpio), sin
+    romper eventos ni tests existentes; actualizar la skill `event-creator` y sus tests en consecuencia.
+    1. `EventOutcome.effects.items` y `effects.skills`: declarados en `types.ts` pero `applyOutcomeEffects` NO los
+       aplica (solo colorean el preview). Decisión: aplicarlos de verdad (otorgar ítems/skills, con tests) o
+       retirarlos dejando `grantSkillById` como única vía viva.
+    2. `GameEvent.rarity`: no pondera la selección (uniforme en `LocationSystem`). Decisión: ponderar por rareza o
+       retirar el campo.
+    3. `clanBonus` (`{ clan, weightMultiplier }`): hoy no-op — `rollOutcome` escala TODOS los pesos por el mismo
+       factor y renormaliza a 100. Decisión: sesgar de verdad (multiplicar solo el/los outcome(s) del clan, no
+       todos) o retirar el campo.
+    Actualizar `.agents/skills/event-creator/SKILL.md` (tablas + Notas de discrepancia) para reflejar el resultado.
+- entryPoints:
+    - src/game/types.ts
+    - src/game/systems/EventSystem.ts
+    - src/game/systems/LocationSystem.ts
+    - src/game/systems/__tests__/EventSystem.test.ts
+    - .agents/skills/event-creator/SKILL.md
 
