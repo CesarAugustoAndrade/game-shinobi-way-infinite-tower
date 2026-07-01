@@ -26,7 +26,7 @@ Existe **T-013 · Escena de combate por capas (parallax + filtro CRT)**, separad
 - **T-013 = CONTENIDO del stage**: render de 3 láminas (fondo/medio/primer plano), overlay CRT/scanlines, y re-corte de los retratos de enemigos a **sprites transparentes** para componer sobre las láminas.
 - **T-014 (este) = ESTRUCTURA/ARREGLO de toda la escena**: el grid `stage / deck`, que el `PlayerHUD` esté **siempre visible**, eliminar el hueco, ordenar el deck, legibilidad de cartas y responsive.
 
-T-014 define el **contenedor del stage**; T-013 lo **rellena** con las láminas. Si T-013 ya corrió, T-014 respeta su render; si no, T-014 usa un encuadre interino (`object-contain` sobre `enemy.image`, enemigo entero, sin recorte). En el backlog T-014 va **después** de T-013.
+T-014 define el **contenedor del stage**; T-013 lo **rellena** con las láminas. Orden (revisado 2026-07-02): **T-014 va ANTES de T-013** — primero la estructura (y el bug crítico del PlayerHUD fuera de pantalla), luego las láminas se montan dentro del stage nuevo. T-014 usa un encuadre interino (`object-contain` sobre `enemy.image`, enemigo entero, sin recorte) hasta que T-013 aporte las capas.
 
 ## 4. Wireframe aprobado
 
@@ -107,5 +107,5 @@ T-014 define el **contenedor del stage**; T-013 lo **rellena** con las láminas.
 
 - **Cinemático, no Pattern A**: foco en enemigo + fondo; jugador solo HUD (sin sprite). Evita depender de arte del jugador inexistente y reduce churn.
 - **Clave del fix**: `grid-rows: 1fr auto` (stage/deck) resuelve el hueco y el `PlayerHUD` fuera de pantalla de un solo golpe.
-- **Orden en el backlog**: al final (T-014), después de los topics de eventos (T-008..T-012) y después de T-013 (escena por capas). El bug más crítico (PlayerHUD invisible) vive en T-014; si se quiere antes, se puede subir en el backlog.
+- **Orden en el backlog** (revisado 2026-07-02): T-014 corre **antes** de T-013 — arregla la estructura y el bug más crítico (PlayerHUD invisible) primero; T-013 monta el parallax dentro del stage nuevo, evitando retrabajo.
 - **Section presentation → frontend-design** para este topic (no el split-panel de combat-ui-pattern-a).

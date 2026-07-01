@@ -256,6 +256,37 @@
 
 ---
 
+## T-016 · Limpieza de campos muertos del motor de eventos
+- id: T-016
+- section: architecture
+- status: pending
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [ARQUITECTURA, SISTEMA]
+- origen: discrepancias destapadas al documentar el motor en T-009 (ver `.agents/skills/event-creator/SKILL.md`, Notas de discrepancia).
+- orden: ANTES de T-012 — sus decisiones (rarity pondera o no; clanBonus sesga o no) cambian la matemática que T-012 balancea.
+- description: >
+    Poner honesto el tipo de eventos: 4 campos declarados pero hoy inertes (dead code / no-ops). Para CADA uno
+    decidir IMPLEMENTAR el comportamiento previsto o RETIRAR el campo (lo que deje el sistema más limpio), sin
+    romper eventos ni tests existentes; actualizar la skill `event-creator` y sus tests en consecuencia.
+    1. `EventOutcome.effects.items` y `effects.skills`: declarados en `types.ts` pero `applyOutcomeEffects` NO los
+       aplica (solo colorean el preview). Decisión: aplicarlos de verdad (otorgar ítems/skills, con tests) o
+       retirarlos dejando `grantSkillById` como única vía viva.
+    2. `GameEvent.rarity`: no pondera la selección (uniforme en `LocationSystem`). Decisión: ponderar por rareza o
+       retirar el campo.
+    3. `clanBonus` (`{ clan, weightMultiplier }`): hoy no-op — `rollOutcome` escala TODOS los pesos por el mismo
+       factor y renormaliza a 100. Decisión: sesgar de verdad (multiplicar solo el/los outcome(s) del clan, no
+       todos) o retirar el campo.
+    Actualizar `.agents/skills/event-creator/SKILL.md` (tablas + Notas de discrepancia) para reflejar el resultado.
+- entryPoints:
+    - src/game/types.ts
+    - src/game/systems/EventSystem.ts
+    - src/game/systems/LocationSystem.ts
+    - src/game/systems/__tests__/EventSystem.test.ts
+    - .agents/skills/event-creator/SKILL.md
+
+---
+
 ## T-012 · Balance de Eventos
 - id: T-012
 - section: balance
@@ -263,16 +294,49 @@
 - initialScore: 50
 - targetScore: 85
 - lensFocus: [BALANCE]
+- orden: DESPUÉS de T-016 (sus decisiones sobre rarity/clanBonus definen la matemática a balancear).
 - description: >
-    Rebalancear los eventos sobre el contenido real de T-010.
+    Rebalancear los eventos sobre el contenido real de T-010 y el motor ya saneado por T-016.
     1. Revisar pesos de outcomes por riskLevel: que el riesgo alto pague de verdad y el bajo sea sólido pero modesto.
     2. Ajustar costos (ryo) y recompensas (exp/ryo/intel/stats) a la curva de progresión por arco/danger.
-    3. Revisar frecuencia de aparición de salas de evento y peso de `triggerCombat` para no romper el ritmo (TTK/win rate del VISION).
-    4. Sin outcomes "trampa" sin contrajugada (agencia del jugador).
+    3. Balancear las CADENAS de T-010 como unidad: la recompensa acumulada de una cadena completa (multi-escena,
+       con flags) debe compararse contra eventos sueltos, no cada eslabón por separado.
+    4. Revisar frecuencia de aparición de salas de evento y peso de `triggerCombat` para no romper el ritmo (TTK/win rate del VISION).
+    5. Sin outcomes "trampa" sin contrajugada (agencia del jugador).
 - entryPoints:
     - src/game/constants/events/
     - src/game/systems/EventSystem.ts
     - src/game/constants/index.ts
+
+---
+
+## T-014 · Overhaul Cinemático de la Pantalla de Combate
+- id: T-014
+- section: presentation
+- status: pending
+- initialScore: 35
+- targetScore: 85
+- lensFocus: [PRESENTACION]
+- origen: brainstorming docs/superpowers/specs/2026-06-30-combat-screen-overhaul-design.md
+- orden: ANTES de T-013 — este topic arregla la ESTRUCTURA (y el bug crítico del PlayerHUD fuera de pantalla); T-013 rellena después el stage con las láminas. Montar parallax sobre el layout roto sería retrabajo.
+- description: >
+    Rehacer el LAYOUT de la escena de combate a un formato cinemático legible y completo, con licencia de diseño.
+    El maker usa la skill `frontend-design` (NO `combat-ui-pattern-a`: se descarta el split-panel simétrico).
+    Deslinde: este topic hace la estructura/arreglo de toda la escena; T-013 (después) rellena el stage con
+    las láminas parallax + filtro CRT.
+    1. Grid raíz `grid-template-rows: 1fr auto; height:100dvh`: stage cinemático (1fr) + deck anclado abajo (auto), sin huecos.
+    2. Stage: enemigo entero y centrado (sin recorte raro), listo para recibir las láminas de T-013; lower-third con scrim para el
+       nombre (con `clamp()`), HP a ancho completo, tags y defensa; buffs del enemigo overlay top-right.
+    3. Deck en orden HUD → econ (AP/postura/hints) → mano → controles; el `PlayerHUD` SIEMPRE visible (hoy queda fuera de pantalla).
+    4. Mejorar contraste/legibilidad de cartas (incl. estado sin recursos) y feedback (floating text anclado a stage/HUD).
+    5. Preservar TODAS las features de T-004 (mano, AP, posturas, atajos, auto-combat, floating text). Responsive: mobile compacta el stage.
+    Entregar mockup ASCII-box (estilo CLAUDE.md) antes de implementar.
+- entryPoints:
+    - src/scenes/combat/Combat.tsx
+    - src/scenes/combat/Combat.css
+    - src/components/layout/CinematicViewscreen.tsx
+    - src/components/character/PlayerHUD.tsx
+    - src/components/combat/SkillCard.css
 
 ---
 
@@ -284,8 +348,9 @@
 - targetScore: 85
 - lensFocus: [PRESENTACION, ARQUITECTURA, SISTEMA]
 - origen: separado de T-005 parte 3 (es feature de escena, no asset-gen puro)
+- orden: DESPUÉS de T-014 — las láminas se montan DENTRO del stage nuevo (grid stage/deck), no del layout viejo.
 - description: >
-    Convertir el CinematicViewscreen de combate de una sola imagen (`enemy.image`) a la escena por
+    Convertir el stage de combate de una sola imagen (`enemy.image`) a la escena por
     capas que describe la skill `.agents/skills/combat-art` (ver `references/css-implementation.css`):
     1. Cablear el render de 3 láminas con z-index — Fondo (lejano, opaco), Plano Medio (enmarcado),
        Primer Plano (oclusión) — más la capa de sprites del enemigo y un overlay CRT/scanlines + curvatura.
@@ -298,34 +363,6 @@
     - src/components/layout/CinematicViewscreen.tsx
     - src/scenes/combat/Combat.tsx
     - .agents/skills/combat-art/references/css-implementation.css
-
----
-
-## T-014 · Overhaul Cinemático de la Pantalla de Combate
-- id: T-014
-- section: presentation
-- status: pending
-- initialScore: 35
-- targetScore: 85
-- lensFocus: [PRESENTACION]
-- origen: brainstorming docs/superpowers/specs/2026-06-30-combat-screen-overhaul-design.md
-- description: >
-    Rehacer el LAYOUT de la escena de combate a un formato cinemático legible y completo, con licencia de diseño.
-    El maker usa la skill `frontend-design` (NO `combat-ui-pattern-a`: se descarta el split-panel simétrico).
-    Deslinde: T-013 hace el contenido por capas del stage; este topic hace la estructura/arreglo de toda la escena.
-    1. Grid raíz `grid-template-rows: 1fr auto; height:100dvh`: stage cinemático (1fr) + deck anclado abajo (auto), sin huecos.
-    2. Stage: enemigo entero y centrado (sin recorte raro), compatible con las láminas de T-013; lower-third con scrim para el
-       nombre (con `clamp()`), HP a ancho completo, tags y defensa; buffs del enemigo overlay top-right.
-    3. Deck en orden HUD → econ (AP/postura/hints) → mano → controles; el `PlayerHUD` SIEMPRE visible (hoy queda fuera de pantalla).
-    4. Mejorar contraste/legibilidad de cartas (incl. estado sin recursos) y feedback (floating text anclado a stage/HUD).
-    5. Preservar TODAS las features de T-004 (mano, AP, posturas, atajos, auto-combat, floating text). Responsive: mobile compacta el stage.
-    Entregar mockup ASCII-box (estilo CLAUDE.md) antes de implementar.
-- entryPoints:
-    - src/scenes/combat/Combat.tsx
-    - src/scenes/combat/Combat.css
-    - src/components/layout/CinematicViewscreen.tsx
-    - src/components/character/PlayerHUD.tsx
-    - src/components/combat/SkillCard.css
 
 ---
 
@@ -357,36 +394,6 @@
     - src/game/systems/LootSystem.ts
     - src/game/systems/StatSystem.ts
     - src/game/systems/RegionSystem.ts
-
----
-
-## T-016 · Limpieza de campos muertos del motor de eventos
-- id: T-016
-- section: architecture
-- status: pending
-- initialScore: 55
-- targetScore: 90
-- lensFocus: [ARQUITECTURA, SISTEMA]
-- origen: discrepancias destapadas al documentar el motor en T-009 (ver `.agents/skills/event-creator/SKILL.md`, Notas de discrepancia).
-- description: >
-    Poner honesto el tipo de eventos: 4 campos declarados pero hoy inertes (dead code / no-ops). Para CADA uno
-    decidir IMPLEMENTAR el comportamiento previsto o RETIRAR el campo (lo que deje el sistema más limpio), sin
-    romper eventos ni tests existentes; actualizar la skill `event-creator` y sus tests en consecuencia.
-    1. `EventOutcome.effects.items` y `effects.skills`: declarados en `types.ts` pero `applyOutcomeEffects` NO los
-       aplica (solo colorean el preview). Decisión: aplicarlos de verdad (otorgar ítems/skills, con tests) o
-       retirarlos dejando `grantSkillById` como única vía viva.
-    2. `GameEvent.rarity`: no pondera la selección (uniforme en `LocationSystem`). Decisión: ponderar por rareza o
-       retirar el campo.
-    3. `clanBonus` (`{ clan, weightMultiplier }`): hoy no-op — `rollOutcome` escala TODOS los pesos por el mismo
-       factor y renormaliza a 100. Decisión: sesgar de verdad (multiplicar solo el/los outcome(s) del clan, no
-       todos) o retirar el campo.
-    Actualizar `.agents/skills/event-creator/SKILL.md` (tablas + Notas de discrepancia) para reflejar el resultado.
-- entryPoints:
-    - src/game/types.ts
-    - src/game/systems/EventSystem.ts
-    - src/game/systems/LocationSystem.ts
-    - src/game/systems/__tests__/EventSystem.test.ts
-    - .agents/skills/event-creator/SKILL.md
 
 ---
 
@@ -447,8 +454,9 @@
 - origen: brainstorming docs/superpowers/specs/2026-07-02-roadmap-assets-ui-macro-arc-design.md (OLA A)
 - description: >
     Fundación del arte del juego. 1) Crear un REGISTRY central de arte (clave→asset, tipado, con fallback
-    emoji limpio y en cascada) que TODOS los consumidores usen — hoy cada uno improvisa (`item.icon || '?'`,
-    `icon.asset` apunta a `/assets/icons/locations/` que NO existe). 2) Generar con /generar-asset (estilo
+    emoji limpio y en cascada; ubicación sugerida `src/game/constants/artRegistry.ts`) que TODOS los
+    consumidores usen — hoy cada uno improvisa (`item.icon || '?'`, `icon.asset` apunta a
+    `/assets/icons/locations/` que NO existe). 2) Generar con /generar-asset (estilo
     combat-art, pixel-art 16-bit) la iconografía: iconos de items/componentes/artefactos (adiós emoji),
     iconos de location (crear la carpeta referenciada), iconos de las 8 actividades de sala
     (combat/eliteChallenge/merchant/event/scrollDiscovery/rest/training/treasure) y avatares de los 5 clanes.
@@ -571,6 +579,7 @@
     enemigos — patrón T-007/T-021, vía /generar-asset). Registrarla en REGION_ORDER (T-023). Validar curva
     con el simulador multi-locación.
 - entryPoints:
+    - src/game/constants/regions/chuninExams.ts
     - src/game/constants/regions/landOfWaves.ts
     - src/game/systems/RegionSystem.ts
     - src/game/systems/EnemySystem.ts
@@ -590,6 +599,7 @@
     enemy pools del arco ROGUE, eventos atados, boss temático, ola propia de assets, registro en
     REGION_ORDER, validación con simulador). Bioma: Valley of the End.
 - entryPoints:
+    - src/game/constants/regions/sasukeRetrieval.ts
     - src/game/constants/regions/landOfWaves.ts
     - src/game/systems/RegionSystem.ts
     - src/game/systems/EnemySystem.ts
@@ -610,6 +620,7 @@
     Bioma: Divine Tree Roots. Su boss es el FINAL de la campaña: al vencerlo dispara la pantalla de
     victoria de T-023 (ya no provisional).
 - entryPoints:
+    - src/game/constants/regions/greatNinjaWar.ts
     - src/game/constants/regions/landOfWaves.ts
     - src/game/systems/RegionSystem.ts
     - src/game/systems/EnemySystem.ts
@@ -630,6 +641,8 @@
     las piezas curadas (location configs, enemy pools, biomas) recombinadas. El run acaba solo al morir;
     SCORE = altura alcanzada (regiones superadas), mostrado en GameOver. Lente BALANCE fuerte: curva de
     escalado validada con el simulador multi-locación (T-015).
+    Nota: aún NO existe sistema de guardado — persistir el unlock del modo como 1 flag mínimo en
+    localStorage es aceptable (excepción puntual); la persistencia completa llega en una ola posterior.
 - entryPoints:
     - src/game/systems/RegionSystem.ts
     - src/game/systems/ScalingSystem.ts
