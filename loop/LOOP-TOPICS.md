@@ -197,7 +197,7 @@
 ## T-009 · Skill local event-creator + section 'events'
 - id: T-009
 - section: architecture
-- status: pending
+- status: passed
 - initialScore: 50
 - targetScore: 90
 - lensFocus: [ARQUITECTURA]
