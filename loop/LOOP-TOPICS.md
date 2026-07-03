@@ -259,7 +259,7 @@
 ## T-016 · Limpieza de campos muertos del motor de eventos
 - id: T-016
 - section: architecture
-- status: pending
+- status: passed
 - initialScore: 55
 - targetScore: 90
 - lensFocus: [ARQUITECTURA, SISTEMA]

@@ -102,8 +102,6 @@ const getOutcomeType = (outcome: EventOutcome): 'reward' | 'danger' | 'neutral' 
   if (
     effects.exp ||
     (effects.ryo && effects.ryo > 0) ||
-    effects.items?.length ||
-    effects.skills?.length ||
     effects.grantSkillById ||
     effects.statChanges ||
     effects.upgradeTreasureQuality ||

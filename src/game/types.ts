@@ -630,10 +630,6 @@ export interface EventOutcome {
     hpChange?: number | { percent: number };
     chakraChange?: number | { percent: number };
 
-    // Loot
-    items?: Item[];
-    skills?: Skill[];
-
     // Persistent buffs
     buffs?: Buff[];
 
@@ -693,12 +689,6 @@ export interface EventChoice {
 
   // Multiple outcomes with weighted probability
   outcomes: EventOutcome[];
-
-  // Clan-specific bonus (multiplier to weight on favorable outcome)
-  clanBonus?: {
-    clan: Clan;
-    weightMultiplier: number;
-  };
 }
 
 export interface GameEvent {
@@ -706,7 +696,10 @@ export interface GameEvent {
   title: string;
   description: string;
   allowedArcs?: string[]; // Story arcs where this event can occur
-  rarity?: Rarity; // How common is this event
+  // Weights how often this event surfaces vs its peers in the same arc pool
+  // (T-016). Rarer tiers appear less; see EVENT_RARITY_WEIGHTS + selectWeightedEvent.
+  // Omitted → treated as COMMON.
+  rarity?: Rarity;
   // Event Engine 2.0 (T-008): flag gating for event eligibility. An event is
   // only offered when every requiresFlags entry is met (flag >= value) and no
   // excludesFlags entry is met (flag < value). Optional → additive.

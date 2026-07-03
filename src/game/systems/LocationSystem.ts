@@ -76,7 +76,7 @@ import {
   getRoomTypeConfig,
 } from '../constants/roomTypes';
 import { EVENTS } from '../constants';
-import { getAvailableEventsForPlayer } from './EventSystem';
+import { getAvailableEventsForPlayer, selectWeightedEvent } from './EventSystem';
 import { calculateXP, calculateRyo } from './ScalingSystem';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
 
@@ -390,8 +390,10 @@ function generateEventActivity(
   const eligible = player ? getAvailableEventsForPlayer(arcEvents, player) : arcEvents;
   const pool = eligible.length > 0 ? eligible : arcEvents;
 
+  // T-016: draw from the eligible pool weighted by event rarity (rarer events
+  // surface less often) instead of a uniform pick.
   const event = pool.length > 0
-    ? pool[Math.floor(Math.random() * pool.length)]
+    ? selectWeightedEvent(pool, Math.random()) ?? EVENTS[0]
     : EVENTS[0];
 
   if (!event) return undefined;

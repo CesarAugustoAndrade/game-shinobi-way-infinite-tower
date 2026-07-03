@@ -275,3 +275,17 @@ export const EVENTS: GameEvent[] = [
   ...ROGUE_ARC_EVENTS,
   ...WAR_ARC_EVENTS,
 ];
+
+// Relative appearance weights per event rarity (T-016). The event picker in
+// LocationSystem draws from the eligible arc pool proportionally to these
+// weights, so a RARE event surfaces ~half as often as a COMMON one and an EPIC
+// roughly a fifth as often. Balance data lives here (not in the systems) so the
+// balance pass (T-012) can tune frequency without touching engine code.
+export const EVENT_RARITY_WEIGHTS: Record<Rarity, number> = {
+  [Rarity.BROKEN]: 100,
+  [Rarity.COMMON]: 100,
+  [Rarity.RARE]: 45,
+  [Rarity.EPIC]: 18,
+  [Rarity.LEGENDARY]: 7,
+  [Rarity.CURSED]: 7,
+};

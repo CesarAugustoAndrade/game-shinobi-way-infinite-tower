@@ -46,7 +46,7 @@ Contenido puro de datos: **no** toques `EventSystem.ts` salvo que cambies la mec
 | `title` | `string` | Sí | Cabecera en la UI del evento. |
 | `description` | `string` | Sí | Texto narrativo del cuerpo. |
 | `allowedArcs` | `string[]` | No | Arcos donde aparece (p.ej. `['WAVES_ARC']`). `[]` u omitido = todos los arcos. Se compara contra `region.arc` en `LocationSystem`. |
-| `rarity` | `Rarity` | No | Metadato descriptivo. **Nota:** la selección en `LocationSystem` es aleatoria uniforme del pool elegible — `rarity` NO pondera hoy la aparición. |
+| `rarity` | `Rarity` | No | **Pondera la aparición** (T-016). `generateEventActivity` (`LocationSystem`) hace una tirada ponderada por rareza vía `selectWeightedEvent`: tiers más raros salen menos. Pesos en `EVENT_RARITY_WEIGHTS` (`src/game/constants/index.ts`; hoy COMMON 100 / RARE 45 / EPIC 18 / LEGENDARY·CURSED 7). Omitido = tratado como COMMON. |
 | `requiresFlags` | `Record<string, number>` | No | T-008. El evento solo se ofrece si **todo** flag ≥ su valor. |
 | `excludesFlags` | `Record<string, number>` | No | T-008. El evento se oculta si **algún** flag ≥ su valor. |
 | `choices` | `EventChoice[]` | Sí | 1+ opciones del jugador. |
@@ -63,7 +63,10 @@ Contenido puro de datos: **no** toques `EventSystem.ts` salvo que cambies la mec
 | `excludesFlags` | `Record<string, number>` | No | T-008. La opción se elimina si algún flag ≥ su valor. |
 | `costs` | `EventCost` | No | `{ ryo?: number }`. Se paga al elegir; opción deshabilitada si no alcanza. |
 | `outcomes` | `EventOutcome[]` | Sí | Tabla de resultados ponderados. |
-| `clanBonus` | `{ clan: Clan; weightMultiplier: number }` | No | Si el clan del jugador coincide, `rollOutcome` multiplica **todos** los pesos por el mismo factor y renormaliza a 100 → hoy es un **no-op** de probabilidad (no sesga). Declarado pero sin efecto real (ver Notas de discrepancia #5). |
+
+> **Agencia de clan:** no hay un sesgo probabilístico por clan. Para dar a un clan una vía propia usa
+> `requirements.requiredClan` en un `EventChoice` (opción exclusiva/legible), que es la ruta viva. El
+> antiguo `clanBonus` se **retiró** en T-016 por ser un no-op (ver Notas de discrepancia).
 
 `RequirementCheck`: `minStat?: { stat: PrimaryStat; value: number }` (compara contra
 `player.primaryStats[stat]`), `requiredClan?: Clan`.
@@ -105,7 +108,7 @@ explícito que quieras (p.ej. `setFlags: { favor: 2 }`).
 ## 3. Reglas de oro
 
 1. **Pesos suman 100** por choice. `rollOutcome` normaliza por el total igualmente, pero 100 es la
-   convención legible y lo que asume la matemática de `clanBonus`.
+   convención legible y lo que verifica `eventContent.test.ts`.
 2. **`riskLevel` acorde a la varianza.** `SAFE` = un outcome benigno de peso 100 o sin castigo real;
    `HIGH`/`EXTREME` = puede disparar combate o perder HP/objeto significativo. Nunca `SAFE` en un
    choice que pueda `triggerCombat`.
@@ -151,10 +154,9 @@ como los archivos de arco reales. Léelo antes de escribir contenido nuevo.
 ## 6. Errores comunes / YAGNI
 
 - **No hay sistema de aliados/compañeros** — no inventes uno.
-- **Pesos que no suman 100** — funciona pero es engañoso y descuadra `clanBonus`.
-- **`effects.items` / `effects.skills`** están declarados en el tipo pero **`applyOutcomeEffects` NO
-  los aplica** (solo alteran el texto de vista previa). Para dar un jutsu usa **`grantSkillById`**; hoy
-  no hay ruta de outcome que otorgue objetos.
+- **Pesos que no suman 100** — funciona pero es engañoso y lo marca `eventContent.test.ts`.
+- **`effects.items` / `effects.skills` ya no existen** (retirados en T-016). Para dar un jutsu usa
+  **`grantSkillById`** (la única vía viva). No hay ruta de outcome que otorgue objetos: no la inventes.
 - **Olvidar registrar** un archivo de arco nuevo (no spread en `EVENTS`) → el evento nunca aparece.
 - **Gatear TODOS los choices** sin fallback → hay una guarda anti-softlock que reabre la lista
   completa, pero depender de ella es un olor: deja siempre un choice sin gatear.
@@ -165,14 +167,15 @@ como los archivos de arco reales. Léelo antes de escribir contenido nuevo.
 
 ## Notas de discrepancia (código real vs. brief)
 
-Documentadas tal como están en el código (no se cambió código, es una skill de documentación):
 1. El agregador se llama **`EVENTS`** (`src/game/constants/index.ts`), no `ALL_EVENTS`.
-2. `effects.items` y `effects.skills` **no se aplican** en `applyOutcomeEffects`; la vía viva para dar
-   una skill es `grantSkillById`.
+2. **Resuelto (T-016):** `effects.items` y `effects.skills` estaban declarados pero nunca se aplicaban
+   (dead code) → se **retiraron** del tipo. La vía viva para otorgar una skill es `grantSkillById`; no
+   hay ruta para otorgar objetos.
 3. `intelGain` se consume en `handleEventOutcomeClose` (cierre de sala), no en `applyOutcomeEffects`.
-4. `GameEvent.rarity` **no** pondera la selección (aleatoria uniforme en `LocationSystem`).
-5. `clanBonus` es hoy un **no-op**: `rollOutcome` escala todos los pesos del choice por el mismo
-   `weightMultiplier` y renormaliza a 100, así que no altera las probabilidades relativas.
+4. **Resuelto (T-016):** `GameEvent.rarity` **ahora sí pondera** la selección — `generateEventActivity`
+   usa `selectWeightedEvent` con pesos de `EVENT_RARITY_WEIGHTS`. Ya no es aleatoria uniforme.
+5. **Resuelto (T-016):** `clanBonus` era un no-op (escalaba todos los pesos y renormalizaba) → se
+   **retiró** el campo. Para agencia de clan usa `requirements.requiredClan` en un choice.
 
 ## Recursos del skill
 - `references/templates.md` — evento simple, cadena multi-escena (`chainTo` + flags) y evento gateado,

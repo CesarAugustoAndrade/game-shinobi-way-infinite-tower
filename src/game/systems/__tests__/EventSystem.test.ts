@@ -16,10 +16,13 @@ import {
   getAvailableEventsForPlayer,
   getAvailableChoices,
   resolveEventChoice,
+  getEventSelectionWeight,
+  selectWeightedEvent,
 } from '../EventSystem';
 import { calculateDerivedStats } from '../StatSystem';
-import { Clan, PrimaryStat, EffectType, GameEvent, EventChoice } from '../../types';
+import { Clan, PrimaryStat, EffectType, GameEvent, EventChoice, Rarity } from '../../types';
 import { SKILLS } from '../../constants/skills';
+import { EVENT_RARITY_WEIGHTS } from '../../constants';
 import { createMockPlayer, createMockComponent, BASE_STATS } from './testFixtures';
 
 describe('checkRequirements', () => {
@@ -122,22 +125,73 @@ describe('rollOutcome', () => {
     expect(commonCount).toBeGreaterThan(80);
   });
 
-  it('applies clan bonus when matching', () => {
-    const uchihaPlayer = createMockPlayer({ clan: Clan.UCHIHA });
+  it('handles non-100 total weights by normalizing over the actual total', () => {
+    const player = createMockPlayer();
     const choice = {
       outcomes: [
-        { weight: 50, effects: { logMessage: 'Normal' } },
-        { weight: 50, effects: { logMessage: 'Boosted' } },
+        { weight: 30, effects: { logMessage: 'A' } },
+        { weight: 10, effects: { logMessage: 'B' } },
       ],
-      clanBonus: {
-        clan: Clan.UCHIHA,
-        weightMultiplier: 2.0, // Doubles second outcome weight
-      },
     } as any;
 
-    // The clan bonus changes the odds, but outcome is still valid
-    const outcome = rollOutcome(choice, uchihaPlayer);
-    expect(outcome).toBeDefined();
+    // Every roll must land on a real outcome despite weights summing to 40.
+    for (let i = 0; i < 50; i++) {
+      const outcome = rollOutcome(choice, player);
+      expect(['A', 'B']).toContain(outcome.effects.logMessage);
+    }
+  });
+});
+
+describe('rarity-weighted event selection (T-016)', () => {
+  const makeEvent = (id: string, rarity?: Rarity): GameEvent => ({
+    id,
+    title: id,
+    description: '',
+    rarity,
+    choices: [],
+  });
+
+  it('weights an event by its rarity, defaulting missing rarity to COMMON', () => {
+    expect(getEventSelectionWeight(makeEvent('a', Rarity.COMMON))).toBe(
+      EVENT_RARITY_WEIGHTS[Rarity.COMMON],
+    );
+    expect(getEventSelectionWeight(makeEvent('b', Rarity.EPIC))).toBe(
+      EVENT_RARITY_WEIGHTS[Rarity.EPIC],
+    );
+    // No rarity → treated as COMMON so legacy content is unaffected.
+    expect(getEventSelectionWeight(makeEvent('c'))).toBe(
+      EVENT_RARITY_WEIGHTS[Rarity.COMMON],
+    );
+  });
+
+  it('returns undefined for an empty pool', () => {
+    expect(selectWeightedEvent([], 0.5)).toBeUndefined();
+  });
+
+  it('selects deterministically from the roll, respecting cumulative weights', () => {
+    // COMMON weight 100 then RARE weight 45 → total 145.
+    const common = makeEvent('common', Rarity.COMMON);
+    const rare = makeEvent('rare', Rarity.RARE);
+    const pool = [common, rare];
+
+    // roll * 145: 0 lands in the first (common) band, 0.99 in the tail (rare).
+    expect(selectWeightedEvent(pool, 0)?.id).toBe('common');
+    expect(selectWeightedEvent(pool, 0.5)?.id).toBe('common'); // 72.5 < 100
+    expect(selectWeightedEvent(pool, 0.99)?.id).toBe('rare'); // 143.55 > 100
+  });
+
+  it('surfaces the common event far more often than the rare one', () => {
+    const common = makeEvent('common', Rarity.COMMON);
+    const rare = makeEvent('rare', Rarity.EPIC); // 100 vs 18
+    const pool = [common, rare];
+
+    let commonCount = 0;
+    const N = 2000;
+    for (let i = 0; i < N; i++) {
+      if (selectWeightedEvent(pool, Math.random())?.id === 'common') commonCount++;
+    }
+    // Expected ~100/118 ≈ 0.847 of draws; assert a comfortable lower bound.
+    expect(commonCount / N).toBeGreaterThan(0.75);
   });
 });
 

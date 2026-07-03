@@ -7,11 +7,11 @@
 
 ## Run config
 
-- run: 2026-06-29-A
-- mode: interactive     <!-- auto | interactive -->
+- run: 2026-07-02-A
+- mode: auto     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-011 PASS + commit d6a8213; siguiente natural: T-012 balance de eventos [cierra el clúster]. Pendientes: T-012..T-016)
-- updatedAt: 2026-07-02T00:08:35Z
+- activeTopic: — (T-016 PASS, diff en stage pendiente de commit del humano; siguiente: T-012 balance de eventos)
+- updatedAt: 2026-07-03T21:33:55Z
 
 ## Ledger
 
@@ -43,6 +43,7 @@
 | T-010 | 1 | 95 | 88 | 91 | 90 | PASS | passed | 2026-07-01T18:51:16Z | logs/T-010.md#a1 |
 | T-011 | 1 | 90 | 90 | 80 | 90 | FAIL | iterating | 2026-07-01T23:45:00Z | logs/T-011.md#a1 |
 | T-011 | 2 | 90 | 90 | 88 | 90 | PASS | passed | 2026-07-02T00:08:35Z | logs/T-011.md#a2 |
+| T-016 | 1 | 93 | 90 | 88 | 85 | PASS | passed | 2026-07-03T21:33:55Z | logs/T-016.md#a1 |
 
 <!--
 Leyenda:

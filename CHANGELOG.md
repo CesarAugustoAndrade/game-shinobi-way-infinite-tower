@@ -26,12 +26,14 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ### Changed
 
+- Event engine honesty pass (T-016): resolved the four declared-but-inert event fields exposed while documenting the engine in T-009. `GameEvent.rarity` now **weights event selection** — `generateEventActivity` (`LocationSystem`) draws from the eligible arc pool proportionally to a new `EVENT_RARITY_WEIGHTS` table (COMMON 100 / RARE 45 / EPIC 18 / LEGENDARY·CURSED 7) via the pure, unit-tested `selectWeightedEvent`/`getEventSelectionWeight` helpers in `EventSystem`, instead of the previous uniform pick, so authored rarities finally matter (this feeds the T-012 balance pass). Updated the `event-creator` skill (field tables, golden rules, discrepancy notes) to match. +6 unit tests.
 - Endgame-hardening balance pass (T-006 phase B.2): retuned so the difficulty curve now *descends* — measured as clearing a full location (attrition), strong builds no longer clear ~100% to D7. Compressed the willpower→HP spread (`HP_PER_WILLPOWER` 12→9, `HP_BASE` 50→80), steepened danger scaling (`DANGER_BASE` 0.55→0.30, `DANGER_PER_LEVEL` 0.15→0.24), and added two danger-keyed enemy multipliers — `ENEMY_HP_DANGER_FACTOR` (an endgame HP wall so bursts no longer one-shot) and `ENEMY_DMG_DANGER_FACTOR` — leaving the early game accessible. Raised `CHAKRA_REGEN_PER_INT` 0.2→0.5 and `PLAYER_DAMAGE_MULTIPLIER` 1.0→1.10 to converge slow-killing caster/squishy builds upward; trimmed the dominant clans' growth (Hyuga/Lee/Uzumaki) and retuned 6 skill multipliers. Result (seed 12345): all in-scope builds land in the D6-D7 ~20-40% clear band (Hyuga left as the rewarded optimized peak; the extreme min-max sim fixtures Glass Cannon/Speed Demon are documented as out of the target curve). Base combat math untouched. Completes T-006.
 - Remove Ryo option from revealed treasure choices (players now pick only from items)
 - Enable ENABLE_MANUAL_COMBAT feature flag (manual/interactive combat instead of auto-simulated)
 
 ### Removed
 
+- Dead event fields (T-016): removed `EventOutcome.effects.items` and `effects.skills` (declared but never applied by `applyOutcomeEffects` — only tinted the outcome preview; no event used them) and `EventChoice.clanBonus` (a probabilistic no-op — `rollOutcome` scaled all outcome weights by the same factor and renormalized, so it never biased anything; no event used it). Skills are still granted via the live `grantSkillById`; clan agency stays available via `requirements.requiredClan`. Cleaned up the `Event.tsx` preview and the stale `clanBonus` unit test.
 - Removed Asset Companion tool and associated scenes, components, configs, hooks, and feature flags.
 
 ## 2025-12-29

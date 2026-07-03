@@ -73,8 +73,10 @@ import {
   MAX_MERCHANT_SLOTS,
   Buff,
   EffectType,
+  Rarity,
 } from '../types';
 import { SKILLS } from '../constants/skills';
+import { EVENT_RARITY_WEIGHTS } from '../constants';
 import { pick, generateId } from '../utils/rng';
 
 /**
@@ -218,31 +220,18 @@ export const getDisabledReason = (
 };
 
 /**
- * Roll an outcome from weighted outcomes
- * Applies clan bonuses if applicable
+ * Roll an outcome from a choice's weighted outcomes.
+ *
+ * By convention a choice's outcome weights sum to 100, but the roll normalizes
+ * by the actual total so any positive weights work. `player` is kept in the
+ * signature for callers/future gating; the roll itself only depends on weights.
  */
 export const rollOutcome = (
   choice: EventChoice,
-  player: Player,
+  _player: Player,
 ): EventOutcome => {
-  let outcomes = [...choice.outcomes];
+  const outcomes = choice.outcomes;
 
-  // Apply clan bonus if applicable
-  if (choice.clanBonus && choice.clanBonus.clan === player.clan) {
-    outcomes = outcomes.map((outcome) => ({
-      ...outcome,
-      weight: outcome.weight * choice.clanBonus!.weightMultiplier,
-    }));
-
-    // Renormalize weights
-    const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
-    outcomes = outcomes.map((outcome) => ({
-      ...outcome,
-      weight: (outcome.weight / totalWeight) * 100,
-    }));
-  }
-
-  // Roll the outcome based on weights
   const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
   let roll = Math.random() * totalWeight;
 
@@ -255,6 +244,38 @@ export const rollOutcome = (
 
   // Fallback to last outcome (shouldn't happen if weights are correct)
   return outcomes[outcomes.length - 1];
+};
+
+/**
+ * Relative selection weight of an event, driven by its rarity (T-016). Events
+ * without an explicit rarity fall back to the COMMON weight so legacy content is
+ * unaffected. Pure lookup into EVENT_RARITY_WEIGHTS (balance data in constants).
+ */
+export const getEventSelectionWeight = (event: GameEvent): number =>
+  EVENT_RARITY_WEIGHTS[event.rarity ?? Rarity.COMMON] ??
+  EVENT_RARITY_WEIGHTS[Rarity.COMMON];
+
+/**
+ * Pick one event from a pool, weighted by rarity (T-016). The caller supplies
+ * the random roll in [0, 1) so selection stays pure and unit-testable; rarer
+ * events surface proportionally less often. Returns undefined for an empty pool.
+ */
+export const selectWeightedEvent = (
+  events: GameEvent[],
+  roll: number,
+): GameEvent | undefined => {
+  if (events.length === 0) return undefined;
+
+  const totalWeight = events.reduce((sum, e) => sum + getEventSelectionWeight(e), 0);
+  let cursor = roll * totalWeight;
+
+  for (const event of events) {
+    cursor -= getEventSelectionWeight(event);
+    if (cursor < 0) return event;
+  }
+
+  // Fallback to last event (guards against floating-point roll === total).
+  return events[events.length - 1];
 };
 
 /**
