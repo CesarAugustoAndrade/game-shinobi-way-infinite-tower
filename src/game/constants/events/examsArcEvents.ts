@@ -187,12 +187,16 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Challenge the Serpents',
-        description: 'EXTREME RISK - Legendary loot or death',
+        // T-012 A2: swapped from 30/70 (combat/prize) to 65/35 so EXTREME carries
+        // a majority-downside.  EV prize path: 35% × (200exp+500ryo).  Players who
+        // survive the combat still earn the reward, so the upside stays legendary —
+        // it just isn't handed for free 70% of the time.
+        description: 'EXTREME RISK - The serpents will fight back; survivors claim legendary loot',
         riskLevel: RiskLevel.EXTREME,
         hintText: 'Only the truly brave (or foolish) dare this.',
         outcomes: [
           {
-            weight: 30,
+            weight: 65,
             effects: {
               triggerCombat: {
                 floor: 0,
@@ -200,16 +204,16 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
                 archetype: 'TANK',
                 name: 'Giant Serpents',
               },
-              logMessage: 'The serpents sense your challenge!',
+              logMessage: 'The serpents coil and strike — this will be a fight!',
               logType: 'danger',
             },
           },
           {
-            weight: 70,
+            weight: 35,
             effects: {
               exp: 200,
               ryo: 500,
-              logMessage: 'You emerge from the nest victorious! The serpents retreat, leaving behind treasure.',
+              logMessage: 'You hold your ground and the serpents hesitate, then yield. Their hoard gleams untouched in the hollow.',
               logType: 'loot',
             },
           },

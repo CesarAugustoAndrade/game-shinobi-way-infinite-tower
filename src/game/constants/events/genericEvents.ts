@@ -5,6 +5,91 @@ import { GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
  * These events provide special progression opportunities.
  */
 export const GENERIC_EVENTS: GameEvent[] = [
+  // ─── COMMON anchor ───────────────────────────────────────────────────────────
+  // Without a COMMON event the 3 RARE + 1 EPIC pool lets the EPIC surface at
+  // ~12 % instead of the intended ~7 %.  A single COMMON (weight 100) lowers the
+  // EPIC share to ~7 % and gives newer players a low-stakes event each run.
+  {
+    id: 'abandoned_supply_cache',
+    title: 'Abandoned Supply Cache',
+    description:
+      'A sealed crate lies half-buried at a crossroads. The Hidden Leaf insignia is barely visible under the mud. Whoever left it here did not return.',
+    // T-012 A2 (optional): removed explicit allowedArcs:[]; omitting the field
+    // is consistent with the rest of GENERIC_EVENTS and is treated identically
+    // by isEventValidForArc (both [] and undefined mean "all arcs").
+    rarity: Rarity.COMMON,
+    choices: [
+      {
+        label: 'Take the Supplies',
+        description: 'SAFE - Claim whatever was left behind',
+        riskLevel: RiskLevel.SAFE,
+        outcomes: [
+          {
+            weight: 60,
+            effects: {
+              ryo: 80,
+              hpChange: { percent: 20 },
+              intelGain: 10,
+              logMessage:
+                'Field rations, medical supplies, and some coin. Someone prepared well for a mission they never finished.',
+              logType: 'gain',
+            },
+          },
+          {
+            weight: 40,
+            effects: {
+              ryo: 40,
+              intelGain: 5,
+              logMessage: 'Half the crate is ruined by moisture. You salvage what you can.',
+              logType: 'info',
+            },
+          },
+        ],
+      },
+      {
+        label: 'Inspect the Contents',
+        description: 'LOW RISK - Study the mission notes for intelligence',
+        riskLevel: RiskLevel.LOW,
+        outcomes: [
+          {
+            weight: 70,
+            effects: {
+              exp: 35,
+              intelGain: 20,
+              logMessage:
+                'The mission briefing inside is still readable. Enemy patrol routes, weapon caches, terrain notes.',
+              logType: 'gain',
+            },
+          },
+          {
+            weight: 30,
+            effects: {
+              exp: 15,
+              intelGain: 5,
+              logMessage: 'The notes are water-damaged beyond use. You glean a little from the fragments.',
+              logType: 'info',
+            },
+          },
+        ],
+      },
+      {
+        label: 'Leave It for Another Team',
+        description: 'SAFE - Someone may need it more',
+        riskLevel: RiskLevel.SAFE,
+        outcomes: [
+          {
+            weight: 100,
+            effects: {
+              intelGain: 5,
+              logMessage: 'You leave the crate untouched and move on. Somewhere, a team might find it in time.',
+              logType: 'info',
+            },
+          },
+        ],
+      },
+    ],
+  },
+
   {
     id: 'ancient_treasure_map',
     title: 'Ancient Treasure Map',

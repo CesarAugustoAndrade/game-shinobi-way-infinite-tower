@@ -346,19 +346,35 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
     excludesFlags: { envoy_debt_settled: 1 },
     choices: [
       {
+        // Advisory T-012: was a zero-variance SAFE with 450 ryo + 100 exp — higher
+        // than any other SAFE outcome in WAR_ARC.  Added 65/35 split so the debt
+        // pays well when the cache is plentiful, and modestly when the unit is
+        // depleted.  riskLevel → LOW to match the real variance.
+        // EV: 0.65×280 + 0.35×80 = 182+28 = 210 ryo  |  0.65×60 + 0.35×30 = 49.5 exp
         label: 'Accept the War Cache',
-        description: 'SAFE - The freed captain\'s unit rewards your mercy',
-        riskLevel: RiskLevel.SAFE,
+        description: 'LOW RISK - The freed captain\'s unit rewards your mercy; the cache may be light',
+        riskLevel: RiskLevel.LOW,
         outcomes: [
           {
-            weight: 100,
+            weight: 65,
             effects: {
-              ryo: 450,
-              exp: 100,
+              ryo: 280,
+              exp: 60,
               intelGain: 20,
               setFlags: { envoy_debt_settled: 1 },
               logMessage: 'They hand you a cache of ration seals and Ryō. Mercy, it seems, compounds.',
               logType: 'loot',
+            },
+          },
+          {
+            weight: 35,
+            effects: {
+              ryo: 80,
+              exp: 30,
+              intelGain: 10,
+              setFlags: { envoy_debt_settled: 1 },
+              logMessage: 'The cache is nearly empty — the unit has little left to give — but they share what remains without hesitation.',
+              logType: 'info',
             },
           },
         ],
@@ -381,13 +397,17 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
             },
           },
           {
+            // T-012 A2: added hpChange -10% so the 30% fail path has a real
+            // downside and justifies LOW risk.  The borrowed blade slips on an
+            // unfamiliar grip — a lesson paid in blood.
             weight: 30,
             effects: {
               exp: 60,
               intelGain: 10,
+              hpChange: { percent: -15 },
               setFlags: { envoy_debt_settled: 1 },
-              logMessage: 'The good steel is already spoken for, but they share their whetstones and their thanks.',
-              logType: 'info',
+              logMessage: 'The good steel is already spoken for. As you inspect their spare blade it slips — a shallow cut, but a reminder that borrowed steel demands respect.',
+              logType: 'danger',
             },
           },
         ],

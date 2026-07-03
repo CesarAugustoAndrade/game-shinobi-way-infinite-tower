@@ -187,9 +187,11 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     rarity: Rarity.COMMON,
     choices: [
       {
+        // Advisory T-012: riskLevel was MEDIUM but the single weight-100 outcome
+        // has no downside — corrected to SAFE to match the real variance.
         label: 'Work the Full Shift',
-        description: 'MEDIUM RISK - Hard labor for payment',
-        riskLevel: RiskLevel.MEDIUM,
+        description: 'SAFE - Honest labor for guaranteed pay',
+        riskLevel: RiskLevel.SAFE,
         outcomes: [
           {
             weight: 100,

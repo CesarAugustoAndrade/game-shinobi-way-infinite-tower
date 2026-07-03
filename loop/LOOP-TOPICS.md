@@ -290,7 +290,7 @@
 ## T-012 · Balance de Eventos
 - id: T-012
 - section: balance
-- status: pending
+- status: passed
 - initialScore: 50
 - targetScore: 85
 - lensFocus: [BALANCE]

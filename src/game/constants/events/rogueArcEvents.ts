@@ -333,11 +333,17 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
             },
           },
           {
+            // Advisory T-012: both outcomes were purely positive (no real downside
+            // on the "mercy" path).  Reduced the miss EV so the freed route
+            // doesn't compound reward risk-free: EV exp 115→107.5, intel 18.75→17.5.
             weight: 25,
             effects: {
-              exp: 70,
-              intelGain: 15,
-              logMessage: 'It bolts before it can speak, but leaves a scrawled map of the hideout\'s vaults.',
+              exp: 40,
+              intelGain: 10,
+              // T-012 A2: "leaving nothing" contradicted the +40 XP / +10 Intel
+              // displayed in the What Changed panel.  Rewritten to acknowledge the
+              // partial gain while preserving the missed-connection tone.
+              logMessage: 'It bolts before it can speak. You catch a sliver of its fear — a direction, a smell, a half-formed image of corridors below.',
               logType: 'info',
             },
           },

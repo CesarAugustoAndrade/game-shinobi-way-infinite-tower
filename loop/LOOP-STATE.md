@@ -10,8 +10,8 @@
 - run: 2026-07-02-A
 - mode: auto     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-016 PASS, diff en stage pendiente de commit del humano; siguiente: T-012 balance de eventos)
-- updatedAt: 2026-07-03T21:33:55Z
+- activeTopic: — (T-012 PASS en a3, diff en stage pendiente del humano. Clúster de eventos CERRADO: T-008/009/010/011/016/012. Siguiente pending: T-014 overhaul cinemático de combate [antes de T-013])
+- updatedAt: 2026-07-04T00:09:51Z
 
 ## Ledger
 
@@ -44,6 +44,9 @@
 | T-011 | 1 | 90 | 90 | 80 | 90 | FAIL | iterating | 2026-07-01T23:45:00Z | logs/T-011.md#a1 |
 | T-011 | 2 | 90 | 90 | 88 | 90 | PASS | passed | 2026-07-02T00:08:35Z | logs/T-011.md#a2 |
 | T-016 | 1 | 93 | 90 | 88 | 85 | PASS | passed | 2026-07-03T21:33:55Z | logs/T-016.md#a1 |
+| T-012 | 1 | 95 | 88 | 79 | 74 | FAIL | iterating | 2026-07-03T23:55:36Z | logs/T-012.md#a1 |
+| T-012 | 2 | 95 | 94 | 83 | 87 | FAIL | iterating | 2026-07-04T00:04:20Z | logs/T-012.md#a2 |
+| T-012 | 3 | 95 | 95 | 88 | 90 | PASS | passed | 2026-07-04T00:09:51Z | logs/T-012.md#a3 |
 
 <!--
 Leyenda:

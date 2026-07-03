@@ -22,7 +22,7 @@ import {
 import { calculateDerivedStats } from '../StatSystem';
 import { Clan, PrimaryStat, EffectType, GameEvent, EventChoice, Rarity } from '../../types';
 import { SKILLS } from '../../constants/skills';
-import { EVENT_RARITY_WEIGHTS } from '../../constants';
+import { EVENT_RARITY_WEIGHTS, EVENTS } from '../../constants';
 import { createMockPlayer, createMockComponent, BASE_STATS } from './testFixtures';
 
 describe('checkRequirements', () => {
@@ -180,6 +180,16 @@ describe('rarity-weighted event selection (T-016)', () => {
     expect(selectWeightedEvent(pool, 0.99)?.id).toBe('rare'); // 143.55 > 100
   });
 
+  // Advisory T-012 / T-016 SIS: roll=1.0 boundary guard.
+  // cursor = 1.0 × 145 = 145; after common (−100 → 45) and rare (−45 → 0) the
+  // loop exhausts without returning because 0 is not < 0.  The fallback must
+  // return the last event rather than undefined.
+  it('roll=1.0 falls back to the last event in the pool', () => {
+    const common = makeEvent('common', Rarity.COMMON);
+    const rare = makeEvent('rare', Rarity.RARE);
+    expect(selectWeightedEvent([common, rare], 1.0)?.id).toBe('rare');
+  });
+
   it('surfaces the common event far more often than the rare one', () => {
     const common = makeEvent('common', Rarity.COMMON);
     const rare = makeEvent('rare', Rarity.EPIC); // 100 vs 18
@@ -332,6 +342,16 @@ describe('getEventsForArc', () => {
     const academyEvents = getEventsForArc(events, 'ACADEMY_ARC');
 
     expect(academyEvents.map(e => e.id)).not.toContain('event2');
+  });
+
+  // T-012 A2 (optional): contract test — abandoned_supply_cache has no arc
+  // restriction so it must surface in every arc via getEventsForArc.
+  it('abandoned_supply_cache is available in at least 2 distinct arcs', () => {
+    const arcs = ['ACADEMY_ARC', 'WAVES_ARC', 'EXAMS_ARC', 'ROGUE_ARC', 'WAR_ARC'];
+    const arcsWithCache = arcs.filter(arc =>
+      getEventsForArc(EVENTS, arc).some(e => e.id === 'abandoned_supply_cache'),
+    );
+    expect(arcsWithCache.length).toBeGreaterThanOrEqual(2);
   });
 });
 
