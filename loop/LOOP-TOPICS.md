@@ -343,7 +343,7 @@
 ## T-013 · Escena de combate por capas (parallax + filtro CRT)
 - id: T-013
 - section: combat
-- status: pending
+- status: passed
 - initialScore: 40
 - targetScore: 85
 - lensFocus: [PRESENTACION, ARQUITECTURA, SISTEMA]

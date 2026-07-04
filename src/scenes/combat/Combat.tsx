@@ -40,6 +40,17 @@ import {
 } from '../../game/constants/enemyArchetypes';
 import './Combat.css';
 
+/**
+ * Convert a CSS hex color (#rrggbb) to rgba(r, g, b, alpha).
+ * Used to build the chakra aura drop-shadow color for enemy sprites.
+ */
+const hexColorToRgba = (hex: string, alpha: number): string => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 export interface CombatRef {
   spawnFloatingText: (target: 'enemy' | 'player', text: string, type: FloatingTextType) => void;
 }
@@ -69,7 +80,7 @@ interface CombatProps {
   onToggleAutoCombat?: () => void;
   autoPassTimeRemaining?: number | null;
   /**
-   * Full path to the biome background image for the stage
+   * Full path to the biome background image for the stage (Lámina 1).
    * (e.g. /assets/location_misty_covered_bridge.png).
    * Computed in App.tsx from the current location's biome slug.
    */
@@ -200,6 +211,18 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   const activeEffects = enemy.activeBuffs.filter(b => b?.effect);
   const elementColor = ELEMENT_COLORS[enemy.element] ?? '#a1a1aa';
   const elementIcon = ELEMENT_ICONS[enemy.element] ?? '◈';
+
+  // ── Cutout + chakra aura (T-013) ─────────────────────────────────────────
+  // Derive the transparent cutout sprite path from the portrait path.
+  // Convention: /assets/enemy_<id>.png  →  /assets/enemy_cut_<id>.png
+  // onError in CinematicViewscreen falls back to the portrait with mask.
+  const enemyCutout = enemy.image?.startsWith('/assets/enemy_')
+    ? enemy.image.replace('/assets/enemy_', '/assets/enemy_cut_')
+    : undefined;
+
+  // Chakra aura: elemental glow color at 65% opacity for the drop-shadow.
+  const chakraAuraColor = hexColorToRgba(elementColor, 0.65);
+
   const archetypeDesc = enemy.archetype
     ? (ARCHETYPE_DESCRIPTIONS[enemy.archetype] ?? '')
     : '';
@@ -433,7 +456,9 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       <div className="combat__stage" ref={enemyRef}>
         <CinematicViewscreen
           enemyImage={enemy.image || '/assets/image_3b2b13.jpg'}
+          enemyCutout={enemyCutout}
           backgroundImage={background}
+          chakraAuraColor={chakraAuraColor}
           floatingPanel={floatingPanel}
         />
       </div>

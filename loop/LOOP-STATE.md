@@ -10,8 +10,8 @@
 - run: 2026-07-02-A
 - mode: interactive     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-014 PASS en a4 [extensión autorizada por el humano más allá de maxAttempts=3], diff en stage. Pendiente opcional: pipeline de sprites recortados enemy_cut_*.png. Siguiente pending: T-013)
-- updatedAt: 2026-07-04T12:00:46Z
+- activeTopic: — (T-013 PASS a1, diff en stage. Seguimiento abierto: láminas mid/fg por bioma [código listo, assets sin generar]. Siguiente pending: T-015 simulador multi-locación)
+- updatedAt: 2026-07-04T14:15:25Z
 
 ## Ledger
 
@@ -51,6 +51,7 @@
 | T-014 | 2 | 92 | 90 | 78 | 90 | FAIL | iterating | 2026-07-04T11:04:33Z | logs/T-014.md#a2 |
 | T-014 | 3 | 92 | 92 | 82 | 90 | FAIL | iterating | 2026-07-04T11:55:00Z | logs/T-014.md#a3 |
 | T-014 | 4 | 92 | 92 | 90 | 90 | PASS | passed | 2026-07-04T12:00:46Z | logs/T-014.md#a4 |
+| T-013 | 1 | 90 | 90 | 90 | 90 | PASS | passed | 2026-07-04T14:15:25Z | logs/T-013.md#a1 |
 
 <!--
 Leyenda:

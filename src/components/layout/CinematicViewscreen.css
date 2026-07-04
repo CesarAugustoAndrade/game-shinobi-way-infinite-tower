@@ -1,17 +1,62 @@
 /**
- * CinematicViewscreen Component Styles — T-014 v3
+ * CinematicViewscreen Component Styles — T-013 parallax + CRT (atop T-014 v3)
  *
- * Stage: biome bg (object-cover, no blur) + dark gradient + vignette +
- * scanlines + enemy sprite (right, no frame, all-edges mask OR cutout)
- * + floating info panel (left overlay, semi-transparent dark).
+ * Layer z-index map:
+ *    0  .cinematic__bg-img      Lámina 1: biome background (slow parallax)
+ *    1  .cinematic__mid-img     Lámina 2: middleground (optional, medium parallax)
+ *    2  .cinematic__gradient    Dark gradient overlay
+ *    3  .cinematic__vignette    Radial edge darkening
+ *    4  .cinematic__scanlines   CRT scanlines
+ *    5  .cinematic__crt-frame   CRT curvature frame (optional, feature-flagged)
+ *   10  .cinematic__enemy-sprite Enemy sprite (portrait OR cutout)
+ *   11  .cinematic__fg-img      Lámina 3: foreground (optional, faster parallax, occludes enemy)
+ *   20  .cinematic__panel-slot  Floating enemy info panel
  *
- * Dead CSS removed vs v2:
- *   .cinematic__enemy-card    (card frame + centered positioning)
- *   .cinematic__enemy-img     (card image styles)
- *   .cinematic__buffs         (top-right buff chips slot — moved into floating panel)
+ * ASSET PIPELINE CONVENTION:
+ * ---------------------------------------------------------------
+ * Lámina 1 background  : /assets/location_<biomeSlug>.png
+ *                         1024×576 opaque pixel-art scene.
+ * Lámina 2 middleground: /assets/lamina_mid_<biomeSlug>.png
+ *                         1024×576 PNG with alpha; midground elements
+ *                         (e.g. trees, rock formations, fog banks).
+ * Lámina 3 foreground  : /assets/lamina_fg_<biomeSlug>.png
+ *                         1024×576 PNG with alpha; foreground occlusion
+ *                         elements (e.g. bridge rails, bottom foliage,
+ *                         mist wisps). Must keep center/upper area
+ *                         transparent so the enemy sprite remains visible.
+ * biomeSlug = getBiomeSlug(location.biome) — see colorHelpers.ts
+ * Example:  mist_covered_bridge
+ *   → location_mist_covered_bridge.png
+ *   → lamina_mid_mist_covered_bridge.png
+ *   → lamina_fg_mist_covered_bridge.png
+ * ---------------------------------------------------------------
+ *
+ * Dead CSS removed vs T-014 v3: nothing (fully additive change).
  */
 
 @import '../../styles/design-system/index.css';
+
+/* ============================================================
+   Parallax ambient drift keyframes
+   Three láminas move at different speeds for depth illusion.
+   All loops are eased back-and-forth (0→peak→0) so there
+   is no frame-jump. Disabled by prefers-reduced-motion.
+   ============================================================ */
+
+@keyframes parallax-bg {
+  0%, 100% { transform: translateX(0);     }
+  50%       { transform: translateX(-0.8%); }
+}
+
+@keyframes parallax-mid {
+  0%, 100% { transform: translateX(0);      }
+  50%       { transform: translateX(-1.5%); }
+}
+
+@keyframes parallax-fg {
+  0%, 100% { transform: translateX(0);      }
+  50%       { transform: translateX(-2.5%); }
+}
 
 /* ============================================================
    Root container — fills whatever the grid parent gives it.
@@ -30,28 +75,49 @@
 }
 
 /* ============================================================
-   Layer 0: Location biome background
+   Layer 0: Lámina 1 — Location biome background
+   Ambient parallax: very slow drift (40 s), almost imperceptible.
    ============================================================ */
 
 .cinematic__bg-img {
   position: absolute;
   inset: 0;
-  width: 100%;
+  width: 102%; /* slight overscan so the parallax drift never reveals edges */
   height: 100%;
   object-fit: cover;
   opacity: 0.42;
   z-index: 0;
   transition: opacity 800ms ease;
+  animation: parallax-bg 40s ease-in-out infinite;
+  /* pixel-art source: keep crisp at native scale */
+  image-rendering: pixelated;
 }
 
 /* ============================================================
-   Layer 1: Dark gradient overlay
+   Layer 1: Lámina 2 — Middleground (optional)
+   Medium drift (25 s). Absent when asset not provided → no 404.
+   ============================================================ */
+
+.cinematic__mid-img {
+  position: absolute;
+  inset: 0;
+  width: 103%; /* slightly more overscan than bg so drift spans a wider range */
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  pointer-events: none;
+  animation: parallax-mid 25s ease-in-out infinite;
+  image-rendering: pixelated;
+}
+
+/* ============================================================
+   Layer 2: Dark gradient overlay
    ============================================================ */
 
 .cinematic__gradient {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
   background: linear-gradient(
     180deg,
@@ -62,13 +128,13 @@
 }
 
 /* ============================================================
-   Layer 2: Vignette
+   Layer 3: Vignette
    ============================================================ */
 
 .cinematic__vignette {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 3;
   pointer-events: none;
   background: radial-gradient(
     ellipse at 50% 40%,
@@ -78,13 +144,13 @@
 }
 
 /* ============================================================
-   Layer 3: Scanlines FX
+   Layer 4: Scanlines FX
    ============================================================ */
 
 .cinematic__scanlines {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
   background: repeating-linear-gradient(
     to bottom,
@@ -96,10 +162,29 @@
 }
 
 /* ============================================================
-   Layer 4: Enemy sprite — RIGHT side, bottom-anchored.
+   Layer 5: CRT frame — spherical screen curvature illusion
+   Rendered only when FeatureFlags.ENABLE_CRT_OVERLAY is true.
+   Uses inset box-shadow to simulate the convex-screen depth of
+   an old CRT monitor without changing the layout rectangle.
+   pointer-events: none so clicks pass through to the deck.
+   ============================================================ */
+
+.cinematic__crt-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  /* Double inset shadow: wide ambient + tight inner edge — mimics CRT curvature */
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.50),
+    inset 0 0 22px rgba(0, 0, 0, 0.28);
+}
+
+/* ============================================================
+   Layer 10: Enemy sprite — RIGHT side, bottom-anchored.
    Two variants:
      --portrait  : square/rectangular portrait blended with all-edges mask
-     --cutout    : pre-isolated transparent PNG, rendered as-is (no mask)
+     --cutout    : pre-isolated transparent PNG + chakra aura drop-shadow
    ============================================================ */
 
 .cinematic__enemy-sprite {
@@ -114,6 +199,7 @@
   object-position: center top;
   pointer-events: none;
   display: block;
+  image-rendering: pixelated;
 }
 
 /* Portrait: blend all four edges so the image merges into the scene */
@@ -132,14 +218,38 @@
   );
 }
 
-/* Cutout sprite: pre-isolated, no blend needed */
+/* Cutout sprite: pre-isolated, no blend needed.
+   Chakra aura: two stacked drop-shadows.
+     Outer: elemental color glow (set via --chakra-aura CSS variable from Combat.tsx).
+     Inner: faint white halo for edge highlight.
+   --chakra-aura defaults to a neutral blue if the prop is absent. */
 .cinematic__enemy-sprite--cutout {
   object-fit: contain;
   object-position: bottom right;
+  filter:
+    drop-shadow(0 0 12px var(--chakra-aura, rgba(37, 99, 235, 0.65)))
+    drop-shadow(0 0  4px rgba(191, 219, 254, 0.35));
 }
 
 /* ============================================================
-   Layer 5: Floating panel slot — left side of stage.
+   Layer 11: Lámina 3 — Foreground (optional, occludes enemy)
+   Faster drift (18 s). Absent when asset not provided → no 404.
+   ============================================================ */
+
+.cinematic__fg-img {
+  position: absolute;
+  inset: 0;
+  width: 104%; /* more overscan for the fastest drift */
+  height: 100%;
+  object-fit: cover;
+  z-index: 11;
+  pointer-events: none;
+  animation: parallax-fg 18s ease-in-out infinite;
+  image-rendering: pixelated;
+}
+
+/* ============================================================
+   Layer 20: Floating panel slot — left side of stage.
    The actual panel styles live in Combat.css as .combat__ip-*.
    This slot just provides absolute positioning context.
    ============================================================ */
@@ -161,5 +271,18 @@
     max-width: calc(100% - 2 * var(--sw-space-3));
     top: var(--sw-space-3);
     left: var(--sw-space-3);
+  }
+}
+
+/* ============================================================
+   Accessibility: disable all ambient parallax animations
+   when the user prefers reduced motion.
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic__bg-img,
+  .cinematic__mid-img,
+  .cinematic__fg-img {
+    animation: none;
   }
 }

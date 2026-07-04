@@ -60,6 +60,10 @@ export const FeatureFlags = {
   /** Show tooltips on hover */
   ENABLE_TOOLTIPS: true,
 
+  /** Enable CRT overlay on the combat stage (scanline curvature + vignette depth).
+   *  Default ON for the pixel-arcade aesthetic; set false to disable for screenshots/testing. */
+  ENABLE_CRT_OVERLAY: true,
+
   // ─────────────────────────────────────────────────────────────
   // Experimental Features
   // ─────────────────────────────────────────────────────────────
