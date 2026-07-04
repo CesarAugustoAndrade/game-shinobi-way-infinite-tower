@@ -313,7 +313,7 @@
 ## T-014 · Overhaul Cinemático de la Pantalla de Combate
 - id: T-014
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 35
 - targetScore: 85
 - lensFocus: [PRESENTACION]

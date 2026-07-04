@@ -87,3 +87,37 @@
 .posture-indicator__label {
   line-height: 1;
 }
+
+/* ============================================================
+   Mobile — portrait phones (≤ 480px)
+   The full-label row measures ~418px at 390px viewport (Silkscreen
+   labels + wide tracking), clipping the DEFENSIVE button. Collapse
+   to icon-only chips: labels are visually hidden (still exposed to
+   screen readers), icons grow and padding widens so each button
+   keeps a ~40×36px touch target. Total row ≈ 170px at 390px.
+   ============================================================ */
+
+@media (max-width: 480px) {
+  .posture-indicator__btn {
+    position: relative;
+    padding: var(--sw-space-2);
+  }
+
+  .posture-indicator__icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* Visually hidden, accessible label (icon-only buttons on mobile).
+     Active stance stays legible via the gold fill + tooltip. */
+  .posture-indicator__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

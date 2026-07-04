@@ -1,182 +1,468 @@
 /**
- * Combat Scene Styles
- * BEM-style CSS for the turn-based combat experience
+ * Combat Scene Styles — T-014 v4 (Buriedbornes pixel-arcade overhaul)
+ *
+ * Layout: 2-row CSS grid
+ *   stage (1fr) — cinematic viewscreen, full-width, floating panel inside
+ *   deck  (auto) — FULL-width player action panel, 2 visual bands:
+ *     command bar (compact PlayerHUD + AP/stance/auto/end-turn cluster)
+ *     hand (full-width card grid, taller cards on desktop)
+ *
+ * Dead CSS removed vs v3:
+ *   .combat__hints / .combat__hint  (keyboard hints row — cards carry Z/X/C/V
+ *     badges; a whisper span in the econ cluster covers SPACE/TAB)
+ *   .combat__controls               (separate turn-control row — Auto/End Turn
+ *     buttons moved into the command bar's econ cluster)
+ *   --cb-info-max-w                 (deck width cap — deck is now full width)
+ *
+ * Dead CSS removed vs v2:
+ *   .combat__enemy-info         (row 2 — replaced by floating .combat__ip)
+ *   .combat__enemy-info-left    (left column)
+ *   .combat__enemy-info-right   (right column)
+ *   .combat__enemy-name         (heading style)
+ *   .combat__enemy-tags         (tag bar)
+ *   .combat__enemy-tag          (individual tag)
+ *   .combat__enemy-tag-value    (tag accent)
+ *   .combat__enemy-defense      (defense row)
+ *   .combat__defense-phys/elem/mind (defense values)
+ *   .combat__enemy-hp           (HP bar wrapper)
+ *   .combat__enemy-hp-value     (HP number)
+ *   .combat__buff / .combat__buff--* / .combat__buff-duration--* (top-right chips
+ *     — buff chips moved into floating panel status-effects section)
+ *
+ * Overflow-x fix (root cause addressed in v3):
+ *   - .combat has explicit overflow-x: hidden (belt)
+ *   - .combat__deck: width 100%, max-width clamped, no fixed px
+ *   - All flex children have min-width: 0
+ *   - AP pips: relative sizing, flex-wrap: wrap
+ *   - Name in panel: overflow hidden + text-overflow ellipsis
  */
 
 @import '../../styles/design-system/index.css';
 
-/* ===========================================
-   Main Container
-   =========================================== */
+/* ============================================================
+   Root Container — 2-row grid (stage + deck). No max-width on
+   root (stage is full-bleed). max-width lives on .combat__deck.
+   overflow-x: hidden is the final containment belt.
+   ============================================================ */
 
 .combat {
+  /* Scoped tokens */
+  --cb-stage-min: 200px;
+  --cb-deck-bg: rgba(5, 7, 12, 0.97);
+  --cb-deck-border: var(--sw-frame-soft);
+  --cb-deck-pad-x: var(--sw-space-6);
+  --cb-deck-pad-y: var(--sw-space-3);
+  --cb-deck-gap: var(--sw-space-3);
+
+  /* Floating panel tokens */
+  --cb-panel-bg: rgba(5, 7, 12, 0.82);
+  --cb-panel-border: rgba(63, 63, 70, 0.7);
+  --cb-panel-radius: 4px;
+  --cb-panel-pad: var(--sw-space-3);
+  --cb-panel-gap: var(--sw-space-2);
+
   width: 100%;
-  max-width: 72rem;
-  z-index: 10;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100%;
+  min-height: 0;
+  /* Belt: prevent any child from blowing out the viewport width */
+  overflow-x: hidden;
+  overflow-y: hidden;
+  z-index: var(--sw-z-base);
+}
+
+/* ============================================================
+   Stage — cinematic viewscreen wrapper (full-width, 1fr)
+   ============================================================ */
+
+.combat__stage {
+  position: relative;
+  min-height: var(--cb-stage-min);
+  overflow: hidden;
+}
+
+/* ============================================================
+   Floating Enemy Info Panel — .combat__ip
+   Rendered inside CinematicViewscreen via the floatingPanel prop.
+   Absolute positioning is handled by .cinematic__panel-slot in
+   CinematicViewscreen.css. This block styles the panel content.
+   ============================================================ */
+
+.combat__ip {
+  background: var(--cb-panel-bg);
+  border: 1px solid var(--cb-panel-border);
+  border-radius: var(--cb-panel-radius);
+  padding: var(--cb-panel-pad);
   display: flex;
   flex-direction: column;
-  height: 100%;
-  margin: 0 auto;
+  gap: var(--cb-panel-gap);
+  /* Prevent panel text from busting out horizontally */
+  min-width: 0;
+  overflow: hidden;
+  /* Backdrop blur for depth — degrades gracefully where unsupported */
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
-/* ===========================================
-   Enemy Display Header
-   =========================================== */
+/* ── Row 1: target icon + name + level badge ───────────────── */
 
-.combat__enemy-overlay {
+.combat__ip-name-row {
   display: flex;
-  justify-content: space-between;
-  width: 100%;
-  height: 100%;
+  align-items: center;
+  gap: var(--sw-space-2);
+  min-width: 0;
 }
 
-/* Enemy Stats (Left Side) */
-.combat__enemy-stats {
-  width: 100%;
-  max-width: 28rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  padding-top: var(--sw-space-2);
+.combat__ip-target-icon {
+  font-size: var(--sw-text-base);
+  color: #ef4444;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
-.combat__enemy-name {
-  font-size: 3rem;
+.combat__ip-name {
+  font-family: var(--sw-font-display);
+  font-size: clamp(0.7rem, 2.2vw, 1.1rem);
   font-weight: 900;
   color: var(--sw-text-primary);
   text-transform: uppercase;
-  letter-spacing: -0.05em;
-  font-style: italic;
-  font-family: var(--sw-font-serif);
-  text-shadow: 0 4px 4px rgba(0, 0, 0, 0.8);
+  letter-spacing: -0.02em;
+  text-shadow: 2px 2px 0 var(--sw-hard);
+  line-height: 1.1;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.combat__enemy-hp {
-  margin-top: var(--sw-space-2);
-  margin-bottom: var(--sw-space-1);
-  position: relative;
-}
-
-.combat__enemy-hp-value {
-  position: absolute;
-  top: -1.25rem;
-  right: 0;
-  font-size: var(--sw-text-sm);
+.combat__ip-level-badge {
+  flex-shrink: 0;
   font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-xs);
   font-weight: 700;
   color: var(--sw-text-primary);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  background: rgba(39, 39, 42, 0.9);
+  border: 1px solid var(--sw-frame-soft);
+  border-radius: var(--sw-radius-sm);
+  padding: 1px var(--sw-space-2);
+  white-space: nowrap;
 }
 
-.combat__enemy-tags {
+/* ── Row 2: tier tag + affinity badge ─────────────────────── */
+
+.combat__ip-tags-row {
   display: flex;
   align-items: center;
-  gap: var(--sw-space-4);
-  font-size: var(--sw-text-2xs);
-  font-family: var(--sw-font-mono);
-  text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-widest);
-  color: var(--sw-text-muted);
-}
-
-.combat__enemy-tag {
-  background: rgba(0, 0, 0, 0.5);
-  padding: var(--sw-space-1) var(--sw-space-2);
-  border-radius: var(--sw-radius-sm);
-  border: 1px solid var(--sw-glass-border);
-}
-
-.combat__enemy-tag-value {
-  color: var(--sw-text-secondary);
-  font-weight: 700;
-}
-
-.combat__enemy-defense {
-  margin-top: var(--sw-space-2);
-  display: flex;
-  gap: var(--sw-space-3);
-  font-size: var(--sw-text-3xs);
-  font-family: var(--sw-font-mono);
-  color: var(--sw-text-muted);
-  opacity: 0.8;
-  transition: opacity var(--sw-transition-base);
-  cursor: help;
-}
-
-.combat__enemy-defense:hover {
-  opacity: 1;
-}
-
-.combat__defense-phys {
-  color: var(--sw-category-body-light);
-}
-
-.combat__defense-elem {
-  color: var(--sw-category-mind-light);
-}
-
-.combat__defense-mind {
-  color: #a5b4fc;
-}
-
-/* Enemy Buffs (Right Side) */
-.combat__enemy-buffs {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
   gap: var(--sw-space-2);
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
-.combat__buff {
-  padding: var(--sw-space-1) var(--sw-space-2);
-  font-size: var(--sw-text-2xs);
+.combat__ip-tier-tag {
   font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-2xs);
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
-  border-radius: var(--sw-radius-sm);
-  box-shadow: var(--sw-pix-shadow-sm);
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.5);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 2px;
+  padding: 1px var(--sw-space-2);
+  white-space: nowrap;
+}
+
+.combat__ip-affinity-tag {
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--cb-panel-border);
+  border-radius: 2px;
+  padding: 1px var(--sw-space-2);
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Divider ────────────────────────────────────────────────── */
+
+.combat__ip-divider {
+  height: 1px;
+  background: var(--cb-panel-border);
+}
+
+/* ── Row 3: PHYS / ELEM / MND stat columns ─────────────────── */
+
+.combat__ip-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sw-space-2);
   cursor: help;
-  transition: border-color var(--sw-transition-base);
 }
 
-.combat__buff--positive {
-  background: var(--sw-buff-positive-bg);
-  border: 2px solid rgba(34, 197, 94, 0.5);
-  color: #bbf7d0;
+.combat__ip-stat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sw-space-1);
+  min-width: 0;
 }
 
-.combat__buff--positive:hover {
-  border-color: rgba(34, 197, 94, 0.5);
+.combat__ip-stat-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
-.combat__buff--negative {
-  background: var(--sw-buff-negative-bg);
-  border: 2px solid rgba(239, 68, 68, 0.5);
-  color: #fecaca;
-}
-
-.combat__buff--negative:hover {
-  border-color: rgba(239, 68, 68, 0.5);
-}
-
-.combat__buff-duration--positive {
-  color: #22c55e;
-}
-
-.combat__buff-duration--negative {
-  color: #ef4444;
-}
-
-/* ===========================================
-   Skill Interface Area
-   =========================================== */
-
-.combat__interface {
-  flex: 1;
-  padding: var(--sw-space-6);
+.combat__ip-stat-body {
   display: flex;
   flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.combat__ip-stat-label {
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-3xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  color: var(--sw-text-muted);
+}
+
+.combat__ip-stat-value {
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-xs);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.combat__ip-stat-pct {
+  font-size: var(--sw-text-3xs);
+  opacity: 0.75;
+  margin-left: 1px;
+}
+
+/* Stat type colors */
+.combat__ip-stat--phys .combat__ip-stat-icon,
+.combat__ip-stat--phys .combat__ip-stat-value { color: #fb923c; }
+
+.combat__ip-stat--elem .combat__ip-stat-icon,
+.combat__ip-stat--elem .combat__ip-stat-value { color: #c084fc; }
+
+.combat__ip-stat--mnd .combat__ip-stat-icon,
+.combat__ip-stat--mnd .combat__ip-stat-value { color: #60a5fa; }
+
+/* ── Row 4: STATUS EFFECTS + INFO ──────────────────────────── */
+
+.combat__ip-mid-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sw-space-3);
+  align-items: start;
+  min-width: 0;
+}
+
+.combat__ip-section-label {
+  display: block;
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-3xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  color: var(--sw-text-muted);
+  margin-bottom: var(--sw-space-1);
+}
+
+/* Status effects: column with label + 4 square slots */
+.combat__ip-status {
+  flex-shrink: 0;
+}
+
+.combat__ip-status-slots {
+  display: flex;
+  gap: var(--sw-space-1);
+}
+
+/* Each slot: square chip ~28px */
+.combat__ip-slot {
+  width: 28px;
+  height: 28px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  position: relative;
+  cursor: default;
+}
+
+.combat__ip-slot--empty {
+  border: 1px solid rgba(63, 63, 70, 0.5);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.combat__ip-slot-plus {
+  font-size: 0.75rem;
+  color: rgba(113, 113, 122, 0.5);
+  line-height: 1;
+}
+
+.combat__ip-slot--positive {
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  background: rgba(5, 46, 22, 0.6);
+  cursor: help;
+}
+
+.combat__ip-slot--negative {
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: rgba(69, 10, 10, 0.6);
+  cursor: help;
+}
+
+.combat__ip-slot-icon {
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.combat__ip-slot-duration {
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  font-size: 0.55rem;
+  font-family: var(--sw-font-mono);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1;
+}
+
+/* Info: archetype description */
+.combat__ip-info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.combat__ip-info-text {
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-text-muted);
+  line-height: 1.4;
+  margin: 0;
+  /* Allow wrapping within the cell */
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* ── Row 5: HP ─────────────────────────────────────────────── */
+
+.combat__ip-hp-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-1);
+  min-width: 0;
+}
+
+.combat__ip-hp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.combat__ip-hp-label {
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  color: var(--sw-text-muted);
+  flex-shrink: 0;
+}
+
+.combat__ip-hp-value {
+  font-family: var(--sw-font-display);
+  font-size: clamp(0.75rem, 2vw, 1rem);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combat__ip-hp-current {
+  color: #ef4444;
+  font-weight: 900;
+}
+
+.combat__ip-hp-sep {
+  color: var(--sw-text-muted);
+  font-size: 0.8em;
+}
+
+.combat__ip-hp-max {
+  color: var(--sw-text-secondary);
+}
+
+/* ============================================================
+   Deck — player interaction panel (row 2, auto)
+   FULL width (no cap): 2 visual bands — command bar, then hand.
+   ============================================================ */
+
+.combat__deck {
+  background: var(--cb-deck-bg);
+  border-top: 2px solid var(--cb-deck-border);
+  padding: var(--cb-deck-pad-y) var(--cb-deck-pad-x);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cb-deck-gap);
+  width: 100%;
+  /* Ensure the deck never triggers horizontal overflow */
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   BAND 1 — Command bar: compact PlayerHUD (stretches) +
+   econ/turn-control cluster (content width, right-aligned).
+   Wraps to two lines when horizontal space runs out.
+   ============================================================ */
+
+.combat__command {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sw-space-3);
+  min-width: 0;
+}
+
+/* Compact HUD claims the leftover width; 18rem floor forces a
+   clean wrap instead of a crushed strip. */
+.combat__command .player-hud {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+/* ============================================================
+   Econ cluster (T-004): AP · stance · passives · whisper ·
+   Auto · End Turn — one dense strip inside the command bar.
+   ============================================================ */
+
+.combat__econ-bar {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sw-space-3);
+  min-width: 0;
+  margin-left: auto;
 }
 
 .combat__passives-summary {
@@ -185,23 +471,15 @@
   color: var(--sw-text-muted);
   cursor: help;
   transition: color var(--sw-transition-base);
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .combat__passives-summary:hover {
   color: var(--sw-text-tertiary);
-}
-
-/* ===========================================
-   AP & Posture Economy Bar (T-004)
-   =========================================== */
-
-.combat__econ-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sw-space-4);
-  margin-bottom: var(--sw-space-4);
 }
 
 /* Action Points */
@@ -209,6 +487,8 @@
   display: flex;
   align-items: center;
   gap: var(--sw-space-2);
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .combat__ap-label {
@@ -218,15 +498,16 @@
   letter-spacing: var(--sw-tracking-wide);
   text-transform: uppercase;
   color: var(--sw-accent-tertiary);
+  flex-shrink: 0;
 }
 
 .combat__ap-pips {
   display: flex;
   gap: var(--sw-space-1);
+  flex-wrap: wrap;
 }
 
-/* Pixel-arcade AP chips: blocky 2px frame, hard shadow (no blur). Full chips
-   sit raised in solid gold; spent chips read recessed and dim. */
+/* Pixel-arcade AP chips */
 .combat__ap-pip {
   width: 0.7rem;
   height: 1rem;
@@ -236,6 +517,7 @@
   box-shadow: var(--sw-shadow-sm);
   transition: background var(--sw-transition-base), border-color var(--sw-transition-base),
     box-shadow var(--sw-transition-base);
+  flex-shrink: 0;
 }
 
 .combat__ap-pip--full {
@@ -255,114 +537,26 @@
   font-family: var(--sw-font-mono);
   font-weight: 700;
   color: var(--sw-accent-tertiary);
+  flex-shrink: 0;
 }
 
-/* Posture control lives in PostureIndicator.tsx (posture-indicator__*). */
-
-/* Keyboard Hints */
-.combat__hints {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: var(--sw-space-4);
-  font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
-  margin-bottom: var(--sw-space-4);
-}
-
-.combat__hint {
-  display: flex;
-  align-items: center;
-  gap: var(--sw-space-1);
-}
-
-/* ===========================================
-   Skills Grid
-   =========================================== */
-
-.combat__skills {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-4);
-}
-
-.combat__skill-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.combat__skill-group-label {
+/* Keyboard whisper — replaces the old hints row. Cards carry their
+   own Z/X/C/V badges; this only reminds SPACE/TAB. Desktop only. */
+.combat__whisper {
   font-size: var(--sw-text-3xs);
-  font-weight: 700;
+  font-family: var(--sw-font-mono);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
-  margin-bottom: var(--sw-space-2);
+  color: var(--sw-text-muted);
+  opacity: 0.7;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.combat__skill-group-label--side {
-  color: #60a5fa;
-}
-
-.combat__skill-group-label--toggle {
-  color: var(--sw-accent-tertiary);
-}
-
-.combat__skill-group-label--main {
-  color: var(--sw-category-body-light);
-}
-
-.combat__skill-grid {
-  display: grid;
-  gap: var(--sw-space-2);
-}
-
-.combat__skill-grid--auxiliary {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.combat__skill-grid--main {
-  grid-template-columns: repeat(1, 1fr);
-  gap: var(--sw-space-4);
-}
-
-@media (min-width: 640px) {
-  .combat__skill-grid--auxiliary {
-    grid-template-columns: repeat(3, 1fr);
+@media (max-width: 1023px) {
+  .combat__whisper {
+    display: none;
   }
-  .combat__skill-grid--main {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 768px) {
-  .combat__skill-grid--auxiliary {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  .combat__skill-grid--main {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .combat__skill-grid--auxiliary {
-    grid-template-columns: repeat(6, 1fr);
-  }
-  .combat__skill-grid--main {
-    gap: var(--sw-space-6);
-  }
-}
-
-/* ===========================================
-   Turn Control Bar
-   =========================================== */
-
-.combat__controls {
-  margin-top: var(--sw-space-6);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px solid rgba(63, 63, 70, 0.5);
-  padding-top: var(--sw-space-4);
 }
 
 /* Auto-Combat Button */
@@ -380,6 +574,7 @@
     background var(--sw-transition-base), border-color var(--sw-transition-base),
     color var(--sw-transition-base);
   color: var(--sw-text-secondary);
+  flex-shrink: 0;
 }
 
 .combat__auto-btn:hover {
@@ -417,12 +612,13 @@
   color: #f59e0b;
 }
 
-/* Pass Turn Button */
+/* Pass Turn Button — height-matched to the auto button so the
+   econ cluster reads as one strip */
 .combat__pass-btn {
   display: flex;
   align-items: center;
-  gap: var(--sw-space-3);
-  padding: var(--sw-space-3) var(--sw-space-6);
+  gap: var(--sw-space-2);
+  padding: var(--sw-space-2) var(--sw-space-4);
   border: 2px solid;
   border-radius: var(--sw-radius-md);
   background: var(--sw-bg-elevated);
@@ -431,6 +627,8 @@
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
     background var(--sw-transition-base), border-color var(--sw-transition-base),
     color var(--sw-transition-base);
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .combat__pass-btn:not(:disabled) {
@@ -467,9 +665,87 @@
   letter-spacing: 0.2em;
 }
 
-/* ===========================================
+/* ============================================================
+   Desktop — wide screens (≥ 1024px)
+   Cards get taller so the full-width hand reads as the star
+   of the deck (the grid already stretches them horizontally).
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .combat .skill-card {
+    height: 8.5rem;
+  }
+}
+
+/* ============================================================
+   Mobile — portrait phones (≤ 480px)
+   - Compress deck padding / stage min-height
+   - Hand: horizontal scroll with snap
+   - Floating panel: near full-width, compact layout
+   - Command bar wraps: HUD strip on top, econ cluster below
+   ============================================================ */
+
+@media (max-width: 480px) {
+  .combat {
+    --cb-deck-pad-x: var(--sw-space-3);
+    --cb-deck-pad-y: var(--sw-space-2);
+    --cb-deck-gap: var(--sw-space-2);
+    --cb-stage-min: 180px;
+    --cb-panel-pad: var(--sw-space-2);
+    --cb-panel-gap: var(--sw-space-1-5);
+  }
+
+  /* Economy cluster: tighten and spread across the full row */
+  .combat__econ-bar {
+    gap: var(--sw-space-2);
+    justify-content: space-between;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* Hand: horizontal scroll strip with snap — zero overflow at 390px */
+  .combat .hand__grid {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: var(--sw-space-1);
+    gap: var(--sw-space-2);
+  }
+
+  .combat .hand__grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .combat .hand__grid > * {
+    flex-shrink: 0;
+    min-width: 80px;
+    scroll-snap-align: start;
+  }
+
+  /* Panel: tighter stat columns on very narrow screens */
+  .combat__ip-stats-row {
+    gap: var(--sw-space-1);
+  }
+
+  /* Mid row: stack status + info vertically on narrow screens */
+  .combat__ip-mid-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Status slots: allow scrolling if more than 4 effects shown */
+  .combat__ip-status-slots {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+
+/* ============================================================
    Tooltip Content Styles
-   =========================================== */
+   (unchanged from pre-T-014 — tooltip markup is stable)
+   ============================================================ */
 
 .combat-tooltip {
   display: flex;
@@ -744,41 +1020,15 @@
   margin-bottom: var(--sw-space-1);
 }
 
-.combat-tooltip__stat-abbr--str {
-  color: #f97316;
-}
-
-.combat-tooltip__stat-abbr--wil {
-  color: #ef4444;
-}
-
-.combat-tooltip__stat-abbr--cha {
-  color: #3b82f6;
-}
-
-.combat-tooltip__stat-abbr--spi {
-  color: #a855f7;
-}
-
-.combat-tooltip__stat-abbr--int {
-  color: #06b6d4;
-}
-
-.combat-tooltip__stat-abbr--cal {
-  color: #6366f1;
-}
-
-.combat-tooltip__stat-abbr--spd {
-  color: #22c55e;
-}
-
-.combat-tooltip__stat-abbr--acc {
-  color: #eab308;
-}
-
-.combat-tooltip__stat-abbr--dex {
-  color: #ec4899;
-}
+.combat-tooltip__stat-abbr--str { color: #f97316; }
+.combat-tooltip__stat-abbr--wil { color: #ef4444; }
+.combat-tooltip__stat-abbr--cha { color: #3b82f6; }
+.combat-tooltip__stat-abbr--spi { color: #a855f7; }
+.combat-tooltip__stat-abbr--int { color: #06b6d4; }
+.combat-tooltip__stat-abbr--cal { color: #6366f1; }
+.combat-tooltip__stat-abbr--spd { color: #22c55e; }
+.combat-tooltip__stat-abbr--acc { color: #eab308; }
+.combat-tooltip__stat-abbr--dex { color: #ec4899; }
 
 .combat-tooltip__derived {
   font-size: var(--sw-text-3xs);
@@ -788,25 +1038,11 @@
   gap: var(--sw-space-0-5);
 }
 
-.combat-tooltip__derived-value--phys {
-  color: var(--sw-category-body-light);
-}
-
-.combat-tooltip__derived-value--elem {
-  color: var(--sw-category-mind-light);
-}
-
-.combat-tooltip__derived-value--mind {
-  color: #a5b4fc;
-}
-
-.combat-tooltip__derived-value--eva {
-  color: var(--sw-category-technique-light);
-}
-
-.combat-tooltip__derived-value--crit {
-  color: #facc15;
-}
+.combat-tooltip__derived-value--phys { color: var(--sw-category-body-light); }
+.combat-tooltip__derived-value--elem { color: var(--sw-category-mind-light); }
+.combat-tooltip__derived-value--mind { color: #a5b4fc; }
+.combat-tooltip__derived-value--eva  { color: var(--sw-category-technique-light); }
+.combat-tooltip__derived-value--crit { color: #facc15; }
 
 /* Buff Tooltip */
 .combat-tooltip__buff-header {

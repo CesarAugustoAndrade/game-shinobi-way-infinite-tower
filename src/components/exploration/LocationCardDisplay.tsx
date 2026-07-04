@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LocationCard } from '../../game/types';
 import { getCardDisplayInfo } from '../../game/systems/RegionSystem';
+import { getBiomeSlug } from '../../utils/colorHelpers';
 import LocationIcon from '../shared/LocationIcon';
 import DangerLevelBar from './DangerLevelBar';
 import WealthLevelBar from './WealthLevelBar';
@@ -44,8 +45,7 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
   // the same biome) — the runtime location.id carries a random suffix, so it can't
   // map to a fixed asset. Missing PNGs fail gracefully (onError) and the themed
   // gradient + LocationIcon fallback show through.
-  const biomeSlug = card.location.biome.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-  const artSrc = `/assets/location_${biomeSlug}.png`;
+  const artSrc = `/assets/location_${getBiomeSlug(card.location.biome)}.png`;
 
   // Build card classes (cyan accent by default, magenta when mystery/locked).
   const cardClasses = [

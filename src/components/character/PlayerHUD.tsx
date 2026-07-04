@@ -24,6 +24,12 @@ interface PlayerHUDProps {
     };
   };
   biome?: string;
+  /**
+   * Dense single-strip variant (T-014): small avatar, name/Lv and thin HP/CP
+   * bars on one line, XP as a 3px sliver along the bottom edge. Used by the
+   * combat deck command bar; map screens keep the roomy default.
+   */
+  compact?: boolean;
 }
 
 const getClanData = (clan: Clan): { symbol: string; modifier: string } => {
@@ -43,14 +49,14 @@ const getClanData = (clan: Clan): { symbol: string; modifier: string } => {
   }
 };
 
-const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerStats, biome }, ref) => {
+const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerStats, biome, compact = false }, ref) => {
   const { symbol, modifier } = getClanData(player.clan);
   const visibleBuffs = player.activeBuffs.slice(0, 4);
   const overflowCount = Math.max(0, player.activeBuffs.length - 4);
   const xpPercent = Math.min(100, (player.exp / player.maxExp) * 100);
 
   return (
-    <div ref={ref} className="player-hud">
+    <div ref={ref} className={`player-hud ${compact ? 'player-hud--compact' : ''}`}>
       <div className="player-hud__content">
         {/* Clan Avatar */}
         <div className={`player-hud__avatar player-hud__avatar--${modifier}`}>

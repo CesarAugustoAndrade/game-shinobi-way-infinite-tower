@@ -555,21 +555,27 @@ export interface Player {
 export interface Enemy {
   name: string;
   tier: string;
-  
+
   // Stats
   primaryStats: PrimaryAttributes;
   currentHp: number;
   currentChakra: number;
-  
+
   // Combat
   element: ElementType;
   skills: Skill[];
   activeBuffs: Buff[];
-  
+
   // Flags
   isBoss?: boolean;
   image?: string;
   dropRateBonus?: number;
+
+  // Presentation (T-014)
+  /** Archetype key: 'TANK' | 'ASSASSIN' | 'BALANCED' | 'CASTER' | 'GENJUTSU' */
+  archetype?: string;
+  /** Danger level (1-7) at which this enemy was generated — used for Lv. N badge. */
+  dangerLevel?: number;
 }
 
 // ============================================================================

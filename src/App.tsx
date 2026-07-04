@@ -70,7 +70,7 @@ import { useTreasureHandlers, TreasureHuntRewardData, PendingBagFullItem } from 
 import { useInventoryHandlers } from './hooks/useInventoryHandlers';
 import { useActivityHandlers } from './hooks/useActivityHandlers';
 import { useCombatVictory } from './hooks/useCombatVictory';
-import { getDamageTypeColor, getRarityTextColorWithEffects as getRarityColor } from './utils/colorHelpers';
+import { getDamageTypeColor, getRarityTextColorWithEffects as getRarityColor, getBiomeSlug } from './utils/colorHelpers';
 import { GameProvider, GameContextValue } from './contexts/GameContext';
 import { LIMITS, MERCHANT } from './game/config';
 import { MainMenu, CharacterSelect, GameOver, GameGuide } from './scenes/menu';
@@ -268,6 +268,14 @@ const App: React.FC = () => {
   const currentBaseDifficulty = useMemo(() => {
     return region?.baseDifficulty ?? difficulty;
   }, [region, difficulty]);
+
+  // Biome background path for the combat stage (CinematicViewscreen).
+  // Uses the same slug convention as LocationCardDisplay to reuse existing assets.
+  const combatBackground = useMemo((): string | undefined => {
+    const biome = currentLocation?.biome || region?.biome;
+    if (!biome) return undefined;
+    return `/assets/location_${getBiomeSlug(biome)}.png`;
+  }, [currentLocation, region]);
 
   // Create game context value for child components
   const gameContextValue = useMemo((): GameContextValue => ({
@@ -828,6 +836,7 @@ const App: React.FC = () => {
                 autoCombatEnabled={autoCombatEnabled}
                 onToggleAutoCombat={() => setAutoCombatEnabled(prev => !prev)}
                 autoPassTimeRemaining={autoPassTimeRemaining}
+                background={combatBackground}
               />
             </ErrorBoundary>
           )}

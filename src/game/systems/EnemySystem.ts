@@ -198,7 +198,9 @@ export const generateEnemy = (
       currentChakra: derived.maxChakra,
       dropRateBonus: 50 + diff,
       activeBuffs: [],
-      image: bossImage
+      image: bossImage,
+      archetype: 'TANK',
+      dangerLevel,
     };
   }
 
@@ -307,7 +309,9 @@ export const generateEnemy = (
     currentHp: derived.maxHp,
     currentChakra: derived.maxChakra,
     activeBuffs: [],
-    image: enemyImage
+    image: enemyImage,
+    archetype,
+    dangerLevel,
   };
 };
 

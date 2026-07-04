@@ -73,9 +73,24 @@
 }
 
 .skill-card--disabled {
-  opacity: 0.5;
+  /* Raised to 0.75 so the card is still identifiable (T-014).
+     A ::after overlay adds a branded dark scrim on top. */
+  opacity: 0.75;
   cursor: not-allowed;
   filter: grayscale(30%);
+}
+
+/* Dark scrim overlay for disabled cards.
+   Fallback rgba(5,7,12,0.55) is the branded near-black; --sw-scrim-soft
+   is slightly lighter at rgba(0,0,0,0.5) — both acceptable. */
+.skill-card--disabled::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--sw-scrim-soft, rgba(5, 7, 12, 0.55));
+  z-index: 40;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .skill-card--effective:not(.skill-card--disabled) {

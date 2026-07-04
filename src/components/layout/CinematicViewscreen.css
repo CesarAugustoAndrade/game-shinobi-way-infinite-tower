@@ -1,0 +1,165 @@
+/**
+ * CinematicViewscreen Component Styles — T-014 v3
+ *
+ * Stage: biome bg (object-cover, no blur) + dark gradient + vignette +
+ * scanlines + enemy sprite (right, no frame, all-edges mask OR cutout)
+ * + floating info panel (left overlay, semi-transparent dark).
+ *
+ * Dead CSS removed vs v2:
+ *   .cinematic__enemy-card    (card frame + centered positioning)
+ *   .cinematic__enemy-img     (card image styles)
+ *   .cinematic__buffs         (top-right buff chips slot — moved into floating panel)
+ */
+
+@import '../../styles/design-system/index.css';
+
+/* ============================================================
+   Root container — fills whatever the grid parent gives it.
+   Fallback gradient (#0c0e1a → #05070c) renders always;
+   the bg-img layer sits on top with opacity 0.42.
+   ============================================================ */
+
+.cinematic {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* Fallback: visible even without a backgroundImage */
+  background: linear-gradient(180deg, #0c0e1a 0%, #05070c 100%);
+  border-bottom: 2px solid var(--sw-frame-soft);
+}
+
+/* ============================================================
+   Layer 0: Location biome background
+   ============================================================ */
+
+.cinematic__bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.42;
+  z-index: 0;
+  transition: opacity 800ms ease;
+}
+
+/* ============================================================
+   Layer 1: Dark gradient overlay
+   ============================================================ */
+
+.cinematic__gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 7, 12, 0.35) 0%,
+    rgba(5, 7, 12, 0.05) 40%,
+    rgba(5, 7, 12, 0.60) 100%
+  );
+}
+
+/* ============================================================
+   Layer 2: Vignette
+   ============================================================ */
+
+.cinematic__vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    transparent 35%,
+    rgba(0, 0, 0, 0.65) 100%
+  );
+}
+
+/* ============================================================
+   Layer 3: Scanlines FX
+   ============================================================ */
+
+.cinematic__scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.18) 2px,
+    rgba(0, 0, 0, 0.18) 4px
+  );
+}
+
+/* ============================================================
+   Layer 4: Enemy sprite — RIGHT side, bottom-anchored.
+   Two variants:
+     --portrait  : square/rectangular portrait blended with all-edges mask
+     --cutout    : pre-isolated transparent PNG, rendered as-is (no mask)
+   ============================================================ */
+
+.cinematic__enemy-sprite {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 10;
+  /* Width: occupy roughly the right 55% of the stage, capped at 480px */
+  width: clamp(200px, 55%, 480px);
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  pointer-events: none;
+  display: block;
+}
+
+/* Portrait: blend all four edges so the image merges into the scene */
+.cinematic__enemy-sprite--portrait {
+  -webkit-mask-image: radial-gradient(
+    ellipse 75% 80% at 65% 45%,
+    black 30%,
+    rgba(0, 0, 0, 0.6) 60%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 75% 80% at 65% 45%,
+    black 30%,
+    rgba(0, 0, 0, 0.6) 60%,
+    transparent 100%
+  );
+}
+
+/* Cutout sprite: pre-isolated, no blend needed */
+.cinematic__enemy-sprite--cutout {
+  object-fit: contain;
+  object-position: bottom right;
+}
+
+/* ============================================================
+   Layer 5: Floating panel slot — left side of stage.
+   The actual panel styles live in Combat.css as .combat__ip-*.
+   This slot just provides absolute positioning context.
+   ============================================================ */
+
+.cinematic__panel-slot {
+  position: absolute;
+  top: var(--sw-space-4);
+  left: var(--sw-space-4);
+  z-index: 20;
+  /* Limit panel width so it never overlaps the right-side enemy sprite */
+  max-width: min(44%, 340px);
+  /* pointer-events on so the tooltip/interactive elements inside work */
+  pointer-events: auto;
+}
+
+@media (max-width: 480px) {
+  .cinematic__panel-slot {
+    /* On narrow screens the panel expands toward full-width, sits at top-left */
+    max-width: calc(100% - 2 * var(--sw-space-3));
+    top: var(--sw-space-3);
+    left: var(--sw-space-3);
+  }
+}

@@ -131,6 +131,21 @@ export const getLocationTypeLabel = (type: LocationType): string => {
 // DAMAGE TYPE COLORS
 // ============================================================================
 
+// ============================================================================
+// BIOME SLUG
+// Shared by LocationCardDisplay and App (combat background resolution).
+// ============================================================================
+
+/**
+ * Normalise a biome display name into the asset-slug format used by
+ * `location_*.png`. Strips everything that isn't [a-z0-9], collapses
+ * separators to underscores, and trims leading/trailing underscores.
+ *
+ * @example getBiomeSlug('Mist Covered Bridge') → 'mist_covered_bridge'
+ */
+export const getBiomeSlug = (biome: string): string =>
+  biome.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
 export const getDamageTypeColor = (dt: any): string => {
   switch (dt) {
     case 'PHYSICAL': return 'text-orange-500';

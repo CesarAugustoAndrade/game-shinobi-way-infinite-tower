@@ -219,6 +219,116 @@
   color: var(--sw-text-muted);
 }
 
+/* ===========================================
+   COMPACT VARIANT (T-014 combat deck command bar)
+   Dense single strip: small avatar + name/Lv + thin HP/CP bars
+   on one line; XP is a 3px sliver along the bottom edge.
+   =========================================== */
+
+.player-hud--compact {
+  max-width: none;
+  position: relative;
+  /* extra bottom padding reserves room for the 3px XP sliver */
+  padding: var(--sw-space-2) var(--sw-space-3) calc(var(--sw-space-2) + 3px);
+  border-radius: var(--sw-radius-md);
+  overflow: hidden;
+}
+
+.player-hud--compact .player-hud__content {
+  gap: var(--sw-space-3);
+}
+
+.player-hud--compact .player-hud__avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--sw-radius-sm);
+  box-shadow: var(--sw-pix-shadow-sm);
+}
+
+.player-hud--compact .player-hud__avatar-symbol {
+  font-size: var(--sw-text-base);
+}
+
+/* One line: [name + Lv] fixed · [HP | CP] stretch */
+.player-hud--compact .player-hud__stats {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sw-space-4);
+  min-width: 0;
+}
+
+.player-hud--compact .player-hud__info {
+  gap: var(--sw-space-2);
+  flex-shrink: 0;
+}
+
+.player-hud--compact .player-hud__name {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-xs);
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+
+.player-hud--compact .player-hud__level {
+  font-size: var(--sw-text-2xs);
+  padding: 1px var(--sw-space-1-5);
+}
+
+.player-hud--compact .player-hud__bars {
+  flex: 1;
+  gap: var(--sw-space-3);
+  min-width: 0;
+}
+
+/* Thin bars: tight header, slim track */
+.player-hud--compact .stat-bar__header {
+  font-size: var(--sw-text-2xs);
+  margin-bottom: 1px;
+}
+
+.player-hud--compact .stat-bar__track {
+  height: 0.45rem;
+  border-radius: var(--sw-radius-xs);
+}
+
+/* XP: 3px sliver pinned to the strip's bottom edge */
+.player-hud--compact .player-hud__xp {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: none;
+  gap: 0;
+}
+
+.player-hud--compact .player-hud__xp-icon,
+.player-hud--compact .player-hud__xp-value {
+  display: none;
+}
+
+.player-hud--compact .player-hud__xp-track {
+  height: 3px;
+  border-radius: 0;
+}
+
+/* Buff chips: tighter */
+.player-hud--compact .player-hud__buff {
+  padding: var(--sw-space-0-5) var(--sw-space-1);
+}
+
+/* Narrow screens: name/Lv above bars (two tight lines) */
+@media (max-width: 480px) {
+  .player-hud--compact .player-hud__stats {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sw-space-0-5);
+  }
+
+  .player-hud--compact .player-hud__bars {
+    width: 100%;
+  }
+}
+
 /* Buff Tooltip */
 .player-hud__buff-tooltip {
   display: flex;
