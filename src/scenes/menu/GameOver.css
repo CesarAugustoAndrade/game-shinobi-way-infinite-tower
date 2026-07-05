@@ -1,61 +1,68 @@
 /* ============================================================================
-   GameOver Scene - Modernized Styling
+   GameOver Scene — Pixel-Arcade (T-018)
+   DEATH identity preserved: red pulsing vignette, skull, blocky panels.
+   SceneBackdrop provides biome background. No backdrop-filter blur.
    ============================================================================ */
 
 @import '../../styles/design-system/index.css';
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   SCENE CONTAINER
+   SCENE CONTAINER — fills viewport, SceneBackdrop fills it.
+
+   GameOver renders STANDALONE (outside App's center panel), so SceneBackdrop's
+   `min-height: 100%` has no definite parent height to resolve against — without
+   the flex chain below the backdrop only covers the content height and a black
+   band shows under it. flex + min-height:100dvh + flex:1 on the backdrop child
+   guarantees the scene ALWAYS fills the whole viewport, and content taller than
+   the viewport still scrolls naturally.
    ───────────────────────────────────────────────────────────────────────────── */
 
 .game-over {
-  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--sw-space-8);
-  position: relative;
-  overflow: hidden;
-  background: var(--sw-bg-primary);
 }
 
-/* Dark gradient background */
-.game-over::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(127, 29, 29, 0.1) 0%,
-    rgba(0, 0, 0, 0.95) 70%
-  );
+.game-over > .scene-backdrop {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Red vignette overlay */
-.game-over::after {
-  content: '';
+/* Stretch the content layer so margin:auto can center the death panel.
+   The absolute overlay layers (bg/gradient/vignette/scanlines) use inset:0
+   and are unaffected. */
+.game-over .scene-backdrop__content {
+  flex: 1 0 auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RED DEATH VIGNETTE — overlays inside SceneBackdrop content (z-10).
+   Sits at position absolute so real content stacks on top of it.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.game-over__death-vignette {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   z-index: 0;
   background: radial-gradient(
     ellipse at center,
     transparent 0%,
-    rgba(127, 29, 29, 0.2) 50%,
-    rgba(127, 29, 29, 0.4) 100%
+    rgba(127, 29, 29, 0.25) 55%,
+    rgba(127, 29, 29, 0.55) 100%
   );
-  pointer-events: none;
   animation: game-over-pulse 4s ease-in-out infinite;
 }
 
 @keyframes game-over-pulse {
   0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  50%       { opacity: 1; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   CONTENT WRAPPER
+   CONTENT WRAPPER — real content, z-index 1 so it sits above death vignette
    ───────────────────────────────────────────────────────────────────────────── */
 
 .game-over__content {
@@ -66,6 +73,10 @@
   align-items: center;
   width: 100%;
   max-width: 32rem;
+  padding: var(--sw-space-8) var(--sw-space-4);
+  /* Vertical centering inside the full-viewport backdrop (flex column parent). */
+  margin-top: auto;
+  margin-bottom: auto;
   animation: sw-fade-in 0.6s ease-out;
 }
 
@@ -75,14 +86,14 @@
 
 .game-over__icon {
   margin-bottom: var(--sw-space-6);
-  color: var(--sw-bg-surface);
-  opacity: 0.6;
+  color: var(--sw-risk-high-light);
+  filter: drop-shadow(0 0 12px rgba(185, 28, 28, 0.6));
   animation: game-over-icon-float 3s ease-in-out infinite;
 }
 
 @keyframes game-over-icon-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  50%       { transform: translateY(-8px); }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -90,37 +101,35 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 .game-over__title {
-  font-family: var(--sw-font-serif);
+  font-family: var(--sw-font-display);
   font-size: clamp(3rem, 12vw, 5rem);
-  font-weight: 900;
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
-  color: #b91c1c;
+  color: var(--sw-risk-high-light);
   text-shadow:
-    0 0 40px rgba(185, 28, 28, 0.5),
-    0 0 80px rgba(185, 28, 28, 0.3);
+    4px 4px 0 var(--sw-hard),
+    0 0 40px rgba(185, 28, 28, 0.5);
   margin: 0 0 var(--sw-space-8) 0;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   STATS PANEL
+   STATS PANEL — pixel-arcade blocky frame, no blur
    ───────────────────────────────────────────────────────────────────────────── */
 
 .game-over__panel {
   width: 100%;
-  padding: var(--sw-space-6);
-  background: var(--sw-glass-bg-dark);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(127, 29, 29, 0.3);
-  border-radius: var(--sw-radius-lg);
+  padding: var(--sw-space-5);
+  background: var(--sw-bg-secondary);
+  border: 2px solid rgba(127, 29, 29, 0.4);
+  border-radius: var(--sw-radius-sm);
+  box-shadow: var(--sw-pix-shadow-lg), 0 0 20px rgba(127, 29, 29, 0.15);
   margin-bottom: var(--sw-space-8);
   text-align: center;
 }
 
 .game-over__location {
+  font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-lg);
-  font-weight: 600;
   color: var(--sw-text-secondary);
   margin: 0 0 var(--sw-space-2) 0;
 }
@@ -132,20 +141,20 @@
   margin-left: var(--sw-space-2);
 }
 
-.game-over__danger--safe { color: var(--sw-risk-safe-light); }
-.game-over__danger--low { color: var(--sw-risk-low-light); }
+.game-over__danger--safe   { color: var(--sw-risk-safe-light); }
+.game-over__danger--low    { color: var(--sw-risk-low-light); }
 .game-over__danger--medium { color: var(--sw-risk-medium-light); }
-.game-over__danger--high { color: var(--sw-risk-high-light); }
+.game-over__danger--high   { color: var(--sw-risk-high-light); }
 
 .game-over__region {
+  font-family: var(--sw-font-display);
   font-size: var(--sw-text-xs);
-  font-weight: 600;
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
   color: var(--sw-text-muted);
   margin: 0 0 var(--sw-space-4) 0;
   padding-bottom: var(--sw-space-4);
-  border-bottom: 1px solid var(--sw-glass-border);
+  border-bottom: 1px solid var(--sw-frame-soft);
 }
 
 .game-over__level {
@@ -153,6 +162,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--sw-space-2);
+  font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-sm);
   color: var(--sw-text-tertiary);
 }
@@ -164,11 +174,10 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   RETRY BUTTON
+   RETRY BUTTON — pixel-arcade hard shadow + pixel-lift/sink
    ───────────────────────────────────────────────────────────────────────────── */
 
 .game-over__retry {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -176,41 +185,32 @@
   width: 100%;
   max-width: 20rem;
   padding: var(--sw-space-4) var(--sw-space-8);
-  background: rgba(127, 29, 29, 0.15);
-  border: 2px solid rgba(185, 28, 28, 0.5);
-  border-radius: var(--sw-radius-md);
+  background: var(--sw-risk-high-bg);
+  border: 2px solid rgba(185, 28, 28, 0.6);
+  border-radius: var(--sw-radius-sm);
+  box-shadow: var(--sw-pix-shadow);
+  font-family: var(--sw-font-display);
   font-size: var(--sw-text-sm);
-  font-weight: 700;
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
   color: #fca5a5;
   cursor: pointer;
-  overflow: hidden;
-  transition: all var(--sw-transition-base);
-}
-
-.game-over__retry::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(185, 28, 28, 0.3), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.5s ease;
+  transition:
+    transform var(--sw-transition-fast),
+    box-shadow var(--sw-transition-fast),
+    background var(--sw-transition-base);
 }
 
 .game-over__retry:hover {
-  background: rgba(127, 29, 29, 0.25);
-  border-color: #dc2626;
-  box-shadow: 0 0 30px rgba(185, 28, 28, 0.3);
-  transform: translateY(-2px);
-}
-
-.game-over__retry:hover::before {
-  transform: translateX(100%);
+  background: rgba(127, 29, 29, 0.35);
+  border-color: var(--sw-risk-high-light);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--sw-pix-shadow-lg);
 }
 
 .game-over__retry:active {
-  transform: translateY(0);
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .game-over__retry-text {
@@ -223,8 +223,8 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 @media (max-width: 480px) {
-  .game-over {
-    padding: var(--sw-space-4);
+  .game-over__content {
+    padding: var(--sw-space-4) var(--sw-space-3);
   }
 
   .game-over__panel {

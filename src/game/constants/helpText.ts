@@ -7,7 +7,7 @@ export const HELP_TEXT = {
         id: PrimaryStat.WILLPOWER,
         name: "Willpower",
         desc: "Grit & Survival.",
-        effect: "Increases Max HP (12 per point). Governs Guts chance (survival at 1 HP) and HP Regen."
+        effect: "Increases Max HP (9 per point). Governs Guts chance (survival at 1 HP) and HP Regen."
       },
       {
         id: PrimaryStat.CHAKRA,
@@ -148,16 +148,17 @@ export const HELP_TEXT = {
   PROGRESSION: {
     SCALING: {
       title: "Enemy Scaling Formula",
-      formula: "totalScaling = floorMult × diffMult × 0.85",
+      formula: "totalScaling = dangerMult × progressionMult × diffMult × 0.85",
       breakdown: [
-        "floorMult = 1 + (floor × 0.08)  → +8% per floor",
-        "diffMult = 0.50 + (difficulty / 200)  → 50%-100%",
+        "dangerMult = 0.30 + (dangerLevel × 0.24)  → D1=0.54, D4=1.26, D7=1.98",
+        "progressionMult = 1 + (locationsCleared × 0.04)  → +4% per location cleared",
+        "diffMult = 0.40 + (difficulty / 200)  → 40%-90%",
         "0.85 = Enemy ease factor (15% reduction)"
       ],
       examples: [
-        { floor: 10, difficulty: 40, text: "Floor 10, Diff 40: 1.8 × 0.70 × 0.85 = 1.07×" },
-        { floor: 25, difficulty: 50, text: "Floor 25, Diff 50: 3.0 × 0.75 × 0.85 = 1.91×" },
-        { floor: 50, difficulty: 100, text: "Floor 50, Diff 100: 5.0 × 1.0 × 0.85 = 4.25×" }
+        { danger: 1, difficulty: 40, text: "Danger 1, 0 locations, Diff 40: 0.54 × 1.00 × 0.60 × 0.85 = 0.28×" },
+        { danger: 4, difficulty: 50, text: "Danger 4, 5 locations, Diff 50: 1.26 × 1.20 × 0.65 × 0.85 = 0.84×" },
+        { danger: 7, difficulty: 100, text: "Danger 7, 10 locations, Diff 100: 1.98 × 1.40 × 0.90 × 0.85 = 2.12×" }
       ]
     },
     DIFFICULTY_RANKS: [
@@ -167,17 +168,17 @@ export const HELP_TEXT = {
       { rank: "S", range: "85-100", color: "red-600", desc: "Extreme danger; maximum scaling" }
     ],
     RESOURCES: [
-      { label: "HP Calculation", formula: "50 + (Willpower × 12) + equipment" },
+      { label: "HP Calculation", formula: "80 + (Willpower × 9) + equipment" },
       { label: "Chakra Calculation", formula: "30 + (Chakra stat × 8) + equipment" },
       { label: "Skill Chakra Cost", formula: "Typical 10-30; Ultimate skills 40-50" },
-      { label: "HP Regen", formula: "Scales with Intelligence and Willpower" },
-      { label: "Chakra Regen", formula: "Scales with Intelligence and Calmness" }
+      { label: "HP Regen", formula: "2% of Max HP per turn, scaled by Willpower (÷20)" },
+      { label: "Chakra Regen", formula: "Intelligence × 0.5 per turn" }
     ],
     PROGRESSION_DETAILS: [
       { label: "XP per Enemy", formula: "Base 25 + (Floor × 5) + tier bonuses" },
       { label: "Level Up Requirement", formula: "100 × Level XP needed" },
-      { label: "Crit Damage Multiplier", formula: "1.75x (Base 8% + 0.4% per Dexterity)" },
-      { label: "Hit Chance Formula", formula: "85% + (Attacker Stat - Defender Stat) × 1.5%" }
+      { label: "Crit Damage Multiplier", formula: "1.75x (Base 8% + 0.5% per Dexterity)" },
+      { label: "Hit Chance Formula", formula: "92% + (Attacker Stat - Defender Stat) × 1.5%" }
     ]
   },
 

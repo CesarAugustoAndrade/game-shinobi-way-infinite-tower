@@ -5,6 +5,7 @@
  */
 
 @import '../../styles/design-system/index.css';
+@import '../../styles/item-tile.css';
 
 /* ===========================================
    Main Container
@@ -13,7 +14,6 @@
 .loot {
   width: 100%;
   max-width: 72rem;
-  z-index: 10;
 }
 
 /* ===========================================
@@ -31,10 +31,10 @@
   letter-spacing: 0.35em;
   text-transform: uppercase;
   color: var(--sw-accent-tertiary);
+  /* Static golden glow — pulse animation removed by human direction (T-018 a3). */
   text-shadow:
     0 0 20px rgba(251, 191, 36, 0.55),
     0 0 50px rgba(251, 191, 36, 0.22);
-  animation: sw-ready-pulse 3s ease-in-out infinite;
   margin: 0;
 }
 
@@ -127,22 +127,20 @@
   border-color: var(--sw-rarity-rare-glow);
 }
 
-/* Card Header */
+/* Card Header — centered under the big item visual */
 .loot-card__header {
   display: flex;
   flex-direction: column;
+  text-align: center;
 }
 
 .loot-card__name {
   font-weight: 700;
-  font-size: var(--sw-text-lg);
+  font-size: var(--sw-text-base);
   margin-bottom: var(--sw-space-1);
   display: flex;
   align-items: center;
-}
-
-.loot-card__icon {
-  margin-right: var(--sw-space-2);
+  justify-content: center;
 }
 
 .loot-card__type {
@@ -164,61 +162,8 @@
   animation: sw-ready-pulse 2s ease-in-out infinite;
 }
 
-/* Card Description */
-.loot-card__description {
-  font-size: var(--sw-text-2xs);
-  color: var(--sw-text-muted);
-  font-style: italic;
-}
-
-/* Passive Preview */
-.loot-card__passive {
-  background: var(--sw-rarity-epic-bg);
-  border: 1px solid var(--sw-rarity-epic-glow);
-  border-radius: var(--sw-radius-sm);
-  padding: var(--sw-space-2);
-}
-
-.loot-card__passive-text {
-  font-size: var(--sw-text-2xs);
-  color: var(--sw-rarity-epic);
-}
-
-/* Stats List */
-.loot-card__stats {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-1);
-  font-size: var(--sw-text-xs);
-  font-family: var(--sw-font-mono);
-  color: var(--sw-text-muted);
-}
-
-.loot-card__stat {
-  display: flex;
-  justify-content: space-between;
-  text-transform: uppercase;
-}
-
-.loot-card__stat-value {
-  display: flex;
-  align-items: center;
-  gap: var(--sw-space-2);
-  color: var(--sw-text-secondary);
-}
-
-.loot-card__stat-delta            { font-size: var(--sw-text-2xs); }
-.loot-card__stat-delta--positive  { color: var(--sw-risk-safe-light); }
-.loot-card__stat-delta--negative  { color: var(--sw-risk-high-light); }
-
-/* Synthesis Hint */
-.loot-card__synthesis {
-  font-size: var(--sw-text-3xs);
-  color: var(--sw-accent-tertiary);
-  opacity: 0.7;
-  border-top: 1px solid var(--sw-glass-border);
-  padding-top: var(--sw-space-2);
-}
+/* Item details (stats/description/passive/synthesis) live in the shared
+   item-tile tooltip — see src/styles/item-tile.css (T-018 a3). */
 
 /* ===========================================
    Skill Card Specifics
@@ -465,66 +410,6 @@
 .loot__leave-btn:hover {
   color: var(--sw-text-tertiary);
   border-bottom-color: var(--sw-text-muted);
-}
-
-/* ===========================================
-   Tooltip Styles
-   =========================================== */
-
-.loot-tooltip {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-2);
-  padding: var(--sw-space-1);
-  max-width: 260px;
-}
-
-.loot-tooltip__name { font-weight: 700; }
-
-.loot-tooltip__type {
-  font-size: var(--sw-text-2xs);
-  color: var(--sw-text-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-}
-
-.loot-tooltip__description {
-  font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
-  font-style: italic;
-}
-
-.loot-tooltip__section {
-  border-top: 1px solid var(--sw-glass-border);
-  padding-top: var(--sw-space-2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-1);
-}
-
-.loot-tooltip__stat {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--sw-text-2xs);
-  font-family: var(--sw-font-mono);
-}
-
-.loot-tooltip__stat-name  { color: var(--sw-text-muted); }
-
-.loot-tooltip__stat-values {
-  display: flex;
-  align-items: center;
-  gap: var(--sw-space-2);
-}
-
-.loot-tooltip__stat-value     { color: var(--sw-text-secondary); }
-.loot-tooltip__stat-delta--positive { color: var(--sw-risk-safe-light); }
-.loot-tooltip__stat-delta--negative { color: var(--sw-risk-high-light); }
-.loot-tooltip__stat-new       { color: var(--sw-rarity-rare); }
-
-.loot-tooltip__sell {
-  font-size: var(--sw-text-2xs);
-  color: var(--sw-risk-low-light);
 }
 
 /* Additional helper classes */

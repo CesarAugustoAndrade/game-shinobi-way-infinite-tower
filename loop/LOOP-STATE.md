@@ -10,8 +10,8 @@
 - run: 2026-07-02-A
 - mode: interactive     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-017 PASS en a2, diff en stage pendiente del humano. Siguiente pending: T-018 pixel-arcade secundarias)
-- updatedAt: 2026-07-05T15:53:16Z
+- activeTopic: — (T-018 PASSED en a4; pendiente commit+push autorizado por el humano. Próximo pending: T-019)
+- updatedAt: 2026-07-05T20:03:11Z
 
 ## Ledger
 
@@ -57,6 +57,10 @@
 | T-015 | 3 | 85 | 90 | 90 | 87 | PASS | passed | 2026-07-04T15:24:04Z | logs/T-015.md#a3 |
 | T-017 | 1 | 88 | 88 | 72 | 90 | FAIL | iterating | 2026-07-05T15:05:59Z | logs/T-017.md#a1 |
 | T-017 | 2 | 90 | 90 | 88 | 90 | PASS | passed | 2026-07-05T15:53:16Z | logs/T-017.md#a2 |
+| T-018 | 1 | 90 | 90 | 80 | 90 | FAIL | iterating | 2026-07-05T16:29:29Z | logs/T-018.md#a1 |
+| T-018 | 2 | 90 | 90 | 82 | 90 | FAIL | iterating | 2026-07-05T20:03:11Z | logs/T-018.md#a2 |
+| T-018 | 3 | 92 | 90 | 83 | 90 | FAIL | iterating | 2026-07-05T20:03:11Z | logs/T-018.md#a3 |
+| T-018 | 4 | 92 | 92 | 90 | 90 | PASS | passed | 2026-07-05T20:03:11Z | logs/T-018.md#a4 |
 
 <!--
 Leyenda:

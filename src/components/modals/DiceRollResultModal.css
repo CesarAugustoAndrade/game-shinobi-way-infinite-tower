@@ -1,0 +1,318 @@
+/**
+ * DiceRollResultModal — Pixel-Arcade (T-018)
+ * Full migration from Tailwind to BEM + design-system tokens.
+ * Hard shadows, solid borders, no blur. Scene visible behind overlay (0.62).
+ */
+
+@import '../../styles/design-system/index.css';
+
+/* ===========================================
+   Overlay backdrop — matches EventResultModal opacity
+   =========================================== */
+
+.dice-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--sw-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sw-space-4);
+  background: rgba(3, 5, 10, 0.62);
+  animation: sw-fade-in 0.2s ease-out;
+}
+
+/* ===========================================
+   Panel
+   =========================================== */
+
+.dice-modal__panel {
+  width: 100%;
+  max-width: 22rem;
+  background: var(--sw-bg-secondary);
+  border: 2px solid var(--sw-frame-soft);
+  border-radius: var(--sw-radius-sm);
+  box-shadow: var(--sw-pix-shadow-lg);
+  overflow: hidden;
+  animation: sw-scale-in 0.22s ease-out;
+}
+
+.dice-modal__panel--trap {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.dice-modal__panel--piece {
+  border-color: rgba(212, 175, 55, 0.5);
+}
+
+/* ===========================================
+   Header
+   =========================================== */
+
+.dice-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sw-space-3);
+  padding: var(--sw-space-4);
+  background: var(--sw-bg-tertiary);
+  border-bottom: 2px solid var(--sw-frame-soft);
+}
+
+.dice-modal__header-title {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-base);
+  letter-spacing: var(--sw-tracking-ultra);
+  text-transform: uppercase;
+  color: var(--sw-text-primary);
+  margin: 0;
+}
+
+.dice-modal__dice-icon {
+  color: var(--sw-accent-tertiary);
+}
+
+.dice-modal__dice-icon--rolling {
+  animation: dice-spin 0.35s linear infinite;
+  color: var(--sw-accent-tertiary);
+}
+
+.dice-modal__dice-icon--done {
+  color: var(--sw-text-muted);
+}
+
+@keyframes dice-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ===========================================
+   Body
+   =========================================== */
+
+.dice-modal__body {
+  min-height: 12rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sw-space-6);
+  gap: var(--sw-space-4);
+}
+
+/* Rolling animation */
+.dice-modal__rolling {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sw-space-4);
+}
+
+.dice-modal__rolling-cube {
+  position: relative;
+  width: 5rem;
+  height: 5rem;
+  background: var(--sw-bg-elevated);
+  border: 2px solid var(--sw-accent-dim);
+  border-radius: var(--sw-radius-sm);
+  box-shadow: var(--sw-pix-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: dice-bounce 0.5s ease-in-out infinite;
+}
+
+@keyframes dice-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+
+.dice-modal__rolling-cube-icon {
+  color: var(--sw-accent-tertiary);
+  animation: sw-ready-pulse 0.8s ease-in-out infinite;
+}
+
+.dice-modal__rolling-label {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-xs);
+  letter-spacing: var(--sw-tracking-widest);
+  color: var(--sw-text-muted);
+  animation: sw-ready-pulse 0.8s ease-in-out infinite;
+}
+
+/* Result display */
+.dice-modal__result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sw-space-4);
+  animation: sw-scale-in 0.3s ease-out;
+}
+
+.dice-modal__result-icon {
+  width: 4rem;
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid;
+  border-radius: var(--sw-radius-sm);
+  background: var(--sw-bg-elevated);
+  box-shadow: var(--sw-pix-shadow);
+}
+
+.dice-modal__result-icon--trap {
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #ef4444;
+}
+
+.dice-modal__result-icon--nothing {
+  border-color: var(--sw-frame-soft);
+  color: var(--sw-text-muted);
+}
+
+.dice-modal__result-icon--piece {
+  border-color: rgba(212, 175, 55, 0.6);
+  color: var(--treasure-gold);
+}
+
+.dice-modal__result-title {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-xl);
+  letter-spacing: var(--sw-tracking-wide);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.dice-modal__result-title--trap    { color: #ef4444; }
+.dice-modal__result-title--nothing { color: var(--sw-text-secondary); }
+.dice-modal__result-title--piece   { color: var(--treasure-gold); }
+
+.dice-modal__result-body {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sw-space-3);
+}
+
+.dice-modal__result-text {
+  font-family: var(--sw-font-pixel);
+  font-size: var(--sw-text-base);
+  color: var(--sw-text-secondary);
+  margin: 0;
+}
+
+.dice-modal__result-text--small {
+  font-size: var(--sw-text-sm);
+  color: var(--sw-text-tertiary);
+}
+
+/* HP loss badge — trap */
+.dice-modal__hp-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-2);
+  padding: var(--sw-space-2) var(--sw-space-4);
+  background: var(--sw-risk-high-bg);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  border-radius: var(--sw-radius-xs);
+  box-shadow: var(--sw-pix-shadow-sm);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-base);
+  color: #fca5a5;
+}
+
+/* Map progress bar — piece */
+.dice-modal__progress {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sw-space-2);
+}
+
+.dice-modal__progress-segments {
+  display: flex;
+  gap: var(--sw-space-1);
+  width: 100%;
+}
+
+.dice-modal__progress-seg {
+  flex: 1;
+  height: 0.625rem;
+  border-radius: var(--sw-radius-xs);
+  background: var(--sw-bg-tertiary);
+  border: 1px solid var(--sw-frame-soft);
+}
+
+.dice-modal__progress-seg--filled {
+  background: var(--treasure-gold);
+  border-color: var(--treasure-gold-dark);
+}
+
+.dice-modal__progress-label {
+  font-family: var(--sw-font-pixel);
+  font-size: var(--sw-text-sm);
+  color: var(--treasure-gold);
+}
+
+/* ===========================================
+   Footer
+   =========================================== */
+
+.dice-modal__footer {
+  padding: var(--sw-space-4);
+  border-top: 2px solid var(--sw-frame-soft);
+  animation: sw-fade-in 0.3s ease-out;
+}
+
+.dice-modal__continue-btn {
+  width: 100%;
+  padding: var(--sw-space-3) var(--sw-space-4);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-sm);
+  letter-spacing: var(--sw-tracking-wide);
+  text-transform: uppercase;
+  cursor: pointer;
+  background: var(--sw-bg-elevated);
+  border: 2px solid var(--sw-frame-soft);
+  border-radius: var(--sw-radius-xs);
+  box-shadow: var(--sw-pix-shadow-sm);
+  color: var(--sw-text-primary);
+  transition:
+    transform var(--sw-transition-fast),
+    box-shadow var(--sw-transition-fast),
+    background var(--sw-transition-base);
+}
+
+.dice-modal__continue-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--sw-pix-shadow);
+  border-color: var(--sw-frame);
+}
+
+.dice-modal__continue-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
+}
+
+.dice-modal__continue-btn--trap {
+  background: var(--sw-risk-high-bg);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+
+.dice-modal__continue-btn--piece {
+  background: rgba(212, 175, 55, 0.15);
+  border-color: rgba(212, 175, 55, 0.5);
+  color: var(--treasure-gold);
+}
+
+.dice-modal__shortcut-hint {
+  text-align: center;
+  font-family: var(--sw-font-pixel);
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-text-muted);
+  margin-top: var(--sw-space-2);
+}

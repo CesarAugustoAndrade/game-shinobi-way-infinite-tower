@@ -20,7 +20,6 @@ import {
   Package,
 } from 'lucide-react';
 import { PendingBagFullItem } from '../../hooks/useTreasureHandlers';
-import Tooltip from '../../components/shared/Tooltip';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import './treasure.css';
 
@@ -164,69 +163,58 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
       );
     }
 
-    // Revealed card
+    // Revealed card — the item IS the asset; details live in the scoped tooltip
     return (
-      <Tooltip
+      <button
         key={index}
-        content={
-          <div className="treasure-tooltip">
-            <div className={`treasure-tooltip__name ${getRarityColor(item.rarity)}`}>{item.name}</div>
-            <div className="treasure-tooltip__type">
-              {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
-            </div>
-            {item.description && (
-              <div className="treasure-tooltip__description">{item.description}</div>
-            )}
-            <div className="treasure-tooltip__stats">
-              {Object.entries(item.stats).map(([key, val]) => (
-                <div key={key} className="treasure-tooltip__stat">
-                  <span className="treasure-tooltip__stat-label">{formatStatName(key)}</span>
-                  <span className="treasure-tooltip__stat-value">+{val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        }
+        type="button"
+        className="treasure-card treasure-card--revealed item-tile"
+        onClick={() => onSelectItem(index)}
       >
-        <button
-          type="button"
-          className="treasure-card treasure-card--revealed"
-          onClick={() => onSelectItem(index)}
-        >
-          <div className="treasure-card__frame" />
-          <div className="treasure-card__corner treasure-card__corner--tl" />
-          <div className="treasure-card__corner treasure-card__corner--tr" />
-          <div className="treasure-card__corner treasure-card__corner--bl" />
-          <div className="treasure-card__corner treasure-card__corner--br" />
-          <span className="treasure-card__number">{index + 1}</span>
-
-          {choice.isArtifact && (
-            <div className="treasure-card__artifact-badge">
-              <Sparkles className="w-6 h-6" />
-            </div>
-          )}
-
-          <div className="treasure-card__content">
-            <span className="treasure-card__item-icon">{item.icon || '📦'}</span>
-            <span className={`treasure-card__item-name ${getRarityColor(item.rarity)}`}>
-              {item.name}
-            </span>
-            <div className="treasure-card__divider" />
-            <div className="treasure-card__item-stats">
-              {Object.entries(item.stats).slice(0, 2).map(([key, val]) => (
-                <div key={key} className="treasure-card__stat">
-                  <span className="treasure-card__stat-label">{formatStatName(key).slice(0, 3)}</span>
-                  <span className="treasure-card__stat-value">+{val}</span>
-                </div>
-              ))}
-            </div>
-            <span className={`treasure-card__rarity ${getRarityColor(item.rarity)}`}>
-              {item.rarity}
-              {choice.isArtifact && <span className="ml-1 text-purple-400">★</span>}
-            </span>
+        {/* Detail tooltip — hover / keyboard focus / touch tap (focus) */}
+        <div className="item-tile__tooltip" role="tooltip">
+          <div className={`item-tooltip__name ${getRarityColor(item.rarity)}`}>{item.name}</div>
+          <div className="item-tooltip__type">
+            {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
           </div>
-        </button>
-      </Tooltip>
+          {item.description && (
+            <div className="item-tooltip__desc">{item.description}</div>
+          )}
+          <div className="item-tooltip__section">
+            {Object.entries(item.stats).map(([key, val]) => (
+              <div key={key} className="item-tooltip__row">
+                <span className="item-tooltip__label">{formatStatName(key)}</span>
+                <span className="item-tooltip__value">+{val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="treasure-card__frame" />
+        <div className="treasure-card__corner treasure-card__corner--tl" />
+        <div className="treasure-card__corner treasure-card__corner--tr" />
+        <div className="treasure-card__corner treasure-card__corner--bl" />
+        <div className="treasure-card__corner treasure-card__corner--br" />
+        <span className="treasure-card__number">{index + 1}</span>
+
+        {choice.isArtifact && (
+          <div className="treasure-card__artifact-badge">
+            <Sparkles className="w-6 h-6" />
+          </div>
+        )}
+
+        <div className="treasure-card__content">
+          {/* The item IS the asset — big visual, PNG-ready slot */}
+          <span className="item-tile__visual" aria-hidden="true">{item.icon || '📦'}</span>
+          <span className={`treasure-card__item-name ${getRarityColor(item.rarity)}`}>
+            {item.name}
+          </span>
+          <span className={`treasure-card__rarity ${getRarityColor(item.rarity)}`}>
+            {item.rarity}
+            {choice.isArtifact && <span className="ml-1 text-purple-400">★</span>}
+          </span>
+        </div>
+      </button>
     );
   };
 

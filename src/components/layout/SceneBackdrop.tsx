@@ -7,6 +7,11 @@ interface SceneBackdropProps {
    * Falls back to the dark CSS gradient if absent or if the image fails to load.
    */
   background?: string;
+  /**
+   * Biome image opacity override (default 0.38 from CSS). Lower = darker scene.
+   * Used by GameOver (0.20) to keep the death screen somber.
+   */
+  dim?: number;
   children: React.ReactNode;
 }
 
@@ -24,7 +29,7 @@ interface SceneBackdropProps {
  * biome image covers the full center-panel area, hiding the parchment panel
  * behind it.  The parent App.tsx container handles vertical scrolling.
  */
-export const SceneBackdrop: React.FC<SceneBackdropProps> = ({ background, children }) => {
+export const SceneBackdrop: React.FC<SceneBackdropProps> = ({ background, dim, children }) => {
   const [bgError, setBgError] = useState(false);
   const showBg = Boolean(background) && !bgError;
 
@@ -36,6 +41,7 @@ export const SceneBackdrop: React.FC<SceneBackdropProps> = ({ background, childr
           src={background}
           alt=""
           className="scene-backdrop__bg"
+          style={dim !== undefined ? { opacity: dim } : undefined}
           aria-hidden="true"
           onError={() => setBgError(true)}
         />

@@ -224,7 +224,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
 
   return (
     <div
-      className={`item-card item-card--${rarityClass} ${
+      className={`item-card item-tile item-card--${rarityClass} ${
         isSelected ? 'item-card--selected' : ''
       } ${isDimmed ? 'item-card--dimmed' : ''} ${
         !affordable ? 'item-card--unaffordable' : ''
@@ -234,6 +234,34 @@ const ItemCard: React.FC<ItemCardProps> = ({
       tabIndex={isDimmed ? -1 : 0}
       onKeyDown={(e) => e.key === 'Enter' && handleClick()}
     >
+      {/* Detail tooltip — hover / keyboard focus. Hidden while the card is
+          selected (the PreviewPanel already shows the full details). */}
+      <div className="item-tile__tooltip" role="tooltip">
+        <div className={`item-tooltip__name item-card__name--${rarityClass}`}>{item.name}</div>
+        <div className="item-tooltip__type">{item.rarity} {item.type}</div>
+        {item.description && (
+          <div className="item-tooltip__desc">{item.description}</div>
+        )}
+        <div className="item-tooltip__section">
+          {Object.entries(statComparisons)
+            .filter(([, data]) => data.value !== 0 || data.delta !== 0)
+            .map(([key, data]) => (
+              <div key={key} className="item-tooltip__row">
+                <span className="item-tooltip__label">{formatStatName(key)}</span>
+                <div className="item-tooltip__values">
+                  <span className="item-tooltip__value">+{data.value}</span>
+                  {data.delta !== 0 && !data.isNew && (
+                    <span className={data.delta > 0 ? 'item-tooltip__delta--positive' : 'item-tooltip__delta--negative'}>
+                      {data.delta > 0 ? '▲' : '▼'}{Math.abs(data.delta)}
+                    </span>
+                  )}
+                  {data.isNew && <span className="item-tooltip__delta--new">NEW</span>}
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
+
       {/* Frame overlay */}
       <div className="item-card__frame" />
 
@@ -259,48 +287,14 @@ const ItemCard: React.FC<ItemCardProps> = ({
           </span>
         </div>
 
-        {/* Item Icon */}
-        <div className="item-card__icon">{item.icon || '📦'}</div>
+        {/* The item IS the asset — big visual, PNG-ready slot */}
+        <div className="item-tile__visual" aria-hidden="true">{item.icon || '📦'}</div>
 
         {/* Item Info */}
         <div className="item-card__info">
           <h3 className={`item-card__name item-card__name--${rarityClass}`}>
             {item.name}
           </h3>
-        </div>
-
-        {/* Decorative divider */}
-        <div className="item-card__divider" />
-
-        {/* Stats */}
-        <div className="item-card__stats">
-          {Object.entries(statComparisons)
-            .filter(([, data]) => data.value !== 0 || data.delta !== 0)
-            .map(([key, data]) => (
-              <div key={key} className="item-card__stat">
-                <span className="item-card__stat-name">{formatStatName(key)}</span>
-                <div className="item-card__stat-values">
-                  <span className="item-card__stat-value">+{data.value}</span>
-                  {data.delta !== 0 && !data.isNew && (
-                    <span
-                      className={`item-card__stat-delta ${
-                        data.delta > 0
-                          ? 'item-card__stat-delta--increase'
-                          : 'item-card__stat-delta--decrease'
-                      }`}
-                    >
-                      {data.delta > 0 ? '▲' : '▼'}
-                      {Math.abs(data.delta)}
-                    </span>
-                  )}
-                  {data.isNew && (
-                    <span className="item-card__stat-delta item-card__stat-delta--new">
-                      NEW
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
         </div>
 
         {/* Footer */}

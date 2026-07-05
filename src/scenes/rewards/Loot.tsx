@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Item, Skill, Player, SkillTier, Rarity, EquipmentSlot, DamageType, MAX_BAG_SLOTS, SLOT_MAPPING } from '../../game/types';
 import { Scroll, Package } from 'lucide-react';
-import Tooltip from '../../components/shared/Tooltip';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import {
   formatStatName,
@@ -131,127 +130,102 @@ const Loot: React.FC<LootProps> = ({
           }
 
           return (
-            <Tooltip
+            <div
               key={item.id}
-              content={
-                <div className="loot-tooltip">
-                  <div className={`loot-tooltip__name ${getRarityClass(item.rarity)}`}>{item.name}</div>
-                  <div className="loot-tooltip__type">
-                    {item.rarity} {item.type}
-                  </div>
-                  {item.description && (
-                    <div className="loot-tooltip__description">{item.description}</div>
-                  )}
+              className={`loot-card item-tile ${item.isComponent ? 'loot-card--component' : ''} ${getCardRarityClass(item.rarity)}`}
+              tabIndex={0}
+            >
+              {/* Detail tooltip — hover / keyboard focus / touch tap (focus) */}
+              <div className="item-tile__tooltip" role="tooltip">
+                <div className={`item-tooltip__name ${getRarityClass(item.rarity)}`}>{item.name}</div>
+                <div className="item-tooltip__type">
+                  {item.rarity} {item.isComponent ? 'Component' : (item.type || 'Artifact')}
+                </div>
+                {item.description && !item.passive && (
+                  <div className="item-tooltip__desc">{item.description}</div>
+                )}
+                {!item.isComponent && item.passive && (
+                  <div className="item-tooltip__passive">Passive: {item.description}</div>
+                )}
 
-                  {/* Stats with comparison */}
-                  <div className="loot-tooltip__section">
+                {/* Stats with comparison vs equipped */}
+                {Object.keys(statComparisons).length > 0 && (
+                  <div className="item-tooltip__section">
                     {Object.entries(statComparisons).map(([key, data]) => (
-                      <div key={key} className="loot-tooltip__stat">
-                        <span className="loot-tooltip__stat-name">{formatStatName(key)}</span>
-                        <div className="loot-tooltip__stat-values">
-                          <span className="loot-tooltip__stat-value">+{data.value}</span>
+                      <div key={key} className="item-tooltip__row">
+                        <span className="item-tooltip__label">{formatStatName(key)}</span>
+                        <div className="item-tooltip__values">
+                          <span className="item-tooltip__value">+{data.value}</span>
                           {equippedItem && data.delta !== 0 && (
-                            <span className={data.delta > 0 ? 'loot-tooltip__stat-delta--positive' : 'loot-tooltip__stat-delta--negative'}>
+                            <span className={data.delta > 0 ? 'item-tooltip__delta--positive' : 'item-tooltip__delta--negative'}>
                               ({data.delta > 0 ? '+' : ''}{data.delta})
                             </span>
                           )}
                           {!equippedItem && (
-                            <span className="loot-tooltip__stat-new">(new)</span>
+                            <span className="item-tooltip__delta--new">(new)</span>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
-
-                  <div className="loot-tooltip__section">
-                    <div className="loot-tooltip__sell">
-                      Sell: {Math.floor(item.value * 0.6)} Ryo (60%)
-                    </div>
-                  </div>
-                </div>
-              }
-            >
-              <div className={`loot-card ${item.isComponent ? 'loot-card--component' : ''} ${getCardRarityClass(item.rarity)}`}>
-                <div className="loot-card__header">
-                  <h3 className={`loot-card__name ${getRarityClass(item.rarity)}`}>
-                    {item.icon && <span className="loot-card__icon">{item.icon}</span>}
-                    {item.name}
-                  </h3>
-                  <p className="loot-card__type">
-                    {item.isComponent ? 'Component' : (item.type || 'Artifact')} - {item.rarity}
-                  </p>
-                </div>
-
-                {/* Component description */}
-                {item.isComponent && item.description && (
-                  <p className="loot-card__description">{item.description}</p>
                 )}
-
-                {/* Artifact passive preview */}
-                {!item.isComponent && item.passive && (
-                  <div className="loot-card__passive">
-                    <p className="loot-card__passive-text">
-                      Passive: {item.description}
-                    </p>
-                  </div>
-                )}
-
-                <div className="loot-card__stats">
-                  {Object.entries(item.stats).map(([key, val]) => (
-                    <div key={key} className="loot-card__stat">
-                      <span>{formatStatName(key)}</span>
-                      <div className="loot-card__stat-value">
-                        <span>+{val}</span>
-                        {equippedItem && statComparisons[key]?.delta !== 0 && (
-                          <span className={`loot-card__stat-delta ${statComparisons[key]?.delta > 0 ? 'loot-card__stat-delta--positive' : 'loot-card__stat-delta--negative'}`}>
-                            ({statComparisons[key]?.delta > 0 ? '+' : ''}{statComparisons[key]?.delta})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
 
                 {/* Component synthesis hint */}
                 {item.isComponent && item.componentId && (
-                  <div className="loot-card__synthesis">
+                  <div className="item-tooltip__synth">
                     Can be combined into {getRecipesUsingComponent(item.componentId).length} artifacts
                   </div>
                 )}
 
-                {/* Action buttons */}
-                <div className={`loot-card__actions ${onStoreToBag ? 'loot-card__actions--three' : 'loot-card__actions--two'}`}>
-                  <button
-                    type="button"
-                    disabled={isProcessing}
-                    onClick={(e) => { e.stopPropagation(); onEquipItem(item); }}
-                    className="loot-card__btn loot-card__btn--equip"
-                  >
-                    Equip
-                  </button>
-                  {onStoreToBag && (
-                    <button
-                      type="button"
-                      disabled={isProcessing || !bagHasSpace}
-                      onClick={(e) => { e.stopPropagation(); onStoreToBag(item); }}
-                      className={`loot-card__btn ${bagHasSpace ? 'loot-card__btn--store' : 'loot-card__btn--store-disabled'}`}
-                      title={bagHasSpace ? `Store in bag (${bagSlotCount}/${MAX_BAG_SLOTS})` : 'Bag is full'}
-                    >
-                      <Package size={12} />
-                      {bagSlotCount}/{MAX_BAG_SLOTS}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    disabled={isProcessing}
-                    onClick={(e) => { e.stopPropagation(); onSellItem(item); }}
-                    className="loot-card__btn loot-card__btn--sell"
-                  >
-                    Sell (+{Math.floor(item.value * 0.6)})
-                  </button>
+                <div className="item-tooltip__section">
+                  <div className="item-tooltip__sell">
+                    Sell: {Math.floor(item.value * 0.6)} Ryo (60%)
+                  </div>
                 </div>
               </div>
-            </Tooltip>
+
+              {/* The item IS the asset — big visual, PNG-ready slot */}
+              <div className="item-tile__visual" aria-hidden="true">{item.icon || '📦'}</div>
+
+              <div className="loot-card__header">
+                <h3 className={`loot-card__name ${getRarityClass(item.rarity)}`}>{item.name}</h3>
+                <p className="loot-card__type">
+                  {item.isComponent ? 'Component' : (item.type || 'Artifact')} - {item.rarity}
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className={`loot-card__actions ${onStoreToBag ? 'loot-card__actions--three' : 'loot-card__actions--two'}`}>
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={(e) => { e.stopPropagation(); onEquipItem(item); }}
+                  className="loot-card__btn loot-card__btn--equip"
+                >
+                  Equip
+                </button>
+                {onStoreToBag && (
+                  <button
+                    type="button"
+                    disabled={isProcessing || !bagHasSpace}
+                    onClick={(e) => { e.stopPropagation(); onStoreToBag(item); }}
+                    className={`loot-card__btn ${bagHasSpace ? 'loot-card__btn--store' : 'loot-card__btn--store-disabled'}`}
+                    title={bagHasSpace ? `Store in bag (${bagSlotCount}/${MAX_BAG_SLOTS})` : 'Bag is full'}
+                  >
+                    <Package size={12} />
+                    {bagSlotCount}/{MAX_BAG_SLOTS}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={(e) => { e.stopPropagation(); onSellItem(item); }}
+                  className="loot-card__btn loot-card__btn--sell"
+                >
+                  Sell (+{Math.floor(item.value * 0.6)})
+                </button>
+              </div>
+            </div>
           );
         })}
 

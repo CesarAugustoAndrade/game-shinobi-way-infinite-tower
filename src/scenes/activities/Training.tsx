@@ -16,8 +16,10 @@ import {
   Wind,
   Target,
   Sparkles,
+  Swords,
   type LucideIcon
 } from 'lucide-react';
+import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './Training.css';
 
 interface TrainingProps {
@@ -26,6 +28,8 @@ interface TrainingProps {
   playerStats: { derived: DerivedStats };
   onTrain: (stat: PrimaryStat, intensity: TrainingIntensity) => void;
   onSkip: () => void;
+  /** Biome background image — fills the scene via SceneBackdrop. */
+  background?: string;
 }
 
 type StatCategory = 'body' | 'mind' | 'technique';
@@ -408,6 +412,7 @@ const Training: React.FC<TrainingProps> = ({
   playerStats,
   onTrain,
   onSkip,
+  background,
 }) => {
   const [selectedStat, setSelectedStat] = useState<PrimaryStat | null>(null);
   const [selectedIntensity, setSelectedIntensity] = useState<TrainingIntensity | null>(null);
@@ -517,11 +522,17 @@ const Training: React.FC<TrainingProps> = ({
   }, [handleKeyDown]);
 
   return (
+    <SceneBackdrop background={background}>
     <div className="training">
-      {/* Header */}
-      <header className="training__header">
-        <h1 className="training__title">Training Grounds</h1>
-        <p className="training__subtitle">"Forge your body and spirit"</p>
+      {/* Dojo NPC Presence — mirrors Merchant's NPC block */}
+      <header className="training__dojo">
+        <div className="training__dojo-frame">
+          <Swords size={40} className="training__dojo-icon" />
+        </div>
+        <div className="training__dojo-nameplate">
+          <span className="training__dojo-role">Training Grounds</span>
+        </div>
+        <p className="training__dojo-quote">"Forge your body and spirit through sweat and will."</p>
       </header>
 
       {/* Keyboard Hints */}
@@ -589,6 +600,7 @@ const Training: React.FC<TrainingProps> = ({
         </button>
       </div>
     </div>
+    </SceneBackdrop>
   );
 };
 

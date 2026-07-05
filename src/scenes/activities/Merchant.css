@@ -5,6 +5,7 @@
  */
 
 @import '../../styles/design-system/index.css';
+@import '../../styles/item-tile.css';
 
 /* ===========================================
    Main Container
@@ -17,7 +18,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-5);
-  z-index: 10;
 }
 
 /* ===========================================
@@ -99,7 +99,6 @@
   align-items: center;
   justify-content: center;
   gap: var(--sw-space-8);
-  z-index: 1;
 }
 
 .ryo-display {
@@ -267,9 +266,18 @@
     border-color var(--sw-transition-base);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* visible so the item-tile tooltip can pop above the card (T-018 a3) */
+  overflow: visible;
   background: var(--sw-bg-secondary);
   box-shadow: 4px 4px 0 0 var(--sw-hard);
+}
+
+/* Selected card: the PreviewPanel already shows full details — hide the
+   hover/focus tooltip to avoid duplicated info. */
+.item-card--selected.item-tile:hover > .item-tile__tooltip,
+.item-card--selected.item-tile:focus-within > .item-tile__tooltip {
+  opacity: 0;
+  visibility: hidden;
 }
 
 /* Rarity-specific border colors */
@@ -343,19 +351,8 @@
   flex: 1;
 }
 
-/* Item icon */
-.item-card__icon {
-  font-size: 2rem;
-  text-align: center;
-}
-
-/* Decorative divider */
-.item-card__divider {
-  width: 3rem;
-  height: 1px;
-  margin: var(--sw-space-1) auto;
-  background: linear-gradient(90deg, transparent, var(--treasure-gold-dark), transparent);
-}
+/* Item visual + detail stats live in the shared item-tile pattern —
+   see src/styles/item-tile.css (T-018 a3). */
 
 /* Hover: translate up-left + larger shadow */
 .item-card:hover:not(.item-card--dimmed) {
@@ -461,39 +458,6 @@
 .item-card__name--cursed   { color: var(--sw-rarity-cursed); }
 
 /* Item Card Stats */
-.item-card__stats {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-1);
-  font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-2xs);
-  flex: 1;
-  overflow-y: auto;
-}
-
-.item-card__stat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.item-card__stat-name {
-  color: var(--sw-text-muted);
-  text-transform: uppercase;
-}
-
-.item-card__stat-values {
-  display: flex;
-  align-items: center;
-  gap: var(--sw-space-2);
-}
-
-.item-card__stat-value    { color: var(--sw-text-primary); }
-.item-card__stat-delta    { font-size: var(--sw-text-2xs); }
-.item-card__stat-delta--increase { color: var(--sw-risk-safe-light); }
-.item-card__stat-delta--decrease { color: var(--sw-risk-high-light); }
-.item-card__stat-delta--new      { color: var(--sw-rarity-rare); }
-
 /* Item Card Footer */
 .item-card__footer {
   margin-top: auto;

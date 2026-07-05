@@ -5,6 +5,7 @@
  */
 
 @import '../../styles/design-system/index.css';
+@import '../../styles/item-tile.css';
 
 /* ===========================================
    TREASURE MODAL
@@ -85,7 +86,11 @@
   max-width: 56rem;
   width: 100%;
   max-height: 90vh;
-  overflow: hidden;
+  /* overflow: visible — allows item-tile tooltips to escape the container
+     boundary vertically. The border-radius (4px) still clips the
+     container's own background; child content naturally stays within
+     bounds and the body scrolls via its own overflow-y:auto. */
+  overflow: visible;
   box-shadow: var(--sw-pix-shadow-lg);
   animation: sw-scale-in 0.3s ease-out;
 }
@@ -361,7 +366,8 @@
   width: 200px;
   height: 260px;
   border-radius: var(--sw-radius-lg);
-  overflow: hidden;
+  /* visible so the item-tile tooltip can pop above the card (T-018 a3) */
+  overflow: visible;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
   cursor: pointer;
   background: var(--sw-bg-secondary);
@@ -494,44 +500,16 @@
   padding-top: var(--sw-space-5);
 }
 
-.treasure-card__item-icon {
-  font-size: 3rem;
-  margin-bottom: var(--sw-space-2);
-}
+/* Item visual + detail stats live in the shared item-tile pattern —
+   see src/styles/item-tile.css (T-018 a3). */
 
 .treasure-card__item-name {
   font-size: var(--sw-text-sm);
   font-weight: 700;
   text-align: center;
   line-height: 1.3;
+  margin-top: var(--sw-space-2);
   margin-bottom: var(--sw-space-2);
-}
-
-.treasure-card__divider {
-  width: 3rem;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--treasure-gold-dark), transparent);
-  margin-bottom: var(--sw-space-2);
-}
-
-.treasure-card__item-stats {
-  font-size: var(--sw-text-xs);
-  color: var(--sw-text-tertiary);
-  width: 100%;
-  padding: 0 var(--sw-space-2);
-}
-
-.treasure-card__stat {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 2px;
-}
-
-.treasure-card__stat-label { color: var(--sw-text-muted); }
-
-.treasure-card__stat-value {
-  color: var(--treasure-gold);
-  font-weight: 600;
 }
 
 .treasure-card__rarity {
@@ -1019,8 +997,6 @@
   gap: var(--sw-space-2);
 }
 
-.treasure-reward__card-icon { font-size: 3rem; }
-
 .treasure-reward__card-scroll-icon {
   width: 2rem;
   height: 2rem;
@@ -1054,12 +1030,6 @@
 
 .treasure-reward__card-type--skill { color: var(--sw-rarity-rare); }
 .treasure-reward__card-type--ryo   { color: var(--sw-risk-low-light); }
-
-.treasure-reward__card-stats {
-  font-size: var(--sw-text-xs);
-  margin-top: var(--sw-space-2);
-  width: 100%;
-}
 
 .treasure-reward__wealth-info {
   text-align: center;
@@ -1099,68 +1069,8 @@
   color: rgba(212, 175, 55, 0.5);
 }
 
-/* ===========================================
-   TREASURE TOOLTIP STYLES
-   =========================================== */
-
-.treasure-tooltip {
-  padding: var(--sw-space-1);
-  max-width: 280px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-2);
-}
-
-.treasure-tooltip__name      { font-weight: 700; margin-bottom: var(--sw-space-1); }
-.treasure-tooltip__type      { font-size: var(--sw-text-2xs); color: var(--sw-text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: var(--sw-space-2); }
-.treasure-tooltip__type--skill { color: var(--sw-rarity-rare); }
-.treasure-tooltip__description { font-size: var(--sw-text-xs); color: var(--sw-text-tertiary); font-style: italic; margin-bottom: var(--sw-space-2); }
-
-.treasure-tooltip__stats {
-  border-top: 1px solid var(--sw-glass-border);
-  padding-top: var(--sw-space-2);
-}
-
-.treasure-tooltip__stat {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--sw-text-2xs);
-  font-family: var(--sw-font-mono);
-  margin-bottom: 2px;
-}
-
-.treasure-tooltip__stat-label       { color: var(--sw-text-muted); }
-.treasure-tooltip__stat-value        { color: var(--sw-text-secondary); }
-.treasure-tooltip__stat-value--chakra { color: var(--sw-rarity-rare); }
-
-.treasure-tooltip__passive {
-  border-top: 1px solid var(--sw-rarity-epic-glow);
-  padding-top: var(--sw-space-2);
-  font-size: var(--sw-text-2xs);
-  color: var(--sw-rarity-epic);
-  margin-top: var(--sw-space-2);
-}
-
-.treasure-tooltip__effects {
-  border-top: 1px solid var(--sw-rarity-rare-bg);
-  padding-top: var(--sw-space-2);
-  margin-top: var(--sw-space-2);
-}
-
-.treasure-tooltip__effects-title {
-  font-size: var(--sw-text-3xs);
-  color: var(--sw-rarity-rare);
-  text-transform: uppercase;
-  margin-bottom: var(--sw-space-1);
-}
-
-.treasure-tooltip__effect {
-  display: flex;
-  align-items: center;
-  gap: var(--sw-space-1);
-  font-size: var(--sw-text-2xs);
-  color: var(--sw-text-tertiary);
-}
+/* Item detail tooltips live in the shared item-tile pattern —
+   see src/styles/item-tile.css (T-018 a3). */
 
 /* ===========================================
    BAG FULL PANEL

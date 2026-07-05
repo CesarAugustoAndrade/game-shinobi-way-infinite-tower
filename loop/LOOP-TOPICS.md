@@ -425,16 +425,29 @@
 ## T-018 · Pixel-Arcade: pantallas secundarias
 - id: T-018
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 50
 - targetScore: 85
 - lensFocus: [PRESENTACION]
 - origen: brainstorming docs/superpowers/specs/2026-07-02-pixel-arcade-remaining-screens-design.md
+- replan: 2026-07-05 por el humano tras T-017 — la integración de ESCENA va desde el arranque, no como parche.
 - description: >
-    Continuar la migración PIXEL-ARCADE (skill local `pixel-arcade` + `frontend-design`, tokens del design-system) en las
-    pantallas secundarias, con los mismos criterios que T-017 (botones/paneles blocky, sombras duras, Silkscreen/VT323, sin
-    hardcodeados, sin dead code, arte intacto). Pantallas: Training, GameGuide, GameOver, y los modales EventResultModal y
-    DiceRollResultModal.
+    Cerrar la migración PIXEL-ARCADE en las pantallas secundarias aplicando de una vez las DOS capas que T-017
+    aprendió por las malas: (a) chasis pixel-arcade (botones/paneles blocky, sombras duras sin blur, Silkscreen/VT323,
+    tokens sin hardcodeados, sin dead code, arte intacto) Y (b) INTEGRACIÓN EN EL MUNDO vía `SceneBackdrop`
+    (components/layout, creado en T-017: bioma + scrim + viñeta + scanlines con fallback) — nada de paneles
+    flotando en un vacío negro.
+    1. Training: escena sobre el bioma; el dojo/entrenamiento con presencia (header con identidad, como el NPC
+       del Merchant o el VICTORY del Loot); cards de stat con el patrón 2px+sombra dura.
+    2. GameOver: ya tiene identidad DEATH fuerte — auditar y elevar (¿bioma donde caíste de fondo, muy oscurecido?);
+       stats del run legibles; chasis blocky.
+    3. GameGuide: legibilidad primero (es texto largo): panel de lectura pixel-arcade con navegación clara;
+       SceneBackdrop opcional si no ensucia la lectura.
+    4. EventResultModal y DiceRollResultModal: coherencia con los tokens `--ev-*`/patrón modal de T-011/T-017
+       (backdrop que transparenta la escena, no negro pleno).
+    5. MainMenu y CharacterSelect: auditar contra el chasis — si ya cumplen (T-001), solo retoques; si flotan
+       en void, integrarlas también.
+    Entregar por implementación directa (patrón probado; sin fase de mockup) con screenshots del LEAD al final.
 - entryPoints:
     - src/scenes/activities/Training.tsx
     - src/scenes/menu/GameGuide.tsx

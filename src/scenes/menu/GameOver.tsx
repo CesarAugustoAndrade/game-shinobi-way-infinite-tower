@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { Skull } from 'lucide-react';
+import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './GameOver.css';
 
 interface GameOverProps {
@@ -8,6 +9,8 @@ interface GameOverProps {
   regionName: string;
   playerLevel?: number;
   onRetry: () => void;
+  /** Biome background where the player fell — shown very darkened behind the death screen. */
+  background?: string;
 }
 
 const GameOver: React.FC<GameOverProps> = ({
@@ -15,7 +18,8 @@ const GameOver: React.FC<GameOverProps> = ({
   dangerLevel,
   regionName,
   playerLevel,
-  onRetry
+  onRetry,
+  background,
 }) => {
   // Keyboard shortcut
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -40,6 +44,9 @@ const GameOver: React.FC<GameOverProps> = ({
 
   return (
     <div className="game-over">
+      <SceneBackdrop background={background} dim={0.2}>
+        {/* Red death vignette — layered inside content (z-10), behind all real content */}
+        <div className="game-over__death-vignette" aria-hidden="true" />
       <div className="game-over__content">
         {/* Death Icon */}
         <Skull size={64} className="game-over__icon" />
@@ -72,6 +79,7 @@ const GameOver: React.FC<GameOverProps> = ({
           <span className="sw-shortcut">Enter</span>
         </button>
       </div>
+      </SceneBackdrop>
     </div>
   );
 };

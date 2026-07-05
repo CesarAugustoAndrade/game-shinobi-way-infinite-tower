@@ -27,7 +27,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--sw-space-4);
-  background: rgba(3, 5, 10, 0.82);
+  background: rgba(3, 5, 10, 0.62);
   animation: sw-fade-in 0.2s ease-out;
 }
 

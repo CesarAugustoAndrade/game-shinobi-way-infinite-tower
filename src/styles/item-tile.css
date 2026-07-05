@@ -1,0 +1,206 @@
+/**
+ * Item Tile pattern (T-018 a3) — "the item IS the asset + info in tooltip".
+ *
+ * Shared by Loot, Merchant and Treasure item cards:
+ *  - .item-tile          host modifier (position anchor + focusable)
+ *  - .item-tile__visual  big, protagonist item visual (emoji today, PNG-ready
+ *                        for T-019/T-020 asset waves)
+ *  - .item-tile__tooltip scoped blocky popover (T-011 Event.css pattern:
+ *                        hard shadow, no blur, opens upward, hover + focus)
+ *  - .item-tooltip__*    tooltip content rows (name/type/desc/stats/deltas)
+ *
+ * Accessibility: tooltip opens on :hover AND :focus-within. Hosts are
+ * focusable (button or tabIndex=0), so keyboard focus and touch-tap (tap
+ * focuses the card) both reveal the tooltip. Action buttons stay on the card.
+ */
+
+@import './design-system/index.css';
+
+/* ============================================================
+   Host — anchors the popover
+   ============================================================ */
+
+.item-tile {
+  position: relative;
+}
+
+/* Elevate the host to the popover z-level when active so the tooltip
+   always paints above sibling stacking contexts that have a lower
+   positive z-index (e.g. a resources bar with sw-panel--ornate
+   giving it position:relative + z-index:1). */
+.item-tile:hover,
+.item-tile:focus-within {
+  z-index: var(--sw-z-popover);
+}
+
+/* ============================================================
+   Visual — the item is the protagonist
+   ============================================================ */
+
+.item-tile__visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 5rem;   /* 80px slot — ready for 64px PNG sprites */
+  height: 5rem;
+  font-size: 3.25rem; /* ~52px emoji glyph */
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--sw-frame-soft);
+  border-radius: var(--sw-radius-sm);
+  box-shadow: var(--sw-shadow-inset);
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+.item-tile__visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* ============================================================
+   Tooltip popover — blocky, hard shadow, opens upward
+   ============================================================ */
+
+/* Full card width (T-011 Event.css strategy) — the popover can never overflow
+   the viewport horizontally more than its own card does. */
+.item-tile__tooltip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + var(--sw-space-2));
+  z-index: var(--sw-z-popover);
+  padding: var(--sw-space-3);
+  background: var(--sw-bg-secondary);
+  border: 2px solid var(--sw-frame);
+  border-radius: var(--sw-radius-sm);
+  box-shadow: 4px 4px 0 0 var(--sw-hard);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity var(--sw-transition-fast),
+    transform var(--sw-transition-fast),
+    visibility var(--sw-transition-fast);
+  pointer-events: none;
+  text-align: left;
+  cursor: default;
+}
+
+.item-tile:hover > .item-tile__tooltip,
+.item-tile:focus-within > .item-tile__tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Downward notch aimed at the card */
+.item-tile__tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: var(--sw-space-4);
+  border: 6px solid transparent;
+  border-top-color: var(--sw-frame);
+}
+
+/* ============================================================
+   Tooltip content rows
+   ============================================================ */
+
+.item-tooltip__name {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-sm);
+  letter-spacing: var(--sw-tracking-wide);
+}
+
+.item-tooltip__type {
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-widest);
+  margin-bottom: var(--sw-space-2);
+}
+
+.item-tooltip__desc {
+  font-family: var(--sw-font-pixel);
+  font-size: var(--sw-text-sm);
+  color: var(--sw-text-tertiary);
+  font-style: italic;
+  margin-bottom: var(--sw-space-2);
+}
+
+.item-tooltip__section {
+  border-top: 1px solid var(--sw-frame-soft);
+  padding-top: var(--sw-space-2);
+  margin-top: var(--sw-space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-1);
+}
+
+.item-tooltip__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sw-space-4);
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-xs);
+  text-transform: uppercase;
+}
+
+.item-tooltip__label { color: var(--sw-text-muted); }
+
+.item-tooltip__values {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-2);
+}
+
+.item-tooltip__value { color: var(--sw-text-secondary); }
+
+.item-tooltip__delta--positive { color: var(--sw-risk-safe-light); }
+.item-tooltip__delta--negative { color: var(--sw-risk-high-light); }
+.item-tooltip__delta--new      { color: var(--sw-rarity-rare); }
+
+.item-tooltip__passive {
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-rarity-epic);
+  background: var(--sw-rarity-epic-bg);
+  border: 1px solid var(--sw-rarity-epic-glow);
+  border-radius: var(--sw-radius-xs);
+  padding: var(--sw-space-2);
+  margin-top: var(--sw-space-2);
+}
+
+.item-tooltip__synth {
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-accent-tertiary);
+  margin-top: var(--sw-space-2);
+}
+
+.item-tooltip__sell {
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-risk-low-light);
+}
+
+/* Skill scroll variants (TreasureHuntReward) */
+.item-tooltip__value--chakra { color: var(--sw-rarity-rare); }
+
+.item-tooltip__effects-title {
+  font-size: var(--sw-text-3xs);
+  color: var(--sw-rarity-rare);
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+  margin-bottom: var(--sw-space-1);
+}
+
+.item-tooltip__effect {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-1-5);
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-text-tertiary);
+}

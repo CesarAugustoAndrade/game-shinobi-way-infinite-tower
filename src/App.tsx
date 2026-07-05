@@ -766,6 +766,7 @@ const App: React.FC = () => {
         dangerLevel={currentDangerLevel}
         regionName={region?.name ?? 'Unknown Region'}
         playerLevel={player?.level}
+        background={combatBackground}
         onRetry={() => {
           setGameState(GameState.MENU);
           setPlayer(null);
@@ -882,6 +883,7 @@ const App: React.FC = () => {
               playerStats={playerStats}
               onTrain={handleTrainingComplete}
               onSkip={handleTrainingSkip}
+              background={combatBackground}
             />
           )}
 

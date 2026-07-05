@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Item, Skill, Rarity, SkillTier, DamageType } from '../../game/types';
 import { Scroll, MapPin, Coins, Sparkles, Award } from 'lucide-react';
-import Tooltip from '../../components/shared/Tooltip';
 import { formatStatName, getStatColor, formatScalingStat, getEffectColor, getEffectIcon, formatEffectDescription } from '../../game/utils/tooltipFormatters';
 import './treasure.css';
 
@@ -75,141 +74,122 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
     ));
   };
 
-  // Render item reward card
+  // Render item reward card — the item IS the asset; details in scoped tooltip
   const renderItemCard = (item: Item, index: number) => (
-    <Tooltip
+    <div
       key={item.id}
-      content={
-        <div className="treasure-tooltip">
-          <div className={`treasure-tooltip__name ${getRarityColor(item.rarity)}`}>
-            {item.name}
-          </div>
-          <div className="treasure-tooltip__type">
-            {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
-          </div>
-          {item.description && (
-            <div className="treasure-tooltip__description">{item.description}</div>
-          )}
-          <div className="treasure-tooltip__stats">
-            {Object.entries(item.stats).map(([key, val]) => (
-              <div key={key} className="treasure-tooltip__stat">
-                <span className="treasure-tooltip__stat-label">{formatStatName(key)}</span>
-                <span className="treasure-tooltip__stat-value">+{val}</span>
-              </div>
-            ))}
-          </div>
-          {item.passive && (
-            <div className="treasure-tooltip__passive">
-              Passive: {item.description}
-            </div>
-          )}
-        </div>
-      }
+      className={`treasure-reward__card item-tile ${item.passive ? 'treasure-reward__card--artifact' : ''}`}
+      style={{ animationDelay: `${index * 100 + 500}ms` }}
+      tabIndex={0}
     >
-      <div
-        className={`treasure-reward__card ${item.passive ? 'treasure-reward__card--artifact' : ''}`}
-        style={{ animationDelay: `${index * 100 + 500}ms` }}
-      >
-        {/* Corner ornaments */}
-        <div className="treasure-card__corner treasure-card__corner--tl" />
-        <div className="treasure-card__corner treasure-card__corner--tr" />
-        <div className="treasure-card__corner treasure-card__corner--bl" />
-        <div className="treasure-card__corner treasure-card__corner--br" />
-
-        {/* Artifact sparkle */}
-        {item.passive && (
-          <div className="treasure-card__artifact-badge">
-            <Sparkles className="w-6 h-6" />
-          </div>
+      {/* Detail tooltip — hover / keyboard focus / touch tap (focus) */}
+      <div className="item-tile__tooltip" role="tooltip">
+        <div className={`item-tooltip__name ${getRarityColor(item.rarity)}`}>{item.name}</div>
+        <div className="item-tooltip__type">
+          {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
+        </div>
+        {item.description && !item.passive && (
+          <div className="item-tooltip__desc">{item.description}</div>
         )}
-
-        <div className="treasure-reward__card-content">
-          <span className="treasure-reward__card-icon">{item.icon || '📦'}</span>
-          <div className={`treasure-reward__card-name ${getRarityColor(item.rarity)}`}>
-            {item.name}
-          </div>
-          <div className="treasure-reward__card-type">
-            {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
-          </div>
-
-          {/* Quick stats */}
-          <div className="treasure-reward__card-stats">
-            {Object.entries(item.stats).slice(0, 2).map(([key, val]) => (
-              <div key={key} className="treasure-card__stat">
-                <span className="treasure-card__stat-label">{formatStatName(key)}</span>
-                <span className="treasure-card__stat-value">+{val}</span>
-              </div>
-            ))}
-          </div>
+        {item.passive && (
+          <div className="item-tooltip__passive">Passive: {item.description}</div>
+        )}
+        <div className="item-tooltip__section">
+          {Object.entries(item.stats).map(([key, val]) => (
+            <div key={key} className="item-tooltip__row">
+              <span className="item-tooltip__label">{formatStatName(key)}</span>
+              <span className="item-tooltip__value">+{val}</span>
+            </div>
+          ))}
         </div>
       </div>
-    </Tooltip>
+
+      {/* Corner ornaments */}
+      <div className="treasure-card__corner treasure-card__corner--tl" />
+      <div className="treasure-card__corner treasure-card__corner--tr" />
+      <div className="treasure-card__corner treasure-card__corner--bl" />
+      <div className="treasure-card__corner treasure-card__corner--br" />
+
+      {/* Artifact sparkle */}
+      {item.passive && (
+        <div className="treasure-card__artifact-badge">
+          <Sparkles className="w-6 h-6" />
+        </div>
+      )}
+
+      <div className="treasure-reward__card-content">
+        {/* The item IS the asset — big visual, PNG-ready slot */}
+        <span className="item-tile__visual" aria-hidden="true">{item.icon || '📦'}</span>
+        <div className={`treasure-reward__card-name ${getRarityColor(item.rarity)}`}>
+          {item.name}
+        </div>
+        <div className="treasure-reward__card-type">
+          {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
+        </div>
+      </div>
+    </div>
   );
 
-  // Render skill scroll card
+  // Render skill scroll card — details in scoped tooltip
   const renderSkillCard = (skill: Skill, index: number) => (
-    <Tooltip
+    <div
       key={skill.id}
-      content={
-        <div className="treasure-tooltip">
-          <div className={`treasure-tooltip__name ${skill.tier === SkillTier.FORBIDDEN ? 'treasure-skill--forbidden' : 'treasure-skill--scroll'}`}>
-            {skill.name}
-          </div>
-          <div className="treasure-tooltip__type treasure-tooltip__type--skill">
-            {skill.tier} Jutsu
-          </div>
-          <div className="treasure-tooltip__description">{skill.description}</div>
-
-          <div className="treasure-tooltip__stats">
-            <div className="treasure-tooltip__stat">
-              <span className="treasure-tooltip__stat-label">Chakra Cost</span>
-              <span className="treasure-tooltip__stat-value treasure-tooltip__stat-value--chakra">{skill.chakraCost}</span>
-            </div>
-            <div className="treasure-tooltip__stat">
-              <span className="treasure-tooltip__stat-label">Damage Type</span>
-              <span className={getDamageTypeColor(skill.damageType)}>{skill.damageType}</span>
-            </div>
-            <div className="treasure-tooltip__stat">
-              <span className="treasure-tooltip__stat-label">Scales with</span>
-              <span className={getStatColor(skill.scalingStat)}>{formatScalingStat(skill.scalingStat)}</span>
-            </div>
-          </div>
-
-          {skill.effects && skill.effects.length > 0 && (
-            <div className="treasure-tooltip__effects">
-              <div className="treasure-tooltip__effects-title">Effects</div>
-              {skill.effects.map((effect, idx) => (
-                <div key={idx} className="treasure-tooltip__effect">
-                  <span className={getEffectColor(effect.type)}>{getEffectIcon(effect.type)}</span>
-                  <span>{formatEffectDescription(effect)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      }
+      className="treasure-reward__card treasure-reward__card--skill item-tile"
+      style={{ animationDelay: `${index * 100 + 600}ms` }}
+      tabIndex={0}
     >
-      <div
-        className="treasure-reward__card treasure-reward__card--skill"
-        style={{ animationDelay: `${index * 100 + 600}ms` }}
-      >
-        {/* Corner ornaments */}
-        <div className="treasure-card__corner treasure-card__corner--tl" />
-        <div className="treasure-card__corner treasure-card__corner--tr" />
-        <div className="treasure-card__corner treasure-card__corner--bl" />
-        <div className="treasure-card__corner treasure-card__corner--br" />
+      {/* Detail tooltip — hover / keyboard focus / touch tap (focus) */}
+      <div className="item-tile__tooltip" role="tooltip">
+        <div className={`item-tooltip__name ${skill.tier === SkillTier.FORBIDDEN ? 'treasure-skill--forbidden' : 'treasure-skill--scroll'}`}>
+          {skill.name}
+        </div>
+        <div className="item-tooltip__type">{skill.tier} Jutsu</div>
+        <div className="item-tooltip__desc">{skill.description}</div>
 
-        <div className="treasure-reward__card-content">
-          <Scroll className="treasure-reward__card-scroll-icon" />
-          <div className={`treasure-reward__card-name ${skill.tier === SkillTier.FORBIDDEN ? 'treasure-skill--forbidden' : 'treasure-skill--scroll'}`}>
-            {skill.name}
+        <div className="item-tooltip__section">
+          <div className="item-tooltip__row">
+            <span className="item-tooltip__label">Chakra Cost</span>
+            <span className="item-tooltip__value item-tooltip__value--chakra">{skill.chakraCost}</span>
           </div>
-          <div className="treasure-reward__card-type treasure-reward__card-type--skill">
-            {skill.tier} Scroll
+          <div className="item-tooltip__row">
+            <span className="item-tooltip__label">Damage Type</span>
+            <span className={getDamageTypeColor(skill.damageType)}>{skill.damageType}</span>
           </div>
+          <div className="item-tooltip__row">
+            <span className="item-tooltip__label">Scales with</span>
+            <span className={getStatColor(skill.scalingStat)}>{formatScalingStat(skill.scalingStat)}</span>
+          </div>
+        </div>
+
+        {skill.effects && skill.effects.length > 0 && (
+          <div className="item-tooltip__section">
+            <div className="item-tooltip__effects-title">Effects</div>
+            {skill.effects.map((effect, idx) => (
+              <div key={idx} className="item-tooltip__effect">
+                <span className={getEffectColor(effect.type)}>{getEffectIcon(effect.type)}</span>
+                <span>{formatEffectDescription(effect)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Corner ornaments */}
+      <div className="treasure-card__corner treasure-card__corner--tl" />
+      <div className="treasure-card__corner treasure-card__corner--tr" />
+      <div className="treasure-card__corner treasure-card__corner--bl" />
+      <div className="treasure-card__corner treasure-card__corner--br" />
+
+      <div className="treasure-reward__card-content">
+        <Scroll className="treasure-reward__card-scroll-icon" />
+        <div className={`treasure-reward__card-name ${skill.tier === SkillTier.FORBIDDEN ? 'treasure-skill--forbidden' : 'treasure-skill--scroll'}`}>
+          {skill.name}
+        </div>
+        <div className="treasure-reward__card-type treasure-reward__card-type--skill">
+          {skill.tier} Scroll
         </div>
       </div>
-    </Tooltip>
+    </div>
   );
 
   return (
