@@ -1,6 +1,7 @@
 /**
  * Merchant Scene Styles
  * BEM-style CSS for the Traveling Merchant experience
+ * Pixel-arcade card pattern: solid bg, rarity border 2px, hard shadow, translate hover.
  */
 
 @import '../../styles/design-system/index.css';
@@ -20,7 +21,7 @@
 }
 
 /* ===========================================
-   Header
+   Header / NPC Presence
    =========================================== */
 
 .merchant__header {
@@ -28,33 +29,61 @@
   margin-bottom: var(--sw-space-2);
 }
 
-.merchant__icon {
-  font-size: 2.5rem;
-  margin-bottom: var(--sw-space-2);
-  color: var(--sw-text-tertiary);
+/* NPC character portrait block — mirrors the enemy info panel from combat */
+.merchant__npc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sw-space-3);
 }
 
-.merchant__title {
-  font-size: var(--sw-text-2xl);
+.merchant__npc-frame {
+  width: 96px;
+  height: 96px;
+  border: 2px solid var(--sw-accent-dim);
+  border-radius: var(--sw-radius-sm);
+  background: var(--sw-glass-bg-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    var(--sw-pix-shadow-lg),
+    0 0 24px rgba(245, 158, 11, 0.18),
+    inset 0 0 12px rgba(0, 0, 0, 0.5);
+}
+
+.merchant__npc-icon {
+  font-size: 3rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.4));
+}
+
+.merchant__npc-nameplate {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-3);
+}
+
+.merchant__npc-role {
   font-family: var(--sw-font-serif);
+  font-size: var(--sw-text-sm);
   letter-spacing: var(--sw-tracking-ultra);
   text-transform: uppercase;
-  color: var(--sw-text-muted);
-  margin-bottom: var(--sw-space-1);
+  color: var(--sw-accent-tertiary);
 }
 
-.merchant__subtitle {
+.merchant__npc-quote {
   font-size: var(--sw-text-xs);
   color: var(--sw-text-muted);
   font-style: italic;
+  max-width: 28rem;
 }
 
 .merchant__discount-badge {
   display: inline-block;
-  margin-left: var(--sw-space-3);
   padding: var(--sw-space-1) var(--sw-space-2);
   background: var(--sw-accent-secondary);
-  color: black;
+  color: var(--sw-on-accent);
   font-size: var(--sw-text-2xs);
   font-weight: 700;
   border-radius: var(--sw-radius-sm);
@@ -148,7 +177,7 @@
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
   cursor: pointer;
-  transition: all var(--sw-transition-base);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast), background var(--sw-transition-base);
   background: transparent;
 }
 
@@ -163,12 +192,12 @@
 }
 
 .service-button--reroll:hover:not(:disabled) {
-  background: rgba(113, 113, 122, 0.2);
-  border-color: var(--sw-glass-border-highlight);
+  background: var(--sw-bg-tertiary);
+  border-color: var(--sw-frame);
 }
 
 .service-button--slot {
-  border-color: rgba(59, 130, 246, 0.5);
+  border-color: var(--sw-rarity-rare-glow);
   color: var(--sw-rarity-rare);
 }
 
@@ -178,7 +207,7 @@
 }
 
 .service-button--quality {
-  border-color: rgba(168, 85, 247, 0.5);
+  border-color: var(--sw-rarity-epic-glow);
   color: var(--sw-rarity-epic);
 }
 
@@ -218,30 +247,44 @@
   flex: 1;
 }
 
-/* Item grid is flexbox - cards have fixed width, wrap naturally */
-
 /* ===========================================
-   Item Card
+   Item Card  —  pixel-arcade pattern
+   bg: --sw-bg-secondary solid
+   border: 2px rarity-color
+   shadow: 4px 4px 0 0 --sw-hard
+   hover: translate(-2px,-2px) + 6px shadow + rarity glow (approved exception)
+   active: translate(2px,2px) + 1px shadow
    =========================================== */
 
 .item-card {
   position: relative;
   width: 200px;
   height: 260px;
-  border: 2px solid var(--treasure-gold-dark, #b8860b);
+  border: 2px solid var(--sw-frame-soft);
   border-radius: var(--sw-radius-lg);
   cursor: pointer;
-  transition: all var(--sw-transition-slow);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
+    border-color var(--sw-transition-base);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--sw-bg-secondary);
+  box-shadow: 4px 4px 0 0 var(--sw-hard);
 }
 
-/* Frame overlay */
+/* Rarity-specific border colors */
+.item-card--broken  { border-color: var(--sw-rarity-broken); }
+.item-card--common  { border-color: var(--sw-frame-soft); }
+.item-card--rare    { border-color: var(--sw-rarity-rare); }
+.item-card--epic    { border-color: var(--sw-rarity-epic); }
+.item-card--legendary { border-color: var(--sw-rarity-legendary); }
+.item-card--cursed  { border-color: var(--sw-rarity-cursed); }
+
+/* Frame overlay — solid, no gradient */
 .item-card__frame {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, var(--treasure-parchment-light, #3d332a) 0%, var(--treasure-parchment, #2a231a) 100%);
+  background: var(--sw-bg-secondary);
   border-radius: var(--sw-radius-lg);
   pointer-events: none;
 }
@@ -251,7 +294,7 @@
   position: absolute;
   width: 20px;
   height: 20px;
-  border: 2px solid var(--treasure-gold, #d4af37);
+  border: 2px solid var(--treasure-gold);
   opacity: 0.5;
   pointer-events: none;
   z-index: 2;
@@ -311,23 +354,29 @@
   width: 3rem;
   height: 1px;
   margin: var(--sw-space-1) auto;
-  background: linear-gradient(90deg, transparent, var(--treasure-gold-dark, #b8860b), transparent);
+  background: linear-gradient(90deg, transparent, var(--treasure-gold-dark), transparent);
 }
 
+/* Hover: translate up-left + larger shadow */
 .item-card:hover:not(.item-card--dimmed) {
-  transform: translateY(-4px);
-  border-color: var(--treasure-gold, #d4af37);
-  box-shadow: 0 0 25px var(--treasure-glow, rgba(212, 175, 55, 0.3));
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 0 var(--sw-hard);
+}
+
+/* Active: press down */
+.item-card:active:not(.item-card--dimmed) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .item-card:hover:not(.item-card--dimmed) .item-card__corner {
   opacity: 0.8;
 }
 
+/* Selected: same as hover */
 .item-card--selected {
-  transform: translateY(-4px);
-  border-color: var(--treasure-gold, #d4af37);
-  box-shadow: 0 0 25px var(--treasure-glow, rgba(212, 175, 55, 0.3));
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 0 var(--sw-hard);
 }
 
 .item-card--selected .item-card__corner {
@@ -341,32 +390,32 @@
 }
 
 /* Rarity-specific corner colors */
-.item-card--broken .item-card__corner { border-color: var(--sw-rarity-broken); }
-.item-card--common .item-card__corner { border-color: var(--sw-text-muted); }
-.item-card--rare .item-card__corner { border-color: var(--sw-rarity-rare); }
-.item-card--epic .item-card__corner { border-color: var(--sw-rarity-epic); }
+.item-card--broken   .item-card__corner { border-color: var(--sw-rarity-broken); }
+.item-card--common   .item-card__corner { border-color: var(--sw-text-muted); }
+.item-card--rare     .item-card__corner { border-color: var(--sw-rarity-rare); }
+.item-card--epic     .item-card__corner { border-color: var(--sw-rarity-epic); }
 .item-card--legendary .item-card__corner { border-color: var(--sw-rarity-legendary); }
-.item-card--cursed .item-card__corner { border-color: var(--sw-rarity-cursed); }
+.item-card--cursed   .item-card__corner { border-color: var(--sw-rarity-cursed); }
 
-/* Rarity-specific hover glows */
+/* Rarity glows on hover/selected — APPROVED EXCEPTION for item-cards only (no blur) */
 .item-card--rare:hover:not(.item-card--dimmed),
 .item-card--rare.item-card--selected {
-  box-shadow: 0 0 20px var(--sw-rarity-rare-glow);
+  box-shadow: 6px 6px 0 0 var(--sw-hard), 0 0 12px var(--sw-rarity-rare-glow);
 }
 
 .item-card--epic:hover:not(.item-card--dimmed),
 .item-card--epic.item-card--selected {
-  box-shadow: 0 0 20px var(--sw-rarity-epic-glow);
+  box-shadow: 6px 6px 0 0 var(--sw-hard), 0 0 14px var(--sw-rarity-epic-glow);
 }
 
 .item-card--legendary:hover:not(.item-card--dimmed),
 .item-card--legendary.item-card--selected {
-  box-shadow: 0 0 25px var(--sw-rarity-legendary-glow);
+  box-shadow: 6px 6px 0 0 var(--sw-hard), 0 0 16px var(--sw-rarity-legendary-glow);
 }
 
 .item-card--cursed:hover:not(.item-card--dimmed),
 .item-card--cursed.item-card--selected {
-  box-shadow: 0 0 25px var(--sw-rarity-cursed-glow);
+  box-shadow: 6px 6px 0 0 var(--sw-hard), 0 0 16px var(--sw-rarity-cursed-glow);
 }
 
 /* Item Card Header */
@@ -386,60 +435,30 @@
   font-weight: 600;
 }
 
-.item-card__rarity-tag--broken {
-  background: var(--sw-rarity-broken-bg);
-  color: var(--sw-rarity-broken);
-}
-
-.item-card__rarity-tag--common {
-  background: var(--sw-rarity-common-bg);
-  color: var(--sw-text-secondary);
-}
-
-.item-card__rarity-tag--rare {
-  background: var(--sw-rarity-rare-bg);
-  color: var(--sw-rarity-rare);
-}
-
-.item-card__rarity-tag--epic {
-  background: var(--sw-rarity-epic-bg);
-  color: var(--sw-rarity-epic);
-}
-
-.item-card__rarity-tag--legendary {
-  background: var(--sw-rarity-legendary-bg);
-  color: var(--sw-rarity-legendary);
-}
-
-.item-card__rarity-tag--cursed {
-  background: var(--sw-rarity-cursed-bg);
-  color: var(--sw-rarity-cursed);
-}
+.item-card__rarity-tag--broken   { background: var(--sw-rarity-broken-bg); color: var(--sw-rarity-broken); }
+.item-card__rarity-tag--common   { background: var(--sw-rarity-common-bg); color: var(--sw-text-secondary); }
+.item-card__rarity-tag--rare     { background: var(--sw-rarity-rare-bg);   color: var(--sw-rarity-rare); }
+.item-card__rarity-tag--epic     { background: var(--sw-rarity-epic-bg);   color: var(--sw-rarity-epic); }
+.item-card__rarity-tag--legendary { background: var(--sw-rarity-legendary-bg); color: var(--sw-rarity-legendary); }
+.item-card__rarity-tag--cursed   { background: var(--sw-rarity-cursed-bg); color: var(--sw-rarity-cursed); }
 
 .item-card__afford-indicator {
   font-size: var(--sw-text-sm);
 }
 
-/* Item Card Content */
+/* Item Card Name */
 .item-card__name {
   font-size: var(--sw-text-sm);
   font-weight: 600;
   text-align: center;
 }
 
-.item-card__name--broken { color: var(--sw-rarity-broken); }
-.item-card__name--common { color: var(--sw-text-primary); }
-.item-card__name--rare { color: var(--sw-rarity-rare); }
-.item-card__name--epic { color: var(--sw-rarity-epic); }
+.item-card__name--broken   { color: var(--sw-rarity-broken); }
+.item-card__name--common   { color: var(--sw-text-primary); }
+.item-card__name--rare     { color: var(--sw-rarity-rare); }
+.item-card__name--epic     { color: var(--sw-rarity-epic); }
 .item-card__name--legendary { color: var(--sw-rarity-legendary); }
-.item-card__name--cursed { color: var(--sw-rarity-cursed); }
-
-.item-card__type {
-  font-size: var(--sw-text-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-widest);
-  color: var(--sw-text-muted);
-}
+.item-card__name--cursed   { color: var(--sw-rarity-cursed); }
 
 /* Item Card Stats */
 .item-card__stats {
@@ -469,31 +488,17 @@
   gap: var(--sw-space-2);
 }
 
-.item-card__stat-value {
-  color: var(--sw-text-primary);
-}
-
-.item-card__stat-delta {
-  font-size: var(--sw-text-2xs);
-}
-
-.item-card__stat-delta--increase {
-  color: var(--sw-risk-safe-light);
-}
-
-.item-card__stat-delta--decrease {
-  color: var(--sw-risk-high-light);
-}
-
-.item-card__stat-delta--new {
-  color: var(--sw-rarity-rare);
-}
+.item-card__stat-value    { color: var(--sw-text-primary); }
+.item-card__stat-delta    { font-size: var(--sw-text-2xs); }
+.item-card__stat-delta--increase { color: var(--sw-risk-safe-light); }
+.item-card__stat-delta--decrease { color: var(--sw-risk-high-light); }
+.item-card__stat-delta--new      { color: var(--sw-rarity-rare); }
 
 /* Item Card Footer */
 .item-card__footer {
   margin-top: auto;
   padding-top: var(--sw-space-2);
-  border-top: 1px solid rgba(212, 175, 55, 0.2);
+  border-top: 1px solid var(--sw-glass-border);
 }
 
 .item-card__price {
@@ -506,13 +511,8 @@
   font-size: var(--sw-text-sm);
 }
 
-.item-card__price-current--affordable {
-  color: var(--sw-accent-tertiary);
-}
-
-.item-card__price-current--unaffordable {
-  color: var(--sw-risk-high-light);
-}
+.item-card__price-current--affordable   { color: var(--sw-accent-tertiary); }
+.item-card__price-current--unaffordable { color: var(--sw-risk-high-light); }
 
 .item-card__price-original {
   font-family: var(--sw-font-mono);
@@ -532,19 +532,19 @@
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
   cursor: pointer;
-  transition: all var(--sw-transition-base);
+  transition: background var(--sw-transition-base);
   background: transparent;
 }
 
 .item-card__buy-button--affordable {
   border-color: var(--sw-accent-dim);
   color: var(--sw-accent-tertiary);
-  background: rgba(180, 83, 9, 0.2);
+  background: var(--sw-accent-glow);
 }
 
 .item-card__buy-button--affordable:hover {
-  background: rgba(180, 83, 9, 0.4);
-  border-color: var(--sw-accent-primary);
+  background: rgba(180, 83, 9, 0.35);
+  border-color: var(--sw-accent-secondary);
 }
 
 .item-card__buy-button--unaffordable {
@@ -554,22 +554,21 @@
 }
 
 /* ===========================================
-   Preview Panel
+   Preview Panel  —  desktop sidebar / mobile bottom-sheet
    =========================================== */
 
 .preview-panel {
   width: 320px;
   flex-shrink: 0;
-  background: var(--sw-glass-bg-dark);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--sw-glass-border);
+  background: var(--sw-bg-secondary);
+  border: 2px solid var(--sw-frame);
   border-radius: var(--sw-radius-lg);
+  box-shadow: var(--sw-pix-shadow);
   padding: var(--sw-space-5);
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-4);
-  animation: slideIn 0.3s ease-out;
+  animation: slideIn 0.25s ease-out;
 }
 
 .preview-panel__header {
@@ -612,14 +611,14 @@
   color: var(--sw-text-tertiary);
   text-align: center;
   padding: var(--sw-space-2);
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--sw-bg-tertiary);
   border-radius: var(--sw-radius-sm);
 }
 
 /* Stat Comparison */
 .preview-panel__stats {
   padding: var(--sw-space-3);
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--sw-bg-tertiary);
   border-radius: var(--sw-radius-md);
 }
 
@@ -654,9 +653,7 @@
   gap: var(--sw-space-2);
 }
 
-.preview-panel__stat-value {
-  color: var(--sw-text-primary);
-}
+.preview-panel__stat-value { color: var(--sw-text-primary); }
 
 .preview-panel__stat-delta {
   font-size: var(--sw-text-2xs);
@@ -692,7 +689,7 @@
 .preview-panel__price {
   text-align: center;
   padding: var(--sw-space-3);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--sw-bg-tertiary);
   border-radius: var(--sw-radius-md);
 }
 
@@ -709,13 +706,8 @@
   font-size: var(--sw-text-lg);
 }
 
-.preview-panel__price-value--affordable {
-  color: var(--sw-accent-tertiary);
-}
-
-.preview-panel__price-value--unaffordable {
-  color: var(--sw-risk-high-light);
-}
+.preview-panel__price-value--affordable   { color: var(--sw-accent-tertiary); }
+.preview-panel__price-value--unaffordable { color: var(--sw-risk-high-light); }
 
 .preview-panel__price-original {
   font-family: var(--sw-font-mono);
@@ -748,14 +740,15 @@
   padding: var(--sw-space-3);
   border: 2px solid var(--sw-accent-secondary);
   border-radius: var(--sw-radius-md);
-  background: rgba(217, 119, 6, 0.2);
+  background: rgba(180, 83, 9, 0.2);
   color: var(--sw-accent-tertiary);
   font-size: var(--sw-text-xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-widest);
   cursor: pointer;
-  transition: all var(--sw-transition-base);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast), background var(--sw-transition-base);
+  box-shadow: var(--sw-pix-shadow-sm);
 }
 
 .preview-panel__confirm:not(:disabled) {
@@ -763,9 +756,16 @@
 }
 
 .preview-panel__confirm:hover:not(:disabled) {
-  background: rgba(217, 119, 6, 0.4);
+  background: rgba(180, 83, 9, 0.4);
   border-color: var(--sw-accent-primary);
-  box-shadow: 0 0 20px var(--sw-accent-glow);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow);
+  animation: none;
+}
+
+.preview-panel__confirm:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .preview-panel__confirm:disabled {
@@ -835,29 +835,23 @@
    =========================================== */
 
 @keyframes slideIn {
-  0% {
+  from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateX(16px);
   }
-  100% {
+  to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
-@keyframes purchaseSuccess {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(0.95);
-    opacity: 0.5;
-  }
-  100% {
-    transform: scale(0.9);
-    opacity: 0;
-  }
+/* ===========================================
+   Mobile Bottom-Sheet Backdrop
+   (hidden on desktop, shown on <1024px)
+   =========================================== */
+
+.merchant__sheet-backdrop {
+  display: none;
 }
 
 /* ===========================================
@@ -865,24 +859,40 @@
    =========================================== */
 
 @media (max-width: 1024px) {
+  /* Backdrop for tap-outside close */
+  .merchant__sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 40;
+    cursor: default;
+  }
+
+  /* Grid still full-width; preview is a bottom-sheet */
   .merchant__content {
     flex-direction: column;
   }
 
+  /* Bottom-sheet: slides up from bottom of viewport */
   .preview-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     width: 100%;
-    animation: slideDown 0.3s ease-out;
+    max-width: 100%;
+    max-height: 70vh;
+    overflow-y: auto;
+    z-index: 41;
+    border-bottom: none;
+    border-radius: var(--sw-radius-lg) var(--sw-radius-lg) 0 0;
+    animation: slideUpSheet 0.3s ease-out;
   }
 
-  @keyframes slideDown {
-    0% {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  @keyframes slideUpSheet {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
   }
 }
 

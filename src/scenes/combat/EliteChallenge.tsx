@@ -3,6 +3,7 @@ import { Enemy, Item, Player, CharacterStats, Rarity } from '../../game/types';
 import { Shield, Zap, Swords, Wind } from 'lucide-react';
 import { getEscapeChanceDescription } from '../../game/systems/EliteChallengeSystem';
 import { getEnemyFullStats } from '../../game/systems/StatSystem';
+import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './EliteChallenge.css';
 
 interface EliteChallengeProps {
@@ -14,6 +15,8 @@ interface EliteChallengeProps {
   onEscape?: () => void;
   customTitle?: string;
   customDescription?: string;
+  /** Biome background image — fills the scene like CinematicViewscreen. */
+  background?: string;
 }
 
 // Helper for rarity class
@@ -41,7 +44,8 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
   onFight,
   onEscape,
   customTitle,
-  customDescription
+  customDescription,
+  background,
 }) => {
   const escapeInfo = getEscapeChanceDescription(playerStats);
   const enemyStats = getEnemyFullStats(enemy);
@@ -72,6 +76,7 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
   };
 
   return (
+    <SceneBackdrop background={background}>
     <div className="elite-challenge">
       {/* Header */}
       <div className="elite-challenge__icon">
@@ -212,6 +217,7 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
         </div>
       )}
     </div>
+    </SceneBackdrop>
   );
 };
 

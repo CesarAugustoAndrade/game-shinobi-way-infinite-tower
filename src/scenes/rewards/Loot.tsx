@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Item, Skill, Player, SkillTier, Rarity, EquipmentSlot, DamageType, MAX_BAG_SLOTS, SLOT_MAPPING } from '../../game/types';
 import { Scroll, Package } from 'lucide-react';
 import Tooltip from '../../components/shared/Tooltip';
+import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import {
   formatStatName,
   formatScalingStat,
@@ -27,21 +28,30 @@ interface LootProps {
   getRarityColor: (rarity: Rarity) => string;
   getDamageTypeColor: (dt: DamageType) => string;
   isProcessing?: boolean;
+  /** Biome background image — fills the scene like CinematicViewscreen. */
+  background?: string;
 }
 
-// Helper to get rarity class
+// Helper to get rarity name class
 const getRarityClass = (rarity: Rarity): string => {
   switch (rarity) {
-    case Rarity.RARE:
-      return 'loot-card__name--rare';
-    case Rarity.EPIC:
-      return 'loot-card__name--epic';
-    case Rarity.LEGENDARY:
-      return 'loot-card__name--legendary';
-    case Rarity.CURSED:
-      return 'loot-card__name--cursed';
-    default:
-      return 'loot-card__name--common';
+    case Rarity.RARE:      return 'loot-card__name--rare';
+    case Rarity.EPIC:      return 'loot-card__name--epic';
+    case Rarity.LEGENDARY: return 'loot-card__name--legendary';
+    case Rarity.CURSED:    return 'loot-card__name--cursed';
+    default:               return 'loot-card__name--common';
+  }
+};
+
+// Helper to get rarity border class for the card itself
+const getCardRarityClass = (rarity: Rarity): string => {
+  switch (rarity) {
+    case Rarity.BROKEN:    return 'loot-card--broken';
+    case Rarity.RARE:      return 'loot-card--rare';
+    case Rarity.EPIC:      return 'loot-card--epic';
+    case Rarity.LEGENDARY: return 'loot-card--legendary';
+    case Rarity.CURSED:    return 'loot-card--cursed';
+    default:               return '';
   }
 };
 
@@ -56,7 +66,8 @@ const Loot: React.FC<LootProps> = ({
   onLearnSkill,
   onLeaveAll,
   getDamageTypeColor,
-  isProcessing = false
+  isProcessing = false,
+  background,
 }) => {
   // Keyboard shortcut: SPACE/ENTER to leave all
   useEffect(() => {
@@ -78,9 +89,13 @@ const Loot: React.FC<LootProps> = ({
   const bagSlotCount = player?.bag.filter(s => s !== null).length || 0;
 
   return (
+    <SceneBackdrop background={background}>
     <div className="loot">
-      <h2 className="loot__title">Spoils of War</h2>
-      <p className="loot__subtitle">Choose one reward</p>
+      {/* Victory header — dramatic scene presence */}
+      <div className="loot__victory-header">
+        <h2 className="loot__victory-title">VICTORY</h2>
+        <p className="loot__victory-subtitle">Spoils of War — Choose one reward</p>
+      </div>
 
       {/* Keyboard Hints */}
       <div className="loot__hints">
@@ -156,7 +171,7 @@ const Loot: React.FC<LootProps> = ({
                 </div>
               }
             >
-              <div className={`loot-card ${item.isComponent ? 'loot-card--component' : ''}`}>
+              <div className={`loot-card ${item.isComponent ? 'loot-card--component' : ''} ${getCardRarityClass(item.rarity)}`}>
                 <div className="loot-card__header">
                   <h3 className={`loot-card__name ${getRarityClass(item.rarity)}`}>
                     {item.icon && <span className="loot-card__icon">{item.icon}</span>}
@@ -365,6 +380,7 @@ const Loot: React.FC<LootProps> = ({
         </button>
       </div>
     </div>
+    </SceneBackdrop>
   );
 };
 

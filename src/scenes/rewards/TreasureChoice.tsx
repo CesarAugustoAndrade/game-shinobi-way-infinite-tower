@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   TreasureActivity,
   TreasureHunt,
@@ -16,8 +16,6 @@ import {
   Coins,
   Map,
   X,
-  ChevronLeft,
-  ChevronRight,
   AlertTriangle,
   Package,
 } from 'lucide-react';
@@ -41,6 +39,8 @@ interface TreasureChoiceProps {
   onBagFullSell: () => void;
   onBagFullLeave: () => void;
   getRarityColor: (rarity: Rarity) => string;
+  /** Biome background image — replaces the solid-black backdrop. */
+  background?: string;
 }
 
 const TreasureChoice: React.FC<TreasureChoiceProps> = ({
@@ -58,10 +58,9 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   onBagFullSell,
   onBagFullLeave,
   getRarityColor,
+  background,
 }) => {
-  // Carousel state
-  const [carouselIndex, setCarouselIndex] = useState(0);
-
+  const [bgError, setBgError] = useState(false);
   const canAffordReveal = player.currentChakra >= treasure.revealCost;
 
   // If hunt was declined, treat all treasures as locked chests
@@ -72,15 +71,6 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   // Show initial prompt when: treasure is hunter type, no hunt active yet, and hunt not declined
   const showHuntPrompt = treasure.type === TreasureType.TREASURE_HUNTER && !treasureHunt && !huntDeclined;
 
-  // Carousel navigation
-  const goToPrev = useCallback(() => {
-    setCarouselIndex(i => (i > 0 ? i - 1 : treasure.choices.length - 1));
-  }, [treasure.choices.length]);
-
-  const goToNext = useCallback(() => {
-    setCarouselIndex(i => (i < treasure.choices.length - 1 ? i + 1 : 0));
-  }, [treasure.choices.length]);
-
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -88,37 +78,15 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
 
       // Bag full panel keys take priority
       if (pendingBagFullItem) {
-        if (e.key === 's' || e.key === 'S') {
-          onBagFullSell();
-          return;
-        }
-        if (e.key === 'l' || e.key === 'L') {
-          onBagFullLeave();
-          return;
-        }
+        if (e.key === 's' || e.key === 'S') { onBagFullSell(); return; }
+        if (e.key === 'l' || e.key === 'L') { onBagFullLeave(); return; }
         return; // Block other keys when bag full panel is shown
       }
 
       // Y/N keys for hunt prompt
       if (showHuntPrompt) {
-        if (e.key === 'y' || e.key === 'Y') {
-          onStartHunt();
-          return;
-        }
-        if (e.key === 'n' || e.key === 'N') {
-          onDeclineHunt();
-          return;
-        }
-        return;
-      }
-
-      // Arrow keys for carousel
-      if (e.key === 'ArrowLeft') {
-        goToPrev();
-        return;
-      }
-      if (e.key === 'ArrowRight') {
-        goToNext();
+        if (e.key === 'y' || e.key === 'Y') { onStartHunt(); return; }
+        if (e.key === 'n' || e.key === 'N') { onDeclineHunt(); return; }
         return;
       }
 
@@ -157,14 +125,14 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [treasure, canAffordReveal, onReveal, onSelectItem, onFightGuardian, onRollDice, isLockedChest, isTreasureHunter, showHuntPrompt, onStartHunt, onDeclineHunt, goToPrev, goToNext, pendingBagFullItem, onBagFullSell, onBagFullLeave]);
+  }, [treasure, canAffordReveal, onReveal, onSelectItem, onFightGuardian, onRollDice, isLockedChest, isTreasureHunter, showHuntPrompt, onStartHunt, onDeclineHunt, pendingBagFullItem, onBagFullSell, onBagFullLeave]);
 
   const handlePickRandom = useCallback(() => {
     const randomIdx = Math.floor(Math.random() * treasure.choices.length);
     onSelectItem(randomIdx);
   }, [treasure.choices.length, onSelectItem]);
 
-  // Render treasure card (carousel item)
+  // Render a single treasure card
   const renderTreasureCard = (index: number) => {
     const choice = treasure.choices[index];
     const isRevealed = treasure.isRevealed;
@@ -174,6 +142,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
       // Hidden card
       return (
         <button
+          key={index}
           type="button"
           className="treasure-card treasure-card--hidden"
           onClick={() => onSelectItem(index)}
@@ -200,19 +169,19 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
       <Tooltip
         key={index}
         content={
-          <div className="space-y-2 p-1 max-w-[260px]">
-            <div className={`font-bold ${getRarityColor(item.rarity)}`}>{item.name}</div>
-            <div className="text-[10px] text-zinc-500 uppercase tracking-wider">
+          <div className="treasure-tooltip">
+            <div className={`treasure-tooltip__name ${getRarityColor(item.rarity)}`}>{item.name}</div>
+            <div className="treasure-tooltip__type">
               {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
             </div>
             {item.description && (
-              <div className="text-xs text-zinc-400 italic">{item.description}</div>
+              <div className="treasure-tooltip__description">{item.description}</div>
             )}
-            <div className="border-t border-zinc-700 pt-2 space-y-1">
+            <div className="treasure-tooltip__stats">
               {Object.entries(item.stats).map(([key, val]) => (
-                <div key={key} className="flex justify-between text-[10px] font-mono">
-                  <span className="text-zinc-500">{formatStatName(key)}</span>
-                  <span className="text-zinc-200">+{val}</span>
+                <div key={key} className="treasure-tooltip__stat">
+                  <span className="treasure-tooltip__stat-label">{formatStatName(key)}</span>
+                  <span className="treasure-tooltip__stat-value">+{val}</span>
                 </div>
               ))}
             </div>
@@ -303,7 +272,14 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   if (showHuntPrompt) {
     return (
       <div className="treasure-modal">
-        <div className="treasure-modal__backdrop" />
+        <div className="treasure-modal__backdrop">
+          {background && !bgError && (
+            <img src={background} alt="" className="treasure-modal__bg-img" aria-hidden="true" onError={() => setBgError(true)} />
+          )}
+          <div className="treasure-modal__scrim" />
+          <div className="treasure-modal__vignette" />
+          <div className="treasure-modal__scanlines" />
+        </div>
         <div className="treasure-modal__container">
           <div className="treasure-modal__body">
             <div className="hunt-prompt">
@@ -366,7 +342,14 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   // Main treasure UI
   return (
     <div className="treasure-modal">
-      <div className="treasure-modal__backdrop" />
+      <div className="treasure-modal__backdrop">
+        {background && !bgError && (
+          <img src={background} alt="" className="treasure-modal__bg-img" aria-hidden="true" onError={() => setBgError(true)} />
+        )}
+        <div className="treasure-modal__scrim" />
+        <div className="treasure-modal__vignette" />
+        <div className="treasure-modal__scanlines" />
+      </div>
       <div className="treasure-modal__container">
         <div className="treasure-modal__header">
           <h2 className="treasure-modal__title">
@@ -384,57 +367,11 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
           {/* Treasure Hunter: Map Progress */}
           {isTreasureHunter && renderMapProgress()}
 
-          {/* Locked Chest: Item Carousel */}
+          {/* Locked Chest: Item Grid (≤3 items shown at once) */}
           {isLockedChest && (
             <>
-              <div className="treasure-carousel">
-                {treasure.choices.length > 1 && (
-                  <button
-                    type="button"
-                    className="treasure-carousel__nav treasure-carousel__nav--prev"
-                    onClick={goToPrev}
-                    aria-label="Previous item"
-                  >
-                    <ChevronLeft className="treasure-carousel__nav-icon" />
-                  </button>
-                )}
-
-                <div className="treasure-carousel__viewport">
-                  <div className="treasure-carousel__track">
-                    {renderTreasureCard(carouselIndex)}
-                  </div>
-                </div>
-
-                {treasure.choices.length > 1 && (
-                  <button
-                    type="button"
-                    className="treasure-carousel__nav treasure-carousel__nav--next"
-                    onClick={goToNext}
-                    aria-label="Next item"
-                  >
-                    <ChevronRight className="treasure-carousel__nav-icon" />
-                  </button>
-                )}
-
-                {treasure.choices.length > 1 && (
-                  <div className="treasure-carousel__dots">
-                    {treasure.choices.map((_, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className={`treasure-carousel__dot ${
-                          i === carouselIndex ? 'treasure-carousel__dot--active' : ''
-                        }`}
-                        onClick={() => setCarouselIndex(i)}
-                        aria-label={`Go to item ${i + 1}`}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                <div className="treasure-carousel__counter">
-                  Item {carouselIndex + 1} of {treasure.choices.length}
-                </div>
+              <div className="treasure-grid">
+                {treasure.choices.map((_, index) => renderTreasureCard(index))}
               </div>
 
               {/* Action Buttons for Locked Chest */}
@@ -447,7 +384,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                   >
                     <Lock className="treasure-btn__icon" />
                     <span className="treasure-btn__label">Pick Random</span>
-                    <span className="treasure-btn__hint">Free • Trust your luck</span>
+                    <span className="treasure-btn__hint">Free · Trust your luck</span>
                     <span className="treasure-btn__key">[SPACE]</span>
                   </button>
 
@@ -555,7 +492,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
           {/* Keyboard hints */}
           {isLockedChest && treasure.isRevealed && !pendingBagFullItem && (
             <div className="keyboard-hints">
-              [1-{treasure.choices.length}] Select item • [←→] Navigate
+              [1-{treasure.choices.length}] Select item
             </div>
           )}
 

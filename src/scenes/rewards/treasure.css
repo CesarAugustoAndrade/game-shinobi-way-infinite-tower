@@ -1,25 +1,10 @@
 /**
  * Treasure Hunter Component Styles
- * Rich chest theme with gold accents and ornate visuals
+ * Gold identity with hard shadows (pixel-arcade chassis).
+ * --treasure-gold/dark kept as scene identity; parchment/chest vars removed.
  */
 
 @import '../../styles/design-system/index.css';
-
-/* ===========================================
-   THEME VARIABLES
-   =========================================== */
-
-:root {
-  --treasure-gold: #d4af37;
-  --treasure-gold-light: #f4d03f;
-  --treasure-gold-dark: #b8860b;
-  --treasure-parchment: #2a231a;
-  --treasure-parchment-light: #3d332a;
-  --treasure-chest: #8b4513;
-  --treasure-chest-dark: #5c2e0a;
-  --treasure-glow: rgba(212, 175, 55, 0.3);
-  --treasure-glow-strong: rgba(212, 175, 55, 0.5);
-}
 
 /* ===========================================
    TREASURE MODAL
@@ -35,25 +20,73 @@
   padding: var(--sw-space-4);
 }
 
+/* Backdrop — biome scene layers (mirrors SceneBackdrop / CinematicViewscreen) */
 .treasure-modal__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  background: linear-gradient(180deg, #0c0e1a 0%, #05070c 100%);
   animation: sw-fade-in 0.3s ease-out;
+}
+
+/* Biome image — low opacity so the UI panels remain readable */
+.treasure-modal__bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.35;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+/* Dark gradient scrim over biome image */
+.treasure-modal__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 7, 12, 0.65) 0%,
+    rgba(5, 7, 12, 0.25) 40%,
+    rgba(5, 7, 12, 0.70) 100%
+  );
+  pointer-events: none;
+}
+
+/* Vignette */
+.treasure-modal__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(0, 0, 0, 0.70) 100%);
+  pointer-events: none;
+}
+
+/* Scanlines */
+.treasure-modal__scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.09) 2px,
+    rgba(0, 0, 0, 0.09) 4px
+  );
+  pointer-events: none;
 }
 
 .treasure-modal__container {
   position: relative;
-  background: linear-gradient(180deg, var(--treasure-parchment) 0%, #1a1510 100%);
+  background: var(--sw-bg-secondary);
   border: 2px solid var(--treasure-gold-dark);
   border-radius: var(--sw-radius-xl);
   max-width: 56rem;
   width: 100%;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow:
-    0 0 60px var(--treasure-glow),
-    inset 0 1px 0 rgba(212, 175, 55, 0.2);
+  box-shadow: var(--sw-pix-shadow-lg);
   animation: sw-scale-in 0.3s ease-out;
 }
 
@@ -97,7 +130,6 @@
   color: var(--treasure-gold);
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  text-shadow: 0 2px 10px var(--treasure-glow);
   margin: 0;
 }
 
@@ -131,18 +163,16 @@
   width: 6rem;
   height: 6rem;
   margin-bottom: var(--sw-space-6);
-  background: linear-gradient(135deg, var(--treasure-parchment-light) 0%, var(--treasure-parchment) 100%);
+  background: var(--sw-bg-tertiary);
   border: 2px solid var(--treasure-gold);
   border-radius: 50%;
-  box-shadow:
-    0 0 30px var(--treasure-glow),
-    inset 0 0 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 4px 4px 0 0 var(--sw-hard);
   animation: hunt-prompt-pulse 2s ease-in-out infinite;
 }
 
 @keyframes hunt-prompt-pulse {
-  0%, 100% { box-shadow: 0 0 30px var(--treasure-glow), inset 0 0 20px rgba(0, 0, 0, 0.3); }
-  50% { box-shadow: 0 0 50px var(--treasure-glow-strong), inset 0 0 20px rgba(0, 0, 0, 0.3); }
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.05); }
 }
 
 .hunt-prompt__icon {
@@ -168,7 +198,7 @@
 }
 
 .hunt-prompt__card {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--sw-bg-tertiary);
   border: 1px solid rgba(212, 175, 55, 0.3);
   border-radius: var(--sw-radius-lg);
   padding: var(--sw-space-5);
@@ -199,7 +229,7 @@
 }
 
 /* ===========================================
-   TREASURE BUTTONS
+   TREASURE BUTTONS  —  pixel-arcade pattern
    =========================================== */
 
 .treasure-btn {
@@ -212,18 +242,24 @@
   border-radius: var(--sw-radius-lg);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
   min-width: 140px;
+  box-shadow: var(--sw-pix-shadow-sm);
+}
+
+.treasure-btn:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow);
+}
+
+.treasure-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .treasure-btn__icon {
   width: 2rem;
   height: 2rem;
-  transition: transform 0.3s ease;
-}
-
-.treasure-btn:hover .treasure-btn__icon {
-  transform: scale(1.15);
 }
 
 .treasure-btn__label {
@@ -246,158 +282,78 @@
 
 /* Gold Button (Primary) */
 .treasure-btn--gold {
-  background: linear-gradient(180deg, var(--treasure-gold-dark) 0%, var(--treasure-chest-dark) 100%);
+  background: var(--treasure-gold-dark);
   border: 2px solid var(--treasure-gold);
-  color: #fef3c7;
+  color: var(--sw-accent-tertiary);
 }
 
-.treasure-btn--gold:hover {
-  background: linear-gradient(180deg, var(--treasure-gold) 0%, var(--treasure-gold-dark) 100%);
-  box-shadow: 0 0 30px var(--treasure-glow);
-  transform: translateY(-2px);
+.treasure-btn--gold:hover:not(:disabled) {
+  background: var(--treasure-gold);
+  color: var(--sw-on-accent);
 }
 
 /* Neutral Button (Secondary) */
 .treasure-btn--neutral {
-  background: linear-gradient(180deg, var(--sw-bg-tertiary) 0%, var(--sw-bg-secondary) 100%);
+  background: var(--sw-bg-tertiary);
   border: 2px solid var(--sw-glass-border);
   color: var(--sw-text-secondary);
 }
 
-.treasure-btn--neutral:hover {
-  border-color: var(--sw-glass-border-highlight);
-  background: linear-gradient(180deg, var(--sw-bg-elevated) 0%, var(--sw-bg-tertiary) 100%);
-  transform: translateY(-2px);
+.treasure-btn--neutral:hover:not(:disabled) {
+  border-color: var(--sw-frame);
+  background: var(--sw-bg-elevated);
 }
 
 /* Fight Button (Red) */
 .treasure-btn--fight {
-  background: linear-gradient(180deg, rgba(127, 29, 29, 0.8) 0%, rgba(69, 10, 10, 0.9) 100%);
-  border: 2px solid #dc2626;
-  color: #fecaca;
+  background: var(--sw-risk-high-bg);
+  border: 2px solid var(--sw-risk-high-light);
+  color: var(--sw-rarity-cursed);
 }
 
-.treasure-btn--fight:hover {
-  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
-  box-shadow: 0 0 30px rgba(220, 38, 38, 0.4);
-  transform: translateY(-2px);
+.treasure-btn--fight:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.4);
 }
 
 /* Dice Button (Purple) */
 .treasure-btn--dice {
-  background: linear-gradient(180deg, rgba(88, 28, 135, 0.8) 0%, rgba(59, 7, 100, 0.9) 100%);
-  border: 2px solid #9333ea;
-  color: #e9d5ff;
+  background: var(--sw-risk-extreme-bg);
+  border: 2px solid var(--sw-risk-extreme-light);
+  color: var(--sw-rarity-epic);
 }
 
-.treasure-btn--dice:hover {
-  background: linear-gradient(180deg, #9333ea 0%, #7c3aed 100%);
-  box-shadow: 0 0 30px rgba(147, 51, 234, 0.4);
-  transform: translateY(-2px);
+.treasure-btn--dice:hover:not(:disabled) {
+  background: rgba(126, 34, 206, 0.4);
 }
 
 /* Disabled state */
 .treasure-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 /* ===========================================
-   ITEM CAROUSEL
+   TREASURE ITEM GRID  (replaced carousel)
    =========================================== */
 
-.treasure-carousel {
-  position: relative;
+/* Treasure choice grid — always horizontal row, centered.
+   Cards are 200px wide, so 2-3 fit side by side on any reasonable screen.
+   flex-wrap: nowrap prevents a single-column layout on narrow containers. */
+.treasure-grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--sw-space-4);
   margin-bottom: var(--sw-space-6);
-  width: 100%;
-}
-
-.treasure-carousel__viewport {
-  display: grid;
-  place-items: center;
-  padding: var(--sw-space-4) 3.5rem; /* Space for nav buttons */
-  min-height: 280px;
-}
-
-.treasure-carousel__track {
-  /* Single child - grid parent handles centering */
-}
-
-.treasure-carousel__nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3rem;
-  height: 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid var(--treasure-gold-dark);
-  border-radius: 50%;
-  color: var(--treasure-gold);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  z-index: 10;
-}
-
-.treasure-carousel__nav:hover {
-  background: rgba(212, 175, 55, 0.2);
-  border-color: var(--treasure-gold);
-  transform: translateY(-50%) scale(1.1);
-}
-
-.treasure-carousel__nav--prev {
-  left: 0.5rem;
-}
-
-.treasure-carousel__nav--next {
-  right: 0.5rem;
-}
-
-.treasure-carousel__nav-icon {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
-.treasure-carousel__dots {
-  display: flex;
-  justify-content: center;
-  gap: var(--sw-space-2);
-  margin-top: var(--sw-space-4);
-}
-
-.treasure-carousel__dot {
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 50%;
-  background: var(--sw-glass-border);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.treasure-carousel__dot:hover {
-  background: var(--treasure-gold-dark);
-}
-
-.treasure-carousel__dot--active {
-  background: var(--treasure-gold);
-  transform: scale(1.3);
-}
-
-.treasure-carousel__counter {
-  text-align: center;
-  font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
-  font-family: var(--sw-font-mono);
-  margin-top: var(--sw-space-2);
+  padding: var(--sw-space-2) 0;
+  min-width: 0;
 }
 
 /* ===========================================
-   TREASURE CARD
+   TREASURE CARD  —  pixel-arcade pattern
    =========================================== */
 
 .treasure-card {
@@ -406,12 +362,20 @@
   height: 260px;
   border-radius: var(--sw-radius-lg);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
   cursor: pointer;
+  background: var(--sw-bg-secondary);
+  box-shadow: 4px 4px 0 0 var(--sw-hard);
 }
 
 .treasure-card:hover {
-  transform: scale(1.03);
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 0 var(--sw-hard);
+}
+
+.treasure-card:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .treasure-card__frame {
@@ -419,7 +383,7 @@
   inset: 0;
   border: 2px solid var(--treasure-gold-dark);
   border-radius: var(--sw-radius-lg);
-  background: linear-gradient(180deg, var(--treasure-parchment-light) 0%, var(--treasure-parchment) 100%);
+  background: var(--sw-bg-secondary);
   pointer-events: none;
 }
 
@@ -466,12 +430,11 @@
 
 /* Hidden card state */
 .treasure-card--hidden .treasure-card__frame {
-  background: linear-gradient(180deg, #1f1a14 0%, #0f0c08 100%);
+  background: var(--sw-bg-primary);
 }
 
 .treasure-card--hidden:hover .treasure-card__frame {
   border-color: var(--treasure-gold);
-  box-shadow: 0 0 20px var(--treasure-glow);
 }
 
 .treasure-card__mystery {
@@ -490,7 +453,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(139, 69, 19, 0.2) 100%);
+  background: var(--sw-bg-tertiary);
   border: 1px solid var(--treasure-gold-dark);
   border-radius: 50%;
 }
@@ -564,9 +527,7 @@
   margin-bottom: 2px;
 }
 
-.treasure-card__stat-label {
-  color: var(--sw-text-muted);
-}
+.treasure-card__stat-label { color: var(--sw-text-muted); }
 
 .treasure-card__stat-value {
   color: var(--treasure-gold);
@@ -591,7 +552,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--sw-bg-primary);
   border: 1px solid var(--treasure-gold-dark);
   border-radius: var(--sw-radius-sm);
   font-size: var(--sw-text-xs);
@@ -604,13 +565,13 @@
   position: absolute;
   top: -4px;
   right: -4px;
-  color: #a855f7;
+  color: var(--sw-rarity-epic);
   animation: treasure-sparkle 1.5s ease-in-out infinite;
 }
 
 @keyframes treasure-sparkle {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.1); }
+  50%       { opacity: 0.7; transform: scale(1.1); }
 }
 
 /* ===========================================
@@ -650,52 +611,37 @@
   padding: var(--sw-space-6);
   border-radius: var(--sw-radius-lg);
   cursor: pointer;
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.guardian-choice__option::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.guardian-choice__option:hover::before {
-  opacity: 1;
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
+  box-shadow: var(--sw-pix-shadow-sm);
 }
 
 /* Fight Option */
 .guardian-choice__option--fight {
-  background: linear-gradient(180deg, rgba(127, 29, 29, 0.4) 0%, rgba(69, 10, 10, 0.6) 100%);
-  border: 2px solid rgba(220, 38, 38, 0.5);
-}
-
-.guardian-choice__option--fight::before {
-  background: radial-gradient(circle at center, rgba(220, 38, 38, 0.2) 0%, transparent 70%);
+  background: var(--sw-risk-high-bg);
+  border: 2px solid var(--sw-risk-high-light);
 }
 
 .guardian-choice__option--fight:hover {
-  border-color: #dc2626;
-  box-shadow: 0 0 40px rgba(220, 38, 38, 0.3);
-  transform: scale(1.02);
+  border-color: var(--sw-rarity-cursed);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow);
 }
 
 /* Dice Option */
 .guardian-choice__option--dice {
-  background: linear-gradient(180deg, rgba(88, 28, 135, 0.4) 0%, rgba(59, 7, 100, 0.6) 100%);
-  border: 2px solid rgba(147, 51, 234, 0.5);
-}
-
-.guardian-choice__option--dice::before {
-  background: radial-gradient(circle at center, rgba(147, 51, 234, 0.2) 0%, transparent 70%);
+  background: var(--sw-risk-extreme-bg);
+  border: 2px solid var(--sw-risk-extreme-light);
 }
 
 .guardian-choice__option--dice:hover {
-  border-color: #9333ea;
-  box-shadow: 0 0 40px rgba(147, 51, 234, 0.3);
-  transform: scale(1.02);
+  border-color: var(--sw-rarity-epic);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow);
+}
+
+.guardian-choice__option:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .guardian-choice__icon-wrapper {
@@ -706,21 +652,16 @@
   justify-content: center;
   margin-bottom: var(--sw-space-4);
   border-radius: var(--sw-radius-lg);
-  transition: transform 0.3s ease;
-}
-
-.guardian-choice__option:hover .guardian-choice__icon-wrapper {
-  transform: scale(1.1);
 }
 
 .guardian-choice__option--fight .guardian-choice__icon-wrapper {
-  background: rgba(220, 38, 38, 0.2);
-  border: 1px solid rgba(220, 38, 38, 0.4);
+  background: rgba(185, 28, 28, 0.2);
+  border: 1px solid var(--sw-risk-high-light);
 }
 
 .guardian-choice__option--dice .guardian-choice__icon-wrapper {
-  background: rgba(147, 51, 234, 0.2);
-  border: 1px solid rgba(147, 51, 234, 0.4);
+  background: rgba(126, 34, 206, 0.2);
+  border: 1px solid var(--sw-risk-extreme-light);
 }
 
 .guardian-choice__icon {
@@ -728,13 +669,8 @@
   height: 2.5rem;
 }
 
-.guardian-choice__option--fight .guardian-choice__icon {
-  color: #f87171;
-}
-
-.guardian-choice__option--dice .guardian-choice__icon {
-  color: #c084fc;
-}
+.guardian-choice__option--fight .guardian-choice__icon { color: var(--sw-rarity-cursed); }
+.guardian-choice__option--dice  .guardian-choice__icon { color: var(--sw-rarity-epic); }
 
 .guardian-choice__option-title {
   font-size: var(--sw-text-lg);
@@ -744,13 +680,8 @@
   margin-bottom: var(--sw-space-3);
 }
 
-.guardian-choice__option--fight .guardian-choice__option-title {
-  color: #fca5a5;
-}
-
-.guardian-choice__option--dice .guardian-choice__option-title {
-  color: #d8b4fe;
-}
+.guardian-choice__option--fight .guardian-choice__option-title { color: var(--sw-rarity-cursed); }
+.guardian-choice__option--dice  .guardian-choice__option-title { color: var(--sw-rarity-epic); }
 
 .guardian-choice__odds {
   font-size: var(--sw-text-xs);
@@ -758,22 +689,10 @@
   text-align: center;
 }
 
-.guardian-choice__odds-item {
-  display: block;
-  margin-bottom: 2px;
-}
-
-.guardian-choice__odds-item--success {
-  color: #4ade80;
-}
-
-.guardian-choice__odds-item--neutral {
-  color: var(--sw-text-muted);
-}
-
-.guardian-choice__odds-item--danger {
-  color: #f87171;
-}
+.guardian-choice__odds-item         { display: block; margin-bottom: 2px; }
+.guardian-choice__odds-item--success { color: var(--sw-risk-safe-light); }
+.guardian-choice__odds-item--neutral { color: var(--sw-text-muted); }
+.guardian-choice__odds-item--danger  { color: var(--sw-risk-high-light); }
 
 .guardian-choice__key-hint {
   margin-top: var(--sw-space-4);
@@ -788,7 +707,7 @@
    =========================================== */
 
 .map-progress {
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--sw-bg-tertiary);
   border: 1px solid rgba(212, 175, 55, 0.3);
   border-radius: var(--sw-radius-lg);
   padding: var(--sw-space-4);
@@ -838,22 +757,16 @@
   justify-content: center;
   border-radius: var(--sw-radius-md);
   border: 2px solid;
-  transition: all 0.3s ease;
+  transition: border-color var(--sw-transition-base);
 }
 
 .map-progress__piece--collected {
-  background: rgba(212, 175, 55, 0.2);
+  background: rgba(212, 175, 55, 0.15);
   border-color: var(--treasure-gold);
-  animation: piece-glow 2s ease-in-out infinite;
-}
-
-@keyframes piece-glow {
-  0%, 100% { box-shadow: 0 0 10px var(--treasure-glow); }
-  50% { box-shadow: 0 0 20px var(--treasure-glow-strong); }
 }
 
 .map-progress__piece--empty {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--sw-bg-tertiary);
   border-color: var(--sw-glass-border);
 }
 
@@ -862,14 +775,8 @@
   height: 1.25rem;
 }
 
-.map-progress__piece--collected .map-progress__piece-icon {
-  color: var(--treasure-gold);
-}
-
-.map-progress__piece--empty .map-progress__piece-icon {
-  color: var(--sw-text-muted);
-  opacity: 0.4;
-}
+.map-progress__piece--collected .map-progress__piece-icon { color: var(--treasure-gold); }
+.map-progress__piece--empty     .map-progress__piece-icon { color: var(--sw-text-muted); opacity: 0.4; }
 
 .map-progress__complete {
   text-align: center;
@@ -881,7 +788,7 @@
 
 @keyframes complete-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  50%       { opacity: 0.6; }
 }
 
 /* ===========================================
@@ -901,16 +808,11 @@
   color: var(--sw-text-muted);
 }
 
-.chest-actions__chakra-value {
-  color: #60a5fa;
-}
-
-.chest-actions__chakra-value--low {
-  color: #f87171;
-}
+.chest-actions__chakra-value     { color: var(--sw-rarity-rare); }
+.chest-actions__chakra-value--low { color: var(--sw-risk-high-light); }
 
 .chest-actions__chakra-needed {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
   opacity: 0.7;
   margin-left: var(--sw-space-1);
 }
@@ -924,23 +826,14 @@
   align-items: center;
   gap: var(--sw-space-2);
   padding: var(--sw-space-2) var(--sw-space-4);
-  background: rgba(234, 179, 8, 0.15);
-  border: 1px solid rgba(234, 179, 8, 0.3);
+  background: var(--sw-risk-low-bg);
+  border: 1px solid var(--sw-risk-low-glow);
   border-radius: var(--sw-radius-md);
   margin-top: var(--sw-space-4);
 }
 
-.ryo-bonus__icon {
-  width: 1rem;
-  height: 1rem;
-  color: #facc15;
-}
-
-.ryo-bonus__value {
-  font-size: var(--sw-text-sm);
-  color: #facc15;
-  font-weight: 600;
-}
+.ryo-bonus__icon  { width: 1rem; height: 1rem; color: var(--sw-rarity-legendary); }
+.ryo-bonus__value { font-size: var(--sw-text-sm); color: var(--sw-rarity-legendary); font-weight: 600; }
 
 /* ===========================================
    KEYBOARD HINTS
@@ -956,7 +849,7 @@
 }
 
 /* ===========================================
-   REWARD SCENE ENHANCEMENTS
+   TREASURE REWARD SCENE
    =========================================== */
 
 .treasure-reward {
@@ -982,7 +875,7 @@
 
 @keyframes float-particle {
   0%, 100% { transform: translateY(0) scale(1); opacity: 0.4; }
-  50% { transform: translateY(-20px) scale(1.2); opacity: 0.7; }
+  50%       { transform: translateY(-20px) scale(1.2); opacity: 0.7; }
 }
 
 .treasure-reward__trophy {
@@ -991,28 +884,26 @@
   justify-content: center;
   width: 5rem;
   height: 5rem;
-  background: linear-gradient(135deg, var(--treasure-gold) 0%, var(--treasure-gold-dark) 100%);
+  background: var(--treasure-gold-dark);
+  border: 2px solid var(--treasure-gold);
   border-radius: 50%;
-  box-shadow: 0 0 40px var(--treasure-glow-strong);
+  box-shadow: 4px 4px 0 0 var(--sw-hard);
   margin-bottom: var(--sw-space-4);
   animation: trophy-bounce 1s ease-in-out infinite;
 }
 
 @keyframes trophy-bounce {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  50%       { transform: translateY(-8px); }
 }
 
 .treasure-reward__trophy-icon {
   width: 2.5rem;
   height: 2.5rem;
-  color: #fef3c7;
+  color: var(--sw-accent-tertiary);
 }
 
-/* ===========================================
-   TREASURE REWARD SCENE
-   =========================================== */
-
+/* Reward header */
 .treasure-reward__header {
   text-align: center;
   padding: var(--sw-space-6);
@@ -1065,59 +956,60 @@
   margin: var(--sw-space-2) auto 0;
 }
 
+/* Reward cards — horizontal row, centered, never a single column */
 .treasure-reward__cards {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: flex-start;
   gap: var(--sw-space-4);
   margin-bottom: var(--sw-space-6);
+  min-width: 0;
 }
 
 .treasure-reward__card {
   position: relative;
-  background: linear-gradient(180deg, var(--treasure-parchment-light) 0%, var(--treasure-parchment) 100%);
+  background: var(--sw-bg-secondary);
   border: 2px solid var(--treasure-gold-dark);
   border-radius: var(--sw-radius-lg);
   padding: var(--sw-space-4);
   min-width: 140px;
-  transition: all 0.3s ease;
-  cursor: help;
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
+  cursor: default;
+  box-shadow: var(--sw-pix-shadow-sm);
 }
 
 .treasure-reward__card:hover {
-  transform: scale(1.05);
+  transform: translate(-2px, -2px);
   border-color: var(--treasure-gold);
-  box-shadow: 0 0 20px var(--treasure-glow);
+  box-shadow: var(--sw-pix-shadow);
 }
 
 .treasure-reward__card--artifact {
-  border-color: rgba(168, 85, 247, 0.5);
-  box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+  border-color: var(--sw-rarity-epic-glow);
 }
 
 .treasure-reward__card--artifact:hover {
-  border-color: #a855f7;
-  box-shadow: 0 0 25px rgba(168, 85, 247, 0.4);
+  border-color: var(--sw-rarity-epic);
 }
 
 .treasure-reward__card--skill {
-  background: linear-gradient(180deg, rgba(30, 58, 138, 0.4) 0%, rgba(23, 37, 84, 0.6) 100%);
-  border-color: rgba(59, 130, 246, 0.5);
+  background: var(--sw-rarity-rare-bg);
+  border-color: var(--sw-rarity-rare-glow);
 }
 
 .treasure-reward__card--skill:hover {
-  border-color: #3b82f6;
-  box-shadow: 0 0 25px rgba(59, 130, 246, 0.4);
+  border-color: var(--sw-rarity-rare);
 }
 
 .treasure-reward__card--ryo {
-  background: linear-gradient(180deg, rgba(113, 63, 18, 0.4) 0%, rgba(69, 26, 3, 0.6) 100%);
-  border-color: rgba(234, 179, 8, 0.5);
+  background: var(--sw-risk-low-bg);
+  border-color: var(--sw-risk-low-glow);
 }
 
 .treasure-reward__card--ryo:hover {
-  border-color: #eab308;
-  box-shadow: 0 0 25px rgba(234, 179, 8, 0.4);
+  border-color: var(--sw-rarity-legendary);
 }
 
 .treasure-reward__card-content {
@@ -1127,26 +1019,24 @@
   gap: var(--sw-space-2);
 }
 
-.treasure-reward__card-icon {
-  font-size: 3rem;
-}
+.treasure-reward__card-icon { font-size: 3rem; }
 
 .treasure-reward__card-scroll-icon {
   width: 2rem;
   height: 2rem;
-  color: #60a5fa;
+  color: var(--sw-rarity-rare);
 }
 
 .treasure-reward__card-ryo-icon {
   width: 2rem;
   height: 2rem;
-  color: #facc15;
+  color: var(--sw-rarity-legendary);
 }
 
 .treasure-reward__card-ryo-amount {
   font-size: var(--sw-text-2xl);
   font-weight: 700;
-  color: #facc15;
+  color: var(--sw-rarity-legendary);
 }
 
 .treasure-reward__card-name {
@@ -1156,19 +1046,14 @@
 }
 
 .treasure-reward__card-type {
-  font-size: 9px;
+  font-size: var(--sw-text-3xs);
   color: var(--sw-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
-.treasure-reward__card-type--skill {
-  color: #60a5fa;
-}
-
-.treasure-reward__card-type--ryo {
-  color: #ca8a04;
-}
+.treasure-reward__card-type--skill { color: var(--sw-rarity-rare); }
+.treasure-reward__card-type--ryo   { color: var(--sw-risk-low-light); }
 
 .treasure-reward__card-stats {
   font-size: var(--sw-text-xs);
@@ -1178,7 +1063,7 @@
 
 .treasure-reward__wealth-info {
   text-align: center;
-  font-size: 10px;
+  font-size: var(--sw-text-3xs);
   color: var(--sw-text-muted);
   margin-bottom: var(--sw-space-6);
 }
@@ -1205,13 +1090,8 @@
   height: 1px;
 }
 
-.treasure-reward__footer-line--left {
-  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.5));
-}
-
-.treasure-reward__footer-line--right {
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.5), transparent);
-}
+.treasure-reward__footer-line--left  { background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.5)); }
+.treasure-reward__footer-line--right { background: linear-gradient(90deg, rgba(212, 175, 55, 0.5), transparent); }
 
 .treasure-reward__footer-icon {
   width: 1rem;
@@ -1226,31 +1106,15 @@
 .treasure-tooltip {
   padding: var(--sw-space-1);
   max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-2);
 }
 
-.treasure-tooltip__name {
-  font-weight: 700;
-  margin-bottom: var(--sw-space-1);
-}
-
-.treasure-tooltip__type {
-  font-size: 10px;
-  color: var(--sw-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: var(--sw-space-2);
-}
-
-.treasure-tooltip__type--skill {
-  color: #60a5fa;
-}
-
-.treasure-tooltip__description {
-  font-size: var(--sw-text-xs);
-  color: var(--sw-text-tertiary);
-  font-style: italic;
-  margin-bottom: var(--sw-space-2);
-}
+.treasure-tooltip__name      { font-weight: 700; margin-bottom: var(--sw-space-1); }
+.treasure-tooltip__type      { font-size: var(--sw-text-2xs); color: var(--sw-text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: var(--sw-space-2); }
+.treasure-tooltip__type--skill { color: var(--sw-rarity-rare); }
+.treasure-tooltip__description { font-size: var(--sw-text-xs); color: var(--sw-text-tertiary); font-style: italic; margin-bottom: var(--sw-space-2); }
 
 .treasure-tooltip__stats {
   border-top: 1px solid var(--sw-glass-border);
@@ -1260,40 +1124,32 @@
 .treasure-tooltip__stat {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: var(--sw-text-2xs);
   font-family: var(--sw-font-mono);
   margin-bottom: 2px;
 }
 
-.treasure-tooltip__stat-label {
-  color: var(--sw-text-muted);
-}
-
-.treasure-tooltip__stat-value {
-  color: var(--sw-text-secondary);
-}
-
-.treasure-tooltip__stat-value--chakra {
-  color: #60a5fa;
-}
+.treasure-tooltip__stat-label       { color: var(--sw-text-muted); }
+.treasure-tooltip__stat-value        { color: var(--sw-text-secondary); }
+.treasure-tooltip__stat-value--chakra { color: var(--sw-rarity-rare); }
 
 .treasure-tooltip__passive {
-  border-top: 1px solid rgba(168, 85, 247, 0.3);
+  border-top: 1px solid var(--sw-rarity-epic-glow);
   padding-top: var(--sw-space-2);
-  font-size: 10px;
-  color: #a855f7;
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-rarity-epic);
   margin-top: var(--sw-space-2);
 }
 
 .treasure-tooltip__effects {
-  border-top: 1px solid rgba(59, 130, 246, 0.3);
+  border-top: 1px solid var(--sw-rarity-rare-bg);
   padding-top: var(--sw-space-2);
   margin-top: var(--sw-space-2);
 }
 
 .treasure-tooltip__effects-title {
-  font-size: 9px;
-  color: #60a5fa;
+  font-size: var(--sw-text-3xs);
+  color: var(--sw-rarity-rare);
   text-transform: uppercase;
   margin-bottom: var(--sw-space-1);
 }
@@ -1302,7 +1158,7 @@
   display: flex;
   align-items: center;
   gap: var(--sw-space-1);
-  font-size: 10px;
+  font-size: var(--sw-text-2xs);
   color: var(--sw-text-tertiary);
 }
 
@@ -1313,8 +1169,8 @@
 .bag-full-panel {
   margin-top: var(--sw-space-6);
   padding: var(--sw-space-5);
-  background: linear-gradient(180deg, rgba(127, 29, 29, 0.3) 0%, rgba(69, 10, 10, 0.4) 100%);
-  border: 2px solid rgba(239, 68, 68, 0.5);
+  background: var(--sw-risk-high-bg);
+  border: 2px solid var(--sw-risk-high-light);
   border-radius: var(--sw-radius-lg);
   animation: sw-scale-in 0.2s ease-out;
 }
@@ -1330,19 +1186,19 @@
 .bag-full-panel__warning-icon {
   width: 1.5rem;
   height: 1.5rem;
-  color: #f87171;
+  color: var(--sw-risk-high-light);
   animation: bag-full-pulse 1s ease-in-out infinite;
 }
 
 @keyframes bag-full-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.1); }
+  50%       { opacity: 0.7; transform: scale(1.1); }
 }
 
 .bag-full-panel__title {
   font-size: var(--sw-text-lg);
   font-weight: 700;
-  color: #fca5a5;
+  color: var(--sw-rarity-cursed);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0;
@@ -1354,15 +1210,13 @@
   justify-content: center;
   gap: var(--sw-space-3);
   padding: var(--sw-space-3);
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--sw-bg-tertiary);
+  border: 1px solid var(--sw-glass-border);
   border-radius: var(--sw-radius-md);
   margin-bottom: var(--sw-space-3);
 }
 
-.bag-full-panel__item-icon {
-  font-size: 2rem;
-}
+.bag-full-panel__item-icon { font-size: 2rem; }
 
 .bag-full-panel__item-name {
   font-size: var(--sw-text-base);
@@ -1381,3 +1235,10 @@
   justify-content: center;
   gap: var(--sw-space-4);
 }
+
+/* ===========================================
+   SKILL COLOR HELPERS (token-based, replaces Tailwind literals)
+   =========================================== */
+
+.treasure-skill--forbidden { color: var(--sw-rarity-cursed); }
+.treasure-skill--scroll    { color: var(--sw-rarity-rare); }

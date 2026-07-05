@@ -185,6 +185,7 @@
   /* Font sizes */
   /* VT323 is a pixel mono tuned for larger glyphs; small body sizes nudged up
      +1px so dense stat/number panels stay legible without reflowing layout. */
+  --sw-text-3xs: 0.5625rem;  /* 9px  */
   --sw-text-2xs: 0.6875rem;  /* 11px */
   --sw-text-xs: 0.8125rem;   /* 13px */
   --sw-text-sm: 0.875rem;    /* 14px */
@@ -211,6 +212,13 @@
   --sw-tracking-wider: 0.05em;
   --sw-tracking-widest: 0.1em;
   --sw-tracking-ultra: 0.2em;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     TREASURE IDENTITY (shared by merchant + treasure scenes)
+     ───────────────────────────────────────────────────────────────────────── */
+  --treasure-gold: #d4af37;
+  --treasure-gold-light: #f4d03f;
+  --treasure-gold-dark: #b8860b;
 
   /* ─────────────────────────────────────────────────────────────────────────
      TRANSITIONS

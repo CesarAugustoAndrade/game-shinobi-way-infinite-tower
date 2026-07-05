@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   Item,
   Player,
@@ -16,11 +16,11 @@ import {
   Sparkles,
   AlertTriangle,
   CheckCircle,
-  Store,
 } from 'lucide-react';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import { MERCHANT } from '../../game/config';
 import { calculateMerchantRerollCost } from '../../game/systems/ScalingSystem';
+import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './Merchant.css';
 
 interface MerchantProps {
@@ -35,6 +35,8 @@ interface MerchantProps {
   onBuySlot: () => void;
   onUpgradeQuality: () => void;
   isProcessing?: boolean;
+  /** Biome background image — fills the scene like CinematicViewscreen. */
+  background?: string;
 }
 
 /* ===========================================
@@ -478,6 +480,7 @@ const Merchant: React.FC<MerchantProps> = ({
   onBuySlot,
   onUpgradeQuality,
   isProcessing = false,
+  background,
 }) => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
@@ -572,6 +575,17 @@ const Merchant: React.FC<MerchantProps> = ({
     setSelectedItemId(null);
   }, []);
 
+  // ESC to close mobile bottom-sheet
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedItemId) {
+        setSelectedItemId(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [selectedItemId]);
+
   if (!player) {
     return null;
   }
@@ -583,19 +597,34 @@ const Merchant: React.FC<MerchantProps> = ({
       : MERCHANT.QUALITY_UPGRADE_COSTS.RARE;
 
   return (
+    <SceneBackdrop background={background}>
     <div className="merchant">
-      {/* Header */}
+      {/* Mobile bottom-sheet backdrop */}
+      {selectedItem && (
+        <div
+          className="merchant__sheet-backdrop"
+          onClick={handleCancel}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* NPC Presence — Merchant character panel */}
       <header className="merchant__header">
-        <div className="merchant__icon"><Store size={40} /></div>
-        <h1 className="merchant__title">
-          The Traveling Merchant
-          {discountPercent > 0 && (
-            <span className="merchant__discount-badge">{discountPercent}% OFF!</span>
-          )}
-        </h1>
-        <p className="merchant__subtitle">
-          "Rare treasures from the farthest corners of the shinobi world"
-        </p>
+        {/* Portrait frame */}
+        <div className="merchant__npc">
+          <div className="merchant__npc-frame">
+            <span className="merchant__npc-icon" role="img" aria-label="Merchant">🏪</span>
+          </div>
+          <div className="merchant__npc-nameplate">
+            <span className="merchant__npc-role">TRAVELING MERCHANT</span>
+            {discountPercent > 0 && (
+              <span className="merchant__discount-badge">{discountPercent}% OFF!</span>
+            )}
+          </div>
+          <p className="merchant__npc-quote">
+            "From the far corners of the shinobi world, I bring only the finest."
+          </p>
+        </div>
       </header>
 
       {/* Resources Bar */}
@@ -721,6 +750,7 @@ const Merchant: React.FC<MerchantProps> = ({
         </button>
       </div>
     </div>
+    </SceneBackdrop>
   );
 };
 

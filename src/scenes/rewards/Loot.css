@@ -1,6 +1,7 @@
 /**
  * Loot Scene Styles
  * BEM-style CSS for the victory rewards screen
+ * Pixel-arcade card pattern: solid bg, rarity border, hard shadow.
  */
 
 @import '../../styles/design-system/index.css';
@@ -15,21 +16,34 @@
   z-index: 10;
 }
 
-.loot__title {
-  font-size: var(--sw-text-2xl);
+/* ===========================================
+   Victory Header — dramatic scene presence
+   =========================================== */
+
+.loot__victory-header {
   text-align: center;
-  margin-bottom: var(--sw-space-2);
-  color: var(--sw-text-muted);
-  font-family: var(--sw-font-serif);
-  letter-spacing: 0.5em;
-  text-transform: uppercase;
+  padding: var(--sw-space-8) 0 var(--sw-space-6);
 }
 
-.loot__subtitle {
-  text-align: center;
-  color: var(--sw-text-muted);
+.loot__victory-title {
+  font-family: var(--sw-font-serif);
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--sw-accent-tertiary);
+  text-shadow:
+    0 0 20px rgba(251, 191, 36, 0.55),
+    0 0 50px rgba(251, 191, 36, 0.22);
+  animation: sw-ready-pulse 3s ease-in-out infinite;
+  margin: 0;
+}
+
+.loot__victory-subtitle {
   font-size: var(--sw-text-sm);
-  margin-bottom: var(--sw-space-10);
+  letter-spacing: var(--sw-tracking-ultra);
+  text-transform: uppercase;
+  color: var(--sw-text-muted);
+  margin-top: var(--sw-space-2);
 }
 
 /* Keyboard Hints */
@@ -66,31 +80,51 @@
 }
 
 /* ===========================================
-   Item Card
+   Item Card  —  pixel-arcade pattern
    =========================================== */
 
 .loot-card {
-  background: var(--sw-bg-primary);
-  border: 1px solid var(--sw-glass-border);
+  background: var(--sw-bg-secondary);
+  border: 2px solid var(--sw-frame-soft);
+  border-radius: var(--sw-radius-sm);
   padding: var(--sw-space-6);
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-4);
-  cursor: help;
-  transition: all var(--sw-transition-base);
+  cursor: default;
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
+  box-shadow: var(--sw-pix-shadow-sm);
 }
 
 .loot-card:hover {
-  border-color: var(--sw-glass-border-highlight);
-  background: var(--sw-glass-bg);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow);
 }
 
+.loot-card:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
+}
+
+/* Rarity-specific borders */
+.loot-card--broken    { border-color: var(--sw-rarity-broken); }
+.loot-card--rare      { border-color: var(--sw-rarity-rare); }
+.loot-card--epic      { border-color: var(--sw-rarity-epic); }
+.loot-card--legendary { border-color: var(--sw-rarity-legendary); }
+.loot-card--cursed    { border-color: var(--sw-rarity-cursed); }
+
+/* Rarity glow on hover — APPROVED EXCEPTION for item-cards */
+.loot-card--rare:hover      { box-shadow: var(--sw-pix-shadow), 0 0 12px var(--sw-rarity-rare-glow); }
+.loot-card--epic:hover      { box-shadow: var(--sw-pix-shadow), 0 0 14px var(--sw-rarity-epic-glow); }
+.loot-card--legendary:hover { box-shadow: var(--sw-pix-shadow), 0 0 16px var(--sw-rarity-legendary-glow); }
+.loot-card--cursed:hover    { box-shadow: var(--sw-pix-shadow), 0 0 16px var(--sw-rarity-cursed-glow); }
+
 .loot-card--component {
-  border-color: rgba(120, 53, 15, 0.3);
+  border-color: var(--sw-accent-dim);
 }
 
 .loot-card--skill {
-  border-color: rgba(30, 58, 138, 0.3);
+  border-color: var(--sw-rarity-rare-glow);
 }
 
 /* Card Header */
@@ -119,29 +153,14 @@
   font-weight: 700;
 }
 
-/* Rarity Colors */
-.loot-card__name--common {
-  color: var(--sw-text-tertiary);
-}
-
-.loot-card__name--rare {
-  color: #60a5fa;
-}
-
-.loot-card__name--epic {
-  color: #a855f7;
-}
-
-.loot-card__name--legendary {
-  color: #fbbf24;
-}
-
-.loot-card__name--cursed {
-  color: #f87171;
-}
-
+/* Rarity Name Colors */
+.loot-card__name--common   { color: var(--sw-text-tertiary); }
+.loot-card__name--rare     { color: var(--sw-rarity-rare); }
+.loot-card__name--epic     { color: var(--sw-rarity-epic); }
+.loot-card__name--legendary { color: var(--sw-rarity-legendary); }
+.loot-card__name--cursed   { color: var(--sw-rarity-cursed); }
 .loot-card__name--forbidden {
-  color: #ef4444;
+  color: var(--sw-rarity-cursed);
   animation: sw-ready-pulse 2s ease-in-out infinite;
 }
 
@@ -154,15 +173,15 @@
 
 /* Passive Preview */
 .loot-card__passive {
-  background: rgba(168, 85, 247, 0.1);
-  border: 1px solid rgba(168, 85, 247, 0.3);
+  background: var(--sw-rarity-epic-bg);
+  border: 1px solid var(--sw-rarity-epic-glow);
   border-radius: var(--sw-radius-sm);
   padding: var(--sw-space-2);
 }
 
 .loot-card__passive-text {
   font-size: var(--sw-text-2xs);
-  color: #d8b4fe;
+  color: var(--sw-rarity-epic);
 }
 
 /* Stats List */
@@ -188,22 +207,15 @@
   color: var(--sw-text-secondary);
 }
 
-.loot-card__stat-delta {
-  font-size: var(--sw-text-2xs);
-}
-
-.loot-card__stat-delta--positive {
-  color: #4ade80;
-}
-
-.loot-card__stat-delta--negative {
-  color: #f87171;
-}
+.loot-card__stat-delta            { font-size: var(--sw-text-2xs); }
+.loot-card__stat-delta--positive  { color: var(--sw-risk-safe-light); }
+.loot-card__stat-delta--negative  { color: var(--sw-risk-high-light); }
 
 /* Synthesis Hint */
 .loot-card__synthesis {
   font-size: var(--sw-text-3xs);
-  color: rgba(251, 191, 36, 0.7);
+  color: var(--sw-accent-tertiary);
+  opacity: 0.7;
   border-top: 1px solid var(--sw-glass-border);
   padding-top: var(--sw-space-2);
 }
@@ -219,7 +231,7 @@
 }
 
 .loot-card__skill-icon {
-  color: rgba(30, 58, 138, 1);
+  color: var(--sw-rarity-rare);
   flex-shrink: 0;
 }
 
@@ -247,27 +259,19 @@
   color: var(--sw-text-muted);
 }
 
-.loot-card__skill-stat-value--chakra {
-  color: #60a5fa;
-}
-
-.loot-card__skill-stat-value--requirement-met {
-  color: #4ade80;
-}
-
-.loot-card__skill-stat-value--requirement-not-met {
-  color: #f87171;
-}
+.loot-card__skill-stat-value--chakra          { color: var(--sw-rarity-rare); }
+.loot-card__skill-stat-value--requirement-met  { color: var(--sw-risk-safe-light); }
+.loot-card__skill-stat-value--requirement-not-met { color: var(--sw-risk-high-light); }
 
 /* Effects Section */
 .loot-card__effects {
-  border-top: 1px solid rgba(30, 58, 138, 0.3);
+  border-top: 1px solid var(--sw-rarity-rare-bg);
   padding-top: var(--sw-space-3);
 }
 
 .loot-card__effects-title {
   font-size: var(--sw-text-3xs);
-  color: #3b82f6;
+  color: var(--sw-rarity-rare);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
   margin-bottom: var(--sw-space-2);
@@ -292,7 +296,7 @@
 
 /* Bonus Stats */
 .loot-card__bonuses {
-  border-top: 1px solid rgba(30, 58, 138, 0.3);
+  border-top: 1px solid var(--sw-rarity-rare-bg);
   padding-top: var(--sw-space-3);
   font-size: var(--sw-text-2xs);
   display: flex;
@@ -300,17 +304,9 @@
   gap: var(--sw-space-1);
 }
 
-.loot-card__bonus--crit {
-  color: #facc15;
-}
-
-.loot-card__bonus--pen {
-  color: #f87171;
-}
-
-.loot-card__bonus--toggle {
-  color: var(--sw-accent-tertiary);
-}
+.loot-card__bonus--crit   { color: var(--sw-rarity-legendary); }
+.loot-card__bonus--pen    { color: var(--sw-risk-high-light); }
+.loot-card__bonus--toggle { color: var(--sw-accent-tertiary); }
 
 /* ===========================================
    Action Buttons
@@ -323,13 +319,8 @@
   padding-top: var(--sw-space-3);
 }
 
-.loot-card__actions--two {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.loot-card__actions--three {
-  grid-template-columns: repeat(3, 1fr);
-}
+.loot-card__actions--two   { grid-template-columns: repeat(2, 1fr); }
+.loot-card__actions--three { grid-template-columns: repeat(3, 1fr); }
 
 .loot-card__btn {
   padding: var(--sw-space-2);
@@ -337,30 +328,43 @@
   font-weight: 700;
   text-transform: uppercase;
   border: 1px solid;
+  border-radius: var(--sw-radius-sm);
   cursor: pointer;
-  transition: all var(--sw-transition-base);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast), background var(--sw-transition-base);
+  box-shadow: var(--sw-shadow-sm);
 }
 
 .loot-card__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
+}
+
+.loot-card__btn:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--sw-shadow-md);
+}
+
+.loot-card__btn:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: none;
 }
 
 .loot-card__btn--equip {
-  background: rgba(24, 24, 27, 1);
+  background: var(--sw-bg-primary);
   border-color: var(--sw-glass-border);
   color: var(--sw-text-tertiary);
 }
 
 .loot-card__btn--equip:hover:not(:disabled) {
-  background: var(--sw-glass-bg);
+  background: var(--sw-bg-tertiary);
   color: var(--sw-text-secondary);
 }
 
 .loot-card__btn--store {
-  background: rgba(120, 53, 15, 0.2);
-  border-color: rgba(120, 53, 15, 1);
-  color: #fcd34d;
+  background: var(--sw-accent-glow);
+  border-color: var(--sw-accent-dim);
+  color: var(--sw-accent-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -368,45 +372,49 @@
 }
 
 .loot-card__btn--store:hover:not(:disabled) {
-  background: rgba(120, 53, 15, 0.4);
+  background: rgba(180, 83, 9, 0.3);
 }
 
 .loot-card__btn--store-disabled {
-  background: rgba(24, 24, 27, 1);
+  background: var(--sw-bg-primary);
   border-color: var(--sw-glass-border);
   color: var(--sw-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sw-space-1);
 }
 
 .loot-card__btn--sell {
-  background: rgba(24, 24, 27, 1);
+  background: var(--sw-bg-primary);
   border-color: var(--sw-glass-border);
   color: var(--sw-text-muted);
 }
 
 .loot-card__btn--sell:hover:not(:disabled) {
-  color: #eab308;
+  color: var(--sw-rarity-legendary);
 }
 
 .loot-card__btn--learn {
   width: 100%;
-  background: rgba(30, 58, 138, 0.2);
-  border-color: rgba(30, 58, 138, 1);
-  color: #93c5fd;
+  background: var(--sw-rarity-rare-bg);
+  border-color: var(--sw-rarity-rare-glow);
+  color: var(--sw-rarity-rare);
 }
 
 .loot-card__btn--learn:hover:not(:disabled) {
-  background: rgba(30, 58, 138, 0.4);
+  background: rgba(59, 130, 246, 0.25);
 }
 
 .loot-card__btn--upgrade {
   width: 100%;
-  background: rgba(22, 101, 52, 0.2);
-  border-color: rgba(22, 101, 52, 1);
-  color: #86efac;
+  background: var(--sw-risk-safe-bg);
+  border-color: var(--sw-risk-safe-glow);
+  color: var(--sw-risk-safe-light);
 }
 
 .loot-card__btn--upgrade:hover:not(:disabled) {
-  background: rgba(22, 101, 52, 0.4);
+  background: rgba(21, 128, 61, 0.3);
 }
 
 /* Replace Skill Buttons */
@@ -418,17 +426,19 @@
 
 .loot-card__btn--replace {
   padding: var(--sw-space-1);
-  background: rgba(24, 24, 27, 1);
+  background: var(--sw-bg-primary);
   border: 1px solid var(--sw-glass-border);
-  font-size: 0.5rem;
+  font-size: var(--sw-text-2xs);
   color: var(--sw-text-muted);
   text-transform: uppercase;
   cursor: pointer;
+  border-radius: var(--sw-radius-sm);
   transition: color var(--sw-transition-base);
+  font-family: var(--sw-font-mono);
 }
 
 .loot-card__btn--replace:hover:not(:disabled) {
-  color: #f87171;
+  color: var(--sw-rarity-cursed);
 }
 
 /* ===========================================
@@ -469,9 +479,7 @@
   max-width: 260px;
 }
 
-.loot-tooltip__name {
-  font-weight: 700;
-}
+.loot-tooltip__name { font-weight: 700; }
 
 .loot-tooltip__type {
   font-size: var(--sw-text-2xs);
@@ -501,9 +509,7 @@
   font-family: var(--sw-font-mono);
 }
 
-.loot-tooltip__stat-name {
-  color: var(--sw-text-muted);
-}
+.loot-tooltip__stat-name  { color: var(--sw-text-muted); }
 
 .loot-tooltip__stat-values {
   display: flex;
@@ -511,31 +517,18 @@
   gap: var(--sw-space-2);
 }
 
-.loot-tooltip__stat-value {
-  color: var(--sw-text-secondary);
-}
-
-.loot-tooltip__stat-delta--positive {
-  color: #4ade80;
-}
-
-.loot-tooltip__stat-delta--negative {
-  color: #f87171;
-}
-
-.loot-tooltip__stat-new {
-  color: #60a5fa;
-}
+.loot-tooltip__stat-value     { color: var(--sw-text-secondary); }
+.loot-tooltip__stat-delta--positive { color: var(--sw-risk-safe-light); }
+.loot-tooltip__stat-delta--negative { color: var(--sw-risk-high-light); }
+.loot-tooltip__stat-new       { color: var(--sw-rarity-rare); }
 
 .loot-tooltip__sell {
   font-size: var(--sw-text-2xs);
-  color: #ca8a04;
+  color: var(--sw-risk-low-light);
 }
 
-/* Additional classes for inline style fixes */
-.loot-card__skill-stat-label--int {
-  color: #06b6d4;
-}
+/* Additional helper classes */
+.loot-card__skill-stat-label--int { color: var(--sw-clan-yamanaka); }
 
 .loot-card__skill-actions {
   margin-top: auto;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Item, Skill, Rarity, SkillTier, DamageType } from '../../game/types';
 import { Scroll, MapPin, Coins, Sparkles, Award } from 'lucide-react';
 import Tooltip from '../../components/shared/Tooltip';
@@ -18,6 +18,8 @@ interface TreasureHuntRewardProps {
   onClaim: () => void;
   getRarityColor: (rarity: Rarity) => string;
   getDamageTypeColor: (dt: DamageType) => string;
+  /** Biome background image — replaces the solid-black backdrop. */
+  background?: string;
 }
 
 const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
@@ -25,8 +27,11 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
   onClaim,
   getRarityColor,
   getDamageTypeColor,
+  background,
 }) => {
   const [showContent, setShowContent] = useState(false);
+  const [bgError, setBgError] = useState(false);
+  const handleBgError = useCallback(() => setBgError(true), []);
 
   // Entrance animation
   useEffect(() => {
@@ -147,7 +152,7 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
       key={skill.id}
       content={
         <div className="treasure-tooltip">
-          <div className={`treasure-tooltip__name ${skill.tier === SkillTier.FORBIDDEN ? 'text-red-500' : 'text-blue-200'}`}>
+          <div className={`treasure-tooltip__name ${skill.tier === SkillTier.FORBIDDEN ? 'treasure-skill--forbidden' : 'treasure-skill--scroll'}`}>
             {skill.name}
           </div>
           <div className="treasure-tooltip__type treasure-tooltip__type--skill">
@@ -196,7 +201,7 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
 
         <div className="treasure-reward__card-content">
           <Scroll className="treasure-reward__card-scroll-icon" />
-          <div className={`treasure-reward__card-name ${skill.tier === SkillTier.FORBIDDEN ? 'text-red-400' : 'text-blue-200'}`}>
+          <div className={`treasure-reward__card-name ${skill.tier === SkillTier.FORBIDDEN ? 'treasure-skill--forbidden' : 'treasure-skill--scroll'}`}>
             {skill.name}
           </div>
           <div className="treasure-reward__card-type treasure-reward__card-type--skill">
@@ -209,8 +214,15 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
 
   return (
     <div className="treasure-modal">
-      {/* Backdrop */}
-      <div className="treasure-modal__backdrop" />
+      {/* Backdrop — biome scene + scrim layers */}
+      <div className="treasure-modal__backdrop">
+        {background && !bgError && (
+          <img src={background} alt="" className="treasure-modal__bg-img" aria-hidden="true" onError={handleBgError} />
+        )}
+        <div className="treasure-modal__scrim" />
+        <div className="treasure-modal__vignette" />
+        <div className="treasure-modal__scanlines" />
+      </div>
 
       {/* Main container */}
       <div className="treasure-modal__container treasure-reward">

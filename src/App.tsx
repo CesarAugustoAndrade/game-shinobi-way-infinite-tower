@@ -832,6 +832,7 @@ const App: React.FC = () => {
               playerStats={playerStats}
               onFight={handleEliteFight}
               onEscape={handleEliteEscape}
+              background={combatBackground}
             />
           )}
 
@@ -850,6 +851,7 @@ const App: React.FC = () => {
                 getRarityColor={getRarityColor}
                 getDamageTypeColor={getDamageTypeColor}
                 isProcessing={isProcessingLoot}
+                background={combatBackground}
               />
             </ErrorBoundary>
           )}
@@ -868,6 +870,7 @@ const App: React.FC = () => {
                 onBuySlot={handleBuyMerchantSlot}
                 onUpgradeQuality={handleUpgradeTreasureQuality}
                 isProcessing={isProcessingLoot}
+                background={combatBackground}
               />
             </ErrorBoundary>
           )}
@@ -889,6 +892,7 @@ const App: React.FC = () => {
               playerStats={playerStats}
               onLearnScroll={handleLearnScroll}
               onSkip={handleScrollDiscoverySkip}
+              background={combatBackground}
             />
           )}
 
@@ -910,6 +914,7 @@ const App: React.FC = () => {
                 onBagFullSell={handleBagFullSell}
                 onBagFullLeave={handleBagFullLeave}
                 getRarityColor={getRarityColor}
+                background={combatBackground}
               />
             </ErrorBoundary>
           )}
@@ -922,6 +927,7 @@ const App: React.FC = () => {
                 onClaim={handleTreasureHuntRewardClaim}
                 getRarityColor={getRarityColor}
                 getDamageTypeColor={getDamageTypeColor}
+                background={combatBackground}
               />
             </ErrorBoundary>
           )}

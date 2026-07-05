@@ -400,7 +400,7 @@
 ## T-017 · Pixel-Arcade: pantallas de economía/recompensa
 - id: T-017
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 45
 - targetScore: 85
 - lensFocus: [PRESENTACION]

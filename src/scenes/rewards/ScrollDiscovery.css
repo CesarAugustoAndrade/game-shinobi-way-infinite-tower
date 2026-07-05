@@ -24,13 +24,13 @@
 }
 
 .scroll-discovery__header-icon {
-  color: #f59e0b;
+  color: var(--sw-accent-tertiary);
 }
 
 .scroll-discovery__title {
   font-size: var(--sw-text-2xl);
   text-align: center;
-  color: var(--sw-text-muted);
+  color: var(--sw-text-primary);
   font-family: var(--sw-font-serif);
   letter-spacing: 0.5em;
   text-transform: uppercase;
@@ -78,20 +78,20 @@
 }
 
 .scroll-discovery__resource-icon--chakra {
-  color: #3b82f6;
+  color: var(--sw-rarity-rare);
 }
 
 .scroll-discovery__resource-icon--int {
-  color: #06b6d4;
+  color: var(--sw-clan-yamanaka);
 }
 
 .scroll-discovery__resource-value--chakra {
-  color: #60a5fa;
+  color: var(--sw-rarity-rare-glow);
   font-family: var(--sw-font-mono);
 }
 
 .scroll-discovery__resource-value--int {
-  color: #22d3ee;
+  color: var(--sw-clan-yamanaka);
   font-family: var(--sw-font-mono);
 }
 
@@ -117,17 +117,24 @@
    =========================================== */
 
 .scroll-card {
-  background: var(--sw-bg-primary);
-  border: 1px solid;
+  background: var(--sw-bg-secondary);
+  border: 2px solid;
   padding: var(--sw-space-6);
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-4);
-  transition: all var(--sw-transition-base);
+  box-shadow: var(--sw-pix-shadow-sm);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast), border-color var(--sw-transition-fast);
 }
 
 .scroll-card:hover {
-  background: var(--sw-glass-bg);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow);
+}
+
+.scroll-card:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 /* Tier Border Colors */
@@ -175,19 +182,19 @@
 }
 
 .scroll-card__name--advanced {
-  color: #22d3ee;
+  color: var(--sw-clan-yamanaka);
 }
 
 .scroll-card__name--hidden {
-  color: #fbbf24;
+  color: var(--sw-rarity-legendary);
 }
 
 .scroll-card__name--forbidden {
-  color: #ef4444;
+  color: var(--sw-rarity-cursed);
 }
 
 .scroll-card__name--kinjutsu {
-  color: #fb7185;
+  color: var(--sw-risk-extreme-light);
   animation: sw-ready-pulse 2s ease-in-out infinite;
 }
 
@@ -201,8 +208,8 @@
 
 .scroll-card__known-badge {
   font-size: var(--sw-text-2xs);
-  background: rgba(22, 101, 52, 0.3);
-  color: #4ade80;
+  background: var(--sw-risk-safe-bg);
+  color: var(--sw-risk-safe-light);
   padding: var(--sw-space-1) var(--sw-space-2);
   border-radius: var(--sw-radius-sm);
 }
@@ -231,7 +238,7 @@
 }
 
 .scroll-card__stat-value--chakra {
-  color: #60a5fa;
+  color: var(--sw-rarity-rare-glow);
 }
 
 .scroll-card__stat-value--physical {
@@ -239,19 +246,19 @@
 }
 
 .scroll-card__stat-value--elemental {
-  color: #22d3ee;
+  color: var(--sw-clan-yamanaka);
 }
 
 .scroll-card__stat-value--mental {
-  color: #a855f7;
+  color: var(--sw-rarity-epic);
 }
 
 .scroll-card__stat-value--true {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
 }
 
 .scroll-card__stat-value--multiplier {
-  color: #fbbf24;
+  color: var(--sw-rarity-legendary);
 }
 
 /* Warning Messages */
@@ -262,8 +269,8 @@
 }
 
 .scroll-card__warning--requirement {
-  color: #f87171;
-  background: rgba(127, 29, 29, 0.2);
+  color: var(--sw-risk-high-light);
+  background: var(--sw-risk-high-bg);
 }
 
 .scroll-card__warning--slots {
@@ -273,7 +280,7 @@
 
 .scroll-card__warning--chakra {
   font-size: var(--sw-text-3xs);
-  color: #f87171;
+  color: var(--sw-risk-high-light);
   text-align: center;
   margin-top: var(--sw-space-1);
 }
@@ -312,17 +319,27 @@
 .scroll-card__btn--learn {
   background: rgba(120, 53, 15, 0.2);
   border-color: rgba(180, 83, 9, 0.7);
-  color: #fcd34d;
+  color: var(--sw-rarity-legendary);
+  box-shadow: var(--sw-pix-shadow-sm);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
 }
 
 .scroll-card__btn--learn:hover:not(:disabled) {
   background: rgba(120, 53, 15, 0.4);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow);
+}
+
+.scroll-card__btn--learn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 .scroll-card__btn--learn:disabled {
-  background: rgba(24, 24, 27, 1);
+  background: var(--sw-bg-primary);
   border-color: var(--sw-glass-border);
   color: var(--sw-text-muted);
+  box-shadow: none;
 }
 
 .scroll-card__btn-cost {
@@ -330,11 +347,11 @@
 }
 
 .scroll-card__btn-cost--affordable {
-  color: #60a5fa;
+  color: var(--sw-rarity-rare-glow);
 }
 
 .scroll-card__btn-cost--insufficient {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
 }
 
 /* Replace Skill Grid */
@@ -346,17 +363,17 @@
 
 .scroll-card__btn--replace {
   padding: var(--sw-space-2);
-  background: rgba(24, 24, 27, 1);
+  background: var(--sw-bg-primary);
   border: 1px solid var(--sw-glass-border);
   font-size: var(--sw-text-3xs);
   color: var(--sw-text-muted);
   text-transform: uppercase;
   cursor: pointer;
-  transition: all var(--sw-transition-base);
+  transition: color var(--sw-transition-base), border-color var(--sw-transition-base);
 }
 
 .scroll-card__btn--replace:hover:not(:disabled) {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
   border-color: rgba(153, 27, 27, 1);
 }
 
@@ -455,9 +472,9 @@
 }
 
 .scroll-tooltip__requirement--met {
-  color: #4ade80;
+  color: var(--sw-risk-safe-light);
 }
 
 .scroll-tooltip__requirement--unmet {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
 }

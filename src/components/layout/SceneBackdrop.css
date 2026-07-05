@@ -1,0 +1,128 @@
+/**
+ * SceneBackdrop — shared atmospheric wrapper for economy/reward scenes.
+ * Mirrors the CinematicViewscreen layer stack without the enemy sprite.
+ *
+ * Layer z-index map:
+ *   0  .scene-backdrop__bg        Biome background image (object-cover, opacity 0.38)
+ *   1  .scene-backdrop__gradient  Dark scrim (top/bottom darkening)
+ *   2  .scene-backdrop__vignette  Radial edge darkening
+ *   3  .scene-backdrop__scanlines Subtle CRT scanlines
+ *  10  .scene-backdrop__content   Scene content (children)
+ *
+ * Usage: wrap the scene root element.
+ * The backdrop fills 100% width of its flex parent (overrides parchment bg).
+ * min-height: 100% ensures bg layers fill even short scenes.
+ */
+
+@import '../../styles/design-system/index.css';
+
+/* ============================================================
+   Root container — fills the flex parent's width.
+   Dark fallback gradient renders even without a backgroundImage.
+   ============================================================ */
+
+.scene-backdrop {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  /* Dark fallback — visible when no biome image is provided */
+  background: linear-gradient(180deg, #0c0e1a 0%, #05070c 100%);
+}
+
+/* ============================================================
+   Layer 0: Biome background image
+   Opacity 0.38 — subtle world presence without distracting from UI.
+   ============================================================ */
+
+.scene-backdrop__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  opacity: 0.38;
+  z-index: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+/* ============================================================
+   Layer 1: Gradient scrim
+   Darker at top/bottom to frame the UI panels cleanly.
+   ============================================================ */
+
+.scene-backdrop__gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(5, 7, 12, 0.60) 0%,
+    rgba(5, 7, 12, 0.10) 35%,
+    rgba(5, 7, 12, 0.10) 65%,
+    rgba(5, 7, 12, 0.75) 100%
+  );
+}
+
+/* ============================================================
+   Layer 2: Vignette — radial edge darkening
+   ============================================================ */
+
+.scene-backdrop__vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 30%,
+    transparent 30%,
+    rgba(0, 0, 0, 0.65) 100%
+  );
+}
+
+/* ============================================================
+   Layer 3: Scanlines — subtle CRT texture
+   ============================================================ */
+
+.scene-backdrop__scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.09) 2px,
+    rgba(0, 0, 0, 0.09) 4px
+  );
+}
+
+/* ============================================================
+   Layer 10: Content — scene UI renders here
+   Each child scene owns its own padding/spacing.
+   ============================================================ */
+
+.scene-backdrop__content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* No padding here — each scene manages its own spacing */
+}
+
+/* ============================================================
+   Accessibility: respect reduced-motion (no static concern here,
+   but leaving hook for future parallax additions).
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-backdrop__bg {
+    animation: none;
+  }
+}

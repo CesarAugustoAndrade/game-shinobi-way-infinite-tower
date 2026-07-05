@@ -12,10 +12,11 @@
 .elite-challenge {
   width: 100%;
   max-width: 42rem;
-  background: var(--sw-bg-primary);
+  /* background removed — SceneBackdrop provides the atmospheric biome bg */
+  background: var(--sw-glass-bg-dark);
   border: 1px solid var(--sw-glass-border);
   padding: var(--sw-space-8);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--sw-pix-shadow-lg);
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -87,7 +88,7 @@
 .elite-challenge__enemy-name {
   font-size: var(--sw-text-lg);
   font-weight: 700;
-  color: #f87171;
+  color: var(--sw-risk-high-light);
 }
 
 .elite-challenge__enemy-type {
@@ -126,7 +127,7 @@
 }
 
 .elite-challenge__enemy-stat-value--hp {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
 }
 
 .elite-challenge__enemy-stat-value--atk {
@@ -134,7 +135,7 @@
 }
 
 .elite-challenge__enemy-stat-value--spd {
-  color: #22d3ee;
+  color: var(--sw-clan-yamanaka);
 }
 
 /* ===========================================
@@ -157,12 +158,12 @@
 }
 
 .elite-challenge__artifact-icon {
-  color: #f59e0b;
+  color: var(--sw-accent-tertiary);
 }
 
 .elite-challenge__artifact-label {
   font-size: var(--sw-text-2xs);
-  color: #d97706;
+  color: var(--sw-rarity-legendary);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
 }
@@ -190,7 +191,7 @@
 
 /* Rarity Colors */
 .elite-challenge__artifact-name--broken {
-  color: #78716c;
+  color: var(--sw-text-muted);
 }
 
 .elite-challenge__artifact-name--common {
@@ -198,19 +199,19 @@
 }
 
 .elite-challenge__artifact-name--rare {
-  color: #60a5fa;
+  color: var(--sw-rarity-rare);
 }
 
 .elite-challenge__artifact-name--epic {
-  color: #a855f7;
+  color: var(--sw-rarity-epic);
 }
 
 .elite-challenge__artifact-name--legendary {
-  color: #fbbf24;
+  color: var(--sw-rarity-legendary);
 }
 
 .elite-challenge__artifact-name--cursed {
-  color: #ef4444;
+  color: var(--sw-rarity-cursed);
 }
 
 .elite-challenge__artifact-description {
@@ -248,11 +249,18 @@
   border: 1px solid;
   background: transparent;
   cursor: pointer;
-  transition: all var(--sw-transition-base);
+  box-shadow: var(--sw-pix-shadow-sm);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast), background var(--sw-transition-base);
 }
 
 .elite-challenge__choice-btn:hover {
-  transform: translateY(-2px);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sw-pix-shadow);
+}
+
+.elite-challenge__choice-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
 /* Fight Button */
@@ -273,11 +281,11 @@
 }
 
 .elite-challenge__choice-icon--fight {
-  color: #ef4444;
+  color: var(--sw-rarity-cursed);
 }
 
 .elite-challenge__choice-btn--fight:hover .elite-challenge__choice-icon--fight {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
 }
 
 .elite-challenge__choice-text {
@@ -287,7 +295,7 @@
 .elite-challenge__choice-title--fight {
   font-size: var(--sw-text-sm);
   font-weight: 700;
-  color: #fecaca;
+  color: var(--sw-risk-high-light);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
 }
@@ -308,11 +316,11 @@
 }
 
 .elite-challenge__choice-icon--escape {
-  color: #06b6d4;
+  color: var(--sw-rarity-rare);
 }
 
 .elite-challenge__choice-btn--escape:hover .elite-challenge__choice-icon--escape {
-  color: #22d3ee;
+  color: var(--sw-clan-yamanaka);
 }
 
 .elite-challenge__escape-header {
@@ -324,7 +332,7 @@
 .elite-challenge__choice-title--escape {
   font-size: var(--sw-text-sm);
   font-weight: 700;
-  color: #a5f3fc;
+  color: var(--sw-clan-yamanaka);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
 }
@@ -335,15 +343,15 @@
 }
 
 .elite-challenge__escape-chance--high {
-  color: #4ade80;
+  color: var(--sw-risk-safe-light);
 }
 
 .elite-challenge__escape-chance--medium {
-  color: #facc15;
+  color: var(--sw-risk-low-light);
 }
 
 .elite-challenge__escape-chance--low {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
 }
 
 .elite-challenge__escape-failure {

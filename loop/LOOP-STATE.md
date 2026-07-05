@@ -8,10 +8,10 @@
 ## Run config
 
 - run: 2026-07-02-A
-- mode: auto     <!-- auto | interactive -->
+- mode: interactive     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-015 PASS en a3/3, diff en stage pendiente del humano. Advisories de BAL para futuro topic de tuning en logs/T-015.md#a3. Siguiente pending: T-017)
-- updatedAt: 2026-07-04T15:24:04Z
+- activeTopic: — (T-017 PASS en a2, diff en stage pendiente del humano. Siguiente pending: T-018 pixel-arcade secundarias)
+- updatedAt: 2026-07-05T15:53:16Z
 
 ## Ledger
 
@@ -55,6 +55,8 @@
 | T-015 | 1 | 60 | 62 | 74 | 68 | FAIL | iterating | 2026-07-04T14:50:46Z | logs/T-015.md#a1 |
 | T-015 | 2 | 68 | 86 | 88 | 78 | FAIL | iterating | 2026-07-04T15:12:23Z | logs/T-015.md#a2 |
 | T-015 | 3 | 85 | 90 | 90 | 87 | PASS | passed | 2026-07-04T15:24:04Z | logs/T-015.md#a3 |
+| T-017 | 1 | 88 | 88 | 72 | 90 | FAIL | iterating | 2026-07-05T15:05:59Z | logs/T-017.md#a1 |
+| T-017 | 2 | 90 | 90 | 88 | 90 | PASS | passed | 2026-07-05T15:53:16Z | logs/T-017.md#a2 |
 
 <!--
 Leyenda:

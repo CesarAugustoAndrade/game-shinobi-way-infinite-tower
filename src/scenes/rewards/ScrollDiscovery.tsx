@@ -17,6 +17,7 @@ import {
   getEffectIcon,
   formatEffectDescription,
 } from '../../game/utils/tooltipFormatters';
+import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './ScrollDiscovery.css';
 
 interface ScrollDiscoveryProps {
@@ -25,6 +26,8 @@ interface ScrollDiscoveryProps {
   playerStats: CharacterStats;
   onLearnScroll: (skill: Skill, slotIndex?: number) => void;
   onSkip: () => void;
+  /** Biome background image — fills the scene like CinematicViewscreen. */
+  background?: string;
 }
 
 // Helper functions for tier-based styling
@@ -79,6 +82,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   playerStats,
   onLearnScroll,
   onSkip,
+  background,
 }) => {
   // Keyboard shortcut: SPACE/ENTER to leave scrolls
   useEffect(() => {
@@ -121,6 +125,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   };
 
   return (
+    <SceneBackdrop background={background}>
     <div className="scroll-discovery">
       <div className="scroll-discovery__header">
         <Scroll className="scroll-discovery__header-icon" size={24} />
@@ -317,6 +322,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
         </button>
       </div>
     </div>
+    </SceneBackdrop>
   );
 };
 
