@@ -369,7 +369,7 @@
 ## T-015 · Simulador Multi-Locación con Itemización
 - id: T-015
 - section: balance
-- status: pending
+- status: passed
 - initialScore: 40
 - targetScore: 85
 - lensFocus: [BALANCE, ARQUITECTURA]

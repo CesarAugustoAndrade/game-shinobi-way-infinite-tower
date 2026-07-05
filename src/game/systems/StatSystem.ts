@@ -498,6 +498,38 @@ export function getEnemyFullStats(enemy: Enemy): {
 }
 
 // ============================================================================
+// EFFECTIVE ATK HELPER
+// ============================================================================
+
+/**
+ * Compute the player's effective primary attack stat for power-curve tracking.
+ *
+ * Maps the player's element to the relevant attack formula (from CLAUDE.md):
+ *   Physical  → strength × 2 + dexterity × 0.5
+ *   Elemental → spirit × 2 + intelligence × 0.5
+ *   Mental    → intelligence × 1.5 + calmness × 1
+ *
+ * Calls `getPlayerFullStats` internally so equipment and passive bonuses are
+ * already applied to the stats used in the formula.
+ */
+export function getEffectiveAtk(player: Player): number {
+  const p = getPlayerFullStats(player).effectivePrimary;
+  switch (player.element) {
+    case ElementType.FIRE:
+    case ElementType.LIGHTNING:
+    case ElementType.WATER:
+    case ElementType.EARTH:
+    case ElementType.WIND:
+      return p.spirit * 2 + p.intelligence * 0.5;
+    case ElementType.MENTAL:
+      return p.intelligence * 1.5 + p.calmness * 1;
+    case ElementType.PHYSICAL:
+    default:
+      return p.strength * 2 + p.dexterity * 0.5;
+  }
+}
+
+// ============================================================================
 // DAMAGE CALCULATOR - THE CORE COMBAT MATH
 // ============================================================================
 

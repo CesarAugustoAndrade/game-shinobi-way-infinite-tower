@@ -28,6 +28,11 @@ import {
   LocationRunConfig,
   DEFAULT_LOCATION_CONFIG,
 } from './LocationSimulator';
+import {
+  CampaignConfig,
+  DEFAULT_CAMPAIGN_CONFIG,
+  runCampaignSimulation,
+} from './CampaignSimulator';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -222,6 +227,24 @@ export function runLocationSimulation(
 }
 
 // ============================================================================
+// CAMPAIGN SIMULATION RUNNER (multi-location + itemization)
+// ============================================================================
+
+/**
+ * Run the campaign simulation for all preset builds.
+ * Executes with items ON and OFF on the same seed to produce a gear-delta
+ * comparativa, then prints the unified report.
+ */
+export function runCampaignSimulationCLI(
+  runsPerBatch: number,
+  config: CampaignConfig,
+  seed: number
+): void {
+  const builds = generateAllBuilds(config.playerLevel);
+  runCampaignSimulation(runsPerBatch, config, seed, builds);
+}
+
+// ============================================================================
 // CLI MAIN
 // ============================================================================
 
@@ -251,6 +274,44 @@ async function main() {
   // real game is unaffected because this override only lives in the CLI process.
   const seed = parseSeed(args);
   installSeededRandom(seed);
+
+  // Check for campaign mode (multi-location with itemization)
+  const isCampaign = args.includes('--campaign');
+  if (isCampaign) {
+    const config: CampaignConfig = { ...DEFAULT_CAMPAIGN_CONFIG };
+    let runsPerBatch = 50;
+
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--runs' || arg === '-r') {
+        runsPerBatch = parseInt(args[++i]) || runsPerBatch;
+      } else if (arg === '--level' || arg === '-l') {
+        config.playerLevel = parseInt(args[++i]) || config.playerLevel;
+      } else if (arg === '--difficulty' || arg === '-d') {
+        config.baseDifficulty = parseInt(args[++i]) || config.baseDifficulty;
+      } else if (arg === '--locations') {
+        config.numLocations = parseInt(args[++i]) || config.numLocations;
+      } else if (arg === '--start-danger') {
+        config.startDangerLevel = parseInt(args[++i]) || config.startDangerLevel;
+      } else if (arg === '--no-elite') {
+        config.fightEliteChallenges = false;
+      } else if (arg === '--quick' || arg === '-q') {
+        runsPerBatch = 10;
+      } else if (arg === '--help' || arg === '-h') {
+        printHelp();
+        return;
+      }
+    }
+
+    try {
+      runCampaignSimulationCLI(runsPerBatch, config, seed);
+      console.log('\nCampaign simulation complete!');
+    } catch (error) {
+      console.error('Campaign simulation failed:', error);
+      process.exit(1);
+    }
+    return;
+  }
 
   // Check for location-clear (attrition) mode
   const isLocation = args.includes('--location');
@@ -390,6 +451,33 @@ Examples:
   npx tsx src/simulation/index.ts --battles 500 --level 15
   npx tsx src/simulation/index.ts --quick
   npx tsx src/simulation/index.ts --quick --seed 777   (reproducible run)
+
+=== CAMPAIGN MODE (multi-location run with itemization) ===
+Chains N locations with carry-over of HP/chakra/ryo/equipment/XP and runs
+the same seed TWICE (items ON vs items OFF) to isolate the gear contribution.
+Reports: clear rate by location depth, power curve (HP/ATK), ryo economy,
+and a gear-delta comparativa table.
+
+Options:
+  --campaign            Enable campaign simulation
+  -r, --runs <n>        Runs per build per batch (default: 50; ×2 for comparison)
+  --locations <n>       Number of consecutive locations to chain (default: 5)
+  --start-danger <n>    Starting danger level 1-7 (default: 1)
+  -l, --level <n>       Starting player level (default: 5)
+  -d, --difficulty <n>  Region base difficulty 0-100 (default: 40)
+  --no-elite            Skip optional eliteChallenge rooms
+  -q, --quick           Quick mode (10 runs per batch)
+  -s, --seed <n>        PRNG seed for deterministic runs (default: 12345)
+
+npm scripts:
+  npm run simulate:campaign         # Full campaign simulation
+  npm run simulate:campaign:quick   # Quick campaign (10 runs/batch)
+
+Examples:
+  npx tsx src/simulation/index.ts --campaign
+  npx tsx src/simulation/index.ts --campaign --quick
+  npx tsx src/simulation/index.ts --campaign --locations 7 --start-danger 1 -r 30
+  npx tsx src/simulation/index.ts --campaign --quick --seed 999
 
 === LOCATION MODE (attrition / clear-rate) ===
 Simulates clearing whole LOCATIONS (a sequence of rooms with HP/chakra

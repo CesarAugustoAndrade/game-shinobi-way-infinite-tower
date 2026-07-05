@@ -61,7 +61,6 @@ import {
   moveToRoom,
   getCurrentRoom,
   getChildRooms,
-  getRoomById,
   generateChildrenForRoom,
   getArcNameFromFloor,
 } from '../game/systems/LocationSystem';
@@ -70,6 +69,7 @@ import { getStoryArcByName } from '../game/systems/EnemySystem';
 import { getPlayerFullStats } from '../game/systems/StatSystem';
 import { createSimPlayer, resolveBattle } from './BattleSimulator';
 import { PlayerBuildConfig, SimulationConfig, DEFAULT_CONFIG } from './types';
+import { prepareForCombat, pickNextRoom } from './simulatorUtils';
 
 // ============================================================================
 // CONFIG & RESULT TYPES
@@ -142,46 +142,6 @@ export interface LocationAggregate {
   avgCombats: number;
   /** Most common failure room across failed runs (null if none failed). */
   mostCommonDeathRoom: number | null;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-/**
- * Prepare the persistent player for a FRESH combat encounter (mirrors the real
- * game's startCombat): clear combat buffs, reset cooldowns, deactivate toggles.
- * HP/chakra are preserved — they are the attrition pools that carry over.
- */
-function prepareForCombat(player: Player): Player {
-  return {
-    ...player,
-    activeBuffs: [],
-    skills: player.skills.map(s => ({ ...s, currentCooldown: 0, isActive: false })),
-  };
-}
-
-/**
- * Pick the next room to move into. Deterministic: if the floor's exit room has
- * been generated, navigate toward it (walk up the exit's parent chain to the
- * child of `current` that leads there); otherwise take the first child.
- */
-function pickNextRoom(
-  floor: BranchingFloor,
-  current: BranchingRoom,
-  children: BranchingRoom[]
-): BranchingRoom {
-  if (floor.exitRoomId) {
-    let node: BranchingRoom | undefined = getRoomById(floor, floor.exitRoomId);
-    while (node && node.parentId && node.parentId !== current.id) {
-      node = getRoomById(floor, node.parentId);
-    }
-    if (node && node.parentId === current.id) {
-      const childTowardExit = children.find(c => c.id === node!.id);
-      if (childTowardExit) return childTowardExit;
-    }
-  }
-  return children[0];
 }
 
 // ============================================================================

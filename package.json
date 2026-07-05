@@ -13,6 +13,8 @@
     "simulate:quick": "npx tsx src/simulation/index.ts --quick",
     "simulate:progression": "npx tsx src/simulation/index.ts --progression",
     "simulate:progression:quick": "npx tsx src/simulation/index.ts --progression --quick",
+    "simulate:campaign": "npx tsx src/simulation/index.ts --campaign",
+    "simulate:campaign:quick": "npx tsx src/simulation/index.ts --campaign --quick",
     "lint:css": "stylelint \"src/**/*.css\"",
     "lint:css:fix": "stylelint \"src/**/*.css\" --fix"
   },

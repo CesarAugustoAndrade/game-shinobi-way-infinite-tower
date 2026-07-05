@@ -8,10 +8,10 @@
 ## Run config
 
 - run: 2026-07-02-A
-- mode: interactive     <!-- auto | interactive -->
+- mode: auto     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-013 PASS a1, diff en stage. Seguimiento abierto: láminas mid/fg por bioma [código listo, assets sin generar]. Siguiente pending: T-015 simulador multi-locación)
-- updatedAt: 2026-07-04T14:15:25Z
+- activeTopic: — (T-015 PASS en a3/3, diff en stage pendiente del humano. Advisories de BAL para futuro topic de tuning en logs/T-015.md#a3. Siguiente pending: T-017)
+- updatedAt: 2026-07-04T15:24:04Z
 
 ## Ledger
 
@@ -52,6 +52,9 @@
 | T-014 | 3 | 92 | 92 | 82 | 90 | FAIL | iterating | 2026-07-04T11:55:00Z | logs/T-014.md#a3 |
 | T-014 | 4 | 92 | 92 | 90 | 90 | PASS | passed | 2026-07-04T12:00:46Z | logs/T-014.md#a4 |
 | T-013 | 1 | 90 | 90 | 90 | 90 | PASS | passed | 2026-07-04T14:15:25Z | logs/T-013.md#a1 |
+| T-015 | 1 | 60 | 62 | 74 | 68 | FAIL | iterating | 2026-07-04T14:50:46Z | logs/T-015.md#a1 |
+| T-015 | 2 | 68 | 86 | 88 | 78 | FAIL | iterating | 2026-07-04T15:12:23Z | logs/T-015.md#a2 |
+| T-015 | 3 | 85 | 90 | 90 | 87 | PASS | passed | 2026-07-04T15:24:04Z | logs/T-015.md#a3 |
 
 <!--
 Leyenda:

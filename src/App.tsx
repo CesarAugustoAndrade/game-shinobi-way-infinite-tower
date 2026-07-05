@@ -17,6 +17,7 @@ import {
   getPlayerFullStats,
   canLearnSkill
 } from './game/systems/StatSystem';
+import { applyLevelUp } from './game/systems/LevelSystem';
 import { generateEnemy } from './game/systems/EnemySystem';
 
 import {
@@ -205,54 +206,32 @@ const App: React.FC = () => {
   }
 
   const checkLevelUp = (p: Player): LevelUpResult => {
-    let currentPlayer = { ...p };
-    const oldLevel = currentPlayer.level;
-    const totalStatGains: Record<string, number> = {};
+    const oldLevel = p.level;
+    const updatedPlayer = applyLevelUp(p);
 
-    while (currentPlayer.exp >= currentPlayer.maxExp) {
-      currentPlayer.exp -= currentPlayer.maxExp;
-      currentPlayer.level += 1;
-      currentPlayer.maxExp = currentPlayer.level * 100;
-      const growth = CLAN_GROWTH[currentPlayer.clan];
-      const s = currentPlayer.primaryStats;
-
-      // Accumulate stat gains
+    if (updatedPlayer.level > oldLevel) {
+      const levelsGained = updatedPlayer.level - oldLevel;
+      const growth = CLAN_GROWTH[p.clan];
+      const totalStatGains: Record<string, number> = {};
       Object.entries(growth).forEach(([stat, gain]) => {
         if (gain) {
-          totalStatGains[stat] = (totalStatGains[stat] || 0) + gain;
+          totalStatGains[stat] = gain * levelsGained;
         }
       });
 
-      currentPlayer.primaryStats = {
-        willpower: s.willpower + (growth.willpower || 0),
-        chakra: s.chakra + (growth.chakra || 0),
-        strength: s.strength + (growth.strength || 0),
-        spirit: s.spirit + (growth.spirit || 0),
-        intelligence: s.intelligence + (growth.intelligence || 0),
-        calmness: s.calmness + (growth.calmness || 0),
-        speed: s.speed + (growth.speed || 0),
-        accuracy: s.accuracy + (growth.accuracy || 0),
-        dexterity: s.dexterity + (growth.dexterity || 0)
-      };
-    }
-
-    if (currentPlayer.level > oldLevel) {
-      const newStats = getPlayerFullStats(currentPlayer);
-      currentPlayer.currentHp = newStats.derived.maxHp;
-      currentPlayer.currentChakra = newStats.derived.maxChakra;
-      addLog(`LEVEL UP! You reached Level ${currentPlayer.level}. Stats increased & Fully Healed!`, 'gain');
+      addLog(`LEVEL UP! You reached Level ${updatedPlayer.level}. Stats increased & Fully Healed!`, 'gain');
 
       return {
-        player: currentPlayer,
+        player: updatedPlayer,
         levelUpInfo: {
           oldLevel,
-          newLevel: currentPlayer.level,
-          statGains: totalStatGains
-        }
+          newLevel: updatedPlayer.level,
+          statGains: totalStatGains,
+        },
       };
     }
 
-    return { player: currentPlayer };
+    return { player: updatedPlayer };
   };
 
   // Compute current location and danger level from region state
