@@ -10,7 +10,7 @@
 - run: 2026-07-02-A
 - mode: interactive     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-018 PASSED en a4; pendiente commit+push autorizado por el humano. Próximo pending: T-019)
+- activeTopic: — (T-018 PASSED y commiteado d46145b, pusheado a origin/develop. Próximo pending: T-019)
 - updatedAt: 2026-07-05T20:03:11Z
 
 ## Ledger
