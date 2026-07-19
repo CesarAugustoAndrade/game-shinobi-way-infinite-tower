@@ -43,7 +43,6 @@ import {
   // Wealth and activity types
   LocationActivities,
 } from '../types';
-import { generateEnemy } from './EnemySystem';
 import {
   dangerToFloor,
   getDangerScaling,
@@ -57,6 +56,7 @@ import {
   logCardDrawComplete,
 } from '../utils/explorationDebug';
 import { generateBranchingFloorFromConfig } from './LocationSystem';
+import { formatLocationTerrainEffectLines } from './LocationTerrainSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -201,53 +201,8 @@ export function getLocationActivities(location: Location): LocationActivities {
   return activities;
 }
 
-// ============================================================================
-// ROOM 10 ENEMY GENERATION (Elite/Boss)
-// ============================================================================
-
-/**
- * Generate an elite enemy for Room 10 of a location.
- * Similar to Guardian but scaled by danger level.
- */
-export function generateLocationElite(dangerLevel: number, locationsCleared: number, difficulty: number, locationName: string, arc: string): Enemy {
-  const enemy = generateEnemy(dangerLevel, locationsCleared, 'ELITE', difficulty + dangerLevel * 3, arc);
-
-  // Apply scaling based on danger
-  const scaling = getDangerScaling(dangerLevel);
-  enemy.primaryStats.willpower = Math.floor(enemy.primaryStats.willpower * scaling * 1.2);
-  enemy.primaryStats.strength = Math.floor(enemy.primaryStats.strength * scaling);
-  enemy.primaryStats.spirit = Math.floor(enemy.primaryStats.spirit * scaling);
-
-  // Recalculate HP
-  enemy.currentHp = enemy.primaryStats.willpower * 12 + 50;
-
-  enemy.name = `${locationName} Elite`;
-  enemy.tier = 'Elite';
-
-  return enemy;
-}
-
-/**
- * Generate a boss enemy for boss locations (Room 10).
- */
-export function generateRegionBoss(dangerLevel: number, locationsCleared: number, difficulty: number, regionName: string, arc: string): Enemy {
-  const enemy = generateEnemy(dangerLevel + 2, locationsCleared, 'BOSS', difficulty + 30, arc);
-
-  // Boss scaling
-  enemy.primaryStats.willpower = Math.floor(enemy.primaryStats.willpower * 1.5);
-  enemy.primaryStats.strength = Math.floor(enemy.primaryStats.strength * 1.3);
-  enemy.primaryStats.spirit = Math.floor(enemy.primaryStats.spirit * 1.3);
-  enemy.primaryStats.speed = Math.floor(enemy.primaryStats.speed * 1.2);
-
-  // Recalculate HP
-  enemy.currentHp = enemy.primaryStats.willpower * 15 + 100;
-
-  enemy.name = `${regionName} Boss`;
-  enemy.tier = 'Boss';
-  enemy.isBoss = true;
-
-  return enemy;
-}
+// T-077: removed dead generateLocationElite / generateRegionBoss (0 callers).
+// Room combat uses LocationSystem generateEnemy with preferredElement/pool.
 
 // ============================================================================
 // LOCATION GENERATION
@@ -577,11 +532,27 @@ export function getRandomPath(region: Region): LocationPath | null {
 // ============================================================================
 
 /**
- * Check if the region is complete (boss defeated).
+ * Check if the region boss location is defeated.
+ * Prefer flags.isBoss / LocationType.BOSS — runtime location ids are
+ * `location-<configId>-…` so comparing to config bossLocationId alone is brittle.
  */
+export function isRegionBossDefeated(region: Region): boolean {
+  if (region.isCompleted) return true;
+  const byFlag = region.locations.find(l => l.flags.isBoss);
+  if (byFlag) return byFlag.isCompleted === true;
+  const byType = region.locations.find(l => l.type === LocationType.BOSS);
+  if (byType) return byType.isCompleted === true;
+  // Fallback: config id substring match on runtime id
+  const bossId = region.bossLocationId;
+  const byId = region.locations.find(
+    l => l.id === bossId || l.id.includes(`-${bossId}-`) || l.id.endsWith(`-${bossId}`),
+  );
+  return byId?.isCompleted === true;
+}
+
+/** @deprecated Prefer isRegionBossDefeated — kept as alias for call sites. */
 export function isRegionComplete(region: Region): boolean {
-  const bossLocation = region.locations.find(l => l.id === region.bossLocationId);
-  return bossLocation?.isCompleted ?? false;
+  return isRegionBossDefeated(region);
 }
 
 /**
@@ -612,14 +583,17 @@ export function getAccessibleLocations(region: Region): Location[] {
 /**
  * Generate a BranchingFloor for a Location using dynamic room generation.
  * Uses LocationSystem's generateBranchingFloorFromConfig for room creation.
+ *
+ * @param region - Active region with currentLocationId set
+ * @param player - Optional player (merchant slots, treasure quality, event eligibility, locationsCleared)
  */
-export function locationToBranchingFloor(region: Region): BranchingFloor | null {
+export function locationToBranchingFloor(region: Region, player?: Player): BranchingFloor | null {
   const location = getCurrentLocation(region);
   if (!location) return null;
 
   const effectiveFloor = dangerToFloor(location.dangerLevel, region.baseDifficulty);
 
-  return generateBranchingFloorFromConfig({
+  const floor = generateBranchingFloorFromConfig({
     floor: effectiveFloor,
     arc: region.arc,
     biome: location.biome || location.name,
@@ -629,28 +603,183 @@ export function locationToBranchingFloor(region: Region): BranchingFloor | null 
     targetRoomCount: 10,
     difficulty: region.baseDifficulty,
     initialIntel: 0,
+    player,
+    // T-033: prefer location story hooks when generating room events
+    preferredEventIds: location.tiedStoryEvents,
+    // T-056: location enemy pool for combat theming
+    enemyPool: location.enemyPool,
+    // T-059: loot table bias for treasure/merchant drops
+    lootTable: location.lootTable,
+    // T-064: terrain effects for ambush bias + combat mods path
+    terrainEffects: location.terrainEffects,
+    // T-068: region elemental theme for enemy affinity
+    preferredElement: region.lootTheme?.primaryElement,
+    lootTheme: region.lootTheme,
   });
+
+  // T-046: ambient flavor for location map header + enter log
+  const atmosphereFlavor = pickAtmosphereFlavor(location) ?? undefined;
+  return {
+    ...floor,
+    ...(atmosphereFlavor ? { atmosphereFlavor } : {}),
+    enemyPool: location.enemyPool,
+    lootTable: location.lootTable,
+    terrainEffects: location.terrainEffects,
+    preferredElement: region.lootTheme?.primaryElement,
+    lootTheme: region.lootTheme,
+  };
 }
 
 /**
  * Mark the current location as completed.
  * Called when the exit room of a BranchingFloor is cleared.
+ * Idempotent: if already completed, returns region unchanged (no double-count).
  */
 export function markLocationComplete(region: Region): Region {
   const location = getCurrentLocation(region);
   if (!location) return region;
+  if (location.isCompleted) return region;
 
   const updatedLocation: Location = {
     ...location,
     isCompleted: true,
   };
 
-  return {
+  const next: Region = {
     ...region,
     locations: region.locations.map(l =>
       l.id === location.id ? updatedLocation : l
     ),
     locationsCompleted: region.locationsCompleted + 1,
+  };
+
+  // T-023: boss clear marks the region complete
+  if (location.flags.isBoss || location.type === LocationType.BOSS) {
+    return { ...next, isCompleted: true };
+  }
+  return next;
+}
+
+// ============================================================================
+// SECRET LOCATION DISCOVERY (T-030)
+// ============================================================================
+
+/**
+ * Mark a secret location discovered if it matches unlockCondition.requirement.
+ * Pure; no-op if already discovered or no match.
+ */
+export function discoverSecretByRequirement(
+  region: Region,
+  requirement: string,
+): { region: Region; discoveredName: string | null } {
+  const secret = region.locations.find(
+    (l) =>
+      l.flags.isSecret &&
+      !l.isDiscovered &&
+      l.unlockCondition?.requirement === requirement,
+  );
+  if (!secret) {
+    return { region, discoveredName: null };
+  }
+
+  const discoveredSecretIds = region.discoveredSecretIds.includes(secret.id)
+    ? region.discoveredSecretIds
+    : [...region.discoveredSecretIds, secret.id];
+
+  return {
+    region: {
+      ...region,
+      discoveredSecretIds,
+      locations: region.locations.map((l) =>
+        l.id === secret.id
+          ? { ...l, isDiscovered: true, isAccessible: true }
+          : l,
+      ),
+    },
+    discoveredName: secret.name,
+  };
+}
+
+/**
+ * Unlock any secrets whose unlockCondition.requirement is present in eventFlags (>0).
+ */
+export function discoverSecretsFromEventFlags(
+  region: Region,
+  eventFlags: Record<string, number>,
+): { region: Region; newlyDiscovered: string[] } {
+  let next = region;
+  const newlyDiscovered: string[] = [];
+
+  for (const loc of region.locations) {
+    if (!loc.flags.isSecret || loc.isDiscovered) continue;
+    const req = loc.unlockCondition?.requirement;
+    if (typeof req !== 'string') continue;
+    if ((eventFlags[req] ?? 0) <= 0) continue;
+    const result = discoverSecretByRequirement(next, req);
+    next = result.region;
+    if (result.discoveredName) {
+      newlyDiscovered.push(result.discoveredName);
+    }
+  }
+
+  return { region: next, newlyDiscovered };
+}
+
+/**
+ * Paths store config location ids (e.g. `drowned_shrine`); runtime Location.id is
+ * `location-<configId>-<uuid>`. Match either form.
+ */
+function locationMatchesConfigOrId(location: Location, configOrFullId: string): boolean {
+  if (location.id === configOrFullId) return true;
+  // location-<configId>-<suffix>
+  return location.id.startsWith(`location-${configOrFullId}-`);
+}
+
+/**
+ * When a location is completed, discover secret locations linked by SECRET paths
+ * listed on that location's secretPaths.
+ */
+export function discoverSecretsFromCompletedLocation(
+  region: Region,
+  completedLocationId: string,
+): { region: Region; newlyDiscovered: string[] } {
+  const completed = region.locations.find((l) => l.id === completedLocationId);
+  if (!completed?.secretPaths?.length) {
+    return { region, newlyDiscovered: [] };
+  }
+
+  const targetConfigIds = new Set<string>();
+  for (const pathId of completed.secretPaths) {
+    const path = region.paths.find((p) => p.id === pathId);
+    if (path?.targetLocationId) {
+      targetConfigIds.add(path.targetLocationId);
+    }
+  }
+  if (targetConfigIds.size === 0) {
+    return { region, newlyDiscovered: [] };
+  }
+
+  const newlyDiscovered: string[] = [];
+  const discoveredSecretIds = [...region.discoveredSecretIds];
+  const locations = region.locations.map((l) => {
+    const isTarget = [...targetConfigIds].some((cfg) => locationMatchesConfigOrId(l, cfg));
+    if (!isTarget || !l.flags.isSecret || l.isDiscovered) {
+      return l;
+    }
+    newlyDiscovered.push(l.name);
+    if (!discoveredSecretIds.includes(l.id)) {
+      discoveredSecretIds.push(l.id);
+    }
+    return { ...l, isDiscovered: true, isAccessible: true };
+  });
+
+  if (newlyDiscovered.length === 0) {
+    return { region, newlyDiscovered: [] };
+  }
+
+  return {
+    region: { ...region, locations, discoveredSecretIds },
+    newlyDiscovered,
   };
 }
 
@@ -804,6 +933,35 @@ function getLocationTypeLabel(type: LocationType): string {
   return labels[type] || 'Unknown';
 }
 
+// ============================================================================
+// ATMOSPHERE FLAVOR (T-046)
+// ============================================================================
+
+/**
+ * Humanize atmosphere event ids (snake_case flavor tags, not GameEvent ids).
+ * Exported for unit tests.
+ */
+export function humanizeAtmosphereEventId(id: string): string {
+  const cleaned = id.trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  if (!cleaned) return '';
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+/**
+ * Pick one atmosphere flavor line for a location, or null if none authored.
+ */
+export function pickAtmosphereFlavor(
+  location: { atmosphereEvents?: string[]; name?: string },
+  rng: () => number = Math.random,
+): string | null {
+  const events = location.atmosphereEvents?.filter((e) => e && e.trim().length > 0) ?? [];
+  if (events.length === 0) return null;
+  const idx = Math.min(events.length - 1, Math.floor(rng() * events.length));
+  const phrase = humanizeAtmosphereEventId(events[idx]!);
+  if (!phrase) return null;
+  return `Atmosphere: ${phrase}`;
+}
+
 /**
  * Determine the special feature to display for a location at FULL intel.
  * Returns the highest priority feature.
@@ -841,6 +999,9 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
         isBoss: false,
         isSecret: false,
         minRooms: null,
+        description: null,
+        atmosphereLine: null,
+        terrainEffectLines: null,
       };
 
     case IntelRevealLevel.PARTIAL:
@@ -857,6 +1018,10 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
         isBoss: location.type === LocationType.BOSS,
         isSecret: location.type === LocationType.SECRET,
         minRooms: location.minRooms,
+        // T-047: authored prose visible once name is known
+        description: location.description || null,
+        atmosphereLine: null,
+        terrainEffectLines: null,
       };
 
     case IntelRevealLevel.FULL:
@@ -873,6 +1038,11 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
         isBoss: location.type === LocationType.BOSS,
         isSecret: location.type === LocationType.SECRET,
         minRooms: location.minRooms,
+        description: location.description || null,
+        // FULL intel also surfaces atmosphere flavor (T-046 helper)
+        atmosphereLine: pickAtmosphereFlavor(location, () => 0),
+        // T-063: location terrain effects
+        terrainEffectLines: formatLocationTerrainEffectLines(location.terrainEffects),
       };
 
     default:
@@ -889,6 +1059,9 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
         isBoss: false,
         isSecret: false,
         minRooms: null,
+        description: null,
+        atmosphereLine: null,
+        terrainEffectLines: null,
       };
   }
 }

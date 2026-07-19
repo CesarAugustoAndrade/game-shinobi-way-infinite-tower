@@ -10,11 +10,16 @@ import {
   applyBuffsToPrimaryStats,
   checkGuts,
   calculateDamage,
+  previewDamage,
   aggregateEquipmentBonuses,
+  aggregatePassiveSkillBonuses,
+  resolvePassiveDamageBonus,
+  getPlayerFullStats,
   resistStatus,
   canLearnSkill,
 } from '../StatSystem';
 import { getElementEffectiveness } from '../../constants';
+import { SKILLS } from '../../constants';
 import { ElementType, EquipmentSlot, Clan, AttackMethod, SkillTier, ActionType } from '../../types';
 import { STAT_FORMULAS, DamageType, DamageProperty } from '../../types';
 import {
@@ -25,6 +30,7 @@ import {
   createStatDebuff,
   createMockSkill,
   createMockComponent,
+  createMockPlayer,
 } from './testFixtures';
 import { PrimaryStat } from '../../types';
 
@@ -252,6 +258,23 @@ describe('calculateDamage', () => {
     expect(result.finalDamage).toBe(result.rawDamage);
   });
 
+  it('damageMult 0 utility/heal skills deal 0 damage (no min-1 chip)', () => {
+    const healSkill = createMockSkill({
+      damageMult: 0,
+      scalingStat: PrimaryStat.INTELLIGENCE,
+      damageType: DamageType.PHYSICAL,
+      attackMethod: AttackMethod.AUTO,
+    });
+
+    const result = calculateDamage(
+      BASE_STATS, attackerDerived, BASE_STATS, defenderDerived,
+      healSkill, ElementType.PHYSICAL, ElementType.WATER
+    );
+
+    expect(result.rawDamage).toBe(0);
+    expect(result.finalDamage).toBe(0);
+  });
+
   it('PIERCING ignores flat defense', () => {
     const piercingSkill = createMockSkill({
       damageMult: 2.0,
@@ -267,6 +290,162 @@ describe('calculateDamage', () => {
     expect(result.flatReduction).toBe(0);
     // Should still have percent reduction
     expect(result.percentReduction).toBeGreaterThanOrEqual(0);
+  });
+
+  it('defenseBypass removes flat and percent mitigation', () => {
+    // Deterministic: AUTO never misses/evades; force no-crit via Math.random
+    const skill = createMockSkill({
+      damageMult: 5.0,
+      scalingStat: PrimaryStat.STRENGTH,
+      damageType: DamageType.PHYSICAL,
+      attackMethod: AttackMethod.AUTO,
+      critBonus: 0,
+    });
+    const tank = calculateDerivedStats(HIGH_STATS, {});
+    const rng = Math.random;
+    Math.random = () => 0.99; // never crit (critChance << 99%)
+
+    try {
+      const normal = calculateDamage(
+        BASE_STATS, attackerDerived, HIGH_STATS, tank,
+        skill, ElementType.PHYSICAL, ElementType.WATER
+      );
+      const pierced = calculateDamage(
+        BASE_STATS, attackerDerived, HIGH_STATS, tank,
+        skill, ElementType.PHYSICAL, ElementType.WATER,
+        { defenseBypass: 100 }
+      );
+
+      expect(normal.isCrit).toBe(false);
+      expect(pierced.isCrit).toBe(false);
+      expect(pierced.finalDamage).toBeGreaterThan(normal.finalDamage);
+      expect(pierced.flatReduction).toBe(0);
+      expect(pierced.percentReduction).toBe(0);
+    } finally {
+      Math.random = rng;
+    }
+  });
+
+  it('forceSuperEffective forces 1.2 element multiplier', () => {
+    const fireSkill = createMockSkill({
+      damageMult: 2.0,
+      scalingStat: PrimaryStat.SPIRIT,
+      damageType: DamageType.ELEMENTAL,
+      attackMethod: AttackMethod.AUTO,
+      element: ElementType.FIRE,
+    });
+
+    // Fire vs Fire is normally neutral; force SE overrides
+    const forced = calculateDamage(
+      BASE_STATS, attackerDerived, BASE_STATS, defenderDerived,
+      fireSkill, ElementType.FIRE, ElementType.FIRE,
+      { forceSuperEffective: true }
+    );
+
+    expect(forced.elementMultiplier).toBe(1.2);
+  });
+
+  it('forceHit always connects even when RNG would miss/evade', () => {
+    const skill = createMockSkill({
+      damageMult: 2.0,
+      scalingStat: PrimaryStat.STRENGTH,
+      attackMethod: AttackMethod.MELEE,
+      critBonus: 0,
+    });
+    // High-evasion defender + RNG that always fails hit / always evades
+    const slippery = calculateDerivedStats(
+      { ...HIGH_STATS, speed: 50 },
+      {}
+    );
+    const rng = Math.random;
+    Math.random = () => 0.999; // fail hit chance and crit; pass evasion
+
+    try {
+      const natural = calculateDamage(
+        BASE_STATS, attackerDerived, { ...HIGH_STATS, speed: 50 }, slippery,
+        skill, ElementType.PHYSICAL, ElementType.WATER
+      );
+      const forced = calculateDamage(
+        BASE_STATS, attackerDerived, { ...HIGH_STATS, speed: 50 }, slippery,
+        skill, ElementType.PHYSICAL, ElementType.WATER,
+        { forceHit: true, forceCrit: false }
+      );
+
+      expect(natural.isMiss || natural.isEvaded).toBe(true);
+      expect(forced.isMiss).toBe(false);
+      expect(forced.isEvaded).toBe(false);
+      expect(forced.isCrit).toBe(false);
+      expect(forced.finalDamage).toBeGreaterThan(0);
+    } finally {
+      Math.random = rng;
+    }
+  });
+
+  it('forceCrit true always crits; forceCrit false never crits', () => {
+    const skill = createMockSkill({
+      damageMult: 2.0,
+      scalingStat: PrimaryStat.STRENGTH,
+      attackMethod: AttackMethod.AUTO,
+      critBonus: 0,
+    });
+
+    const alwaysCrit = calculateDamage(
+      BASE_STATS, attackerDerived, BASE_STATS, defenderDerived,
+      skill, ElementType.PHYSICAL, ElementType.WATER,
+      { forceCrit: true }
+    );
+    const neverCrit = calculateDamage(
+      BASE_STATS, attackerDerived, BASE_STATS, defenderDerived,
+      skill, ElementType.PHYSICAL, ElementType.WATER,
+      { forceCrit: false }
+    );
+
+    expect(alwaysCrit.isCrit).toBe(true);
+    expect(neverCrit.isCrit).toBe(false);
+    expect(alwaysCrit.finalDamage).toBeGreaterThan(neverCrit.finalDamage);
+  });
+
+  it('previewDamage is stable (hit, non-crit) across repeated calls', () => {
+    const skill = createMockSkill({
+      damageMult: 2.0,
+      scalingStat: PrimaryStat.STRENGTH,
+      attackMethod: AttackMethod.MELEE,
+      critBonus: 50, // high crit would otherwise flicker
+    });
+
+    const samples = Array.from({ length: 20 }, () =>
+      previewDamage(
+        BASE_STATS, attackerDerived, BASE_STATS, defenderDerived,
+        skill, ElementType.PHYSICAL, ElementType.WATER,
+        { damageBonus: 0.1 }
+      )
+    );
+
+    const first = samples[0];
+    for (const sample of samples) {
+      expect(sample.isMiss).toBe(false);
+      expect(sample.isEvaded).toBe(false);
+      expect(sample.isCrit).toBe(false);
+      expect(sample.finalDamage).toBe(first.finalDamage);
+      expect(sample.rawDamage).toBe(first.rawDamage);
+    }
+  });
+
+  it('previewDamage overrides call-site forceHit/forceCrit flags', () => {
+    const skill = createMockSkill({
+      damageMult: 2.0,
+      scalingStat: PrimaryStat.STRENGTH,
+      attackMethod: AttackMethod.AUTO,
+    });
+
+    const result = previewDamage(
+      BASE_STATS, attackerDerived, BASE_STATS, defenderDerived,
+      skill, ElementType.PHYSICAL, ElementType.WATER,
+      { forceHit: false, forceCrit: true } // should be overridden
+    );
+
+    expect(result.isMiss).toBe(false);
+    expect(result.isCrit).toBe(false);
   });
 });
 
@@ -383,5 +562,231 @@ describe('canLearnSkill', () => {
     });
     const result = canLearnSkill(skill, 20, 10, Clan.UCHIHA);
     expect(result.canLearn).toBe(true);
+  });
+});
+
+// ============================================================================
+// A-008: Equipment primary stats applied once in getPlayerFullStats
+// ============================================================================
+
+describe('getPlayerFullStats equipment primary single-count (A-008)', () => {
+  it('applies equipment primary stats only once to derived maxHp', () => {
+    const willpowerBonus = 20;
+    const gear = createMockComponent(undefined, {
+      willpower: willpowerBonus,
+      flatHp: 50, // flat should still apply once
+    });
+
+    const player = createMockPlayer({
+      primaryStats: { ...BASE_STATS },
+      equipment: {
+        [EquipmentSlot.SLOT_1]: null, // SLOT_1 multiplies by 1.5; use SLOT_2 for clean 1.0×
+        [EquipmentSlot.SLOT_2]: gear,
+        [EquipmentSlot.SLOT_3]: null,
+        [EquipmentSlot.SLOT_4]: null,
+      },
+      skills: [],
+      activeBuffs: [],
+    });
+
+    const { effectivePrimary, derived, equipmentBonuses } = getPlayerFullStats(player);
+
+    // Equipment primary applied once on effectivePrimary
+    expect(equipmentBonuses.willpower).toBe(willpowerBonus);
+    expect(effectivePrimary.willpower).toBe(BASE_STATS.willpower + willpowerBonus);
+
+    // Derived maxHp uses effective willpower once + flatHp once
+    // Bug was: calculateDerivedStats re-added equipment willpower → +2× willpowerBonus
+    const expectedMaxHp =
+      F.HP_BASE +
+      effectivePrimary.willpower * F.HP_PER_WILLPOWER +
+      (equipmentBonuses.flatHp || 0);
+
+    expect(derived.maxHp).toBe(expectedMaxHp);
+
+    // Explicitly prove no double-count: wrong formula would be base + 2*gear willpower
+    const doubleCountedMaxHp =
+      F.HP_BASE +
+      (BASE_STATS.willpower + willpowerBonus * 2) * F.HP_PER_WILLPOWER +
+      (equipmentBonuses.flatHp || 0);
+    expect(derived.maxHp).not.toBe(doubleCountedMaxHp);
+    expect(derived.maxHp).toBeLessThan(doubleCountedMaxHp);
+  });
+
+  it('does not re-add primary equipment keys inside calculateDerivedStats', () => {
+    // primary already includes +10 strength; equipmentBonuses still has strength: 10
+    // (as getPlayerFullStats passes full equipment bag). Strength must not double.
+    const withGear: typeof BASE_STATS = { ...BASE_STATS, strength: BASE_STATS.strength + 10 };
+    const derived = calculateDerivedStats(withGear, { strength: 10, flatPhysicalDef: 5 });
+
+    const expectedFlat =
+      Math.floor(withGear.strength * F.FLAT_PHYS_DEF_PER_STR) + 5;
+    expect(derived.physicalDefenseFlat).toBe(expectedFlat);
+
+    // Double-count would use strength + 10 again from equipmentBonuses
+    const wrongFlat =
+      Math.floor((withGear.strength + 10) * F.FLAT_PHYS_DEF_PER_STR) + 5;
+    expect(derived.physicalDefenseFlat).not.toBe(wrongFlat);
+  });
+});
+
+// ============================================================================
+// A-014: Passive damageBonus / defenseBonus in combat pipeline
+// ============================================================================
+
+describe('passive skill damageBonus and defenseBonus (A-014)', () => {
+  it('aggregatePassiveSkillBonuses scopes FIRE_AFFINITY to Fire only', () => {
+    const bonuses = aggregatePassiveSkillBonuses([SKILLS.FIRE_AFFINITY]);
+
+    expect(bonuses.damageBonus).toBe(0);
+    expect(bonuses.elementalDamageBonus[ElementType.FIRE]).toBe(0.15);
+    expect(resolvePassiveDamageBonus(bonuses, ElementType.FIRE)).toBe(0.15);
+    expect(resolvePassiveDamageBonus(bonuses, ElementType.WATER)).toBe(0);
+    expect(resolvePassiveDamageBonus(bonuses, ElementType.PHYSICAL)).toBe(0);
+  });
+
+  it('applies global damageBonus to all elements (WEAPON_PROFICIENCY)', () => {
+    const bonuses = aggregatePassiveSkillBonuses([SKILLS.WEAPON_PROFICIENCY]);
+
+    expect(bonuses.damageBonus).toBe(0.1);
+    expect(resolvePassiveDamageBonus(bonuses, ElementType.FIRE)).toBe(0.1);
+    expect(resolvePassiveDamageBonus(bonuses, ElementType.PHYSICAL)).toBe(0.1);
+  });
+
+  it('damageBonus increases rawDamage from calculateDamage', () => {
+    // Zero crit so RNG cannot inflate rawDamage (crit ×1.75 was flaking this test to 40).
+    const attackerDerived = {
+      ...calculateDerivedStats(BASE_STATS, {}),
+      critChance: 0,
+    };
+    const defenderDerived = calculateDerivedStats(BASE_STATS, {});
+    const skill = createMockSkill({
+      damageMult: 2.0,
+      scalingStat: PrimaryStat.STRENGTH,
+      attackMethod: AttackMethod.AUTO,
+      damageType: DamageType.TRUE, // no defense noise
+      element: ElementType.PHYSICAL,
+      critBonus: 0,
+    });
+
+    const baseline = calculateDamage(
+      BASE_STATS,
+      attackerDerived,
+      BASE_STATS,
+      defenderDerived,
+      skill,
+      ElementType.PHYSICAL,
+      ElementType.WATER,
+      { damageBonus: 0 }
+    );
+
+    const buffed = calculateDamage(
+      BASE_STATS,
+      attackerDerived,
+      BASE_STATS,
+      defenderDerived,
+      skill,
+      ElementType.PHYSICAL,
+      ElementType.WATER,
+      { damageBonus: 0.15 }
+    );
+
+    // raw before bonus = strength(10) * 2 = 20; with +15% → floor(20 * 1.15) = 23
+    expect(baseline.rawDamage).toBe(20);
+    expect(buffed.rawDamage).toBe(23);
+    expect(buffed.isCrit).toBe(false);
+    expect(buffed.finalDamage).toBeGreaterThan(baseline.finalDamage);
+  });
+
+  it('FIRE_AFFINITY only boosts Fire skills in full player pipeline', () => {
+    const player = createMockPlayer({
+      skills: [SKILLS.FIRE_AFFINITY],
+      primaryStats: { ...BASE_STATS },
+      activeBuffs: [],
+    });
+    const stats = getPlayerFullStats(player);
+    const fireBonus = resolvePassiveDamageBonus(stats.passiveBonuses, ElementType.FIRE);
+    const waterBonus = resolvePassiveDamageBonus(stats.passiveBonuses, ElementType.WATER);
+
+    expect(fireBonus).toBe(0.15);
+    expect(waterBonus).toBe(0);
+  });
+
+  it('defenseBonus raises percent defenses on getPlayerFullStats', () => {
+    const without = getPlayerFullStats(
+      createMockPlayer({ skills: [], primaryStats: { ...BASE_STATS }, activeBuffs: [] })
+    );
+    const withIronBody = getPlayerFullStats(
+      createMockPlayer({
+        skills: [SKILLS.IRON_BODY],
+        primaryStats: { ...BASE_STATS },
+        activeBuffs: [],
+      })
+    );
+
+    expect(withIronBody.passiveBonuses.defenseBonus).toBe(0.05);
+    expect(withIronBody.derived.physicalDefensePercent).toBeCloseTo(
+      without.derived.physicalDefensePercent + 0.05,
+      5
+    );
+    expect(withIronBody.derived.elementalDefensePercent).toBeCloseTo(
+      without.derived.elementalDefensePercent + 0.05,
+      5
+    );
+    expect(withIronBody.derived.mentalDefensePercent).toBeCloseTo(
+      without.derived.mentalDefensePercent + 0.05,
+      5
+    );
+  });
+
+  it('defenseBonus reduces incoming damage via higher percent def', () => {
+    // Deterministic: no crit RNG on either side of the comparison
+    const attackerDerived = {
+      ...calculateDerivedStats(BASE_STATS, {}),
+      critChance: 0,
+    };
+    const normalDef = getPlayerFullStats(
+      createMockPlayer({ skills: [], primaryStats: { ...BASE_STATS }, activeBuffs: [] })
+    ).derived;
+    const ironDef = getPlayerFullStats(
+      createMockPlayer({
+        skills: [SKILLS.IRON_BODY],
+        primaryStats: { ...BASE_STATS },
+        activeBuffs: [],
+      })
+    ).derived;
+
+    const skill = createMockSkill({
+      damageMult: 5.0,
+      scalingStat: PrimaryStat.STRENGTH,
+      attackMethod: AttackMethod.AUTO,
+      damageType: DamageType.PHYSICAL,
+      damageProperty: DamageProperty.PIERCING, // only % def applies
+      element: ElementType.PHYSICAL,
+      critBonus: 0,
+    });
+
+    const vsNormal = calculateDamage(
+      BASE_STATS,
+      attackerDerived,
+      BASE_STATS,
+      normalDef,
+      skill,
+      ElementType.PHYSICAL,
+      ElementType.WATER
+    );
+    const vsIron = calculateDamage(
+      BASE_STATS,
+      attackerDerived,
+      BASE_STATS,
+      ironDef,
+      skill,
+      ElementType.PHYSICAL,
+      ElementType.WATER
+    );
+
+    expect(vsNormal.isCrit).toBe(false);
+    expect(vsIron.isCrit).toBe(false);
+    expect(vsIron.finalDamage).toBeLessThan(vsNormal.finalDamage);
   });
 });

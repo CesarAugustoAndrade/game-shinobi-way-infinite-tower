@@ -1,15 +1,40 @@
 import React from 'react';
 import { LocationActivities, ActivityStatus } from '../../game/types';
 import { ACTIVITY_LABELS } from '../../game/constants/activityLabels';
+import { getActivityArt } from '../../game/constants/artRegistry';
+import ArtIcon from '../shared/ArtIcon';
 import './exploration.css';
 
 interface ActivityIconsProps {
   activities: LocationActivities | null;
 }
 
+const ACTIVITY_KEYS: (keyof LocationActivities)[] = [
+  'combat',
+  'merchant',
+  'rest',
+  'training',
+  'event',
+  'scrollDiscovery',
+  'treasure',
+  'eliteChallenge',
+  'infoGathering',
+];
+
+const ACTIVITY_COLOR: Record<string, string> = {
+  combat: 'activity-icons__icon--combat',
+  merchant: 'activity-icons__icon--merchant',
+  rest: 'activity-icons__icon--rest',
+  training: 'activity-icons__icon--training',
+  event: 'activity-icons__icon--event',
+  scrollDiscovery: 'activity-icons__icon--scroll',
+  treasure: 'activity-icons__icon--treasure',
+  eliteChallenge: 'activity-icons__icon--elite',
+  infoGathering: 'activity-icons__icon--info',
+};
+
 const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
   if (!activities) {
-    // Show mystery placeholders
     return (
       <div className="activity-icons">
         <span className="activity-icons__label">📋</span>
@@ -20,20 +45,7 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
     );
   }
 
-  // Activity icon mapping with color classes (labels from centralized ACTIVITY_LABELS)
-  const activityIcons: { key: keyof LocationActivities; icon: string; specialIcon: string; colorClass: string }[] = [
-    { key: 'combat', icon: '⚔️', specialIcon: '⚔️✨', colorClass: 'activity-icons__icon--combat' },
-    { key: 'merchant', icon: '🛒', specialIcon: '🛒✨', colorClass: 'activity-icons__icon--merchant' },
-    { key: 'rest', icon: '💤', specialIcon: '💤✨', colorClass: 'activity-icons__icon--rest' },
-    { key: 'training', icon: '🎯', specialIcon: '🎯✨', colorClass: 'activity-icons__icon--training' },
-    { key: 'event', icon: '🎪', specialIcon: '🎪✨', colorClass: 'activity-icons__icon--event' },
-    { key: 'scrollDiscovery', icon: '📜', specialIcon: '📜✨', colorClass: 'activity-icons__icon--scroll' },
-    { key: 'treasure', icon: '💎', specialIcon: '💎✨', colorClass: 'activity-icons__icon--treasure' },
-    { key: 'eliteChallenge', icon: '👹', specialIcon: '👹✨', colorClass: 'activity-icons__icon--elite' },
-    { key: 'infoGathering', icon: '📡', specialIcon: '📡✨', colorClass: 'activity-icons__icon--info' },
-  ];
-
-  const activeActivities = activityIcons.filter(({ key }) => activities[key] !== false);
+  const activeActivities = ACTIVITY_KEYS.filter((key) => activities[key] !== false);
 
   return (
     <div className="activity-icons">
@@ -41,15 +53,18 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
       {activeActivities.length === 0 ? (
         <span className="activity-icons__empty">No activities</span>
       ) : (
-        activeActivities.map(({ key, icon, specialIcon, colorClass }) => {
+        activeActivities.map((key) => {
           const status: ActivityStatus = activities[key];
           const isSpecial = status === 'special';
           const label = ACTIVITY_LABELS[key as keyof typeof ACTIVITY_LABELS];
+          const art = getActivityArt(key);
           const classes = [
             'activity-icons__icon',
-            colorClass,  // Always apply color class
-            isSpecial ? 'activity-icons__icon--special' : ''
-          ].filter(Boolean).join(' ');
+            ACTIVITY_COLOR[key] ?? '',
+            isSpecial ? 'activity-icons__icon--special' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
 
           return (
             <span
@@ -57,7 +72,12 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
               className={classes}
               title={`${label}${isSpecial ? ' (Special)' : ''}`}
             >
-              {isSpecial ? specialIcon : icon}
+              <ArtIcon
+                art={art}
+                size="xs"
+                title={`${label}${isSpecial ? ' (Special)' : ''}`}
+              />
+              {isSpecial ? <span className="activity-icons__special-mark">✨</span> : null}
             </span>
           );
         })

@@ -77,7 +77,7 @@ import {
 } from '../types';
 import { SKILLS } from '../constants/skills';
 import { EVENT_RARITY_WEIGHTS } from '../constants';
-import { pick, generateId } from '../utils/rng';
+import { pick, generateId, random, type RandomGenerator } from '../utils/rng';
 
 /**
  * Check if a player meets all requirements for an event choice.
@@ -225,15 +225,19 @@ export const getDisabledReason = (
  * By convention a choice's outcome weights sum to 100, but the roll normalizes
  * by the actual total so any positive weights work. `player` is kept in the
  * signature for callers/future gating; the roll itself only depends on weights.
+ *
+ * Uses the project RNG (`utils/rng`) so runs are seedable/reproducible.
+ * Pass an optional `rng` for deterministic tests; defaults to the global RNG.
  */
 export const rollOutcome = (
   choice: EventChoice,
   _player: Player,
+  rng?: RandomGenerator,
 ): EventOutcome => {
   const outcomes = choice.outcomes;
 
   const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
-  let roll = Math.random() * totalWeight;
+  let roll = random(rng) * totalWeight;
 
   for (const outcome of outcomes) {
     roll -= outcome.weight;
@@ -290,14 +294,16 @@ export const applyOutcomeEffects = (
   let updated = { ...player };
   const effects = outcome.effects;
 
-  // Apply stat changes
+  // Apply stat changes (only known primary attributes — skip typos / garbage keys)
   if (effects.statChanges) {
     updated.primaryStats = { ...updated.primaryStats };
-    Object.entries(effects.statChanges).forEach(([stat, value]) => {
-      if (typeof value === 'number') {
-        (updated.primaryStats as any)[stat] = Math.max(1, (updated.primaryStats as any)[stat] + value);
+    for (const [stat, value] of Object.entries(effects.statChanges)) {
+      if (typeof value !== 'number') continue;
+      const key = stat as keyof typeof updated.primaryStats;
+      if (key in updated.primaryStats && typeof updated.primaryStats[key] === 'number') {
+        updated.primaryStats[key] = Math.max(1, updated.primaryStats[key] + value);
       }
-    });
+    }
   }
 
   // Apply XP
@@ -305,9 +311,9 @@ export const applyOutcomeEffects = (
     updated.exp += effects.exp;
   }
 
-  // Apply Ryo
+  // Apply Ryo (never go negative from event effects)
   if (effects.ryo) {
-    updated.ryo += effects.ryo;
+    updated.ryo = Math.max(0, updated.ryo + effects.ryo);
   }
 
   // Apply HP changes
@@ -497,3 +503,56 @@ export const getEventsForArc = (
 ): GameEvent[] => {
   return allEvents.filter((event) => isEventValidForArc(event, arcName));
 };
+
+// ============================================================================
+// RUN FLAG → COMBAT / LOOT (T-034)
+// ============================================================================
+
+/**
+ * Mechanical run modifiers derived from narrative eventFlags.
+ * Pure; stacks additively for damage, multiplicatively for ryo.
+ */
+export interface EventFlagRunModifiers {
+  /** Additive damage mult (0.05 = +5% damage). */
+  damageBonus: number;
+  /** Multiplier on combat ryo rewards (1.1 = +10%). */
+  ryoMultiplier: number;
+  /** Short labels for optional UI/log (which flags are active). */
+  activeLabels: string[];
+}
+
+/**
+ * Map known story flags to combat/loot bonuses so event choices matter beyond gating.
+ */
+export function getEventFlagRunModifiers(player: {
+  eventFlags?: Record<string, number>;
+}): EventFlagRunModifiers {
+  const f = player.eventFlags ?? {};
+  let damageBonus = 0;
+  let ryoMultiplier = 1;
+  const activeLabels: string[] = [];
+
+  // T-037: labels are player-facing (HUD chips), not raw flag keys
+  if ((f.envoy_freed ?? 0) > 0) {
+    ryoMultiplier *= 1.1;
+    activeLabels.push('Envoy bond +10% Ryō');
+  }
+  if ((f.envoy_debt_settled ?? 0) > 0) {
+    damageBonus += 0.05;
+    activeLabels.push('Debt settled +5% DMG');
+  }
+  if ((f.subject_harvested ?? 0) > 0) {
+    damageBonus += 0.08;
+    activeLabels.push('Harvested power +8% DMG');
+  }
+  if ((f.subject_freed ?? 0) > 0) {
+    ryoMultiplier *= 1.05;
+    activeLabels.push('Mercy karma +5% Ryō');
+  }
+  if ((f.sunken_ship_discovered ?? 0) > 0 || (f.hidden_cove_discovered ?? 0) > 0) {
+    ryoMultiplier *= 1.05;
+    activeLabels.push('Secret intel +5% Ryō');
+  }
+
+  return { damageBonus, ryoMultiplier, activeLabels };
+}

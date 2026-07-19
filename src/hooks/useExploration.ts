@@ -1,18 +1,31 @@
 import { useCallback } from 'react';
 import {
   GameState, Player, BranchingRoom, BranchingFloor, CharacterStats,
-  Location, Item, GameEvent, Skill, Enemy, LogEntry,
-  TrainingActivity, ScrollDiscoveryActivity
+  Location, Item, Enemy, LogEntry,
 } from '../game/types';
 import { getCurrentActivity, getCurrentRoom, isFloorComplete } from '../game/systems/LocationSystem';
 import { logRoomExit, logStateChange, logSyncWarning } from '../game/utils/explorationDebug';
 import { CombatExplorationState } from './useCombatExplorationState';
 import { useActivityHandler, ActivitySceneSetters } from './useActivityHandler';
-import { useLocationCards } from './useLocationCards';
+import { useLocationCards, CompleteLocationOptions } from './useLocationCards';
 import { useRoomNavigation } from './useRoomNavigation';
 
 // Re-export types for App.tsx compatibility
 export type { ActivitySceneSetters } from './useActivityHandler';
+
+/**
+ * Resolve a safe post-activity map state. Never returns EXPLORE (no UI).
+ * Prefer LOCATION_EXPLORE when still inside a location; otherwise REGION_MAP.
+ */
+export function resolveExploreReturnState(
+  region: { currentLocationId: string | null } | null,
+  hasLocationFloor: boolean
+): GameState {
+  if (region?.currentLocationId && hasLocationFloor) {
+    return GameState.LOCATION_EXPLORE;
+  }
+  return GameState.REGION_MAP;
+}
 
 /**
  * Dependencies for the useExploration hook
@@ -30,6 +43,8 @@ export interface UseExplorationDeps {
   // Auto-combat callbacks for when ENABLE_MANUAL_COMBAT is false
   onAutoCombat?: (room: BranchingRoom, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
   onAutoEliteCombat?: (room: BranchingRoom, enemy: Enemy, artifact: Item, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
+  /** T-023: region boss cleared → campaign interlude / victory */
+  onRegionBossDefeated?: (region: import('../game/types').Region) => void;
 }
 
 /**
@@ -48,7 +63,10 @@ export interface UseExplorationReturn {
   handlePathChoice: (path: import('../game/types').LocationPath) => void;
   handleLeaveLocation: () => void;
   returnToMap: () => void;
-  returnToMapActivityComplete: (updatedFloor?: BranchingFloor) => void;
+  returnToMapActivityComplete: (updatedFloor?: BranchingFloor, options?: CompleteLocationOptions) => void;
+  /** T-060: location complete panel */
+  locationCompleteResult: import('../components/modals/LocationCompleteModal').LocationCompleteResult | null;
+  confirmLocationComplete: () => void;
 }
 
 /**
@@ -80,6 +98,7 @@ export function useExploration(
     setLocationFloor,
     // Card-based location selection
     locationDeck,
+    setLocationDeck,
     intelPool,
     drawnCards,
     setDrawnCards,
@@ -102,6 +121,7 @@ export function useExploration(
     setEnemy,
     onAutoCombat,
     onAutoEliteCombat,
+    onRegionBossDefeated,
   } = deps;
 
   const { setDroppedItems, setDroppedSkill } = activitySetters;
@@ -133,6 +153,9 @@ export function useExploration(
     handleEnterSelectedLocation,
     handlePathChoice,
     handleLeaveLocation,
+    completeLocationAndReturnToRegion,
+    locationCompleteResult,
+    confirmLocationComplete,
   } = useLocationCards(
     {
       region,
@@ -142,14 +165,18 @@ export function useExploration(
       drawnCards,
       selectedCardIndex,
       currentIntel,
+      player,
       setRegion,
       setSelectedLocation,
       setLocationFloor,
+      setLocationDeck,
       setDrawnCards,
       setSelectedCardIndex,
       setCurrentIntel,
+      setPlayer,
+      setSelectedBranchingRoom,
     },
-    { addLog, setGameState }
+    { addLog, setGameState, onRegionBossDefeated }
   );
 
   // Room navigation - room select/enter handlers
@@ -177,10 +204,11 @@ export function useExploration(
   /**
    * Return to map after completing an activity (combat, loot, etc.)
    * Handles activity chaining and location completion checks.
+   * On location complete: single path via completeLocationAndReturnToRegion
+   * (mark + deck + intel draw + locationsCleared++).
    */
   const returnToMap = useCallback(() => {
     logRoomExit(selectedBranchingRoom?.id || 'unknown', 'returnToMap');
-    logStateChange(gameState.toString(), 'EXPLORE', 'returnToMap');
     setDroppedItems([]);
     setDroppedSkill(null);
     setEnemy(null);
@@ -192,32 +220,39 @@ export function useExploration(
         const nextActivity = getCurrentActivity(currentRoom);
         if (nextActivity) {
           // Auto-trigger next activity in room without incrementing roomsVisited
-          // (we're staying in the same room, just processing the next activity)
           setSelectedBranchingRoom(null);
+          logStateChange(gameState.toString(), 'LOCATION_EXPLORE', 'returnToMap - chain activity');
           setTimeout(() => executeRoomActivity(currentRoom, locationFloor, setLocationFloor, GameState.LOCATION_EXPLORE), 100);
           return;
         }
       }
 
-      // Check if location is completed (exit room cleared)
+      // Location completed → full meta path (cards, deck, locationsCleared)
       if (isFloorComplete(locationFloor)) {
         setSelectedBranchingRoom(null);
-        // Go directly to REGION_MAP instead of through handleLeaveLocation
-        // to avoid stale closure issues
-        setTimeout(() => setGameState(GameState.REGION_MAP), 100);
+        logStateChange(gameState.toString(), 'REGION_MAP', 'returnToMap - location complete');
+        completeLocationAndReturnToRegion({ floor: locationFloor, intel: currentIntel });
         return;
       }
 
       setSelectedBranchingRoom(null);
+      logStateChange(gameState.toString(), 'LOCATION_EXPLORE', 'returnToMap');
       setGameState(GameState.LOCATION_EXPLORE);
-    } else {
-      setSelectedBranchingRoom(null);
-      setGameState(GameState.EXPLORE);
+      return;
     }
+
+    // Region present but not mid-location, or no region: never soft-lock on EXPLORE
+    setSelectedBranchingRoom(null);
+    const next = resolveExploreReturnState(region, !!locationFloor);
+    if (!region) {
+      logSyncWarning('returnToMap: No region, falling back to REGION_MAP', {});
+    }
+    logStateChange(gameState.toString(), next.toString(), 'returnToMap - fallback');
+    setGameState(next);
   }, [
-    selectedBranchingRoom, gameState, region, locationFloor,
+    selectedBranchingRoom, gameState, region, locationFloor, currentIntel,
     setDroppedItems, setDroppedSkill, setEnemy, setSelectedBranchingRoom, setGameState,
-    executeRoomActivity, setLocationFloor
+    executeRoomActivity, setLocationFloor, completeLocationAndReturnToRegion
   ]);
 
   /**
@@ -225,11 +260,13 @@ export function useExploration(
    * Skips activity checking since caller guarantees the activity is done.
    * Use this instead of returnToMap when you've already called completeActivity().
    *
-   * @param updatedFloor - Optional updated floor to use for completion check.
-   *                       Pass this when you've just called completeActivity() since
-   *                       React state updates are async and locationFloor may be stale.
+   * @param updatedFloor - Optional updated floor for completion check (stale-safe).
+   * @param options - Optional intel override for the completion redraw path.
    */
-  const returnToMapActivityComplete = useCallback((updatedFloor?: BranchingFloor) => {
+  const returnToMapActivityComplete = useCallback((
+    updatedFloor?: BranchingFloor,
+    options?: CompleteLocationOptions
+  ) => {
     logRoomExit(selectedBranchingRoom?.id || 'unknown', 'returnToMapActivityComplete');
     setDroppedItems([]);
     setDroppedSkill(null);
@@ -243,18 +280,20 @@ export function useExploration(
     // Skip activity checking - caller guarantees activity is complete
     if (region && floorToCheck && region.currentLocationId) {
       if (isFloorComplete(floorToCheck)) {
-        // Floor is complete - go directly to REGION_MAP
-        // Note: handleLeaveLocation would draw new cards, but it has stale closure issues.
-        // We set state directly here; cards will be drawn when needed.
         logStateChange(gameState.toString(), 'REGION_MAP', 'returnToMapActivityComplete - floor complete');
-        setGameState(GameState.REGION_MAP);
+        completeLocationAndReturnToRegion({
+          floor: floorToCheck,
+          intel: options?.intel ?? currentIntel,
+        });
         return;
       }
       logStateChange(gameState.toString(), 'LOCATION_EXPLORE', 'returnToMapActivityComplete');
       setGameState(GameState.LOCATION_EXPLORE);
-    } else if (region) {
+      return;
+    }
+
+    if (region) {
       // Region exists but missing currentLocationId or floor data (stale closure fallback)
-      // Go to region map so user can continue playing
       logSyncWarning('returnToMapActivityComplete: Missing currentLocationId or floor, falling back to REGION_MAP', {
         hasRegion: !!region,
         hasCurrentLocationId: !!region?.currentLocationId,
@@ -264,14 +303,16 @@ export function useExploration(
       });
       logStateChange(gameState.toString(), 'REGION_MAP', 'returnToMapActivityComplete - fallback');
       setGameState(GameState.REGION_MAP);
-    } else {
-      // Legacy mode (no region) - this state may not have rendering
-      logStateChange(gameState.toString(), 'EXPLORE', 'returnToMapActivityComplete - legacy');
-      setGameState(GameState.EXPLORE);
+      return;
     }
+
+    // No region: never leave player in EXPLORE without UI
+    logStateChange(gameState.toString(), 'REGION_MAP', 'returnToMapActivityComplete - no region');
+    setGameState(GameState.REGION_MAP);
   }, [
-    selectedBranchingRoom, gameState, region, locationFloor,
-    setDroppedItems, setDroppedSkill, setEnemy, setSelectedBranchingRoom, setGameState
+    selectedBranchingRoom, gameState, region, locationFloor, currentIntel,
+    setDroppedItems, setDroppedSkill, setEnemy, setSelectedBranchingRoom, setGameState,
+    completeLocationAndReturnToRegion,
   ]);
 
   // ============================================================================
@@ -292,5 +333,7 @@ export function useExploration(
     handleLeaveLocation,
     returnToMap,
     returnToMapActivityComplete,
+    locationCompleteResult,
+    confirmLocationComplete,
   };
 }

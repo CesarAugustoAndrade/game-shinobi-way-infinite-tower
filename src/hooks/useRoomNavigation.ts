@@ -104,8 +104,12 @@ export function useRoomNavigation(
     const currentRoom = updatedFloor.rooms.find(r => r.id === room.id);
     if (!currentRoom) return;
 
-    executeRoomActivity(currentRoom, updatedFloor, setBranchingFloor, GameState.EXPLORE);
-  }, [branchingFloor, player, playerStats, setBranchingFloor, executeRoomActivity]);
+    // Legacy branching path: never soft-lock on EXPLORE (no UI).
+    const exploreState = region?.currentLocationId
+      ? GameState.LOCATION_EXPLORE
+      : GameState.REGION_MAP;
+    executeRoomActivity(currentRoom, updatedFloor, setBranchingFloor, exploreState);
+  }, [branchingFloor, region, player, playerStats, setBranchingFloor, executeRoomActivity]);
 
   return {
     handleLocationRoomSelect,

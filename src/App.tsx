@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   GameState, Player, Clan, Skill, Enemy, Item, Rarity, DamageType,
-  ApproachType, BranchingRoom, PrimaryStat, TrainingActivity, TrainingIntensity, LogEntry,
+  ApproachType, BranchingRoom, BranchingFloor, PrimaryStat, TrainingActivity, TrainingIntensity, LogEntry,
   EquipmentSlot, MAX_BAG_SLOTS, ScrollDiscoveryActivity,
   GameEvent, EventChoice, EventOutcome,
   TreasureQuality, DEFAULT_MERCHANT_SLOTS, MAX_MERCHANT_SLOTS,
@@ -11,9 +11,9 @@ import {
   // Treasure system types
   TreasureActivity, TreasureHunt, TreasureType, DiceRollResult
 } from './game/types';
-import { CLAN_STATS, CLAN_START_SKILL, CLAN_GROWTH, SKILLS } from './game/constants';
+import { CLAN_GROWTH } from './game/constants';
+import { createPlayer } from './game/entities/Player';
 import {
-  calculateDerivedStats,
   getPlayerFullStats,
   canLearnSkill
 } from './game/systems/StatSystem';
@@ -27,6 +27,12 @@ import {
 } from './game/systems/ApproachSystem';
 import { TERRAIN_DEFINITIONS } from './game/constants/terrain';
 import {
+  formatLocationTerrainEffectLines,
+  formatRoomTerrainEffectLines,
+  getLocationTerrainMods,
+  locationStealthBonusPoints,
+} from './game/systems/LocationTerrainSystem';
+import {
   moveToRoom,
   getCurrentActivity,
   completeActivity,
@@ -36,25 +42,11 @@ import {
 } from './game/systems/LocationSystem';
 import {
   generateRegion,
-  enterLocation,
-  enterLocationFromCard,
   getCurrentLocation,
-  choosePath,
-  getRandomPath,
-  isRegionComplete,
-  locationToBranchingFloor,
-  markLocationComplete,
-  exitLocation,
-  calculateLocationXP,
-  calculateLocationRyo,
   // Card-based location selection functions
   initializeLocationDeck,
   drawLocationCards,
   createInitialIntelPool,
-  addIntel,
-  updateDeckAfterCompletion,
-  // Wealth and intel system functions
-  INTEL_GAIN,
   evaluateIntel,
 } from './game/systems/RegionSystem';
 import {
@@ -63,7 +55,26 @@ import {
   applyWealthToRyo,
   getMerchantDiscount,
 } from './game/systems/ScalingSystem';
-import { LAND_OF_WAVES_CONFIG } from './game/constants/regions';
+import {
+  REGION_ORDER,
+  getCampaignEntry,
+  getNextPlayableRegionIndex,
+  getPlayableRegionCount,
+} from './game/constants/regions';
+import {
+  generateInterludeBoons,
+  applyCampaignBoon,
+  fullHealPlayer,
+  type CampaignBoon,
+} from './game/systems/CampaignSystem';
+import {
+  generateInfiniteRegionConfig,
+  unlockInfiniteMode,
+  isInfiniteModeUnlocked,
+  infiniteHeightFromFloor,
+  computeTowerScore,
+} from './game/systems/InfiniteTowerSystem';
+import type { RegionConfig } from './game/types';
 import { useCombat } from './hooks/useCombat';
 import { useCombatExplorationState } from './hooks/useCombatExplorationState';
 import { useExploration, ActivitySceneSetters } from './hooks/useExploration';
@@ -74,7 +85,7 @@ import { useCombatVictory } from './hooks/useCombatVictory';
 import { getDamageTypeColor, getRarityTextColorWithEffects as getRarityColor, getBiomeSlug } from './utils/colorHelpers';
 import { GameProvider, GameContextValue } from './contexts/GameContext';
 import { LIMITS, MERCHANT } from './game/config';
-import { MainMenu, CharacterSelect, GameOver, GameGuide } from './scenes/menu';
+import { MainMenu, CharacterSelect, GameOver, GameGuide, Interlude, Victory } from './scenes/menu';
 import { Combat, EliteChallenge } from './scenes/combat';
 import { Loot, TreasureChoice, TreasureHuntReward as TreasureHuntRewardScene, ScrollDiscovery } from './scenes/rewards';
 import { Merchant, Training, Event } from './scenes/activities';
@@ -85,6 +96,9 @@ import ErrorBoundary from './components/shared/ErrorBoundary';
 // Layout components
 import LeftSidebarPanel from './components/layout/LeftSidebarPanel';
 import RightSidebarPanel from './components/layout/RightSidebarPanel';
+import ExplorationHUD from './components/layout/ExplorationHUD';
+import InventoryOverlay from './components/layout/InventoryOverlay';
+import CharacterSheetOverlay from './components/layout/CharacterSheetOverlay';
 // Combat components
 import ApproachSelector from './components/combat/ApproachSelector';
 // Exploration components
@@ -92,10 +106,13 @@ import LocationMap from './components/exploration/LocationMap';
 import RegionMap from './components/exploration/RegionMap';
 // PathChoiceModal removed - cards now replace path selection modal
 // Character components
-import PlayerHUD from './components/character/PlayerHUD';
+
 // Modal components
 import RewardModal from './components/modals/RewardModal';
 import EventResultModal from './components/modals/EventResultModal';
+import IntelResultModal from './components/modals/IntelResultModal';
+import RestResultModal from './components/modals/RestResultModal';
+import LocationCompleteModal from './components/modals/LocationCompleteModal';
 import { OutcomeChange } from './components/modals/eventOutcomeChanges';
 import { logVictory, logRewardModal, logFlowCheckpoint } from './game/utils/combatDebug';
 import {
@@ -129,6 +146,26 @@ const App: React.FC = () => {
     changes: OutcomeChange[];
     nextEventId?: string;
   } | null>(null);
+  /** T-049: info gathering result panel */
+  const [intelResult, setIntelResult] = useState<{
+    flavorText: string;
+    intelGain: number;
+    intelBefore: number;
+    intelAfter: number;
+  } | null>(null);
+  /** T-050: rest heal result panel */
+  const [restResult, setRestResult] = useState<{
+    hpHeal: number;
+    chakraHeal: number;
+    healPercent: number;
+    chakraRestorePercent: number;
+    hpBefore: number;
+    hpAfter: number;
+    chakraBefore: number;
+    chakraAfter: number;
+    maxHp: number;
+    maxChakra: number;
+  } | null>(null);
   // T-011: true when the active event was reached by chaining from a prior
   // outcome (drives the "chain" ribbon at the top of the Event scene).
   const [cameFromChain, setCameFromChain] = useState(false);
@@ -140,6 +177,24 @@ const App: React.FC = () => {
   const [scrollDiscoveryData, setScrollDiscoveryData] = useState<ScrollDiscoveryActivity | null>(null);
   const [pendingArtifact, setPendingArtifact] = useState<Item | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<Item | null>(null);
+  /** T-022: cinematic exploration overlays — bag (I) / character sheet (C) */
+  const [exploreOverlay, setExploreOverlay] = useState<'none' | 'bag' | 'character'>('none');
+  /** T-023: campaign index into REGION_ORDER + interlude boons */
+  const [campaignRegionIndex, setCampaignRegionIndex] = useState(0);
+  const [regionsCompleted, setRegionsCompleted] = useState(0);
+  const [interludeBoons, setInterludeBoons] = useState<CampaignBoon[]>([]);
+  const [interludeMeta, setInterludeMeta] = useState<{
+    title: string;
+    body: string;
+    regionName: string;
+    nextRegionName: string;
+    nextIndex: number;
+  } | null>(null);
+  /** T-027: campaign vs infinite ascent */
+  const [runMode, setRunMode] = useState<'campaign' | 'infinite'>('campaign');
+  const [infiniteFloor, setInfiniteFloor] = useState(0);
+  const [pendingRunMode, setPendingRunMode] = useState<'campaign' | 'infinite'>('campaign');
+  const [infiniteUnlocked, setInfiniteUnlocked] = useState(() => isInfiniteModeUnlocked());
   const [eliteChallengeData, setEliteChallengeData] = useState<{
     enemy: Enemy;
     artifact: Item;
@@ -155,6 +210,9 @@ const App: React.FC = () => {
     expGain: number;
     ryoGain: number;
     levelUp?: { oldLevel: number; newLevel: number; statGains: Record<string, number> };
+    /** T-035: items previewed on victory (elite artifact / combat drops) */
+    lootPreviews?: Item[];
+    continuesToLoot?: boolean;
   } | null>(null);
   const logIdCounter = useRef<number>(0);
   const returnToMapRef = useRef<() => void>(() => {});
@@ -329,7 +387,6 @@ const App: React.FC = () => {
       setPlayer,
       setBranchingFloor,
       setLocationFloor,
-      setRegion,
       setCurrentIntel,
       setDiceRollResult,
       setTreasureHuntReward,
@@ -368,6 +425,8 @@ const App: React.FC = () => {
     // Treasure system
     setCurrentTreasure,
     setCurrentTreasureHunt,
+    setIntelResult,
+    setRestResult,
   };
 
   // Exploration hook - manages navigation and activity handling
@@ -383,6 +442,8 @@ const App: React.FC = () => {
     handleLeaveLocation,
     returnToMap,
     returnToMapActivityComplete,
+    locationCompleteResult,
+    confirmLocationComplete,
   } = useExploration(sharedExplorationState, {
     player,
     playerStats,
@@ -395,6 +456,72 @@ const App: React.FC = () => {
     setEnemy,
     onAutoCombat: handleAutoCombat,
     onAutoEliteCombat: handleAutoEliteCombat,
+    onRegionBossDefeated: (clearedRegion) => {
+      setRegionsCompleted((n) => n + 1);
+
+      // T-027: infinite ascent — never ends on boss; climb next floor
+      if (runMode === 'infinite' && player) {
+        const nextFloor = infiniteFloor + 1;
+        const height = infiniteHeightFromFloor(nextFloor);
+        setInfiniteFloor(nextFloor);
+        const config = generateInfiniteRegionConfig(nextFloor, difficulty);
+        const healed = fullHealPlayer(player);
+        setPlayer(healed);
+        const nextRegion = generateRegion(config, config.baseDifficulty, healed);
+        setRegion(nextRegion);
+        setBranchingFloor(null);
+        setLocationFloor(null);
+        setSelectedBranchingRoom(null);
+        setSelectedLocation(null);
+        const initialDeck = initializeLocationDeck(nextRegion);
+        const initialIntelPool = createInitialIntelPool();
+        const INITIAL_INTEL = 50;
+        const { cardCount, revealedCount } = evaluateIntel(INITIAL_INTEL);
+        const initialCards = drawLocationCards(
+          nextRegion,
+          initialDeck,
+          initialIntelPool,
+          cardCount,
+          revealedCount,
+        );
+        setLocationDeck(initialDeck);
+        setIntelPool(initialIntelPool);
+        setDrawnCards(initialCards);
+        setSelectedCardIndex(null);
+        setCurrentIntel(INITIAL_INTEL);
+        addLog(
+          `${clearedRegion.name} falls. The tower rises — Ascent ${height}. Difficulty ${config.baseDifficulty}.`,
+          'gain',
+        );
+        setGameState(GameState.REGION_MAP);
+        return;
+      }
+
+      // T-023: campaign — interlude if next region exists, else victory
+      const nextIdx = getNextPlayableRegionIndex(campaignRegionIndex);
+      const currentEntry = getCampaignEntry(campaignRegionIndex);
+
+      if (nextIdx == null || !REGION_ORDER[nextIdx]?.config) {
+        setPlayer((p) => (p ? fullHealPlayer(p) : p));
+        unlockInfiniteMode();
+        setInfiniteUnlocked(true);
+        setGameState(GameState.VICTORY);
+        addLog('Campaign complete! Infinite Ascent unlocked.', 'gain');
+        return;
+      }
+
+      const nextEntry = REGION_ORDER[nextIdx];
+      const boons = player ? generateInterludeBoons(player) : [];
+      setInterludeBoons(boons);
+      setInterludeMeta({
+        title: currentEntry?.interlude.title ?? 'Interlude',
+        body: currentEntry?.interlude.body ?? 'The road continues…',
+        regionName: clearedRegion.name,
+        nextRegionName: nextEntry.name,
+        nextIndex: nextIdx,
+      });
+      setGameState(GameState.INTERLUDE);
+    },
   });
 
   // Sync returnToMap function to ref to prevent circular dependencies
@@ -461,35 +588,39 @@ const App: React.FC = () => {
 
 
 
-  const startGame = (clan: Clan) => {
-    const baseStats = CLAN_STATS[clan];
-    const startSkill = CLAN_START_SKILL[clan];
-    const derived = calculateDerivedStats(baseStats, {});
+  const bootstrapRegionMap = (config: RegionConfig, newPlayer: Player, logLine: string) => {
+    addLog(logLine, 'info');
+    const startRegion = generateRegion(config, config.baseDifficulty, newPlayer);
+    setRegion(startRegion);
+    setBranchingFloor(null);
+    setLocationFloor(null);
+    setSelectedBranchingRoom(null);
+    setSelectedLocation(null);
 
-    const newPlayer: Player = {
-      clan,
-      level: 1,
-      exp: 0,
-      maxExp: 100,
-      primaryStats: { ...baseStats },
-      currentHp: derived.maxHp,
-      currentChakra: derived.maxChakra,
-      element: clan === Clan.UCHIHA ? 'Fire' : clan === Clan.UZUMAKI ? 'Wind' : 'Physical' as any,
-      ryo: LaunchProperties.STARTING_RYO,
-      equipment: {
-        [EquipmentSlot.SLOT_1]: null,
-        [EquipmentSlot.SLOT_2]: null,
-        [EquipmentSlot.SLOT_3]: null,
-        [EquipmentSlot.SLOT_4]: null,
-      },
-      skills: [SKILLS.BASIC_ATTACK, SKILLS.SHURIKEN, { ...startSkill, level: 1 }],
-      activeBuffs: [],
-      bag: Array(MAX_BAG_SLOTS).fill(null),
-      treasureQuality: TreasureQuality.BROKEN,
-      merchantSlots: DEFAULT_MERCHANT_SLOTS,
-      locationsCleared: 0,
-      eventFlags: {},
-    };
+    const initialDeck = initializeLocationDeck(startRegion);
+    const initialIntelPool = createInitialIntelPool();
+    const INITIAL_INTEL = 50;
+    const { cardCount, revealedCount } = evaluateIntel(INITIAL_INTEL);
+    logInitialCardDraw(INITIAL_INTEL, cardCount, revealedCount);
+    const initialCards = drawLocationCards(
+      startRegion,
+      initialDeck,
+      initialIntelPool,
+      cardCount,
+      revealedCount,
+    );
+    setLocationDeck(initialDeck);
+    setIntelPool(initialIntelPool);
+    setDrawnCards(initialCards);
+    setSelectedCardIndex(null);
+    setCurrentIntel(INITIAL_INTEL);
+    setGameState(GameState.REGION_MAP);
+  };
+
+  const startGame = (clan: Clan) => {
+    // Full clan loadout (MAIN/SIDE/TOGGLE/PASSIVE) via createPlayer / getClanStartingSkills
+    const newPlayer = createPlayer(clan);
+    const mode = pendingRunMode;
 
     setPlayer(newPlayer);
     setLogs([]);
@@ -501,32 +632,85 @@ const App: React.FC = () => {
     setShowApproachSelector(false);
     setCombatState(null);
     setApproachResult(null);
-    addLog(`Lineage chosen: ${clan}. Your journey begins in the Land of Waves...`, 'info');
+    setCampaignRegionIndex(0);
+    setRegionsCompleted(0);
+    setInterludeBoons([]);
+    setInterludeMeta(null);
+    setExploreOverlay('none');
+    setRunMode(mode);
+    setInfiniteFloor(0);
 
-    // Initialize region exploration (Land of Waves)
-    const wavesRegion = generateRegion(LAND_OF_WAVES_CONFIG, difficulty, newPlayer);
-    setRegion(wavesRegion);
-    setBranchingFloor(null);
-    setLocationFloor(null);
-    setSelectedBranchingRoom(null);
+    if (mode === 'infinite') {
+      const config = generateInfiniteRegionConfig(0, difficulty);
+      bootstrapRegionMap(
+        config,
+        newPlayer,
+        `Lineage chosen: ${clan}. Infinite Ascent begins — floor 1 (${config.name}).`,
+      );
+      return;
+    }
 
-    // Initialize card-based location selection
-    const initialDeck = initializeLocationDeck(wavesRegion);
-    const initialIntelPool = createInitialIntelPool();
-
-    // First location starts at 50% intel - use evaluateIntel to determine card count/reveal
-    const INITIAL_INTEL = 50;
-    const { cardCount, revealedCount } = evaluateIntel(INITIAL_INTEL);
-    logInitialCardDraw(INITIAL_INTEL, cardCount, revealedCount);
-
-    const initialCards = drawLocationCards(wavesRegion, initialDeck, initialIntelPool, cardCount, revealedCount);
-    setLocationDeck(initialDeck);
-    setIntelPool(initialIntelPool);
-    setDrawnCards(initialCards);
-    setSelectedCardIndex(null);
-
-    setGameState(GameState.REGION_MAP);
+    // T-023: first playable entry in REGION_ORDER (Land of Waves)
+    const entry = getCampaignEntry(0);
+    const config = entry?.config;
+    if (!config) {
+      addLog('No campaign regions configured.', 'danger');
+      return;
+    }
+    bootstrapRegionMap(
+      config,
+      newPlayer,
+      `Lineage chosen: ${clan}. Your journey begins in ${config.name}...`,
+    );
   };
+
+  /** T-023: apply interlude boon and spawn next campaign region. */
+  const handleInterludeBoon = useCallback(
+    (boon: CampaignBoon) => {
+      if (!interludeMeta || !player) return;
+      const nextEntry = getCampaignEntry(interludeMeta.nextIndex);
+      const config = nextEntry?.config;
+      if (!config) {
+        setPlayer((p) => (p ? applyCampaignBoon(p, boon) : p));
+        setGameState(GameState.VICTORY);
+        return;
+      }
+
+      const healed = applyCampaignBoon(player, boon);
+      setPlayer(healed);
+      setCampaignRegionIndex(interludeMeta.nextIndex);
+
+      const nextRegion = generateRegion(config, difficulty, healed);
+      setRegion(nextRegion);
+      setBranchingFloor(null);
+      setLocationFloor(null);
+      setSelectedBranchingRoom(null);
+      setSelectedLocation(null);
+
+      const initialDeck = initializeLocationDeck(nextRegion);
+      const initialIntelPool = createInitialIntelPool();
+      const INITIAL_INTEL = 50;
+      const { cardCount, revealedCount } = evaluateIntel(INITIAL_INTEL);
+      const initialCards = drawLocationCards(
+        nextRegion,
+        initialDeck,
+        initialIntelPool,
+        cardCount,
+        revealedCount,
+      );
+      setLocationDeck(initialDeck);
+      setIntelPool(initialIntelPool);
+      setDrawnCards(initialCards);
+      setSelectedCardIndex(null);
+      setCurrentIntel(INITIAL_INTEL);
+      setInterludeBoons([]);
+      setInterludeMeta(null);
+
+      addLog(`Boon chosen: ${boon.title}. Entering ${config.name}…`, 'gain');
+      setGameState(GameState.REGION_MAP);
+    },
+    [interludeMeta, player, difficulty, addLog],
+  );
 
   // Auto-skip character selection if feature flag is enabled
   useEffect(() => {
@@ -535,10 +719,26 @@ const App: React.FC = () => {
     }
   }, [gameState]);
 
-  // Cancel approach selection
+  // Cancel approach selection — restore prior context (guardian → TREASURE, elite/map → explore)
   const handleApproachCancel = () => {
     logModalClose('ApproachSelector', 'cancelled');
     setShowApproachSelector(false);
+
+    const isTreasureGuardian =
+      enemy?.name === 'Treasure Guardian' || currentTreasure !== null;
+
+    // Always drop combat-prep side channels so cancel never leaves a half-started fight
+    setEnemy(null);
+    setPendingArtifact(null);
+
+    if (isTreasureGuardian && currentTreasure) {
+      // Restore treasure screen (never blank TREASURE: requires currentTreasure)
+      // Keep selectedBranchingRoom for subsequent treasure actions
+      setGameState(GameState.TREASURE);
+      return;
+    }
+
+    // Elite / regular combat: stay on map (elite fight already set LOCATION_EXPLORE / REGION_MAP)
     setSelectedBranchingRoom(null);
   };
 
@@ -559,12 +759,16 @@ const App: React.FC = () => {
     if (!targetEnemy) return;
 
     const terrain = TERRAIN_DEFINITIONS[selectedBranchingRoom.terrain];
+    // T-063: location terrainEffects stealth_bonus stacks with room stealth
+    const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+    const locationStealthPts = locationStealthBonusPoints(locMods);
     const result = executeApproach(
       approach,
       player,
       playerStats,
       targetEnemy,
-      terrain
+      terrain,
+      locationStealthPts,
     );
 
     setApproachResult(result);
@@ -576,44 +780,52 @@ const App: React.FC = () => {
     setPlayer(playerAfterCosts);
 
     if (result.skipCombat) {
-      // Successfully bypassed combat - mark as completed
+      // Successfully bypassed combat — complete LIVE locationFloor (not only legacy branchingFloor)
       logExplorationCheckpoint('Combat bypassed via approach');
       addLog('You slip past undetected!', 'gain');
       setShowApproachSelector(false);
 
-      // Handle Treasure Guardian bypass - mark treasure activity as complete
+      const activityType = isTreasureGuardian
+        ? 'treasure'
+        : isEliteChallenge
+          ? 'eliteChallenge'
+          : 'combat';
+
+      let updatedLocationFloor: BranchingFloor | undefined;
+
+      if (locationFloor && selectedBranchingRoom) {
+        updatedLocationFloor = completeActivity(
+          locationFloor,
+          selectedBranchingRoom.id,
+          activityType,
+        );
+        setLocationFloor(updatedLocationFloor);
+      }
+
+      if (branchingFloor && selectedBranchingRoom) {
+        setBranchingFloor(
+          completeActivity(branchingFloor, selectedBranchingRoom.id, activityType),
+        );
+      }
+
       if (isTreasureGuardian) {
-        setLocationFloor(prevFloor => {
-          if (!prevFloor || !selectedBranchingRoom) return prevFloor;
-          return completeActivity(prevFloor, selectedBranchingRoom.id, 'treasure');
-        });
-        setBranchingFloor(prevFloor => {
-          if (!prevFloor || !selectedBranchingRoom) return prevFloor;
-          return completeActivity(prevFloor, selectedBranchingRoom.id, 'treasure');
-        });
-        // Clear treasure state
         setCurrentTreasure(null);
         setCurrentTreasureHunt(null);
         setEnemy(null);
         addLog('You slipped past the Treasure Guardian but missed the map piece...', 'info');
-      } else {
-        // Mark the appropriate activity as completed (combat or eliteChallenge)
-        setBranchingFloor(prevFloor => {
-          if (!prevFloor || !selectedBranchingRoom) return prevFloor;
-          const activityType = isEliteChallenge ? 'eliteChallenge' : 'combat';
-          return completeActivity(prevFloor, selectedBranchingRoom.id, activityType);
-        });
-
-        // Clear pending artifact if bypassing elite challenge
-        if (isEliteChallenge) {
-          setPendingArtifact(null);
-          addLog('You bypassed the guardian but left the artifact behind...', 'info');
-        }
+      } else if (isEliteChallenge) {
+        setPendingArtifact(null);
+        addLog('You bypassed the guardian but left the artifact behind...', 'info');
       }
 
-      // Return to map
-      returnToMap();
+      // Pass completed floor so we never re-open combat from a stale closure
+      returnToMapActivityComplete(updatedLocationFloor);
       return;
+    }
+
+    // Combat actually starts: drop treasure UI state for guardian fights
+    if (isTreasureGuardian) {
+      setCurrentTreasure(null);
     }
 
     // Set up enemy with any HP reduction from approach
@@ -632,7 +844,11 @@ const App: React.FC = () => {
     // cards once the upkeep redrew from the empty pile.
     logStateChange('EXPLORE', 'COMBAT', 'approach selected - entering combat');
     setShowApproachSelector(false);
-    startCombat(combatEnemy, result, playerAfterCosts, terrain);
+    // Guardian: drop treasure UI state only once combat actually starts (not on approach open/cancel)
+    if (isTreasureGuardian) {
+      setCurrentTreasure(null);
+    }
+    startCombat(combatEnemy, result, playerAfterCosts, terrain, locMods);
   };
 
   // Branching exploration handlers moved to useExploration hook
@@ -665,13 +881,14 @@ const App: React.FC = () => {
       setScrollDiscoveryData, setEliteChallengeData, setBranchingFloor, setLocationFloor,
       setSelectedBranchingRoom, setDroppedItems, setDroppedSkill, setActiveEvent,
       setPendingArtifact, setShowApproachSelector, setCurrentIntel,
-      setEventOutcome, setIsProcessingLoot, setCameFromChain
+      setEventOutcome, setIsProcessingLoot, setCameFromChain, setRegion
     },
     {
       addLog,
       checkLevelUp,
       handleCombatVictory,
       returnToMap,
+      returnToMapActivityComplete,
       eventOutcome,
       startCombat
     }
@@ -684,23 +901,37 @@ const App: React.FC = () => {
     handleEventChoice, handleEventOutcomeClose
   } = activityHandlers;
 
-  // Close reward modal - check for pending artifact from elite challenge
+  // Close reward modal - check for pending artifact from elite challenge,
+  // or component drops from normal combat victories.
   const handleRewardClose = () => {
     logRewardModal('close');
-    logModalClose('RewardModal', pendingArtifact ? 'showing loot' : 'staying on map');
+    const hasCombatDrops = droppedItems.length > 0;
+    logModalClose(
+      'RewardModal',
+      pendingArtifact ? 'showing loot' : hasCombatDrops ? 'showing combat loot' : 'staying on map'
+    );
     setCombatReward(null);
 
     // If there's a pending artifact from elite challenge, show loot screen
     if (pendingArtifact) {
       logFlowCheckpoint('Pending artifact found - showing LOOT screen', { artifact: pendingArtifact.name });
-      logStateChange('EXPLORE', 'LOOT', 'elite challenge artifact');
+      logStateChange('LOCATION_EXPLORE', 'LOOT', 'elite challenge artifact');
       setDroppedItems([pendingArtifact]);
       setDroppedSkill(null);
       setPendingArtifact(null);
       addLog('The artifact guardian has fallen! Claim your prize.', 'loot');
       setGameState(GameState.LOOT);
+    } else if (hasCombatDrops) {
+      logFlowCheckpoint('Combat loot found - showing LOOT screen', {
+        items: droppedItems.map(i => i.name),
+      });
+      logStateChange('LOCATION_EXPLORE', 'LOOT', 'combat drop');
+      setGameState(GameState.LOOT);
     } else {
-      logFlowCheckpoint('No pending artifact - staying on BRANCHING_EXPLORE');
+      // No loot modal: returnToMap chains next activity or runs location-complete meta path
+      // (markComplete + updateDeck + redraw cards + locationsCleared++)
+      logFlowCheckpoint('No pending artifact or combat drops - returnToMap');
+      returnToMap();
     }
   };
 
@@ -738,13 +969,67 @@ const App: React.FC = () => {
     returnToMap();
   };
 
+  // --- Layout flags + hooks MUST run before any early return (Rules of Hooks) ---
+  // Hide sidebars: combat (full stage) + exploration maps (T-022 cinematic full-bleed)
+  const isCombat = gameState === GameState.COMBAT;
+  const isExplorationMap =
+    gameState === GameState.REGION_MAP || gameState === GameState.LOCATION_EXPLORE;
+  const hideSidebars = isCombat || isExplorationMap;
+  // Keep as && chain (not Boolean()) so TS can narrow player/playerStats at use sites with re-checks
+  const showExploreChrome = isExplorationMap && !!player && !!playerStats;
 
+  // Close explore overlays when leaving map screens
+  useEffect(() => {
+    if (!isExplorationMap) setExploreOverlay('none');
+  }, [isExplorationMap]);
+
+  // I / C / Esc for exploration overlays (T-022)
+  useEffect(() => {
+    if (!isExplorationMap) return;
+    const onKey = (event: KeyboardEvent) => {
+      const t = event.target as HTMLElement | null;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        t?.isContentEditable
+      ) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === 'i') {
+        event.preventDefault();
+        setExploreOverlay((prev) => (prev === 'bag' ? 'none' : 'bag'));
+      } else if (key === 'c') {
+        event.preventDefault();
+        setExploreOverlay((prev) => (prev === 'character' ? 'none' : 'character'));
+      } else if (event.key === 'Escape' && exploreOverlay !== 'none') {
+        event.preventDefault();
+        setExploreOverlay('none');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isExplorationMap, exploreOverlay]);
+
+  // --- Full-screen scenes (no game shell) — only after all hooks ---
   if (gameState === GameState.MENU) {
     return (
       <MainMenu
         difficulty={difficulty}
         onDifficultyChange={setDifficulty}
-        onEnter={() => setGameState(GameState.CHAR_SELECT)}
+        onEnter={() => {
+          setPendingRunMode('campaign');
+          setGameState(GameState.CHAR_SELECT);
+        }}
+        onInfiniteEnter={
+          infiniteUnlocked
+            ? () => {
+                setPendingRunMode('infinite');
+                setGameState(GameState.CHAR_SELECT);
+              }
+            : undefined
+        }
+        infiniteUnlocked={infiniteUnlocked}
         onGuide={() => setGameState(GameState.GUIDE)}
       />
     );
@@ -753,7 +1038,6 @@ const App: React.FC = () => {
   if (gameState === GameState.GUIDE) {
     return <GameGuide onBack={() => setGameState(GameState.MENU)} />;
   }
-
 
   if (gameState === GameState.CHAR_SELECT) {
     return <CharacterSelect onSelectClan={startGame} />;
@@ -766,24 +1050,101 @@ const App: React.FC = () => {
         dangerLevel={currentDangerLevel}
         regionName={region?.name ?? 'Unknown Region'}
         playerLevel={player?.level}
+        clan={player?.clan}
+        ryo={player?.ryo}
+        locationsCleared={player?.locationsCleared}
+        towerHeight={
+          runMode === 'infinite' ? computeTowerScore(regionsCompleted) : undefined
+        }
+        player={player}
         background={combatBackground}
         onRetry={() => {
           setGameState(GameState.MENU);
           setPlayer(null);
           setEnemy(null);
+          setInfiniteUnlocked(isInfiniteModeUnlocked());
         }}
       />
     );
   }
 
-  // Hide sidebar during combat for full-width immersive experience
-  const isCombat = gameState === GameState.COMBAT;
+  if (gameState === GameState.INTERLUDE && player && interludeMeta) {
+    return (
+      <Interlude
+        regionName={interludeMeta.regionName}
+        title={interludeMeta.title}
+        body={interludeMeta.body}
+        nextRegionName={interludeMeta.nextRegionName}
+        boons={interludeBoons}
+        runSummary={{
+          level: player.level,
+          ryo: player.ryo,
+          locationsCleared: player.locationsCleared,
+          regionsCompleted,
+        }}
+        player={player}
+        onChooseBoon={handleInterludeBoon}
+        background={combatBackground}
+      />
+    );
+  }
+
+  if (gameState === GameState.VICTORY && player) {
+    const entry = getCampaignEntry(campaignRegionIndex);
+    return (
+      <Victory
+        clan={player.clan}
+        level={player.level}
+        ryo={player.ryo}
+        locationsCleared={player.locationsCleared}
+        regionsCompleted={Math.max(regionsCompleted, 1)}
+        lastRegionName={region?.name ?? entry?.name ?? 'Unknown'}
+        provisional={getPlayableRegionCount() < REGION_ORDER.length}
+        infiniteUnlocked={infiniteUnlocked || isInfiniteModeUnlocked()}
+        player={player}
+        background={combatBackground}
+        onMenu={() => {
+          setGameState(GameState.MENU);
+          setPlayer(null);
+          setEnemy(null);
+          setRegion(null);
+          setInfiniteUnlocked(isInfiniteModeUnlocked());
+        }}
+        onStartInfinite={() => {
+          unlockInfiniteMode();
+          setInfiniteUnlocked(true);
+          setPendingRunMode('infinite');
+          setPlayer(null);
+          setEnemy(null);
+          setRegion(null);
+          setGameState(GameState.CHAR_SELECT);
+        }}
+      />
+    );
+  }
+
+  const inventoryOverlayProps = {
+    selectedComponent,
+    onSelectComponent: setSelectedComponent,
+    onSellComponent: sellComponent,
+    onSynthesize: handleSynthesize,
+    onEquipFromBag: equipFromBag,
+    onSellEquipped: sellEquipped,
+    onUnequipToBag: unequipToBag,
+    onDisassembleEquipped: handleDisassembleEquipped,
+    onStartSynthesisEquipped: startSynthesisEquipped,
+    onReorderBag: reorderBag,
+    onDragBagToEquip: dragBagToEquip,
+    onDragEquipToBag: dragEquipToBag,
+    onSwapEquipment: swapEquipment,
+    treasureHunt: locationFloor?.treasureHunt || currentTreasureHunt,
+  };
 
   return (
     <GameProvider value={gameContextValue}>
     <div className="h-screen bg-black text-gray-300 flex overflow-hidden font-sans">
-      {/* Left Panel - Hidden during combat */}
-      {!isCombat && (
+      {/* Left Panel — hidden in combat + cinematic exploration (T-022) */}
+      {!hideSidebars && (
         <div className="hidden lg:flex w-[280px] flex-col border-r border-zinc-900 bg-zinc-950 p-4">
           <LeftSidebarPanel />
         </div>
@@ -791,7 +1152,19 @@ const App: React.FC = () => {
 
       {/* Center Panel */}
       <div className="flex-1 flex flex-col relative bg-zinc-950">
-        <div className="flex-1 p-6 flex flex-col items-center justify-center relative overflow-y-auto parchment-panel">
+        {/* T-022: minimal HUD on exploration maps */}
+        {showExploreChrome && player && playerStats && (
+          <ExplorationHUD
+            player={player}
+            maxHp={playerStats.derived.maxHp}
+            maxChakra={playerStats.derived.maxChakra}
+            onOpenBag={() => setExploreOverlay((p) => (p === 'bag' ? 'none' : 'bag'))}
+            onOpenCharacter={() => setExploreOverlay((p) => (p === 'character' ? 'none' : 'character'))}
+            bagOpen={exploreOverlay === 'bag'}
+            characterOpen={exploreOverlay === 'character'}
+          />
+        )}
+        <div className={`flex-1 flex flex-col items-center justify-center relative overflow-y-auto parchment-panel ${isExplorationMap ? 'p-2 sm:p-4' : 'p-6'}`}>
           {gameState === GameState.COMBAT && player && enemy && playerStats && enemyStats && (
             <ErrorBoundary sceneName="Combat">
               <Combat
@@ -804,6 +1177,7 @@ const App: React.FC = () => {
                 hand={hand}
                 currentAp={currentAp}
                 maxAp={maxAp}
+                baseMaxAp={playerStats?.derived.actionPointsPerTurn}
                 posture={posture}
                 onChangePosture={changePosture}
                 onUseSkill={useSkill}
@@ -817,6 +1191,25 @@ const App: React.FC = () => {
                 onToggleAutoCombat={() => setAutoCombatEnabled(prev => !prev)}
                 autoPassTimeRemaining={autoPassTimeRemaining}
                 background={combatBackground}
+                logs={logs}
+                approachResult={approachResult}
+                locationTerrainLines={(() => {
+                  // T-079: room combat mods + location effects on open banner
+                  const roomLines = selectedBranchingRoom
+                    ? formatRoomTerrainEffectLines(
+                        TERRAIN_DEFINITIONS[selectedBranchingRoom.terrain],
+                      )
+                    : [];
+                  const locLines = formatLocationTerrainEffectLines(
+                    currentLocation?.terrainEffects,
+                  );
+                  return [...roomLines, ...locLines].slice(0, 4);
+                })()}
+                isFirstTurn={combatState?.isFirstTurn ?? false}
+                firstHitMultiplier={combatState?.firstHitMultiplier ?? 1}
+                locationTerrainMods={combatState?.locationTerrainMods ?? null}
+                skipFirstSkillCost={combatState?.skipFirstSkillCost ?? false}
+                roomTerrain={combatState?.terrain ?? null}
               />
             </ErrorBoundary>
           )}
@@ -946,11 +1339,7 @@ const App: React.FC = () => {
                 onCardSelect={handleCardSelect}
                 onEnterLocation={handleEnterSelectedLocation}
               />
-              <PlayerHUD
-                player={player}
-                playerStats={playerStats}
-                biome={region.biome || 'Misty Shores'}
-              />
+              {/* T-022: PlayerHUD replaced by ExplorationHUD (top strip) */}
             </div>
           )}
 
@@ -968,17 +1357,14 @@ const App: React.FC = () => {
                   onRoomSelect={handleLocationRoomSelect}
                   onRoomEnter={handleLocationRoomEnter}
                 />
-                <PlayerHUD
-                  player={player}
-                  playerStats={playerStats}
-                  biome={currentLocation.name}
-                />
                 {/* Combat Victory Reward Modal */}
                 {combatReward && (
                   <RewardModal
                     expGain={combatReward.expGain}
                     ryoGain={combatReward.ryoGain}
                     levelUp={combatReward.levelUp}
+                    lootPreviews={combatReward.lootPreviews}
+                    continuesToLoot={combatReward.continuesToLoot}
                     onClose={handleRewardClose}
                   />
                 )}
@@ -990,6 +1376,7 @@ const App: React.FC = () => {
                     onClose={handleEventOutcomeClose}
                   />
                 )}
+
               </div>
             );
           })()}
@@ -1002,26 +1389,50 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Panel - Hidden during combat */}
-      {!isCombat && (
+      {/* T-049: Info gathering result (location + branching explore) */}
+      {intelResult && (
+        <IntelResultModal
+          result={intelResult}
+          onClose={() => setIntelResult(null)}
+        />
+      )}
+
+      {/* T-050: Rest heal result */}
+      {restResult && (
+        <RestResultModal
+          result={restResult}
+          onClose={() => setRestResult(null)}
+        />
+      )}
+
+      {/* T-060: Location complete payoff before region map */}
+      {locationCompleteResult && (
+        <LocationCompleteModal
+          result={locationCompleteResult}
+          onContinue={confirmLocationComplete}
+        />
+      )}
+
+      {/* Right Panel — hidden in combat + cinematic exploration (T-022) */}
+      {!hideSidebars && (
         <div className="hidden lg:flex w-[280px] flex-col border-l border-zinc-900 bg-zinc-950 p-4">
-          <RightSidebarPanel
-            selectedComponent={selectedComponent}
-            onSelectComponent={setSelectedComponent}
-            onSellComponent={sellComponent}
-            onSynthesize={handleSynthesize}
-            onEquipFromBag={equipFromBag}
-            onSellEquipped={sellEquipped}
-            onUnequipToBag={unequipToBag}
-            onDisassembleEquipped={handleDisassembleEquipped}
-            onStartSynthesisEquipped={startSynthesisEquipped}
-            onReorderBag={reorderBag}
-            onDragBagToEquip={dragBagToEquip}
-            onDragEquipToBag={dragEquipToBag}
-            onSwapEquipment={swapEquipment}
-            treasureHunt={locationFloor?.treasureHunt || currentTreasureHunt}
-          />
+          <RightSidebarPanel {...inventoryOverlayProps} />
         </div>
+      )}
+
+      {/* T-022: exploration overlays (bag / character sheet) */}
+      {showExploreChrome && exploreOverlay === 'bag' && player && (
+        <InventoryOverlay
+          {...inventoryOverlayProps}
+          onClose={() => setExploreOverlay('none')}
+        />
+      )}
+      {showExploreChrome && exploreOverlay === 'character' && player && playerStats && (
+        <CharacterSheetOverlay
+          player={player}
+          playerStats={playerStats}
+          onClose={() => setExploreOverlay('none')}
+        />
       )}
 
       {/* Approach Selector Modal */}
@@ -1044,6 +1455,12 @@ const App: React.FC = () => {
             terrain={TERRAIN_DEFINITIONS[selectedBranchingRoom.terrain]}
             player={player}
             playerStats={playerStats}
+            locationStealthBonusPts={locationStealthBonusPoints(
+              getLocationTerrainMods(currentLocation?.terrainEffects),
+            )}
+            locationEvasionBonus={
+              getLocationTerrainMods(currentLocation?.terrainEffects).evasionBonus
+            }
             onSelectApproach={handleBranchingApproachSelect}
             onCancel={handleApproachCancel}
           />

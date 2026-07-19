@@ -1,0 +1,147 @@
+/**
+ * Minimal exploration HUD — pixel-arcade strip (T-022)
+ */
+
+@import '../../styles/design-system/index.css';
+
+.explore-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sw-space-3);
+  width: 100%;
+  padding: var(--sw-space-2) var(--sw-space-3);
+  background: var(--sw-bg-secondary, #12121a);
+  border: 3px solid var(--sw-hard, #0a0a0f);
+  box-shadow: 4px 4px 0 0 var(--sw-hard, #0a0a0f);
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+.explore-hud__identity {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sw-space-2);
+  min-width: 7rem;
+}
+
+.explore-hud__name {
+  color: var(--sw-text-primary, #f0e8d8);
+  font-size: var(--sw-text-sm, 0.85rem);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.explore-hud__level {
+  color: var(--sw-accent-tertiary, #e8b84a);
+  font-size: var(--sw-text-xs, 0.75rem);
+}
+
+.explore-hud__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 10rem;
+  min-width: 8rem;
+  max-width: 18rem;
+}
+
+.explore-hud__bar {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.explore-hud__bar-label {
+  font-size: 10px;
+  color: var(--sw-text-muted, #888);
+}
+
+.explore-hud__bar-track {
+  height: 8px;
+  background: #0a0a12;
+  border: 2px solid var(--sw-hard, #0a0a0f);
+  overflow: hidden;
+}
+
+.explore-hud__bar-fill {
+  height: 100%;
+  transition: width 0.15s steps(4);
+}
+
+.explore-hud__bar-fill--hp {
+  background: linear-gradient(90deg, #c0392b, #e74c3c);
+}
+
+.explore-hud__bar-fill--cp {
+  background: linear-gradient(90deg, #1a5276, #3498db);
+}
+
+.explore-hud__bar-val {
+  font-size: 10px;
+  color: var(--sw-text-secondary, #ccc);
+  font-family: var(--sw-font-mono, monospace);
+  min-width: 3.5rem;
+  text-align: right;
+}
+
+.explore-hud__ryo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #1a1810;
+  border: 2px solid #e8b84a;
+  color: #facc15;
+  font-size: var(--sw-text-xs, 0.75rem);
+  font-weight: 700;
+  box-shadow: 2px 2px 0 0 #0a0a0f;
+}
+
+.explore-hud__actions {
+  display: flex;
+  gap: var(--sw-space-2);
+  margin-left: auto;
+}
+
+.explore-hud__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: #1a1528;
+  border: 3px solid var(--sw-hard, #0a0a0f);
+  box-shadow: 3px 3px 0 0 var(--sw-hard, #0a0a0f);
+  color: var(--sw-text-primary, #f0e8d8);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  transition: transform 0.05s steps(1);
+}
+
+.explore-hud__btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 0 var(--sw-hard, #0a0a0f);
+  color: #e8b84a;
+}
+
+.explore-hud__btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard, #0a0a0f);
+}
+
+.explore-hud__btn--active {
+  background: #2a2038;
+  border-color: #e8b84a;
+  color: #e8b84a;
+}
+
+.explore-hud__btn-key {
+  font-size: 10px;
+  opacity: 0.75;
+  border: 1px solid currentColor;
+  padding: 0 3px;
+  line-height: 1.2;
+}

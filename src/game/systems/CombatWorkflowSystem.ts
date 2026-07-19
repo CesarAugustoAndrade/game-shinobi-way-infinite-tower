@@ -91,7 +91,9 @@ export type { PostureProfile } from './PostureSystem';
  */
 export function createCombatState(
   modifiers?: CombatModifiers,
-  terrain?: TerrainDefinition
+  terrain?: TerrainDefinition,
+  /** T-063: location terrain effect mods */
+  locationTerrainMods?: import('./LocationTerrainSystem').LocationTerrainMods | null,
 ): CombatState {
   return {
     isFirstTurn: true,
@@ -103,6 +105,7 @@ export function createCombatState(
     approachApplied: false,
     skipFirstSkillCost: false,
     artifactGutsUsed: false,
+    locationTerrainMods: locationTerrainMods ?? null,
     // Deckbuilder/AP economy (T-004) — safe defaults; not consumed by the
     // combat flow yet. Initialized for real when the deck/hand system lands.
     currentAp: 0,

@@ -68,6 +68,28 @@
   box-shadow: 5px 5px 0 0 var(--ev-hard);
 }
 
+.event__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--sw-space-3);
+  max-width: 22rem;
+  min-height: 6rem;
+  padding: var(--sw-space-2);
+  background: var(--sw-bg-primary, #0a0a12);
+  border: 2px solid var(--ev-border);
+  box-shadow: 3px 3px 0 0 var(--ev-hard);
+  image-rendering: pixelated;
+}
+
+.event__art img {
+  max-height: 7rem;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .event__icon {
   display: inline-flex;
   margin-bottom: var(--sw-space-3);

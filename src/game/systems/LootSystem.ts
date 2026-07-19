@@ -30,7 +30,7 @@
  * - Have passive abilities from recipes
  * - ONLY source: Elite Challenges or Synthesis
  * - Maximum 2 stat bonuses (highest values kept)
- * - Always Rarity.EPIC
+ * - Craft / elite drops: Rarity.RARE; 2× RARE upgrade → EPIC
  *
  * ## SYNTHESIS SYSTEM
  *
@@ -69,6 +69,7 @@ import {
   Skill,
   EquipmentSlot,
   ComponentId,
+  RegionLootTheme,
   Rarity,
   ItemStatBonus,
   SkillTier,
@@ -213,8 +214,12 @@ export const equipItem = (player: Player, item: Item, targetSlot?: EquipmentSlot
   };
 };
 
+/** Sell value for an item (BALANCE.SELL_PRICE_RATIO of base value). */
+export const getSellPrice = (item: { value: number }): number =>
+  Math.floor(item.value * BALANCE.SELL_PRICE_RATIO);
+
 export const sellItem = (player: Player, item: Item): Player => {
-  const val = Math.floor(item.value * BALANCE.SELL_PRICE_RATIO);
+  const val = getSellPrice(item);
   return { ...player, ryo: player.ryo + val };
 };
 
@@ -222,12 +227,133 @@ export const sellItem = (player: Player, item: Item): Player => {
 // SYNTHESIS SYSTEM - Component Generation & Crafting
 // ============================================================================
 
+// ============================================================================
+// LOOT TABLE PROFILES (T-059)
+// ============================================================================
+
+/** Kind parsed from location.lootTable id suffix (e.g. waves_settlement). */
+export type LootTableKind =
+  | 'settlement'
+  | 'wilderness'
+  | 'stronghold'
+  | 'landmark'
+  | 'boss'
+  | 'secret'
+  | 'default';
+
 /**
- * Weighted random selection of a component type
- * Excludes Hashirama Cell (weight 0) from normal drops
+ * Map authored lootTable string → kind for weight bias.
+ * Exported for unit tests.
  */
-function weightedRandomComponent(): ComponentId {
-  const entries = Object.entries(COMPONENT_DROP_WEIGHTS) as [ComponentId, number][];
+export function parseLootTableKind(lootTable?: string | null): LootTableKind {
+  if (!lootTable) return 'default';
+  const t = lootTable.toLowerCase();
+  if (t.includes('settlement')) return 'settlement';
+  if (t.includes('wilderness')) return 'wilderness';
+  if (t.includes('stronghold')) return 'stronghold';
+  if (t.includes('landmark')) return 'landmark';
+  if (t.includes('boss')) return 'boss';
+  if (t.includes('secret')) return 'secret';
+  return 'default';
+}
+
+/**
+ * Relative weight multipliers per component for a loot table kind.
+ * Hashirama stays 0 via base weights.
+ */
+function lootTableWeightMultipliers(kind: LootTableKind): Partial<Record<ComponentId, number>> {
+  switch (kind) {
+    case 'settlement':
+      return {
+        [ComponentId.NINJA_STEEL]: 1.35,
+        [ComponentId.CHAKRA_PILL]: 1.35,
+        [ComponentId.TACTICAL_SCROLL]: 1.2,
+      };
+    case 'wilderness':
+      return {
+        [ComponentId.TRAINING_WEIGHTS]: 1.35,
+        [ComponentId.SWIFT_SANDALS]: 1.35,
+        [ComponentId.IRON_SAND]: 1.2,
+      };
+    case 'stronghold':
+      return {
+        [ComponentId.NINJA_STEEL]: 1.5,
+        [ComponentId.IRON_SAND]: 1.4,
+        [ComponentId.ANBU_MASK]: 1.25,
+      };
+    case 'landmark':
+      return {
+        [ComponentId.SPIRIT_TAG]: 1.4,
+        [ComponentId.TACTICAL_SCROLL]: 1.35,
+        [ComponentId.CHAKRA_PILL]: 1.15,
+      };
+    case 'boss':
+      return {
+        [ComponentId.ANBU_MASK]: 1.5,
+        [ComponentId.SPIRIT_TAG]: 1.35,
+        [ComponentId.NINJA_STEEL]: 1.25,
+      };
+    case 'secret':
+      return {
+        [ComponentId.ANBU_MASK]: 1.6,
+        [ComponentId.TACTICAL_SCROLL]: 1.5,
+        [ComponentId.SPIRIT_TAG]: 1.3,
+      };
+    default:
+      return {};
+  }
+}
+
+/**
+ * T-061: boost components whose primaryStat is in region lootTheme.equipmentFocus.
+ * Multiplier stacks with T-059 lootTable bias.
+ */
+export function equipmentFocusWeightMultipliers(
+  equipmentFocus?: string[] | null,
+): Partial<Record<ComponentId, number>> {
+  if (!equipmentFocus || equipmentFocus.length === 0) return {};
+  const focus = new Set(equipmentFocus.map((s) => s.toLowerCase()));
+  const mults: Partial<Record<ComponentId, number>> = {};
+  for (const [id, def] of Object.entries(COMPONENT_DEFINITIONS) as [ComponentId, { primaryStat: string }][]) {
+    if (id === ComponentId.HASHIRAMA_CELL) continue;
+    if (focus.has(def.primaryStat.toLowerCase())) {
+      mults[id] = 1.4;
+    }
+  }
+  return mults;
+}
+
+/**
+ * T-061: apply region goldMultiplier to ryo after wealth/flag scaling.
+ */
+export function applyLootThemeGoldMultiplier(
+  ryo: number,
+  lootTheme?: RegionLootTheme | null,
+): number {
+  if (!lootTheme || !lootTheme.goldMultiplier || lootTheme.goldMultiplier === 1) {
+    return ryo;
+  }
+  return Math.floor(ryo * lootTheme.goldMultiplier);
+}
+
+/**
+ * Weighted random selection of a component type.
+ * Excludes Hashirama Cell (weight 0) from normal drops.
+ * T-059: optional lootTable biases weights by location kind.
+ * T-061: optional lootTheme.equipmentFocus stacks bias by primaryStat.
+ */
+function weightedRandomComponent(
+  lootTable?: string | null,
+  lootTheme?: RegionLootTheme | null,
+): ComponentId {
+  const tableMults = lootTableWeightMultipliers(parseLootTableKind(lootTable));
+  const focusMults = equipmentFocusWeightMultipliers(lootTheme?.equipmentFocus);
+  const entries = (Object.entries(COMPONENT_DROP_WEIGHTS) as [ComponentId, number][]).map(
+    ([id, weight]) => {
+      const m = (tableMults[id] ?? 1) * (focusMults[id] ?? 1);
+      return [id, weight * m] as [ComponentId, number];
+    },
+  );
   return weightedPick(entries, ([, weight]) => weight)?.[0] ?? ComponentId.NINJA_STEEL;
 }
 
@@ -235,8 +361,13 @@ function weightedRandomComponent(): ComponentId {
  * Generate a BROKEN tier component (lowest quality)
  * These drop from treasure and enemies by default
  */
-export const generateBrokenComponent = (currentFloor: number, _difficulty: number): Item => {
-  const componentId = weightedRandomComponent();
+export const generateBrokenComponent = (
+  currentFloor: number,
+  _difficulty: number,
+  lootTable?: string | null,
+  lootTheme?: RegionLootTheme | null,
+): Item => {
+  const componentId = weightedRandomComponent(lootTable, lootTheme);
   const def = COMPONENT_DEFINITIONS[componentId];
 
   // Broken items have reduced stats (40-60% of normal)
@@ -262,8 +393,13 @@ export const generateBrokenComponent = (currentFloor: number, _difficulty: numbe
  * Generate a COMMON tier component
  * These are created by upgrading 2x Broken components
  */
-export const generateComponent = (currentFloor: number, difficulty: number): Item => {
-  const componentId = weightedRandomComponent();
+export const generateComponent = (
+  currentFloor: number,
+  difficulty: number,
+  lootTable?: string | null,
+  lootTheme?: RegionLootTheme | null,
+): Item => {
+  const componentId = weightedRandomComponent(lootTable, lootTheme);
   const def = COMPONENT_DEFINITIONS[componentId];
 
   // Scale value based on floor (similar to regular item scaling)
@@ -291,16 +427,18 @@ export const generateComponent = (currentFloor: number, difficulty: number): Ite
 export const generateComponentByQuality = (
   currentFloor: number,
   difficulty: number,
-  quality: TreasureQuality
+  quality: TreasureQuality,
+  lootTable?: string | null,
+  lootTheme?: RegionLootTheme | null,
 ): Item => {
   switch (quality) {
     case TreasureQuality.BROKEN:
-      return generateBrokenComponent(currentFloor, difficulty);
+      return generateBrokenComponent(currentFloor, difficulty, lootTable, lootTheme);
     case TreasureQuality.COMMON:
-      return generateComponent(currentFloor, difficulty);
+      return generateComponent(currentFloor, difficulty, lootTable, lootTheme);
     case TreasureQuality.RARE: {
       // Rare quality: same as Common but with boosted stats
-      const item = generateComponent(currentFloor, difficulty);
+      const item = generateComponent(currentFloor, difficulty, lootTable, lootTheme);
       item.rarity = Rarity.RARE;
       // Boost stat values
       for (const key of Object.keys(item.stats) as (keyof ItemStatBonus)[]) {
@@ -314,16 +452,55 @@ export const generateComponentByQuality = (
       return item;
     }
     default:
-      return generateBrokenComponent(currentFloor, difficulty);
+      return generateBrokenComponent(currentFloor, difficulty, lootTable, lootTheme);
   }
 };
 
 /**
  * Generate loot from combat - now drops BROKEN components by default
  * Use generateComponentByQuality for treasure quality scaling
+ * T-059: optional location lootTable biases component type
+ * T-061: optional region lootTheme.equipmentFocus stacks bias
  */
-export const generateLoot = (currentFloor: number, difficulty: number): Item => {
-  return generateBrokenComponent(currentFloor, difficulty);
+export const generateLoot = (
+  currentFloor: number,
+  difficulty: number,
+  lootTable?: string | null,
+  lootTheme?: RegionLootTheme | null,
+): Item => {
+  return generateBrokenComponent(currentFloor, difficulty, lootTable, lootTheme);
+};
+
+/**
+ * Generate a merchant shop item.
+ * Unlike combat drops (always Broken), shop stock mixes qualities:
+ * - Uses player's treasureQuality as a quality floor/ceiling guide
+ * - Scales Common/Rare mix by effective floor so mid/late shops feel better
+ */
+export const generateMerchantItem = (
+  currentFloor: number,
+  difficulty: number,
+  treasureQuality: TreasureQuality = TreasureQuality.BROKEN,
+  lootTable?: string | null,
+  lootTheme?: RegionLootTheme | null,
+): Item => {
+  let quality: TreasureQuality;
+
+  if (treasureQuality === TreasureQuality.RARE) {
+    // Mostly rare, some common filler
+    const rareChance = Math.min(0.85, 0.55 + currentFloor * 0.02);
+    quality = chance(rareChance) ? TreasureQuality.RARE : TreasureQuality.COMMON;
+  } else if (treasureQuality === TreasureQuality.COMMON) {
+    // Common baseline; occasional rare at higher floors
+    const rareChance = Math.min(0.35, 0.05 + currentFloor * 0.025);
+    quality = chance(rareChance) ? TreasureQuality.RARE : TreasureQuality.COMMON;
+  } else {
+    // BROKEN treasure quality: mix Broken + Common (never pure Broken shop)
+    const commonChance = Math.min(0.8, 0.3 + currentFloor * 0.05);
+    quality = chance(commonChance) ? TreasureQuality.COMMON : TreasureQuality.BROKEN;
+  }
+
+  return generateComponentByQuality(currentFloor, difficulty, quality, lootTable, lootTheme);
 };
 
 /**
@@ -367,7 +544,8 @@ export const generateRandomArtifact = (currentFloor: number, difficulty: number)
   return {
     id: generateId(),
     name: recipe.name,
-    rarity: Rarity.EPIC, // All synthesized artifacts are Epic
+    // RARE matches craft-path synthesize(); EPIC requires upgrading 2× RARE
+    rarity: Rarity.RARE,
     stats: cappedStats,
     value: baseValue * 2, // Artifacts are worth more
     description: recipe.description,
@@ -702,6 +880,14 @@ export const removeFromBag = (player: Player, itemId: string): Player => {
     ...player,
     bag: player.bag.map(item => item?.id === itemId ? null : item),
   };
+};
+
+/**
+ * Check if the bag still contains an item with the given id
+ * (guards double-sell / double-equip / double-craft races)
+ */
+export const bagHasItem = (player: Player, itemId: string): boolean => {
+  return player.bag.some(slot => slot?.id === itemId);
 };
 
 /**

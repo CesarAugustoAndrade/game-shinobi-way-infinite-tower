@@ -9,16 +9,21 @@ import {
   Rarity,
   ActionType,
   Posture,
+  LogEntry,
 } from '../../game/types';
 import StatBar from '../../components/shared/StatBar';
 import Tooltip from '../../components/shared/Tooltip';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
 import PlayerHUD from '../../components/character/PlayerHUD';
 import FloatingText, { FloatingTextItem, FloatingTextType } from '../../components/combat/FloatingText';
+import GameLog from '../../components/combat/GameLog';
 import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
 import { PostureIndicator } from '../../components/combat/PostureIndicator';
 import { FeatureFlags } from '../../config/featureFlags';
 import { getApCost } from '../../game/constants/combatCards';
+import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
+import { ApproachResult } from '../../game/systems/ApproachSystem';
+import { describePosture } from '../../game/systems/PostureSystem';
 import { Hourglass, Zap, ZapOff } from 'lucide-react';
 import { formatPercent } from '../../game/systems/StatSystem';
 import {
@@ -33,6 +38,7 @@ import {
   getSeverityColor,
   isPositiveEffect,
 } from '../../game/utils/tooltipFormatters';
+import { getEnemyArt } from '../../game/constants/artRegistry';
 import {
   ARCHETYPE_DESCRIPTIONS,
   ELEMENT_ICONS,
@@ -67,6 +73,11 @@ interface CombatProps {
   currentAp: number;
   /** Action Point budget for the turn. */
   maxAp: number;
+  /**
+   * T-075: natural AP budget before location movement_penalty.
+   * When > maxAp, HUD shows terrain AP cut.
+   */
+  baseMaxAp?: number;
   /** Active combat posture. */
   posture: Posture;
   /** Switch the active posture (costs AP). */
@@ -85,6 +96,21 @@ interface CombatProps {
    * Computed in App.tsx from the current location's biome slug.
    */
   background?: string;
+  /** Recent combat log lines for the mini combat log overlay. */
+  logs?: LogEntry[];
+  /** T-054: approach used to open this fight (optional). */
+  approachResult?: ApproachResult | null;
+  /** T-071: location terrain effect labels for open banner */
+  locationTerrainLines?: string[] | null;
+  /** Damage-preview: still on ambush first strike */
+  isFirstTurn?: boolean;
+  firstHitMultiplier?: number;
+  /** FREE_FIRST_SKILL: first accepted skill costs 0 chakra (from combatState) */
+  skipFirstSkillCost?: boolean;
+  /** Damage-preview: T-063 location terrain mods */
+  locationTerrainMods?: import('../../game/systems/LocationTerrainSystem').LocationTerrainMods | null;
+  /** Damage-preview: room terrain element amplification */
+  roomTerrain?: import('../../game/types').TerrainDefinition | null;
 }
 
 const Combat = forwardRef<CombatRef, CombatProps>(({
@@ -96,22 +122,60 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   hand,
   currentAp,
   maxAp,
+  baseMaxAp,
   posture,
   onChangePosture,
-  onUseSkill,
-  onPassTurn,
+  onUseSkill: onUseSkillProp,
+  onPassTurn: onPassTurnProp,
   getDamageTypeColor,
   autoCombatEnabled = false,
   onToggleAutoCombat,
   autoPassTimeRemaining,
   background,
+  logs = [],
+  approachResult = null,
+  locationTerrainLines = null,
+  isFirstTurn = false,
+  firstHitMultiplier = 1,
+  skipFirstSkillCost = false,
+  locationTerrainMods = null,
+  roomTerrain = null,
 }, ref) => {
   // Floating text state
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextItem[]>([]);
+  const [hitFlash, setHitFlash] = useState(false);
+  // T-054: show opening approach/posture banner until first action or timeout
+  const [showOpenBanner, setShowOpenBanner] = useState(Boolean(approachResult));
   const enemyRef = useRef<HTMLDivElement>(null);
   const playerHudRef = useRef<HTMLDivElement>(null);
+  const hitFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Spawn floating text at target location
+  useEffect(() => {
+    setShowOpenBanner(Boolean(approachResult));
+  }, [approachResult, enemy?.name]);
+
+  useEffect(() => {
+    if (!showOpenBanner) return;
+    const t = setTimeout(() => setShowOpenBanner(false), 4200);
+    return () => clearTimeout(t);
+  }, [showOpenBanner, approachResult]);
+
+  const dismissOpenBanner = useCallback(() => setShowOpenBanner(false), []);
+
+  const onUseSkill = useCallback(
+    (skill: Skill) => {
+      dismissOpenBanner();
+      onUseSkillProp(skill);
+    },
+    [dismissOpenBanner, onUseSkillProp],
+  );
+
+  const onPassTurn = useCallback(() => {
+    dismissOpenBanner();
+    onPassTurnProp();
+  }, [dismissOpenBanner, onPassTurnProp]);
+
+  // Spawn floating text at target location; enemy hits also flash the cutout
   const spawnFloatingText = useCallback((
     target: 'enemy' | 'player',
     text: string,
@@ -126,6 +190,19 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     const y = rect.top + rect.height * (target === 'enemy' ? 0.4 : 0.3);
 
     setFloatingTexts(prev => [...prev, { id, text, type, position: { x, y } }]);
+
+    // Cheap hit juice: brief flash on the enemy sprite for damage/crit
+    if (target === 'enemy' && (type === 'damage' || type === 'crit')) {
+      setHitFlash(true);
+      if (hitFlashTimer.current) clearTimeout(hitFlashTimer.current);
+      hitFlashTimer.current = setTimeout(() => setHitFlash(false), 180);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hitFlashTimer.current) clearTimeout(hitFlashTimer.current);
+    };
   }, []);
 
   // Remove floating text after animation completes
@@ -145,22 +222,29 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     .slice(0, HAND_SHORTCUTS.length);
 
   // Helper to check if a card can be played this turn (resources + AP + state).
+  // FREE_FIRST_SKILL: effective chakra cost is 0 while skipFirstSkillCost is set.
   const canUseSkill = useCallback((skill: Skill): boolean => {
-    const hasResources = player.currentChakra >= skill.chakraCost && player.currentHp > skill.hpCost;
+    const effectiveChakraCost = skipFirstSkillCost ? 0 : skill.chakraCost;
+    const hasResources =
+      player.currentChakra >= effectiveChakraCost && player.currentHp > skill.hpCost;
     const noCooldown = skill.currentCooldown === 0;
     const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
+    const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
+    // Silence blocks chakra-cost skills; allow free taijutsu and toggle deactivation
+    const silencedBlocked = isSilenced && skill.chakraCost > 0 && !skill.isActive;
     const hasAp = currentAp >= getApCost(skill);
 
-    return Boolean((hasResources || skill.isActive) && noCooldown && !isStunned && hasAp);
-  }, [player, currentAp]);
+    return Boolean((hasResources || skill.isActive) && noCooldown && !isStunned && !silencedBlocked && hasAp);
+  }, [player, currentAp, skipFirstSkillCost]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (turnState !== 'PLAYER') return;
 
-      // Tab to toggle auto-combat
+      // Tab to toggle auto-pass (end turn after delay — not full auto-resolve combat)
       if (e.key === 'Tab') {
         e.preventDefault();
         onToggleAutoCombat?.();
@@ -450,17 +534,92 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     </div>
   );
 
+  // T-054/T-071: open banner copy from approach + posture + location terrain
+  const openBanner = (() => {
+    if (!showOpenBanner || !approachResult) return null;
+    const def = APPROACH_DEFINITIONS[approachResult.approach];
+    const postureProfile = describePosture(posture);
+    const effects: string[] = [];
+    if (approachResult.success) {
+      if (approachResult.guaranteedFirst || approachResult.initiativeBonus > 0) {
+        effects.push('You seize the initiative');
+      }
+      if (approachResult.firstHitMultiplier > 1) {
+        effects.push(`First hit ×${approachResult.firstHitMultiplier}`);
+      }
+      if (approachResult.enemyHpReduction > 0) {
+        effects.push(`Enemy −${Math.round(approachResult.enemyHpReduction * 100)}% HP`);
+      }
+    } else if (turnState === 'ENEMY_TURN') {
+      effects.push('Enemy acts first');
+    }
+    // T-071/T-079: location + room terrain lines (App merges; cap for clutter)
+    const terrainLines = (locationTerrainLines ?? []).slice(0, 4);
+    return {
+      approachName: def?.name ?? String(approachResult.approach),
+      success: approachResult.success,
+      postureLabel: postureProfile.label,
+      drawBias: postureProfile.drawBias,
+      effects,
+      terrainLines,
+      description: approachResult.description,
+    };
+  })();
+
   return (
     <div className="combat">
+      {openBanner && (
+        <div
+          className={`combat-open-banner ${openBanner.success ? 'combat-open-banner--success' : 'combat-open-banner--fail'}`}
+          role="status"
+          onClick={dismissOpenBanner}
+        >
+          <div className="combat-open-banner__row">
+            <span className="combat-open-banner__approach">{openBanner.approachName}</span>
+            <span className={`combat-open-banner__outcome ${openBanner.success ? 'combat-open-banner__outcome--ok' : 'combat-open-banner__outcome--bad'}`}>
+              {openBanner.success ? 'Success' : 'Failed'}
+            </span>
+          </div>
+          <div className="combat-open-banner__posture">
+            Opens <strong>{openBanner.postureLabel}</strong>
+            <span className="combat-open-banner__bias"> · {openBanner.drawBias}</span>
+          </div>
+          {openBanner.effects.length > 0 && (
+            <div className="combat-open-banner__effects">
+              {openBanner.effects.join(' · ')}
+            </div>
+          )}
+          {openBanner.terrainLines.length > 0 && (
+            <div className="combat-open-banner__terrain">
+              Terrain: {openBanner.terrainLines.join(' · ')}
+            </div>
+          )}
+          <p className="combat-open-banner__hint">Tap to dismiss · auto-hides</p>
+        </div>
+      )}
       {/* ROW 1 (1fr): Stage — cinematic viewscreen with floating info panel */}
       <div className="combat__stage" ref={enemyRef}>
         <CinematicViewscreen
-          enemyImage={enemy.image || '/assets/image_3b2b13.jpg'}
+          enemyImage={
+            enemy.image
+            || getEnemyArt({
+              name: enemy.name,
+              archetype: enemy.archetype,
+              isBoss: enemy.isBoss,
+            }).src
+          }
           enemyCutout={enemyCutout}
           backgroundImage={background}
           chakraAuraColor={chakraAuraColor}
           floatingPanel={floatingPanel}
+          hitFlash={hitFlash}
         />
+        {/* Mini combat log (recent lines + aria-live) — bottom-left of stage */}
+        {logs.length > 0 && (
+          <div className="combat__mini-log">
+            <GameLog logs={logs} maxLines={4} compact />
+          </div>
+        )}
       </div>
 
       {/* ROW 2 (auto): Deck — 2 visual bands: command bar + hand (T-014 v4) */}
@@ -487,6 +646,12 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
                 ))}
               </div>
               <span className="combat__ap-value">{currentAp}/{maxAp}</span>
+              {/* T-075: explain movement_penalty AP cut */}
+              {typeof baseMaxAp === 'number' && baseMaxAp > maxAp && (
+                <span className="combat__ap-terrain" title={`Natural budget ${baseMaxAp}`}>
+                  Terrain −{baseMaxAp - maxAp}
+                </span>
+              )}
             </div>
 
             {/* Posture Control */}
@@ -519,18 +684,19 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
 
             {/* Keyboard whisper — cards already carry their Z/X/C/V badges */}
             <span className="combat__whisper" aria-hidden="true">
-              SPACE end · TAB auto
+              SPACE end · TAB auto-end
             </span>
 
-            {/* Auto-Combat Toggle */}
+            {/* Auto-end turn toggle — countdown + pass (does NOT auto-play skills) */}
             <button
               type="button"
               onClick={onToggleAutoCombat}
               className={`combat__auto-btn ${autoCombatEnabled ? 'combat__auto-btn--active' : ''}`}
-              title={autoCombatEnabled ? 'Auto-pass enabled - Click to disable' : 'Enable auto-pass for faster pacing'}
+              title={autoCombatEnabled ? 'Auto-end enabled — ends your turn after a short delay' : 'Enable auto-end: automatically pass the turn (not full auto-combat)'}
+              aria-label={autoCombatEnabled ? 'Disable auto-end' : 'Enable auto-end'}
             >
               {autoCombatEnabled ? <Zap size={14} /> : <ZapOff size={14} />}
-              <span className="combat__auto-label">Auto</span>
+              <span className="combat__auto-label">Auto-end</span>
               {autoCombatEnabled && autoPassTimeRemaining != null && turnState === 'PLAYER' && (
                 <span className="combat__auto-timer">
                   {(autoPassTimeRemaining / 1000).toFixed(1)}s
@@ -560,10 +726,15 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           playerStats={playerStats}
           enemy={enemy}
           enemyStats={enemyStats}
+          posture={posture}
           isPlayerTurn={turnState === 'PLAYER'}
           canUseSkill={canUseSkill}
           onUseSkill={onUseSkill}
           getDamageTypeColor={getDamageTypeColor}
+          isFirstTurn={isFirstTurn}
+          firstHitMultiplier={firstHitMultiplier}
+          locationTerrainMods={locationTerrainMods}
+          roomTerrain={roomTerrain}
         />
       </div>
 

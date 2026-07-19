@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { selectEnemySkill } from '../EnemyAISystem';
+import { selectEnemySkill, selectEnemySkillDecision } from '../EnemyAISystem';
 import { calculateDerivedStats } from '../StatSystem';
-import { EffectType, ActionType, DamageType, DamageProperty, AttackMethod, ElementType, SkillTier } from '../../types';
+import { EffectType, PrimaryStat } from '../../types';
 import { createMockPlayer, createMockEnemy, createMockSkill, BASE_STATS } from './testFixtures';
 
 describe('selectEnemySkill', () => {
@@ -31,7 +31,7 @@ describe('selectEnemySkill', () => {
     const selectedSkill = selectEnemySkill(context);
 
     expect(selectedSkill).toBeDefined();
-    expect(selectedSkill.id).toBe('basic');
+    expect(selectedSkill!.id).toBe('basic');
   });
 
   it('returns first skill if all on cooldown', () => {
@@ -44,7 +44,7 @@ describe('selectEnemySkill', () => {
     const selectedSkill = selectEnemySkill(context);
 
     // Should fallback to first skill
-    expect(selectedSkill.id).toBe('skill1');
+    expect(selectedSkill!.id).toBe('skill1');
   });
 
   it('prefers heal skills when enemy HP is low', () => {
@@ -68,7 +68,7 @@ describe('selectEnemySkill', () => {
     for (let i = 0; i < 20; i++) {
       const context = { enemy: lowHpEnemy, enemyStats, player, playerStats };
       const selectedSkill = selectEnemySkill(context);
-      if (selectedSkill.id === 'heal') healSelected++;
+      if (selectedSkill?.id === 'heal') healSelected++;
     }
 
     // Heal should be selected most of the time when HP is low
@@ -99,7 +99,7 @@ describe('selectEnemySkill', () => {
     for (let i = 0; i < 20; i++) {
       const context = { enemy, enemyStats, player: healthyPlayer, playerStats };
       const selectedSkill = selectEnemySkill(context);
-      if (selectedSkill.id === 'debuff') debuffSelected++;
+      if (selectedSkill?.id === 'debuff') debuffSelected++;
     }
 
     // Debuff should be selected more often against healthy players
@@ -124,7 +124,7 @@ describe('selectEnemySkill', () => {
     for (let i = 0; i < 20; i++) {
       const context = { enemy, enemyStats, player: lowHpPlayer, playerStats };
       const selectedSkill = selectEnemySkill(context);
-      if (selectedSkill.id === 'high') highDamageSelected++;
+      if (selectedSkill?.id === 'high') highDamageSelected++;
     }
 
     // High damage should be preferred to finish off low HP player
@@ -144,7 +144,7 @@ describe('selectEnemySkill', () => {
     const selectedSkill = selectEnemySkill(context);
 
     // Should select the available skill
-    expect(selectedSkill.id).toBe('available');
+    expect(selectedSkill!.id).toBe('available');
   });
 
   it('includes randomness in selection', () => {
@@ -161,11 +161,65 @@ describe('selectEnemySkill', () => {
     for (let i = 0; i < 50; i++) {
       const context = { enemy, enemyStats, player, playerStats };
       const selectedSkill = selectEnemySkill(context);
-      selections[selectedSkill.id]++;
+      expect(selectedSkill).toBeDefined();
+      selections[selectedSkill!.id]++;
     }
 
     // Both skills should be selected at least sometimes (randomness)
     expect(selections.skill1).toBeGreaterThan(0);
     expect(selections.skill2).toBeGreaterThan(0);
+  });
+
+  it('returns undefined skill when enemy has an empty skills array', () => {
+    const enemy = createMockEnemy({ skills: [] });
+    const player = createMockPlayer();
+    const context = { enemy, enemyStats, player, playerStats };
+
+    const decision = selectEnemySkillDecision(context);
+    expect(decision.skill).toBeUndefined();
+    expect(decision.reason).toMatch(/no skills/i);
+
+    const selected = selectEnemySkill(context);
+    expect(selected).toBeUndefined();
+  });
+
+  it('treats EffectType.DEBUFF as a debuff for AI scoring', () => {
+    const attackSkill = createMockSkill({ id: 'attack', name: 'Attack', damageMult: 1.5 });
+    const debuffSkill = createMockSkill({
+      id: 'stat-debuff',
+      name: 'Weaken',
+      damageMult: 0.5,
+      effects: [
+        {
+          type: EffectType.DEBUFF,
+          value: 0.25,
+          duration: 2,
+          chance: 1,
+          targetStat: PrimaryStat.STRENGTH,
+        },
+      ],
+    });
+
+    const enemy = createMockEnemy({
+      skills: [attackSkill, debuffSkill],
+      currentHp: enemyStats.derived.maxHp,
+    });
+    const healthyPlayer = createMockPlayer({
+      currentHp: playerStats.derived.maxHp,
+    });
+
+    let debuffSelected = 0;
+    for (let i = 0; i < 20; i++) {
+      const selectedSkill = selectEnemySkill({
+        enemy,
+        enemyStats,
+        player: healthyPlayer,
+        playerStats,
+      });
+      if (selectedSkill?.id === 'stat-debuff') debuffSelected++;
+    }
+
+    // DEBUFF should score like other control effects vs healthy players
+    expect(debuffSelected).toBeGreaterThan(5);
   });
 });

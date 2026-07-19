@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { Skull } from 'lucide-react';
+import { Clan } from '../../game/types';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './GameOver.css';
 
@@ -8,6 +9,11 @@ interface GameOverProps {
   dangerLevel: number;
   regionName: string;
   playerLevel?: number;
+  clan?: Clan | string;
+  ryo?: number;
+  locationsCleared?: number;
+  /** T-027: Infinite Ascent height (regions cleared in tower mode) */
+  towerHeight?: number;
   onRetry: () => void;
   /** Biome background where the player fell — shown very darkened behind the death screen. */
   background?: string;
@@ -18,6 +24,10 @@ const GameOver: React.FC<GameOverProps> = ({
   dangerLevel,
   regionName,
   playerLevel,
+  clan,
+  ryo,
+  locationsCleared,
+  towerHeight,
   onRetry,
   background,
 }) => {
@@ -42,6 +52,13 @@ const GameOver: React.FC<GameOverProps> = ({
     return 'game-over__danger--high';
   };
 
+  const hasRunSummary =
+    playerLevel != null ||
+    clan != null ||
+    ryo != null ||
+    locationsCleared != null ||
+    towerHeight != null;
+
   return (
     <div className="game-over">
       <SceneBackdrop background={background} dim={0.2}>
@@ -65,10 +82,38 @@ const GameOver: React.FC<GameOverProps> = ({
 
           <p className="game-over__region">{regionName}</p>
 
-          {playerLevel && (
-            <div className="game-over__level">
-              <span>Reached Level</span>
-              <span className="game-over__level-value">{playerLevel}</span>
+          {hasRunSummary && (
+            <div className="game-over__summary">
+              {clan != null && (
+                <div className="game-over__stat">
+                  <span className="game-over__stat-label">Clan</span>
+                  <span className="game-over__stat-value">{clan}</span>
+                </div>
+              )}
+              {playerLevel != null && (
+                <div className="game-over__stat">
+                  <span className="game-over__stat-label">Level</span>
+                  <span className="game-over__stat-value">{playerLevel}</span>
+                </div>
+              )}
+              {locationsCleared != null && (
+                <div className="game-over__stat">
+                  <span className="game-over__stat-label">Locations</span>
+                  <span className="game-over__stat-value">{locationsCleared}</span>
+                </div>
+              )}
+              {towerHeight != null && (
+                <div className="game-over__stat game-over__stat--tower">
+                  <span className="game-over__stat-label">Tower Height</span>
+                  <span className="game-over__stat-value">{towerHeight}</span>
+                </div>
+              )}
+              {ryo != null && (
+                <div className="game-over__stat">
+                  <span className="game-over__stat-label">Ryo</span>
+                  <span className="game-over__stat-value">{ryo}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

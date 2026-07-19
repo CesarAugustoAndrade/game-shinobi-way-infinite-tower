@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Item, EquipmentSlot, Rarity, DragData } from '../../game/types';
+import { getSellPrice } from '../../game/systems/LootSystem';
+import { resolveItemArt } from '../../game/constants/artRegistry';
 import Tooltip from '../shared/Tooltip';
+import ArtIcon from '../shared/ArtIcon';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import { getRarityTextColorWithEffects } from '../../utils/colorHelpers';
 import './inventory.css';
@@ -65,7 +68,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
   const renderEquip = (slot: EquipmentSlot) => {
     const item = equipment[slot];
     const isMenuOpen = activeMenu === slot;
-    const sellValue = item ? Math.floor(item.value * 0.6) : 0;
+    const sellValue = item ? getSellPrice(item) : 0;
     const canUnequip = !!item;
     const canDisassemble = item && !item.isComponent && item.recipe;
 
@@ -174,7 +177,12 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
             <div className={`equipment-panel__slot-name ${
               item ? getRarityColor(item.rarity) : 'equipment-panel__slot-name--empty'
             } ${isDragging ? 'equipment-panel__slot-invisible' : ''}`}>
-              {item ? (item.icon ? `${item.icon} ${item.name}` : item.name) : "Empty"}
+              {item ? (
+                <span className="inline-flex items-center gap-1">
+                  <ArtIcon art={resolveItemArt(item)} size="xs" />
+                  {item.name}
+                </span>
+              ) : "Empty"}
             </div>
           </div>
         </Tooltip>

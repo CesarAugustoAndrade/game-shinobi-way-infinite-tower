@@ -6,12 +6,32 @@ import {
   DamageType,
   CharacterStats,
   ActionType,
+  Posture,
 } from '../../game/types';
 import Tooltip from '../shared/Tooltip';
 import { SkillCard } from './SkillCard';
 import { getApCost } from '../../game/constants/combatCards';
-import { calculateDamage } from '../../game/systems/StatSystem';
+import { previewDamage, resolvePassiveDamageBonus } from '../../game/systems/StatSystem';
+import {
+  getTotalDefenseBypass,
+  getCritDefenseBypass,
+  hasAllElementsPassive,
+  getConvertToElementalPercent,
+  applyClanTraitToDamageContext,
+} from '../../game/systems/EquipmentPassiveSystem';
+import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
+import { postureDamageMod } from '../../game/systems/PostureSystem';
+import {
+  skillLocationDamageMult,
+  applyEnemyDefenseBonus,
+  type LocationTerrainMods,
+} from '../../game/systems/LocationTerrainSystem';
+import { getTerrainElementAmplification } from '../../game/systems/CombatCalculationSystem';
+import type { TerrainDefinition } from '../../game/types';
+import { LaunchProperties } from '../../config/featureFlags';
 import { getElementEffectiveness } from '../../game/constants';
+import { getSkillArt } from '../../game/constants/artRegistry';
+import ArtIcon from '../shared/ArtIcon';
 import {
   formatScalingStat,
   getStatColor,
@@ -35,12 +55,21 @@ interface HandProps {
   playerStats: CharacterStats;
   enemy: Enemy;
   enemyStats: CharacterStats;
+  /** Active combat posture — included in damage preview (A-004). */
+  posture?: Posture;
   /** Whether it is the player's turn (cards are inert during the enemy turn). */
   isPlayerTurn: boolean;
   /** Single source of truth for playability (resources + AP + cooldown + stun). */
   canUseSkill: (skill: Skill) => boolean;
   onUseSkill: (skill: Skill) => void;
   getDamageTypeColor: (dt: DamageType) => string;
+  /** Approach ambush first-hit mult when still on the opening strike. */
+  isFirstTurn?: boolean;
+  firstHitMultiplier?: number;
+  /** T-063 location terrain damage mods (match live PlayerTurnSystem). */
+  locationTerrainMods?: LocationTerrainMods | null;
+  /** Room terrain definition for element amplification preview. */
+  roomTerrain?: TerrainDefinition | null;
 }
 
 /**
@@ -57,23 +86,70 @@ export const Hand: React.FC<HandProps> = ({
   playerStats,
   enemy,
   enemyStats,
+  posture = Posture.BALANCED,
   isPlayerTurn,
   canUseSkill,
   onUseSkill,
   getDamageTypeColor,
+  isFirstTurn = false,
+  firstHitMultiplier = 1,
+  locationTerrainMods = null,
+  roomTerrain = null,
 }) => {
   const renderCard = (skill: Skill, index: number) => {
     const apCost = getApCost(skill);
     const usable = canUseSkill(skill) && isPlayerTurn;
 
-    const prediction = calculateDamage(
-      playerStats.effectivePrimary,
+    // T-038: match live combat mods (clan traits T-031 + event flags T-034)
+    const clanCtx = applyClanTraitToDamageContext(
+      player,
       playerStats.derived,
       enemyStats.effectivePrimary,
       enemyStats.derived,
+    );
+    const flagDmg = getEventFlagRunModifiers(player).damageBonus;
+    const skillArt = getSkillArt(skill);
+    // previewDamage forces hit + non-crit so tooltips do not flicker miss/CRIT
+    const prediction = previewDamage(
+      playerStats.effectivePrimary,
+      clanCtx.attackerDerived,
+      clanCtx.defenderPrimary,
+      clanCtx.defenderDerived,
       skill,
       player.element,
-      enemy.element
+      enemy.element,
+      {
+        damageBonus:
+          resolvePassiveDamageBonus(playerStats.passiveBonuses, skill.element) + flagDmg,
+        defenseBypass: getTotalDefenseBypass(player),
+        critDefenseBypass: getCritDefenseBypass(player),
+        forceSuperEffective: hasAllElementsPassive(player),
+        convertToElementalPercent: getConvertToElementalPercent(player),
+      }
+    );
+
+    // Match PlayerTurnSystem post-calc mods: first-hit, room terrain amp,
+    // location terrain, launch mult, posture
+    let modified = prediction.finalDamage;
+    if (isFirstTurn && firstHitMultiplier > 1) {
+      modified = Math.floor(modified * firstHitMultiplier);
+    }
+    if (roomTerrain && player.element) {
+      const terrainAmp = getTerrainElementAmplification(roomTerrain, player.element);
+      if (terrainAmp > 1) {
+        modified = Math.floor(modified * terrainAmp);
+      }
+    }
+    if (locationTerrainMods) {
+      const locMult = skillLocationDamageMult(skill, locationTerrainMods);
+      if (locMult !== 1) {
+        modified = Math.floor(modified * locMult);
+      }
+      modified = applyEnemyDefenseBonus(modified, locationTerrainMods);
+    }
+    const predictedDamage = Math.floor(
+      Math.floor(modified * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER) *
+        postureDamageMod(posture)
     );
 
     const effectiveness = getElementEffectiveness(skill.element, enemy.element);
@@ -86,19 +162,27 @@ export const Hand: React.FC<HandProps> = ({
         position="top"
         content={
           <div className="combat-tooltip combat-tooltip--wide">
-            {/* Header */}
+            {/* Header — T-038: Imagine skill tile */}
             <div className="combat-tooltip__header">
-              <div>
-                <div className="combat-tooltip__title">{skill.name}</div>
-                <div className="combat-tooltip__subtitle">
-                  <span className="combat-tooltip__tier">{skill.tier}</span>
-                  <span className={
-                    skill.actionType === ActionType.SIDE ? 'combat-tooltip__action--side' :
-                    skill.actionType === ActionType.TOGGLE ? 'combat-tooltip__action--toggle' :
-                    'combat-tooltip__action--main'
-                  }>
-                    {skill.actionType || 'MAIN'} Action
-                  </span>
+              <div className="combat-tooltip__header-main">
+                <ArtIcon
+                  art={skillArt}
+                  size="md"
+                  className="combat-tooltip__skill-art"
+                  title={skill.name}
+                />
+                <div>
+                  <div className="combat-tooltip__title">{skill.name}</div>
+                  <div className="combat-tooltip__subtitle">
+                    <span className="combat-tooltip__tier">{skill.tier}</span>
+                    <span className={
+                      skill.actionType === ActionType.SIDE ? 'combat-tooltip__action--side' :
+                      skill.actionType === ActionType.TOGGLE ? 'combat-tooltip__action--toggle' :
+                      'combat-tooltip__action--main'
+                    }>
+                      {skill.actionType || ActionType.MAIN} · {apCost} AP
+                    </span>
+                  </div>
                 </div>
               </div>
               <span className="combat-tooltip__level">Lv.{skill.level || 1}</span>
@@ -196,16 +280,15 @@ export const Hand: React.FC<HandProps> = ({
               </div>
             )}
 
-            {/* Damage Preview vs Enemy */}
+            {/* Damage Preview vs Enemy (includes posture + launch mult like live hits) */}
             <div className="combat-tooltip__section combat-tooltip__preview">
               <div className="combat-tooltip__preview-target">vs {enemy.name}</div>
               <div className="combat-tooltip__preview-row">
                 <div>
                   <span className="combat-tooltip__preview-dmg-label">Predicted: </span>
                   <span className={`combat-tooltip__preview-dmg ${isSuperEffective ? 'combat-tooltip__preview-dmg--effective' : ''}`}>
-                    {prediction.finalDamage} dmg
+                    {predictedDamage} dmg
                   </span>
-                  {prediction.isCrit && <span className="combat-tooltip__crit-marker">(CRIT)</span>}
                 </div>
                 {isSuperEffective && (
                   <span className="combat-tooltip__effectiveness--super">SUPER EFFECTIVE!</span>
@@ -220,7 +303,7 @@ export const Hand: React.FC<HandProps> = ({
       >
         <SkillCard
           skill={skill}
-          predictedDamage={prediction.finalDamage}
+          predictedDamage={predictedDamage}
           isEffective={isSuperEffective}
           canUse={usable}
           onClick={() => onUseSkill(skill)}

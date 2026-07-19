@@ -14,8 +14,10 @@ import {
   postureDamageMod,
   postureDefenseMod,
   stanceShiftFromSkill,
+  openingPostureForApproach,
+  openingPostureLog,
 } from '../PostureSystem';
-import { Posture } from '../../types';
+import { ApproachType, Posture } from '../../types';
 import { createMockSkill } from './testFixtures';
 
 describe('postureDamageMod', () => {
@@ -72,5 +74,27 @@ describe('stanceShiftFromSkill', () => {
   it('returns undefined when the card does not shift stance', () => {
     const plain = createMockSkill({ stanceShift: undefined });
     expect(stanceShiftFromSkill(plain)).toBeUndefined();
+  });
+});
+
+describe('openingPostureForApproach (T-039)', () => {
+  it('maps stealth success to AGGRESSIVE', () => {
+    expect(openingPostureForApproach(ApproachType.STEALTH_AMBUSH, true)).toBe(Posture.AGGRESSIVE);
+  });
+
+  it('maps genjutsu and trap success to DEFENSIVE', () => {
+    expect(openingPostureForApproach(ApproachType.GENJUTSU_SETUP, true)).toBe(Posture.DEFENSIVE);
+    expect(openingPostureForApproach(ApproachType.ENVIRONMENTAL_TRAP, true)).toBe(Posture.DEFENSIVE);
+  });
+
+  it('maps frontal success and any failure to BALANCED', () => {
+    expect(openingPostureForApproach(ApproachType.FRONTAL_ASSAULT, true)).toBe(Posture.BALANCED);
+    expect(openingPostureForApproach(ApproachType.STEALTH_AMBUSH, false)).toBe(Posture.BALANCED);
+    expect(openingPostureForApproach(ApproachType.GENJUTSU_SETUP, false)).toBe(Posture.BALANCED);
+  });
+
+  it('emits ambush log for stealth aggressive open', () => {
+    const log = openingPostureLog(Posture.AGGRESSIVE, ApproachType.STEALTH_AMBUSH);
+    expect(log).toMatch(/Ambush/i);
   });
 });

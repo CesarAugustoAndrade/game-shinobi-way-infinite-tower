@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import { PendingBagFullItem } from '../../hooks/useTreasureHandlers';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
+import { getSellPrice } from '../../game/systems/LootSystem';
+import { resolveItemArt } from '../../game/constants/artRegistry';
+import ArtIcon from '../../components/shared/ArtIcon';
 import './treasure.css';
 
 interface TreasureChoiceProps {
@@ -205,7 +208,9 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
 
         <div className="treasure-card__content">
           {/* The item IS the asset — big visual, PNG-ready slot */}
-          <span className="item-tile__visual" aria-hidden="true">{item.icon || '📦'}</span>
+          <span className="item-tile__visual" aria-hidden="true">
+            <ArtIcon art={resolveItemArt(item)} size="lg" />
+          </span>
           <span className={`treasure-card__item-name ${getRarityColor(item.rarity)}`}>
             {item.name}
           </span>
@@ -493,7 +498,9 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
               </div>
 
               <div className="bag-full-panel__item">
-                <span className="bag-full-panel__item-icon">{pendingBagFullItem.item.icon || '📦'}</span>
+                <span className="bag-full-panel__item-icon">
+                  <ArtIcon art={resolveItemArt(pendingBagFullItem.item)} size="md" />
+                </span>
                 <span className={`bag-full-panel__item-name ${getRarityColor(pendingBagFullItem.item.rarity)}`}>
                   {pendingBagFullItem.item.name}
                 </span>
@@ -511,7 +518,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                 >
                   <Coins className="treasure-btn__icon" />
                   <span className="treasure-btn__label">Sell</span>
-                  <span className="treasure-btn__hint">+{Math.floor(pendingBagFullItem.item.value * 0.6)} Ryo</span>
+                  <span className="treasure-btn__hint">+{getSellPrice(pendingBagFullItem.item)} Ryo</span>
                   <span className="treasure-btn__key">[S]</span>
                 </button>
 

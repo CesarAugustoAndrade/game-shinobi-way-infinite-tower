@@ -8,8 +8,13 @@
  */
 
 export { LAND_OF_WAVES_CONFIG } from './landOfWaves';
-
-// Future regions can be added here:
-// export { FOREST_OF_DEATH_CONFIG } from './forestOfDeath';
-// export { VALLEY_OF_END_CONFIG } from './valleyOfEnd';
-// export { WAR_BATTLEFIELD_CONFIG } from './warBattlefield';
+export { CHUNIN_EXAMS_CONFIG } from './chuninExams';
+export { SASUKE_RETRIEVAL_CONFIG } from './sasukeRetrieval';
+export { GREAT_NINJA_WAR_CONFIG } from './greatNinjaWar';
+export {
+  REGION_ORDER,
+  getCampaignEntry,
+  getNextPlayableRegionIndex,
+  getPlayableRegionCount,
+} from './campaign';
+export type { CampaignRegionEntry } from './campaign';

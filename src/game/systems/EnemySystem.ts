@@ -54,13 +54,17 @@
  * - **AMBUSH**: Always ASSASSIN, uses special enemy templates
  * - **BOSS**: Fixed stats, custom tier "Kage Level", unique skills
  *
- * ## SKILL ASSIGNMENT
+ * ## SKILL ASSIGNMENT (A-003)
  *
- * All enemies have BASIC_ATTACK. Additional skills by archetype:
- * - CASTER → FIREBALL
- * - ASSASSIN → SHURIKEN
- * - GENJUTSU → HELL_VIEWING
- * - High difficulty (>50, 30% chance) → RASENGAN
+ * Every archetype gets a kit of ≥3 skills (cloned so cooldowns are per-instance):
+ * - TANK      → Taijutsu, Mud Wall, Brace, Strong Fist
+ * - ASSASSIN  → Taijutsu, Shuriken, Smoke Bomb, Senbon
+ * - BALANCED  → Taijutsu, Shuriken, Leaf Whirlwind, Water Clone
+ * - CASTER    → Taijutsu + 2 elemental skills (element-aware)
+ * - GENJUTSU  → Taijutsu, Hell Viewing, Mind Disturbance, False Surroundings
+ * - High difficulty (>50, 30% chance) → +Rasengan (signature add-on)
+ *
+ * Boss names resolve via getBossData(danger 1–7, arc), not legacy floor keys.
  *
  * =============================================================================
  */
@@ -71,7 +75,8 @@ import {
   PrimaryAttributes,
   Skill
 } from '../types';
-import { BOSS_NAMES, SKILLS, AMBUSH_ENEMIES, ENEMY_PREFIXES } from '../constants';
+import { getBossData, SKILLS, AMBUSH_ENEMIES, ENEMY_PREFIXES } from '../constants';
+import { resolveEnemyImageSrc } from '../constants/artRegistry';
 import { calculateDerivedStats } from './StatSystem';
 import { DIFFICULTY, ENEMY_BALANCE } from '../config';
 import { pick, chance } from '../utils/rng';
@@ -79,8 +84,118 @@ import { LaunchProperties } from '../../config/featureFlags';
 
 /**
  * Enemy archetype determines base stat distribution and combat style.
+ * Distinct from enemy *tier* (NORMAL / ELITE / BOSS / AMBUSH).
  */
-type EnemyArchetype = 'TANK' | 'ASSASSIN' | 'BALANCED' | 'CASTER' | 'GENJUTSU';
+export type EnemyArchetype = 'TANK' | 'ASSASSIN' | 'BALANCED' | 'CASTER' | 'GENJUTSU';
+
+const COMBAT_ARCHETYPES: readonly EnemyArchetype[] = [
+  'TANK', 'ASSASSIN', 'BALANCED', 'CASTER', 'GENJUTSU',
+] as const;
+
+export const isEnemyArchetype = (value: string): value is EnemyArchetype =>
+  (COMBAT_ARCHETYPES as readonly string[]).includes(value);
+
+/** Clone a skill template so cooldowns/effects don't share state across enemies. */
+function cloneSkill(skill: Skill): Skill {
+  return {
+    ...skill,
+    currentCooldown: 0,
+    effects: skill.effects?.map(e => ({ ...e })),
+  };
+}
+
+/**
+ * Element-aware caster ninjutsu pair (BASIC is added by getArchetypeKit).
+ */
+function getCasterElementSkills(element: ElementType): Skill[] {
+  switch (element) {
+    case ElementType.WATER:
+      return [SKILLS.WATER_DRAGON, SKILLS.WATER_CLONE];
+    case ElementType.LIGHTNING:
+      return [SKILLS.LIGHTNING_BALL, SKILLS.CHIDORI];
+    case ElementType.EARTH:
+      return [SKILLS.EARTH_DECAPITATION, SKILLS.MUD_WALL];
+    case ElementType.WIND:
+      return [SKILLS.GREAT_BREAKTHROUGH, SKILLS.AIR_BULLET];
+    case ElementType.FIRE:
+    default:
+      return [SKILLS.FIREBALL, SKILLS.PHOENIX_FLOWER];
+  }
+}
+
+/**
+ * Build a full combat kit (≥3 skills) for an archetype.
+ * CASTER kits adapt to the enemy's element.
+ */
+export function getArchetypeKit(
+  archetype: EnemyArchetype,
+  element: ElementType = ElementType.FIRE
+): Skill[] {
+  switch (archetype) {
+    case 'TANK':
+      return [
+        cloneSkill(SKILLS.BASIC_ATTACK),
+        cloneSkill(SKILLS.MUD_WALL),
+        cloneSkill(SKILLS.BRACE),
+        cloneSkill(SKILLS.STRONG_FIST),
+      ];
+    case 'ASSASSIN':
+      return [
+        cloneSkill(SKILLS.BASIC_ATTACK),
+        cloneSkill(SKILLS.SHURIKEN),
+        cloneSkill(SKILLS.SMOKE_BOMB),
+        cloneSkill(SKILLS.SENBON),
+      ];
+    case 'BALANCED':
+      return [
+        cloneSkill(SKILLS.BASIC_ATTACK),
+        cloneSkill(SKILLS.SHURIKEN),
+        cloneSkill(SKILLS.LEAF_WHIRLWIND),
+        cloneSkill(SKILLS.WATER_CLONE),
+      ];
+    case 'CASTER': {
+      const [primary, secondary] = getCasterElementSkills(element);
+      return [
+        cloneSkill(SKILLS.BASIC_ATTACK),
+        cloneSkill(primary),
+        cloneSkill(secondary),
+      ];
+    }
+    case 'GENJUTSU':
+      return [
+        cloneSkill(SKILLS.BASIC_ATTACK),
+        cloneSkill(SKILLS.HELL_VIEWING),
+        cloneSkill(SKILLS.MIND_DESTRUCTION),
+        cloneSkill(SKILLS.FALSE_SURROUNDINGS),
+      ];
+    default:
+      return [
+        cloneSkill(SKILLS.BASIC_ATTACK),
+        cloneSkill(SKILLS.SHURIKEN),
+        cloneSkill(SKILLS.LEAF_WHIRLWIND),
+      ];
+  }
+}
+
+/**
+ * Pick a default opening telegraph.
+ * Prefer a non-basic skill with damageMult > 0 (signature attack), then any
+ * non-basic utility, else the first skill.
+ */
+function defaultIntent(
+  skills: Skill[]
+): Pick<Enemy, 'intendedSkillId' | 'intendedSkillName' | 'intentReason'> {
+  const signature =
+    skills.find(s => s.id !== SKILLS.BASIC_ATTACK.id && (s.damageMult ?? 0) > 0) ??
+    skills.find(s => s.id !== SKILLS.BASIC_ATTACK.id) ??
+    skills[0];
+  if (!signature) return {};
+  return {
+    intendedSkillId: signature.id,
+    intendedSkillName: signature.name,
+    intentReason: 'opening move',
+  };
+}
 
 /**
  * Story arc data returned by getStoryArc.
@@ -122,26 +237,45 @@ export const getStoryArcByName = (arcName: string): StoryArc => {
  * ## Enemy Generation Flow:
  * 1. Determine story arc for theming from arcName
  * 2. Calculate total scaling from danger level, progression, and difficulty
- * 3. For BOSS: Use fixed boss data from constants
+ * 3. For BOSS: Use fixed boss data from constants (danger 1–7 + arc)
  * 4. For others: Select archetype and generate base stats
  * 5. Scale stats by totalScaling multiplier
  * 6. Apply type-specific bonuses (ELITE gets +40% willpower, +30% str/spirit)
- * 7. Assign skills based on archetype
+ * 7. Assign full archetype skill kits (≥3 skills)
  * 8. Select name from arc-appropriate pool
+ * 9. Set opening skill telegraph (intent)
  *
  * @param dangerLevel - Location danger level (1-7)
  * @param locationsCleared - Global count of locations cleared (progression)
- * @param type - Enemy type: NORMAL, ELITE, BOSS, or AMBUSH
+ * @param type - Enemy tier: NORMAL, ELITE, BOSS, or AMBUSH (scaling/elite bonuses)
  * @param diff - Difficulty value (0-100, affects diffMult)
  * @param arcName - Arc identifier for theming (e.g., 'WAVES_ARC')
+ * @param forcedArchetype - Optional combat build archetype (TANK/ASSASSIN/…). When set,
+ *   overrides the random/tier-based archetype pick (used by event triggerCombat).
+ * @param enemyPool - Optional location enemyPool ids (T-056). Used for NORMAL/ELITE names + art.
+ * @param preferredElement - Optional region lootTheme.primaryElement (T-068). Biases NORMAL/ELITE element.
  * @returns Fully generated Enemy ready for combat
  */
+/** Humanize location enemyPool ids (snake_case) into display names. Exported for tests. */
+export function humanizeEnemyPoolId(id: string): string {
+  const cleaned = id.trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  if (!cleaned) return 'Rogue';
+  return cleaned
+    .split(' ')
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
+    .join(' ')
+    .trim() || 'Rogue';
+}
+
 export const generateEnemy = (
   dangerLevel: number,
   locationsCleared: number,
   type: 'NORMAL' | 'ELITE' | 'BOSS' | 'AMBUSH',
   diff: number,
-  arcName: string
+  arcName: string,
+  forcedArchetype?: EnemyArchetype,
+  enemyPool?: string[],
+  preferredElement?: ElementType,
 ): Enemy => {
   const arc = getStoryArcByName(arcName);
 
@@ -164,17 +298,16 @@ export const generateEnemy = (
   const dmgDangerMult = 1 + (dangerLevel * DIFFICULTY.ENEMY_DMG_DANGER_FACTOR);
 
   if (type === 'BOSS') {
-    const bossData = BOSS_NAMES[dangerLevel as keyof typeof BOSS_NAMES] || { name: 'Edo Tensei Legend', element: ElementType.FIRE, skill: SKILLS.RASENGAN };
-    
-    // Set boss image based on name
-    let bossImage: string | undefined;
-    if (bossData.name.toLowerCase().includes('haku')) {
-      bossImage = '/assets/enemy_boss_haku.png';
-    }
-    if (bossData.name.toLowerCase().includes('demon')) {
-      bossImage = '/assets/enemy_boss_demon_brothers.png';
-    }
-    
+    // A-003: danger 1–7 (+ arc theme), not legacy floors 8/17/25…
+    const bossData = getBossData(dangerLevel, arcName);
+
+    // Portrait from art registry (T-021) — offline cascade, no GenAI required
+    const bossImage = resolveEnemyImageSrc({
+      name: bossData.name,
+      archetype: 'TANK',
+      isBoss: true,
+    });
+
     const bossStats: PrimaryAttributes = {
       willpower: Math.floor(40 * totalScaling * hpDangerMult),
       chakra: Math.floor(30 * totalScaling),
@@ -187,12 +320,32 @@ export const generateEnemy = (
       dexterity: Math.floor(15 * totalScaling * dmgDangerMult)
     };
     const derived = calculateDerivedStats(bossStats, {});
+    // Boss kit: basic + element support + signature technique (≥3 skills)
+    const supportSkill =
+      bossData.element === ElementType.WATER ? SKILLS.WATER_CLONE :
+      bossData.element === ElementType.EARTH ? SKILLS.MUD_WALL :
+      bossData.element === ElementType.LIGHTNING ? SKILLS.LIGHTNING_BALL :
+      bossData.element === ElementType.WIND ? SKILLS.GREAT_BREAKTHROUGH :
+      bossData.element === ElementType.MENTAL ? SKILLS.HELL_VIEWING :
+      SKILLS.FIREBALL;
+    const bossSkills = [
+      cloneSkill(SKILLS.BASIC_ATTACK),
+      cloneSkill(supportSkill),
+      cloneSkill(bossData.skill),
+    ];
+    // Avoid duplicate skill ids if signature equals support
+    const uniqueBossSkills = bossSkills.filter(
+      (s, i, arr) => arr.findIndex(x => x.id === s.id) === i
+    );
+    if (uniqueBossSkills.length < 3) {
+      uniqueBossSkills.push(cloneSkill(SKILLS.BRACE));
+    }
     return {
       name: bossData.name,
       tier: 'Kage Level',
       element: bossData.element,
       isBoss: true,
-      skills: [SKILLS.BASIC_ATTACK, SKILLS.FIREBALL, bossData.skill],
+      skills: uniqueBossSkills,
       primaryStats: bossStats,
       currentHp: derived.maxHp,
       currentChakra: derived.maxChakra,
@@ -201,13 +354,20 @@ export const generateEnemy = (
       image: bossImage,
       archetype: 'TANK',
       dangerLevel,
+      ...defaultIntent(uniqueBossSkills),
     };
   }
 
   let archetype: EnemyArchetype = 'BALANCED';
-  if (type === 'AMBUSH') archetype = 'ASSASSIN';
-  else if (type === 'ELITE') archetype = chance(0.5) ? 'TANK' : 'CASTER';
-  else archetype = pick(['TANK', 'ASSASSIN', 'BALANCED', 'CASTER', 'GENJUTSU'] as const) ?? 'BALANCED';
+  if (forcedArchetype && isEnemyArchetype(forcedArchetype)) {
+    archetype = forcedArchetype;
+  } else if (type === 'AMBUSH') {
+    archetype = 'ASSASSIN';
+  } else if (type === 'ELITE') {
+    archetype = chance(0.5) ? 'TANK' : 'CASTER';
+  } else {
+    archetype = pick(COMBAT_ARCHETYPES) ?? 'BALANCED';
+  }
 
   let baseStats: PrimaryAttributes;
   switch (archetype) {
@@ -248,32 +408,53 @@ export const generateEnemy = (
   };
 
   let name = "";
-  let skills = [SKILLS.BASIC_ATTACK];
   const elements = Object.values(ElementType).filter(e => e !== ElementType.MENTAL && e !== ElementType.PHYSICAL);
-  let enemyElement: ElementType = pick(elements) ?? ElementType.FIRE;
+  // T-068: ~50% chance to lock enemy element to region lootTheme.primaryElement
+  let enemyElement: ElementType =
+    preferredElement &&
+    preferredElement !== ElementType.MENTAL &&
+    preferredElement !== ElementType.PHYSICAL &&
+    chance(0.5)
+      ? preferredElement
+      : (pick(elements) ?? ElementType.FIRE);
+  let skills: Skill[];
+  let poolIdForArt: string | undefined;
+
   if (type === 'AMBUSH') {
     const template = pick(AMBUSH_ENEMIES) ?? AMBUSH_ENEMIES[0];
     name = template.name;
     enemyElement = template.element;
-    skills.push(template.skill);
+    // Assassin kit + unique ambush signature (≥3 + special)
+    skills = getArchetypeKit('ASSASSIN', enemyElement);
+    if (!skills.some(s => s.id === template.skill.id)) {
+      skills.push(cloneSkill(template.skill));
+    }
   } else {
-    let namePool = ENEMY_PREFIXES.NORMAL;
-    if (arc.name === 'WAVES_ARC') namePool = ['Mist', 'Demon Brother', 'Mercenary'];
-    else if (arc.name === 'EXAMS_ARC') namePool = ['Sand', 'Sound', 'Rain', 'Grass'];
-    else if (arc.name === 'ROGUE_ARC') namePool = ['Sound Four', 'Curse Mark', 'Rogue'];
-    else if (arc.name === 'WAR_ARC') namePool = ['Reanimated', 'White Zetsu', 'Masked'];
-    else if (diff > 75) namePool = ENEMY_PREFIXES.DEADLY;
-    else if (diff > 40) namePool = ENEMY_PREFIXES.STRONG;
-    else if (diff < 10) namePool = ENEMY_PREFIXES.WEAK;
+    // T-056: prefer location enemyPool for NORMAL/ELITE theming when authored
+    const pool = (enemyPool ?? []).filter((id) => id && id.trim().length > 0);
+    if (pool.length > 0 && (type === 'NORMAL' || type === 'ELITE')) {
+      poolIdForArt = pick(pool) ?? pool[0];
+      name = humanizeEnemyPoolId(poolIdForArt);
+    } else {
+      let namePool = ENEMY_PREFIXES.NORMAL;
+      if (arc.name === 'WAVES_ARC') namePool = ['Mist', 'Demon Brother', 'Mercenary'];
+      else if (arc.name === 'EXAMS_ARC') namePool = ['Sand', 'Sound', 'Rain', 'Grass'];
+      else if (arc.name === 'ROGUE_ARC') namePool = ['Sound Four', 'Curse Mark', 'Rogue'];
+      else if (arc.name === 'WAR_ARC') namePool = ['Reanimated', 'White Zetsu', 'Masked'];
+      else if (diff > 75) namePool = ENEMY_PREFIXES.DEADLY;
+      else if (diff > 40) namePool = ENEMY_PREFIXES.STRONG;
+      else if (diff < 10) namePool = ENEMY_PREFIXES.WEAK;
 
-    const prefix = pick(namePool) ?? 'Rogue';
-    const job = pick(['Ninja', 'Samurai', 'Puppeteer', 'Monk']) ?? 'Ninja';
-    name = `${prefix} ${job}`;
+      const prefix = pick(namePool) ?? 'Rogue';
+      const job = pick(['Ninja', 'Samurai', 'Puppeteer', 'Monk']) ?? 'Ninja';
+      name = `${prefix} ${job}`;
+    }
 
-    if (archetype === 'CASTER') skills.push(SKILLS.FIREBALL);
-    else if (archetype === 'ASSASSIN') skills.push(SKILLS.SHURIKEN);
-    else if (archetype === 'GENJUTSU') skills.push(SKILLS.HELL_VIEWING);
-    if (diff > 50 && chance(0.3)) skills.push(SKILLS.RASENGAN);
+    // A-003: full archetype kits (≥3 skills). TANK/BALANCED no longer BASIC-only.
+    skills = getArchetypeKit(archetype, enemyElement);
+    if (diff > 50 && chance(0.3) && !skills.some(s => s.id === SKILLS.RASENGAN.id)) {
+      skills.push(cloneSkill(SKILLS.RASENGAN));
+    }
   }
 
   const isElite = type === 'ELITE' || type === 'AMBUSH';
@@ -285,20 +466,13 @@ export const generateEnemy = (
 
   const derived = calculateDerivedStats(scaledStats, {});
 
-  // Set enemy image based on name
-  let enemyImage: string | undefined;
-  if (name.toLowerCase().includes('puppeteer')) {
-    enemyImage = '/assets/enemy_clumsy_puppeteer.png';
-  }
-  if (name.toLowerCase().includes('monk')) {
-    enemyImage = '/assets/enemy_monk.png';
-  }
-  if (name.toLowerCase().includes('ninja') || name.toLowerCase().includes('shinobi')) {
-    enemyImage = '/assets/enemy_exhausted_shinobi.png';
-  }
-  if (name.toLowerCase().includes('samurai')) {
-    enemyImage = '/assets/enemy_samurai.png';
-  }
+  // Portrait from art registry (T-021): poolId → job keyword → archetype fallback
+  const enemyImage = resolveEnemyImageSrc({
+    name,
+    archetype,
+    poolId: poolIdForArt,
+    isBoss: false,
+  });
 
   return {
     name,
@@ -312,6 +486,7 @@ export const generateEnemy = (
     image: enemyImage,
     archetype,
     dangerLevel,
+    ...defaultIntent(skills),
   };
 };
 

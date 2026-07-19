@@ -5,13 +5,46 @@ import {
 import {
   equipItem as equipItemFn,
   sellItem as sellItemFn,
+  getSellPrice,
   addToBag,
+  bagHasItem,
   synthesize,
   disassemble,
   upgradeComponent,
   upgradeArtifact
 } from '../game/systems/LootSystem';
 import { dangerToFloor } from '../game/systems/ScalingSystem';
+
+/**
+ * Apply craft/upgrade on latest prev bag: both materials must be present,
+ * product must fit, then charge ryo. Abort with no charge if any check fails.
+ */
+function applyCraftToPlayer(
+  prev: Player,
+  materialA: Item,
+  materialB: Item,
+  product: Item,
+  cost: number
+): { player: Player; ok: true } | { player: Player; ok: false; reason: 'missing' | 'ryo' | 'space' } {
+  if (!bagHasItem(prev, materialA.id) || !bagHasItem(prev, materialB.id)) {
+    return { player: prev, ok: false, reason: 'missing' };
+  }
+  if (prev.ryo < cost) {
+    return { player: prev, ok: false, reason: 'ryo' };
+  }
+  const newBag = prev.bag.map(c =>
+    c?.id === materialA.id || c?.id === materialB.id ? null : c
+  );
+  const emptyIndex = newBag.findIndex(slot => slot === null);
+  if (emptyIndex === -1) {
+    return { player: prev, ok: false, reason: 'space' };
+  }
+  newBag[emptyIndex] = product;
+  return {
+    player: { ...prev, bag: newBag, ryo: prev.ryo - cost },
+    ok: true
+  };
+}
 
 export interface InventoryState {
   player: Player | null;
@@ -37,7 +70,7 @@ export function useInventoryHandlers(
   setters: InventorySetters,
   deps: InventoryDeps
 ) {
-  const { player, currentDangerLevel, currentBaseDifficulty, difficulty, isProcessingLoot } = state;
+  const { player, currentDangerLevel, currentBaseDifficulty, isProcessingLoot } = state;
   const { setPlayer, setIsProcessingLoot, setSelectedComponent } = setters;
   const { addLog, returnToMap } = deps;
 
@@ -71,7 +104,7 @@ export function useInventoryHandlers(
       if (!prev) return null;
       return sellItemFn(prev, item);
     });
-    addLog(`Sold ${item.name} for ${Math.floor(item.value * 0.6)} Ryō.`, 'loot');
+    addLog(`Sold ${item.name} for ${getSellPrice(item)} Ryō.`, 'loot');
     setTimeout(() => {
       setIsProcessingLoot(false);
       returnToMap();
@@ -97,44 +130,87 @@ export function useInventoryHandlers(
     }, 100);
   }, [player, isProcessingLoot, setPlayer, addLog, returnToMap, setIsProcessingLoot]);
 
-  // Sell component from bag
-  const sellComponent = useCallback((item: Item) => {
-    if (!player) return;
-    const value = Math.floor(item.value * 0.6);
-    setPlayer(prev => prev ? {
-      ...prev,
-      ryo: prev.ryo + value,
-      bag: prev.bag.map(c => c?.id === item.id ? null : c)
-    } : null);
-    addLog(`Sold ${item.name} for ${value} Ryō.`, 'loot');
+  /**
+   * Sell component from bag.
+   * T-058: returns sell price on success for UI toast (null on fail).
+   * Only grants ryo if the item is still present on the latest prev bag (double-sell guard).
+   */
+  const sellComponent = useCallback((item: Item): number | null => {
+    let soldValue: number | null = null;
+    setPlayer(prev => {
+      if (!prev) return null;
+      if (!bagHasItem(prev, item.id)) return prev;
+      const value = getSellPrice(item);
+      soldValue = value;
+      return {
+        ...prev,
+        ryo: prev.ryo + value,
+        bag: prev.bag.map(c => c?.id === item.id ? null : c)
+      };
+    });
+    if (soldValue === null) return null;
+    addLog(`Sold ${item.name} for ${soldValue} Ryō.`, 'loot');
     setSelectedComponent(null);
-  }, [player, setPlayer, addLog, setSelectedComponent]);
+    return soldValue;
+  }, [setPlayer, addLog, setSelectedComponent]);
 
-  // Equip item from bag
-  const equipFromBag = useCallback((item: Item) => {
-    if (!player) return;
-    // Remove from bag first (set to null), then try to equip
-    const playerWithoutItem = {
-      ...player,
-      bag: player.bag.map(c => c?.id === item.id ? null : c)
-    };
-    const result = equipItemFn(playerWithoutItem, item);
-    if (!result.success) {
-      addLog(result.reason || 'Cannot equip item.', 'danger');
-      return;
+  /**
+   * Equip item from bag.
+   * T-058: returns equip summary for toast (null on fail).
+   * Requires bag membership on latest prev; aborts if item is already gone.
+   */
+  const equipFromBag = useCallback((item: Item): { replacedName?: string } | null => {
+    type Outcome = { kind: 'missing' } | { kind: 'fail'; reason?: string } | { kind: 'ok'; summary: { replacedName?: string } };
+    // Mutable box so TS control-flow sees assignments inside setPlayer updater
+    const box: { outcome: Outcome } = { outcome: { kind: 'missing' } };
+
+    setPlayer(prev => {
+      if (!prev) return null;
+      if (!bagHasItem(prev, item.id)) {
+        box.outcome = { kind: 'missing' };
+        return prev;
+      }
+      const playerWithoutItem = {
+        ...prev,
+        bag: prev.bag.map(c => c?.id === item.id ? null : c)
+      };
+      const result = equipItemFn(playerWithoutItem, item);
+      if (!result.success) {
+        box.outcome = { kind: 'fail', reason: result.reason };
+        return prev;
+      }
+      box.outcome = {
+        kind: 'ok',
+        summary: result.replacedItem ? { replacedName: result.replacedItem.name } : {}
+      };
+      return result.player;
+    });
+
+    const outcome = box.outcome;
+    if (outcome.kind === 'missing') {
+      addLog('Item no longer in bag.', 'danger');
+      return null;
     }
-    setPlayer(result.player);
-    if (result.replacedItem) {
-      addLog(`Equipped ${item.name}. ${result.replacedItem.name} moved to bag.`, 'loot');
+    if (outcome.kind === 'fail') {
+      addLog(outcome.reason || 'Cannot equip item.', 'danger');
+      return null;
+    }
+    if (outcome.summary.replacedName) {
+      addLog(`Equipped ${item.name}. ${outcome.summary.replacedName} moved to bag.`, 'loot');
     } else {
       addLog(`Equipped ${item.name} from bag.`, 'loot');
     }
     setSelectedComponent(null);
-  }, [player, setPlayer, addLog, setSelectedComponent]);
+    return outcome.summary;
+  }, [setPlayer, addLog, setSelectedComponent]);
 
-  // Smart craft handler - determines which operation based on item rarities
-  const handleSynthesize = useCallback((compA: Item, compB: Item) => {
-    if (!player) return;
+  /**
+   * Smart craft handler - determines which operation based on item rarities.
+   * T-032: returns the crafted Item on success so UI can show a reveal panel.
+   * Verifies both materials still in bag; places product or aborts without charging.
+   */
+  const handleSynthesize = useCallback((compA: Item, compB: Item): Item | null => {
+    if (!player) return null;
 
     const bothBroken = compA.rarity === Rarity.BROKEN && compB.rarity === Rarity.BROKEN;
     const bothCommon = compA.rarity === Rarity.COMMON && compB.rarity === Rarity.COMMON;
@@ -161,26 +237,46 @@ export function useInventoryHandlers(
 
     if (!result.success || !result.item) {
       addLog(result.reason || 'These items cannot be combined.', 'danger');
-      return;
+      return null;
     }
 
-    if (player.ryo < result.cost) {
-      addLog(`Not enough Ryō! Need ${result.cost} Ryō.`, 'danger');
-      return;
-    }
+    const product = result.item;
+    const cost = result.cost;
+    type CraftOutcome = 'ok' | 'missing' | 'ryo' | 'space' | 'noprev';
+    const craftBox: { o: CraftOutcome } = { o: 'noprev' };
 
-    const newBag = player.bag.map(c =>
-      c?.id === compA.id || c?.id === compB.id ? null : c
-    );
-    const emptyIndex = newBag.findIndex(slot => slot === null);
-    if (emptyIndex !== -1) {
-      newBag[emptyIndex] = result.item;
-    }
+    setPlayer(prev => {
+      if (!prev) {
+        craftBox.o = 'noprev';
+        return null;
+      }
+      const applied = applyCraftToPlayer(prev, compA, compB, product, cost);
+      if (!applied.ok) {
+        craftBox.o = applied.reason;
+        return prev;
+      }
+      craftBox.o = 'ok';
+      return applied.player;
+    });
 
-    setPlayer({ ...player, bag: newBag, ryo: player.ryo - result.cost });
-    addLog(`${actionName} ${result.item.name} for ${result.cost} Ryō!`, 'gain');
+    if (craftBox.o === 'missing') {
+      addLog('Materials no longer in bag.', 'danger');
+      return null;
+    }
+    if (craftBox.o === 'ryo') {
+      addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
+      return null;
+    }
+    if (craftBox.o === 'space') {
+      addLog('No bag space for crafted item.', 'danger');
+      return null;
+    }
+    if (craftBox.o !== 'ok') return null;
+
+    addLog(`${actionName} ${product.name} for ${cost} Ryō!`, 'gain');
     setSelectedComponent(null);
-  }, [player, currentDangerLevel, currentBaseDifficulty, difficulty, setPlayer, addLog, setSelectedComponent]);
+    return product;
+  }, [player, currentDangerLevel, currentBaseDifficulty, setPlayer, addLog, setSelectedComponent]);
 
   // Upgrade two BROKEN components (same type) into a COMMON component
   const handleUpgradeComponent = useCallback((compA: Item, compB: Item) => {
@@ -193,21 +289,40 @@ export function useInventoryHandlers(
       return;
     }
 
-    if (player.ryo < result.cost) {
-      addLog(`Not enough Ryō! Need ${result.cost} Ryō.`, 'danger');
+    const product = result.item;
+    const cost = result.cost;
+    type CraftOutcome = 'ok' | 'missing' | 'ryo' | 'space' | 'noprev';
+    const craftBox: { o: CraftOutcome } = { o: 'noprev' };
+
+    setPlayer(prev => {
+      if (!prev) {
+        craftBox.o = 'noprev';
+        return null;
+      }
+      const applied = applyCraftToPlayer(prev, compA, compB, product, cost);
+      if (!applied.ok) {
+        craftBox.o = applied.reason;
+        return prev;
+      }
+      craftBox.o = 'ok';
+      return applied.player;
+    });
+
+    if (craftBox.o === 'missing') {
+      addLog('Materials no longer in bag.', 'danger');
       return;
     }
-
-    const newBag = player.bag.map(c =>
-      c?.id === compA.id || c?.id === compB.id ? null : c
-    );
-    const emptyIndex = newBag.findIndex(slot => slot === null);
-    if (emptyIndex !== -1) {
-      newBag[emptyIndex] = result.item;
+    if (craftBox.o === 'ryo') {
+      addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
+      return;
     }
+    if (craftBox.o === 'space') {
+      addLog('No bag space for upgraded item.', 'danger');
+      return;
+    }
+    if (craftBox.o !== 'ok') return;
 
-    setPlayer({ ...player, bag: newBag, ryo: player.ryo - result.cost });
-    addLog(`Upgraded to ${result.item.name} for ${result.cost} Ryō!`, 'gain');
+    addLog(`Upgraded to ${product.name} for ${cost} Ryō!`, 'gain');
     setSelectedComponent(null);
   }, [player, currentDangerLevel, currentBaseDifficulty, setPlayer, addLog, setSelectedComponent]);
 
@@ -222,195 +337,327 @@ export function useInventoryHandlers(
       return;
     }
 
-    if (player.ryo < result.cost) {
-      addLog(`Not enough Ryō! Need ${result.cost} Ryō.`, 'danger');
+    const product = result.item;
+    const cost = result.cost;
+    type CraftOutcome = 'ok' | 'missing' | 'ryo' | 'space' | 'noprev';
+    const craftBox: { o: CraftOutcome } = { o: 'noprev' };
+
+    setPlayer(prev => {
+      if (!prev) {
+        craftBox.o = 'noprev';
+        return null;
+      }
+      const applied = applyCraftToPlayer(prev, artifactA, artifactB, product, cost);
+      if (!applied.ok) {
+        craftBox.o = applied.reason;
+        return prev;
+      }
+      craftBox.o = 'ok';
+      return applied.player;
+    });
+
+    if (craftBox.o === 'missing') {
+      addLog('Materials no longer in bag.', 'danger');
       return;
     }
-
-    const newBag = player.bag.map(c =>
-      c?.id === artifactA.id || c?.id === artifactB.id ? null : c
-    );
-    const emptyIndex = newBag.findIndex(slot => slot === null);
-    if (emptyIndex !== -1) {
-      newBag[emptyIndex] = result.item;
+    if (craftBox.o === 'ryo') {
+      addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
+      return;
     }
+    if (craftBox.o === 'space') {
+      addLog('No bag space for forged item.', 'danger');
+      return;
+    }
+    if (craftBox.o !== 'ok') return;
 
-    setPlayer({ ...player, bag: newBag, ryo: player.ryo - result.cost });
-    addLog(`Forged ${result.item.name} for ${result.cost} Ryō!`, 'gain');
+    addLog(`Forged ${product.name} for ${cost} Ryō!`, 'gain');
     setSelectedComponent(null);
   }, [player, currentDangerLevel, currentBaseDifficulty, setPlayer, addLog, setSelectedComponent]);
 
-  // Sell equipped item directly from equipment panel
-  const sellEquipped = useCallback((slot: EquipmentSlot, item: Item) => {
-    if (!player) return;
-    const value = Math.floor(item.value * 0.6);
-    setPlayer(prev => prev ? {
-      ...prev,
-      ryo: prev.ryo + value,
-      equipment: { ...prev.equipment, [slot]: null }
-    } : null);
-    addLog(`Sold ${item.name} for ${value} Ryō.`, 'loot');
-  }, [player, setPlayer, addLog]);
+  /**
+   * Sell equipped item directly from equipment panel.
+   * T-062: returns sell price on success for UI toast (null on fail).
+   * Only grants ryo if the slot still holds that item on latest prev.
+   */
+  const sellEquipped = useCallback((slot: EquipmentSlot, item: Item): number | null => {
+    let soldValue: number | null = null;
+    setPlayer(prev => {
+      if (!prev) return null;
+      if (prev.equipment[slot]?.id !== item.id) return prev;
+      const value = getSellPrice(item);
+      soldValue = value;
+      return {
+        ...prev,
+        ryo: prev.ryo + value,
+        equipment: { ...prev.equipment, [slot]: null }
+      };
+    });
+    if (soldValue === null) return null;
+    addLog(`Sold ${item.name} for ${soldValue} Ryō.`, 'loot');
+    return soldValue;
+  }, [setPlayer, addLog]);
 
-  // Unequip item to bag (both components and artifacts)
-  const unequipToBag = useCallback((slot: EquipmentSlot, item: Item) => {
-    if (!player) return;
-    const emptyIndex = player.bag.findIndex(s => s === null);
-    if (emptyIndex === -1) {
+  /**
+   * Unequip item to bag (both components and artifacts).
+   * T-067: returns true on success for UI toast (false on fail).
+   */
+  const unequipToBag = useCallback((slot: EquipmentSlot, item: Item): boolean => {
+    type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
+    const outBox: { o: Outcome } = { o: 'noprev' };
+
+    setPlayer(prev => {
+      if (!prev) {
+        outBox.o = 'noprev';
+        return null;
+      }
+      if (prev.equipment[slot]?.id !== item.id) {
+        outBox.o = 'missing';
+        return prev;
+      }
+      const emptyIndex = prev.bag.findIndex(s => s === null);
+      if (emptyIndex === -1) {
+        outBox.o = 'full';
+        return prev;
+      }
+      const newBag = [...prev.bag];
+      newBag[emptyIndex] = item;
+      outBox.o = 'ok';
+      return {
+        ...prev,
+        equipment: { ...prev.equipment, [slot]: null },
+        bag: newBag
+      };
+    });
+
+    if (outBox.o === 'full') {
       addLog('Bag is full!', 'danger');
-      return;
+      return false;
     }
-    const newBag = [...player.bag];
-    newBag[emptyIndex] = item;
-    setPlayer(prev => prev ? {
-      ...prev,
-      equipment: { ...prev.equipment, [slot]: null },
-      bag: newBag
-    } : null);
+    if (outBox.o !== 'ok') return false;
     addLog(`Moved ${item.name} to bag.`, 'info');
-  }, [player, setPlayer, addLog]);
+    return true;
+  }, [setPlayer, addLog]);
 
   // Unequip component and start synthesis mode
   const startSynthesisEquipped = useCallback((slot: EquipmentSlot, item: Item) => {
-    if (!player || !item.isComponent) return;
-    const emptyIndex = player.bag.findIndex(s => s === null);
-    if (emptyIndex === -1) {
+    if (!item.isComponent) return;
+    type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
+    const outBox: { o: Outcome } = { o: 'noprev' };
+
+    setPlayer(prev => {
+      if (!prev) {
+        outBox.o = 'noprev';
+        return null;
+      }
+      if (prev.equipment[slot]?.id !== item.id) {
+        outBox.o = 'missing';
+        return prev;
+      }
+      const emptyIndex = prev.bag.findIndex(s => s === null);
+      if (emptyIndex === -1) {
+        outBox.o = 'full';
+        return prev;
+      }
+      const newBag = [...prev.bag];
+      newBag[emptyIndex] = item;
+      outBox.o = 'ok';
+      return {
+        ...prev,
+        equipment: { ...prev.equipment, [slot]: null },
+        bag: newBag
+      };
+    });
+
+    if (outBox.o === 'full') {
       addLog('Bag is full!', 'danger');
       return;
     }
-    const newBag = [...player.bag];
-    newBag[emptyIndex] = item;
-    setPlayer(prev => prev ? {
-      ...prev,
-      equipment: { ...prev.equipment, [slot]: null },
-      bag: newBag
-    } : null);
+    if (outBox.o !== 'ok') return;
     setSelectedComponent(item);
     addLog(`Select another component to synthesize with ${item.name}.`, 'info');
-  }, [player, setPlayer, addLog, setSelectedComponent]);
+  }, [setPlayer, addLog, setSelectedComponent]);
 
-  // Disassemble artifact into a component
-  const handleDisassembleEquipped = useCallback((slot: EquipmentSlot, item: Item) => {
-    if (!player || item.isComponent || !item.recipe) return;
+  /**
+   * Disassemble artifact into a component.
+   * T-069: returns the recovered component on success for UI toast (null on fail).
+   */
+  const handleDisassembleEquipped = useCallback((slot: EquipmentSlot, item: Item): Item | null => {
+    if (item.isComponent || !item.recipe) return null;
 
     const component = disassemble(item);
     if (!component) {
       addLog('Cannot disassemble this item.', 'danger');
-      return;
+      return null;
     }
 
-    const emptyIndex = player.bag.findIndex(s => s === null);
-    if (emptyIndex === -1) {
+    type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
+    const outBox: { o: Outcome } = { o: 'noprev' };
+
+    setPlayer(prev => {
+      if (!prev) {
+        outBox.o = 'noprev';
+        return null;
+      }
+      if (prev.equipment[slot]?.id !== item.id) {
+        outBox.o = 'missing';
+        return prev;
+      }
+      const emptyIndex = prev.bag.findIndex(s => s === null);
+      if (emptyIndex === -1) {
+        outBox.o = 'full';
+        return prev;
+      }
+      const newBag = [...prev.bag];
+      newBag[emptyIndex] = component;
+      outBox.o = 'ok';
+      return {
+        ...prev,
+        equipment: { ...prev.equipment, [slot]: null },
+        bag: newBag
+      };
+    });
+
+    if (outBox.o === 'full') {
       addLog('Not enough bag space for component!', 'danger');
-      return;
+      return null;
     }
-
-    const newBag = [...player.bag];
-    newBag[emptyIndex] = component;
-    setPlayer(prev => prev ? {
-      ...prev,
-      equipment: { ...prev.equipment, [slot]: null },
-      bag: newBag
-    } : null);
+    if (outBox.o !== 'ok') return null;
     addLog(`Disassembled ${item.name} into ${component.name}!`, 'loot');
-  }, [player, setPlayer, addLog]);
+    return component;
+  }, [setPlayer, addLog]);
 
   // Swap items within the bag
   const reorderBag = useCallback((fromIndex: number, toIndex: number) => {
-    if (!player) return;
     if (fromIndex === toIndex) return;
-
-    const newBag = [...player.bag];
-    [newBag[fromIndex], newBag[toIndex]] = [newBag[toIndex], newBag[fromIndex]];
-
-    setPlayer({ ...player, bag: newBag });
-  }, [player, setPlayer]);
+    setPlayer(prev => {
+      if (!prev) return null;
+      const newBag = [...prev.bag];
+      [newBag[fromIndex], newBag[toIndex]] = [newBag[toIndex], newBag[fromIndex]];
+      return { ...prev, bag: newBag };
+    });
+  }, [setPlayer]);
 
   // Equip item from bag to a specific slot via drag
   const dragBagToEquip = useCallback((item: Item, bagIndex: number, targetSlot: EquipmentSlot) => {
-    if (!player) return;
+    let swappedName: string | null = null;
+    let didEquip = false;
 
-    const existingItem = player.equipment[targetSlot];
-    const newBag = [...player.bag];
-    newBag[bagIndex] = null;
+    setPlayer(prev => {
+      if (!prev) return null;
+      if (prev.bag[bagIndex]?.id !== item.id) return prev;
 
-    if (existingItem) {
-      newBag[bagIndex] = existingItem;
-      addLog(`Swapped ${item.name} with ${existingItem.name}.`, 'info');
+      const existingItem = prev.equipment[targetSlot];
+      const newBag = [...prev.bag];
+      newBag[bagIndex] = existingItem ?? null;
+      swappedName = existingItem?.name ?? null;
+      didEquip = true;
+      return {
+        ...prev,
+        bag: newBag,
+        equipment: { ...prev.equipment, [targetSlot]: item }
+      };
+    });
+
+    if (!didEquip) return;
+    if (swappedName) {
+      addLog(`Swapped ${item.name} with ${swappedName}.`, 'info');
     } else {
       addLog(`Equipped ${item.name}.`, 'loot');
     }
-
-    setPlayer({
-      ...player,
-      bag: newBag,
-      equipment: { ...player.equipment, [targetSlot]: item }
-    });
     setSelectedComponent(null);
-  }, [player, setPlayer, addLog, setSelectedComponent]);
+  }, [setPlayer, addLog, setSelectedComponent]);
 
   // Unequip item from equipment to bag via drag
   const dragEquipToBag = useCallback((item: Item, slot: EquipmentSlot, targetBagIndex?: number) => {
-    if (!player) return;
+    type Outcome = 'ok' | 'full' | 'missing' | 'swapped' | 'noprev';
+    const outBox: { o: Outcome } = { o: 'noprev' };
+    let swappedName: string | null = null;
 
-    const newBag = [...player.bag];
-
-    if (targetBagIndex !== undefined && targetBagIndex >= 0 && targetBagIndex < MAX_BAG_SLOTS) {
-      const existingItem = newBag[targetBagIndex];
-      newBag[targetBagIndex] = item;
-
-      setPlayer({
-        ...player,
-        equipment: { ...player.equipment, [slot]: existingItem },
-        bag: newBag
-      });
-
-      if (existingItem) {
-        addLog(`Swapped ${item.name} with ${existingItem.name}.`, 'info');
-      } else {
-        addLog(`Moved ${item.name} to bag.`, 'info');
+    setPlayer(prev => {
+      if (!prev) {
+        outBox.o = 'noprev';
+        return null;
       }
-    } else {
+      if (prev.equipment[slot]?.id !== item.id) {
+        outBox.o = 'missing';
+        return prev;
+      }
+
+      const newBag = [...prev.bag];
+
+      if (targetBagIndex !== undefined && targetBagIndex >= 0 && targetBagIndex < MAX_BAG_SLOTS) {
+        const existingItem = newBag[targetBagIndex];
+        newBag[targetBagIndex] = item;
+        swappedName = existingItem?.name ?? null;
+        outBox.o = existingItem ? 'swapped' : 'ok';
+        return {
+          ...prev,
+          equipment: { ...prev.equipment, [slot]: existingItem },
+          bag: newBag
+        };
+      }
+
       const emptySlot = newBag.findIndex(s => s === null);
       if (emptySlot === -1) {
-        addLog('Bag is full!', 'danger');
-        return;
+        outBox.o = 'full';
+        return prev;
       }
       newBag[emptySlot] = item;
-      setPlayer({
-        ...player,
-        equipment: { ...player.equipment, [slot]: null },
+      outBox.o = 'ok';
+      return {
+        ...prev,
+        equipment: { ...prev.equipment, [slot]: null },
         bag: newBag
-      });
+      };
+    });
+
+    if (outBox.o === 'full') {
+      addLog('Bag is full!', 'danger');
+      return;
+    }
+    if (outBox.o === 'swapped' && swappedName) {
+      addLog(`Swapped ${item.name} with ${swappedName}.`, 'info');
+      return;
+    }
+    if (outBox.o === 'ok') {
       addLog(`Moved ${item.name} to bag.`, 'info');
     }
-  }, [player, setPlayer, addLog]);
+  }, [setPlayer, addLog]);
 
   // Swap items between two equipment slots
   const swapEquipment = useCallback((fromSlot: EquipmentSlot, toSlot: EquipmentSlot) => {
-    if (!player) return;
     if (fromSlot === toSlot) return;
 
-    const fromItem = player.equipment[fromSlot];
-    const toItem = player.equipment[toSlot];
+    let fromName: string | null = null;
+    let toName: string | null = null;
+    let didSwap = false;
 
-    if (!fromItem && !toItem) return;
+    setPlayer(prev => {
+      if (!prev) return null;
+      const fromItem = prev.equipment[fromSlot];
+      const toItem = prev.equipment[toSlot];
+      if (!fromItem && !toItem) return prev;
 
-    setPlayer({
-      ...player,
-      equipment: {
-        ...player.equipment,
-        [fromSlot]: toItem,
-        [toSlot]: fromItem
-      }
+      fromName = fromItem?.name ?? null;
+      toName = toItem?.name ?? null;
+      didSwap = true;
+      return {
+        ...prev,
+        equipment: {
+          ...prev.equipment,
+          [fromSlot]: toItem,
+          [toSlot]: fromItem
+        }
+      };
     });
 
-    if (fromItem && toItem) {
-      addLog(`Swapped ${fromItem.name} and ${toItem.name}.`, 'info');
-    } else if (fromItem) {
-      addLog(`Moved ${fromItem.name} to another slot.`, 'info');
+    if (!didSwap) return;
+    if (fromName && toName) {
+      addLog(`Swapped ${fromName} and ${toName}.`, 'info');
+    } else if (fromName) {
+      addLog(`Moved ${fromName} to another slot.`, 'info');
     }
-  }, [player, setPlayer, addLog]);
+  }, [setPlayer, addLog]);
 
   return {
     equipItem,

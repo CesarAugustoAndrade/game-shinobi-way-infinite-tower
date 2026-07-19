@@ -1,12 +1,18 @@
 import React, { useEffect, useCallback } from 'react';
 import { Clan, PrimaryAttributes } from '../../game/types';
-import { CLAN_STATS, CLAN_START_SKILL } from '../../game/constants';
+import { CLAN_STATS, CLAN_START_LOADOUT, getClanStartingSkills, getClanArt } from '../../game/constants';
+import ArtIcon from '../../components/shared/ArtIcon';
 import Tooltip from '../../components/shared/Tooltip';
 import './CharacterSelect.css';
 
 interface CharacterSelectProps {
   onSelectClan: (clan: Clan) => void;
 }
+
+// Canon triad (types.ts / Training / helpText): Body · Mind · Technique
+const BODY_KEYS: (keyof PrimaryAttributes)[] = ['willpower', 'chakra', 'strength'];
+const MIND_KEYS: (keyof PrimaryAttributes)[] = ['spirit', 'intelligence', 'calmness'];
+const TECHNIQUE_KEYS: (keyof PrimaryAttributes)[] = ['speed', 'accuracy', 'dexterity'];
 
 // Calculate average stat for a category and return letter rank (D-S)
 const getStatRank = (stats: PrimaryAttributes, keys: (keyof PrimaryAttributes)[]): string => {
@@ -66,21 +72,24 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
       <div className="char-select__grid">
         {clans.map((clan, index) => {
           const stats = CLAN_STATS[clan];
-          const startSkill = CLAN_START_SKILL[clan];
+          const loadout = CLAN_START_LOADOUT[clan];
+          const startingSkills = getClanStartingSkills(clan);
+          const signatureSkills = loadout.main.filter(s => s.id !== 'basic_atk').slice(0, 2);
+          const loadoutLabel = signatureSkills.map(s => s.name).join(' · ') || startingSkills[0]?.name;
 
-          // Calculate ranks for each category
-          const spiritRank = getStatRank(stats, ['willpower', 'chakra', 'spirit']);
-          const mindRank = getStatRank(stats, ['intelligence', 'calmness', 'accuracy']);
-          const bodyRank = getStatRank(stats, ['strength', 'speed', 'dexterity']);
+          // Canon ranks: Body / Mind / Technique
+          const bodyRank = getStatRank(stats, BODY_KEYS);
+          const mindRank = getStatRank(stats, MIND_KEYS);
+          const techniqueRank = getStatRank(stats, TECHNIQUE_KEYS);
 
           return (
             <div
               key={clan}
               className="clan-card"
             >
-              {/* Big letter watermark */}
+              {/* Clan crest watermark (art registry T-019) */}
               <span className="clan-card__watermark" aria-hidden="true">
-                {clan.charAt(0)}
+                <ArtIcon art={getClanArt(clan)} size="xl" title={clan} />
               </span>
 
               {/* Card Header */}
@@ -89,19 +98,49 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
                   <span className="clan-card__index">{index + 1}</span>
                   {clan}
                 </h3>
-                <div className="clan-card__skill">{startSkill.name}</div>
+                <div className="clan-card__skill" title={`${startingSkills.length} starting jutsu`}>
+                  {loadoutLabel}
+                </div>
               </div>
 
               {/* Stat Ranks with Tooltip */}
               <Tooltip
                 content={
                   <div className="clan-tooltip">
-                    <div className="clan-tooltip__skill">{startSkill.name}</div>
+                    <div className="clan-tooltip__skill">
+                      Starting loadout ({startingSkills.length})
+                    </div>
+                    <div className="clan-tooltip__loadout">
+                      {loadout.main.length > 0 && (
+                        <div className="clan-tooltip__loadout-row">
+                          <span className="clan-tooltip__loadout-label">Main</span>
+                          <span>{loadout.main.map(s => s.name).join(', ')}</span>
+                        </div>
+                      )}
+                      {loadout.side.length > 0 && (
+                        <div className="clan-tooltip__loadout-row">
+                          <span className="clan-tooltip__loadout-label">Side</span>
+                          <span>{loadout.side.map(s => s.name).join(', ')}</span>
+                        </div>
+                      )}
+                      {loadout.toggle.length > 0 && (
+                        <div className="clan-tooltip__loadout-row">
+                          <span className="clan-tooltip__loadout-label">Toggle</span>
+                          <span>{loadout.toggle.map(s => s.name).join(', ')}</span>
+                        </div>
+                      )}
+                      {loadout.passive.length > 0 && (
+                        <div className="clan-tooltip__loadout-row">
+                          <span className="clan-tooltip__loadout-label">Passive</span>
+                          <span>{loadout.passive.map(s => s.name).join(', ')}</span>
+                        </div>
+                      )}
+                    </div>
 
-                    {/* Spirit Stats */}
+                    {/* Body Stats */}
                     <div className="clan-tooltip__category">
-                      <div className="clan-tooltip__category-title clan-tooltip__category-title--spirit">
-                        The Spirit
+                      <div className="clan-tooltip__category-title clan-tooltip__category-title--body">
+                        The Body
                       </div>
                       <div className="clan-tooltip__stat">
                         <span className="clan-tooltip__stat-name clan-tooltip__stat-name--wil">WIL</span>
@@ -112,8 +151,8 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
                         <span className="clan-tooltip__stat-value">{stats.chakra}</span>
                       </div>
                       <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spi">SPI</span>
-                        <span className="clan-tooltip__stat-value">{stats.spirit}</span>
+                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--str">STR</span>
+                        <span className="clan-tooltip__stat-value">{stats.strength}</span>
                       </div>
                     </div>
 
@@ -123,6 +162,10 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
                         The Mind
                       </div>
                       <div className="clan-tooltip__stat">
+                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spi">SPI</span>
+                        <span className="clan-tooltip__stat-value">{stats.spirit}</span>
+                      </div>
+                      <div className="clan-tooltip__stat">
                         <span className="clan-tooltip__stat-name clan-tooltip__stat-name--int">INT</span>
                         <span className="clan-tooltip__stat-value">{stats.intelligence}</span>
                       </div>
@@ -130,24 +173,20 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
                         <span className="clan-tooltip__stat-name clan-tooltip__stat-name--cal">CAL</span>
                         <span className="clan-tooltip__stat-value">{stats.calmness}</span>
                       </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--acc">ACC</span>
-                        <span className="clan-tooltip__stat-value">{stats.accuracy}</span>
-                      </div>
                     </div>
 
-                    {/* Body Stats */}
+                    {/* Technique Stats */}
                     <div className="clan-tooltip__category">
-                      <div className="clan-tooltip__category-title clan-tooltip__category-title--body">
-                        The Body
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--str">STR</span>
-                        <span className="clan-tooltip__stat-value">{stats.strength}</span>
+                      <div className="clan-tooltip__category-title clan-tooltip__category-title--technique">
+                        The Technique
                       </div>
                       <div className="clan-tooltip__stat">
                         <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spd">SPD</span>
                         <span className="clan-tooltip__stat-value">{stats.speed}</span>
+                      </div>
+                      <div className="clan-tooltip__stat">
+                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--acc">ACC</span>
+                        <span className="clan-tooltip__stat-value">{stats.accuracy}</span>
                       </div>
                       <div className="clan-tooltip__stat">
                         <span className="clan-tooltip__stat-name clan-tooltip__stat-name--dex">DEX</span>
@@ -159,16 +198,16 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
               >
                 <div className="clan-card__stats">
                   <div className="stat-rank">
-                    <span className="stat-rank__label stat-rank__label--spirit">Spirit</span>
-                    <span className={`stat-rank__value ${getRankModifier(spiritRank)}`}>{spiritRank}</span>
+                    <span className="stat-rank__label stat-rank__label--body">Body</span>
+                    <span className={`stat-rank__value ${getRankModifier(bodyRank)}`}>{bodyRank}</span>
                   </div>
                   <div className="stat-rank">
                     <span className="stat-rank__label stat-rank__label--mind">Mind</span>
                     <span className={`stat-rank__value ${getRankModifier(mindRank)}`}>{mindRank}</span>
                   </div>
                   <div className="stat-rank">
-                    <span className="stat-rank__label stat-rank__label--body">Body</span>
-                    <span className={`stat-rank__value ${getRankModifier(bodyRank)}`}>{bodyRank}</span>
+                    <span className="stat-rank__label stat-rank__label--technique">Technique</span>
+                    <span className={`stat-rank__value ${getRankModifier(techniqueRank)}`}>{techniqueRank}</span>
                   </div>
                 </div>
               </Tooltip>

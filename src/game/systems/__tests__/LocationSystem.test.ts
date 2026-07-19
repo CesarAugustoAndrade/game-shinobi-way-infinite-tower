@@ -6,6 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   generateBranchingFloor,
+  generateBranchingFloorFromConfig,
+  pickEventForLocation,
   isRoomAccessible,
   moveToRoom,
   getCurrentActivity,
@@ -16,6 +18,7 @@ import {
 } from '../LocationSystem';
 import { BranchingRoomType, ACTIVITY_ORDER } from '../../types';
 import { createMockPlayer } from './testFixtures';
+import { EVENTS } from '../../constants';
 
 describe('generateBranchingFloor', () => {
   const player = createMockPlayer();
@@ -220,6 +223,30 @@ describe('completeActivity', () => {
       });
     }
   });
+
+  it('does not mutate prior floor snapshot when unlocking children', () => {
+    let floor = generateBranchingFloor(1, 50, player);
+    const tier1Room = floor.rooms.find(r => r.tier === 1 && r.childIds.length > 0);
+    if (!tier1Room) return;
+
+    const snapshotBefore = floor;
+    const childBefore = getRoomById(snapshotBefore, tier1Room.childIds[0]);
+    const wasAccessible = childBefore?.isAccessible ?? false;
+
+    for (const actKey of ACTIVITY_ORDER) {
+      if (tier1Room.activities[actKey]) {
+        floor = completeActivity(floor, tier1Room.id, actKey);
+      }
+    }
+
+    // Previous floor object must keep original accessibility on shared children
+    const childStillOnSnapshot = getRoomById(snapshotBefore, tier1Room.childIds[0]);
+    expect(childStillOnSnapshot!.isAccessible).toBe(wasAccessible);
+
+    // New floor unlocks children
+    const childOnNewFloor = getRoomById(floor, tier1Room.childIds[0]);
+    expect(childOnNewFloor!.isAccessible).toBe(true);
+  });
 });
 
 describe('isFloorComplete', () => {
@@ -259,5 +286,133 @@ describe('isFloorComplete', () => {
         expect(isFloorComplete(floor)).toBe(false);
       }
     }
+  });
+});
+
+describe('pickEventForLocation (T-033 tiedStoryEvents)', () => {
+  const player = createMockPlayer();
+
+  it('prefers preferredEventIds when they are eligible', () => {
+    const preferred = 'forest_death_trap';
+    expect(EVENTS.some((e) => e.id === preferred)).toBe(true);
+
+    // Fixed rng — preference pool is used first, so only preferred ids compete
+    for (let i = 0; i < 20; i++) {
+      const event = pickEventForLocation('EXAMS_ARC', player, [preferred], () => 0.5);
+      expect(event?.id).toBe(preferred);
+    }
+  });
+
+  it('falls back to arc pool when preferred ids are missing or ineligible', () => {
+    const event = pickEventForLocation('EXAMS_ARC', player, ['totally_fake_event_id'], () => 0.1);
+    expect(event).toBeDefined();
+    expect(event!.id).not.toBe('totally_fake_event_id');
+    expect(!event!.allowedArcs || event!.allowedArcs.includes('EXAMS_ARC')).toBe(true);
+  });
+
+  it('stores preferredEventIds on floor from config', () => {
+    const floor = generateBranchingFloorFromConfig({
+      floor: 5,
+      arc: 'EXAMS_ARC',
+      biome: 'Forest of Death',
+      dangerLevel: 3,
+      wealthLevel: 3,
+      roomGenerationMode: 'dynamic',
+      targetRoomCount: 10,
+      difficulty: 55,
+      player,
+      preferredEventIds: ['rival_team_encounter'],
+    });
+    expect(floor.preferredEventIds).toEqual(['rival_team_encounter']);
+  });
+});
+
+describe('generateBranchingFloorFromConfig — dangerLevel plumbing (no double-count)', () => {
+  const player = createMockPlayer();
+
+  /**
+   * Regression: location danger 1 with baseDifficulty often yields effectiveFloor ≈ 12–14.
+   * Old code used floorToDangerLevel(floor) on combat/elite/guardian → D5 enemies on D1 maps.
+   * Config dangerLevel must drive enemy.dangerLevel, not ceil(effectiveFloor/3).
+   */
+  it('floor=14 dangerLevel=1 must NOT spawn enemies as D5', () => {
+    const floor = generateBranchingFloorFromConfig({
+      floor: 14, // typical effectiveFloor for danger 1 + mid baseDifficulty
+      arc: 'WAVES_ARC',
+      biome: 'Mist Covered Bridge',
+      dangerLevel: 1,
+      wealthLevel: 2,
+      roomGenerationMode: 'dynamic',
+      targetRoomCount: 10,
+      difficulty: 40,
+      player,
+    });
+
+    expect(floor.dangerLevel).toBe(1);
+    // minRoomsBeforeExit = 2 + dangerLevel → D1 → 3 (not 2+14=16)
+    expect(floor.minRoomsBeforeExit).toBe(3);
+    expect(floor.wealthLevel).toBe(2);
+
+    const combatEnemies = floor.rooms
+      .map((r) => r.activities.combat?.enemy)
+      .filter((e): e is NonNullable<typeof e> => e != null);
+
+    expect(combatEnemies.length).toBeGreaterThan(0);
+    for (const enemy of combatEnemies) {
+      // Must be D1, never ceil(14/3)=5
+      expect(enemy.dangerLevel).toBe(1);
+      expect(enemy.dangerLevel).not.toBe(5);
+    }
+  });
+
+  it('uses config dangerLevel for combat enemies across multiple effective floors', () => {
+    for (const { effectiveFloor, dangerLevel } of [
+      { effectiveFloor: 12, dangerLevel: 1 as const },
+      { effectiveFloor: 14, dangerLevel: 1 as const },
+      { effectiveFloor: 20, dangerLevel: 4 as const },
+      { effectiveFloor: 26, dangerLevel: 7 as const },
+    ]) {
+      const floor = generateBranchingFloorFromConfig({
+        floor: effectiveFloor,
+        arc: 'WAVES_ARC',
+        biome: 'Test',
+        dangerLevel,
+        wealthLevel: 4,
+        roomGenerationMode: 'dynamic',
+        targetRoomCount: 10,
+        difficulty: 40,
+        player,
+      });
+
+      expect(floor.dangerLevel).toBe(dangerLevel);
+      expect(floor.minRoomsBeforeExit).toBe(2 + dangerLevel);
+
+      for (const room of floor.rooms) {
+        const combat = room.activities.combat?.enemy;
+        if (combat) {
+          expect(combat.dangerLevel).toBe(dangerLevel);
+        }
+        const elite = room.activities.eliteChallenge?.enemy;
+        if (elite) {
+          // Elite is one step harder, capped at 7
+          expect(elite.dangerLevel).toBe(Math.min(7, dangerLevel + 1));
+        }
+      }
+    }
+  });
+
+  it('threads wealthLevel into floor (not hard-coded 4)', () => {
+    const floor = generateBranchingFloorFromConfig({
+      floor: 14,
+      arc: 'WAVES_ARC',
+      biome: 'Test',
+      dangerLevel: 2,
+      wealthLevel: 6,
+      roomGenerationMode: 'dynamic',
+      targetRoomCount: 10,
+      difficulty: 40,
+      player,
+    });
+    expect(floor.wealthLevel).toBe(6);
   });
 });

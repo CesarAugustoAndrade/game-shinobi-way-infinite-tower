@@ -127,6 +127,26 @@
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast), border-color var(--sw-transition-fast);
 }
 
+/* Skill art tile (T-020 registry) */
+.scroll-card__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 5rem;
+  padding: var(--sw-space-2);
+  background: var(--sw-bg-primary);
+  border: 2px solid var(--sw-hard);
+  box-shadow: var(--sw-pix-shadow-sm);
+  image-rendering: pixelated;
+}
+
+.scroll-card__art img {
+  max-height: 6rem;
+  width: auto;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .scroll-card:hover {
   transform: translate(-2px, -2px);
   box-shadow: var(--sw-pix-shadow);

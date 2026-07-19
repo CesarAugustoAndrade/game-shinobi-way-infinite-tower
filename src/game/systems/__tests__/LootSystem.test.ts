@@ -12,9 +12,85 @@ import {
   hasBagSpace,
   removeFromBag,
   generateComponent,
+  generateLoot,
+  generateRandomArtifact,
+  parseLootTableKind,
+  applyLootThemeGoldMultiplier,
+  equipmentFocusWeightMultipliers,
 } from '../LootSystem';
-import { ComponentId, EquipmentSlot, MAX_BAG_SLOTS, Rarity } from '../../types';
+import { ComponentId, ElementType, EquipmentSlot, MAX_BAG_SLOTS, Rarity } from '../../types';
 import { createMockPlayer, createMockComponent, createMockArtifact } from './testFixtures';
+
+describe('parseLootTableKind (T-059)', () => {
+  it('maps lootTable suffixes to kinds', () => {
+    expect(parseLootTableKind('waves_settlement')).toBe('settlement');
+    expect(parseLootTableKind('exams_wilderness')).toBe('wilderness');
+    expect(parseLootTableKind('rogue_stronghold')).toBe('stronghold');
+    expect(parseLootTableKind('war_boss')).toBe('boss');
+    expect(parseLootTableKind('waves_secret')).toBe('secret');
+    expect(parseLootTableKind(undefined)).toBe('default');
+    expect(parseLootTableKind('custom_table')).toBe('default');
+  });
+});
+
+describe('generateLoot', () => {
+  it('drops Broken tier components from combat', () => {
+    const loot = generateLoot(5, 40);
+    expect(loot.isComponent).toBe(true);
+    expect(loot.rarity).toBe(Rarity.BROKEN);
+    expect(loot.componentId).toBeDefined();
+  });
+
+  it('honors lootTable bias for secret tables (ANBU/scroll-heavy kinds appear)', () => {
+    // Statistical: secret table boosts ANBU_MASK + TACTICAL_SCROLL
+    const counts: Record<string, number> = {};
+    const n = 200;
+    for (let i = 0; i < n; i++) {
+      const loot = generateLoot(5, 40, 'waves_secret');
+      const id = loot.componentId ?? 'none';
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+    // At least some biased components should appear across samples
+    const biased =
+      (counts[ComponentId.ANBU_MASK] ?? 0) + (counts[ComponentId.TACTICAL_SCROLL] ?? 0);
+    expect(biased).toBeGreaterThan(0);
+    // Never drop Hashirama via normal loot
+    expect(counts[ComponentId.HASHIRAMA_CELL] ?? 0).toBe(0);
+  });
+});
+
+describe('lootTheme (T-061)', () => {
+  it('applies goldMultiplier to ryo', () => {
+    expect(applyLootThemeGoldMultiplier(100, {
+      primaryElement: ElementType.WATER,
+      equipmentFocus: ['speed'],
+      goldMultiplier: 0.8,
+    })).toBe(80);
+    expect(applyLootThemeGoldMultiplier(100, {
+      primaryElement: ElementType.FIRE,
+      equipmentFocus: [],
+      goldMultiplier: 1.2,
+    })).toBe(120);
+    expect(applyLootThemeGoldMultiplier(100, null)).toBe(100);
+  });
+
+  it('boosts equipmentFocus stats in weight mults', () => {
+    const mults = equipmentFocusWeightMultipliers(['speed', 'spirit']);
+    expect(mults[ComponentId.SWIFT_SANDALS]).toBe(1.4);
+    expect(mults[ComponentId.SPIRIT_TAG]).toBe(1.4);
+    expect(mults[ComponentId.NINJA_STEEL]).toBeUndefined();
+  });
+});
+
+describe('generateRandomArtifact', () => {
+  it('creates RARE artifacts (not free EPIC — craft path remains meaningful)', () => {
+    const artifact = generateRandomArtifact(5, 40);
+    expect(artifact.isComponent).toBe(false);
+    expect(artifact.rarity).toBe(Rarity.RARE);
+    expect(artifact.passive).toBeDefined();
+    expect(artifact.recipe).toBeDefined();
+  });
+});
 
 describe('synthesize', () => {
   it('combines two COMMON components into a RARE artifact', () => {

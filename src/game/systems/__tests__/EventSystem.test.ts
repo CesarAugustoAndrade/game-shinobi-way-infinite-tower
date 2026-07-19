@@ -3,7 +3,7 @@
  * Tests requirement checking, cost validation, outcome rolling, and effect application
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   checkRequirements,
   checkEventCost,
@@ -18,12 +18,14 @@ import {
   resolveEventChoice,
   getEventSelectionWeight,
   selectWeightedEvent,
+  getEventFlagRunModifiers,
 } from '../EventSystem';
 import { calculateDerivedStats } from '../StatSystem';
 import { Clan, PrimaryStat, EffectType, GameEvent, EventChoice, Rarity } from '../../types';
 import { SKILLS } from '../../constants/skills';
 import { EVENT_RARITY_WEIGHTS, EVENTS } from '../../constants';
 import { createMockPlayer, createMockComponent, BASE_STATS } from './testFixtures';
+import { createSeededRng, resetGlobalRng, setGlobalRng } from '../../utils/rng';
 
 describe('checkRequirements', () => {
   const player = createMockPlayer();
@@ -89,6 +91,10 @@ describe('checkEventCost', () => {
 });
 
 describe('rollOutcome', () => {
+  afterEach(() => {
+    resetGlobalRng();
+  });
+
   it('returns an outcome from the choice', () => {
     const player = createMockPlayer();
     const choice = {
@@ -139,6 +145,46 @@ describe('rollOutcome', () => {
       const outcome = rollOutcome(choice, player);
       expect(['A', 'B']).toContain(outcome.effects.logMessage);
     }
+  });
+
+  it('reproduces the same outcome sequence with a fixed seed (injectable rng)', () => {
+    const player = createMockPlayer();
+    const choice = {
+      outcomes: [
+        { weight: 50, effects: { logMessage: 'A' } },
+        { weight: 50, effects: { logMessage: 'B' } },
+      ],
+    } as any;
+
+    const seed = 42_001;
+    const runWithSeed = (s: number) => {
+      const rng = createSeededRng(s);
+      return Array.from({ length: 20 }, () =>
+        rollOutcome(choice, player, rng).effects.logMessage
+      );
+    };
+    const firstRun = runWithSeed(seed);
+    const secondRun = runWithSeed(seed);
+
+    expect(firstRun).toEqual(secondRun);
+    // Both outcomes should appear across a non-trivial sample (seed not degenerate)
+    expect(new Set(firstRun).size).toBeGreaterThan(1);
+  });
+
+  it('uses the global seeded rng when no rng is passed', () => {
+    const player = createMockPlayer();
+    const choice = {
+      outcomes: [
+        { weight: 50, effects: { logMessage: 'A' } },
+        { weight: 50, effects: { logMessage: 'B' } },
+      ],
+    } as any;
+
+    setGlobalRng(createSeededRng(99_001));
+    const a = rollOutcome(choice, player).effects.logMessage;
+    setGlobalRng(createSeededRng(99_001));
+    const b = rollOutcome(choice, player).effects.logMessage;
+    expect(a).toBe(b);
   });
 });
 
@@ -621,5 +667,53 @@ describe('resolveEventChoice — chains & flag gating', () => {
 
     expect(result.success).toBe(false);
     expect(result.player).toBeNull();
+  });
+});
+
+describe('getEventFlagRunModifiers (T-034)', () => {
+  it('returns neutral mods with empty flags', () => {
+    const mods = getEventFlagRunModifiers(createMockPlayer({ eventFlags: {} }));
+    expect(mods.damageBonus).toBe(0);
+    expect(mods.ryoMultiplier).toBe(1);
+    expect(mods.activeLabels).toEqual([]);
+  });
+
+  it('envoy_freed boosts ryo; debt_settled boosts damage', () => {
+    const freed = getEventFlagRunModifiers(
+      createMockPlayer({ eventFlags: { envoy_freed: 1 } }),
+    );
+    expect(freed.ryoMultiplier).toBeCloseTo(1.1);
+    expect(freed.damageBonus).toBe(0);
+    expect(freed.activeLabels.some((l) => l.includes('Envoy') || l.includes('Ryō'))).toBe(true);
+
+    const settled = getEventFlagRunModifiers(
+      createMockPlayer({ eventFlags: { envoy_freed: 1, envoy_debt_settled: 1 } }),
+    );
+    expect(settled.damageBonus).toBeCloseTo(0.05);
+    expect(settled.ryoMultiplier).toBeCloseTo(1.1);
+  });
+
+  it('subject_harvested adds damage; subject_freed adds ryo', () => {
+    const harvested = getEventFlagRunModifiers(
+      createMockPlayer({ eventFlags: { subject_harvested: 1 } }),
+    );
+    expect(harvested.damageBonus).toBeCloseTo(0.08);
+    expect(harvested.activeLabels.some((l) => l.includes('DMG'))).toBe(true);
+
+    const freed = getEventFlagRunModifiers(
+      createMockPlayer({ eventFlags: { subject_freed: 1 } }),
+    );
+    expect(freed.ryoMultiplier).toBeCloseTo(1.05);
+  });
+
+  it('secret intel flags stack ryo mult', () => {
+    const mods = getEventFlagRunModifiers(
+      createMockPlayer({
+        eventFlags: { sunken_ship_discovered: 1, hidden_cove_discovered: 1 },
+      }),
+    );
+    // both secrets share one +5% bucket (OR)
+    expect(mods.ryoMultiplier).toBeCloseTo(1.05);
+    expect(mods.activeLabels.some((l) => l.includes('Secret'))).toBe(true);
   });
 });

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="384" height="216" viewBox="0 0 384 216" role="img" aria-label="orochimaru experiment result">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#101820"/>
+      <stop offset="100%" stop-color="#050508"/>
+    </linearGradient>
+  </defs>
+  <rect width="384" height="216" fill="url(#g)"/>
+  <rect x="4" y="4" width="376" height="208" fill="none" stroke="#6b8cae" stroke-width="5"/>
+  <text x="192" y="120" text-anchor="middle" font-size="64" font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif">📖</text>
+  <text x="192" y="180" text-anchor="middle" fill="#6b8cae" font-size="14" font-family="Silkscreen, monospace">OROCHIMARU EXPERIMENT RESULT</text>
+</svg>

@@ -4,7 +4,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { generateEnemy, getStoryArcByName } from '../EnemySystem';
+import { generateEnemy, getStoryArcByName, humanizeEnemyPoolId, getArchetypeKit } from '../EnemySystem';
+import { ElementType } from '../../types';
+import { SKILLS } from '../../constants';
 
 describe('getStoryArcByName', () => {
   it('returns correct arc data for WAVES_ARC', () => {
@@ -41,7 +43,67 @@ describe('getStoryArcByName', () => {
   });
 });
 
+describe('humanizeEnemyPoolId (T-056)', () => {
+  it('title-cases snake_case pool ids', () => {
+    expect(humanizeEnemyPoolId('dock_worker')).toBe('Dock Worker');
+    expect(humanizeEnemyPoolId('proctor_guard')).toBe('Proctor Guard');
+  });
+});
+
 describe('generateEnemy', () => {
+  describe('preferredElement (T-068)', () => {
+    it('biases NORMAL enemies toward preferred region element', () => {
+      let water = 0;
+      for (let i = 0; i < 40; i++) {
+        const e = generateEnemy(
+          2, 0, 'NORMAL', 50, 'WAVES_ARC', undefined, undefined, ElementType.WATER,
+        );
+        if (e.element === ElementType.WATER) water += 1;
+      }
+      // ~50% bias → well above random 1/5 of combat elements
+      expect(water).toBeGreaterThan(8);
+    });
+  });
+
+  describe('location enemyPool (T-056)', () => {
+    it('uses pool id for NORMAL name when pool provided', () => {
+      const enemy = generateEnemy(
+        2, 0, 'NORMAL', 50, 'WAVES_ARC', undefined, ['dock_worker'],
+      );
+      expect(enemy.name).toBe('Dock Worker');
+      expect(enemy.image).toBeDefined();
+    });
+
+    it('keeps generic naming when pool empty', () => {
+      const enemy = generateEnemy(2, 0, 'NORMAL', 50, 'WAVES_ARC', undefined, []);
+      // Legacy pattern: Prefix Job — at least two words typically
+      expect(enemy.name.split(' ').length).toBeGreaterThanOrEqual(2);
+      expect(enemy.name).not.toBe('Dock Worker');
+    });
+  });
+
+  describe('forced combat archetype (event triggerCombat)', () => {
+    it('honors forcedArchetype ASSASSIN independent of enemy tier', () => {
+      for (let i = 0; i < 10; i++) {
+        const enemy = generateEnemy(3, 0, 'NORMAL', 50, 'WAVES_ARC', 'ASSASSIN');
+        expect(enemy.archetype).toBe('ASSASSIN');
+        expect(enemy.tier).toBe('Chunin'); // NORMAL tier, not ELITE
+      }
+    });
+
+    it('honors forcedArchetype TANK', () => {
+      const enemy = generateEnemy(3, 0, 'NORMAL', 50, 'WAVES_ARC', 'TANK');
+      expect(enemy.archetype).toBe('TANK');
+    });
+
+    it('honors forcedArchetype with ELITE tier separately', () => {
+      // Elite bonuses apply from type, but stats build is forced CASTER
+      const enemy = generateEnemy(3, 0, 'ELITE', 50, 'WAVES_ARC', 'CASTER');
+      expect(enemy.archetype).toBe('CASTER');
+      expect(enemy.tier).toBe('Jonin'); // ELITE tier
+    });
+  });
+
   describe('NORMAL enemies', () => {
     it('generates enemy with proper structure', () => {
       const enemy = generateEnemy(1, 0, 'NORMAL', 50, 'WAVES_ARC');
@@ -185,6 +247,69 @@ describe('generateEnemy', () => {
       // 20 locations should result in meaningful increase despite variance
       const ratio = with20 / base;
       expect(ratio).toBeGreaterThan(1.2);
+    });
+
+    /**
+     * Golden table (A-013): fixed BALANCED archetype + fixed difficulty →
+     * HP must be strictly monotonic with danger level. Values are derived from
+     * DIFFICULTY constants; if a balance patch intentionally changes them,
+     * update the expected mins and re-verify live feel.
+     */
+    it('golden: BALANCED HP strictly increases with danger (1→7) at fixed difficulty', () => {
+      const diff = 50;
+      const locationsCleared = 0;
+      const hps: number[] = [];
+
+      for (let danger = 1; danger <= 7; danger++) {
+        const enemy = generateEnemy(
+          danger,
+          locationsCleared,
+          'NORMAL',
+          diff,
+          'WAVES_ARC',
+          'BALANCED'
+        );
+        hps.push(enemy.currentHp);
+        expect(enemy.archetype).toBe('BALANCED');
+        expect(enemy.dangerLevel).toBe(danger);
+      }
+
+      for (let i = 1; i < hps.length; i++) {
+        expect(hps[i]).toBeGreaterThan(hps[i - 1]);
+      }
+
+      // Soft floor: D1 accessible; D7 tankier (danger mult + HP wall ≈ 2.47× today)
+      expect(hps[0]).toBeGreaterThan(0);
+      expect(hps[6] / hps[0]).toBeGreaterThan(2.0);
+    });
+  });
+
+  describe('defaultIntent (Package 3)', () => {
+    it('prefers non-basic skill with damageMult > 0 over utility-first kits (TANK)', () => {
+      // TANK kit order: BASIC_ATTACK, MUD_WALL (0), BRACE (0), STRONG_FIST (>0)
+      // Opening telegraph must not open on Mud Wall / Brace.
+      const enemy = generateEnemy(3, 0, 'NORMAL', 50, 'WAVES_ARC', 'TANK');
+      const kit = getArchetypeKit('TANK');
+      const preferred = kit.find(
+        s => s.id !== SKILLS.BASIC_ATTACK.id && (s.damageMult ?? 0) > 0
+      );
+
+      expect(preferred).toBeDefined();
+      expect(enemy.intendedSkillId).toBe(preferred!.id);
+      expect(enemy.intendedSkillName).toBe(preferred!.name);
+      expect(enemy.intentReason).toBe('opening move');
+      expect(enemy.intendedSkillId).not.toBe(SKILLS.BASIC_ATTACK.id);
+      expect(enemy.intendedSkillId).not.toBe(SKILLS.MUD_WALL.id);
+    });
+
+    it('sets opening intent on BALANCED to a non-basic damaging skill', () => {
+      const enemy = generateEnemy(2, 0, 'NORMAL', 50, 'WAVES_ARC', 'BALANCED');
+      expect(enemy.intendedSkillId).toBeDefined();
+      expect(enemy.intendedSkillId).not.toBe(SKILLS.BASIC_ATTACK.id);
+
+      const skill = enemy.skills.find(s => s.id === enemy.intendedSkillId);
+      expect(skill).toBeDefined();
+      expect(skill!.damageMult).toBeGreaterThan(0);
     });
   });
 });

@@ -15,6 +15,9 @@ export * from './terrain';
 export * from './approaches';
 export * from './skills';
 
+// Art registry (T-019) — central key→asset with emoji cascade
+export * from './artRegistry';
+
 // MAX_LOGS removed - use LIMITS.MAX_LOG_ENTRIES from config.ts instead
 
 // ============================================================================
@@ -42,6 +45,18 @@ export const getElementEffectiveness = (attacker: ElementType, defender: Element
   if (ELEMENTAL_CYCLE[defender] === attacker) return 0.8;
 
   return 1.0;
+};
+
+// ============================================================================
+// CLAN STARTING ELEMENT (affinity for terrain amp / gear scoring / HUD)
+// Must stay aligned with createPlayer and progression sims.
+// ============================================================================
+export const CLAN_ELEMENTS: Record<Clan, ElementType> = {
+  [Clan.UCHIHA]: ElementType.FIRE,
+  [Clan.UZUMAKI]: ElementType.WIND,
+  [Clan.HYUGA]: ElementType.PHYSICAL,
+  [Clan.LEE]: ElementType.PHYSICAL,
+  [Clan.YAMANAKA]: ElementType.MENTAL,
 };
 
 // ============================================================================
@@ -243,20 +258,93 @@ export const getClanStartingSkills = (clan: Clan): Skill[] => {
 };
 
 // ============================================================================
-// BOSS DEFINITIONS
+// BOSS DEFINITIONS (danger 1–7; legacy floor keys 8/17/25… removed)
 // ============================================================================
-export const BOSS_NAMES = {
-  8: { name: 'Demon Brothers', element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
-  17: { name: 'Haku', element: ElementType.WATER, skill: SKILLS.ICE_MIRRORS },
-  25: { name: 'Zabuza Momochi', element: ElementType.WATER, skill: SKILLS.WATER_DRAGON },
-  35: { name: 'Orochimaru', element: ElementType.WIND, skill: SKILLS.POISON_FOG },
-  45: { name: 'Gaara', element: ElementType.EARTH, skill: SKILLS.SAND_COFFIN },
-  55: { name: 'Kimimaro', element: ElementType.PHYSICAL, skill: SKILLS.BONE_DRILL },
-  65: { name: 'Sasuke Uchiha', element: ElementType.LIGHTNING, skill: SKILLS.CHIDORI },
-  75: { name: 'Pain', element: ElementType.WIND, skill: SKILLS.SHINRA_TENSEI },
-  85: { name: 'Obito Uchiha', element: ElementType.FIRE, skill: SKILLS.KAMUI_IMPACT },
-  100: { name: 'Madara Uchiha', element: ElementType.FIRE, skill: SKILLS.TENGAI_SHINSEI },
+
+export interface BossDefinition {
+  name: string;
+  element: ElementType;
+  skill: Skill;
+}
+
+/**
+ * Default bosses keyed by location danger level (1–7).
+ * Used when no arc-specific override exists.
+ */
+export const BOSS_BY_DANGER: Record<number, BossDefinition> = {
+  1: { name: 'Demon Brothers', element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
+  2: { name: 'Haku', element: ElementType.WATER, skill: SKILLS.ICE_MIRRORS },
+  3: { name: 'Zabuza Momochi', element: ElementType.WATER, skill: SKILLS.WATER_DRAGON },
+  4: { name: 'Gaara', element: ElementType.EARTH, skill: SKILLS.SAND_COFFIN },
+  5: { name: 'Kimimaro', element: ElementType.PHYSICAL, skill: SKILLS.BONE_DRILL },
+  6: { name: 'Sasuke Uchiha', element: ElementType.LIGHTNING, skill: SKILLS.CHIDORI },
+  7: { name: 'Pain', element: ElementType.WIND, skill: SKILLS.SHINRA_TENSEI },
 };
+
+/**
+ * Arc-themed boss overrides by danger (1–7).
+ * generateEnemy looks up arc first, then falls back to BOSS_BY_DANGER.
+ */
+export const BOSS_BY_ARC: Record<string, Partial<Record<number, BossDefinition>>> = {
+  WAVES_ARC: {
+    1: { name: 'Demon Brothers', element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
+    2: { name: 'Haku of the Mist', element: ElementType.WATER, skill: SKILLS.ICE_MIRRORS },
+    3: { name: 'Zabuza Momochi', element: ElementType.WATER, skill: SKILLS.WATER_DRAGON },
+    4: { name: 'Zabuza, Demon of the Mist', element: ElementType.WATER, skill: SKILLS.HIDDEN_MIST },
+    5: { name: 'Haku, Ice Mirror Master', element: ElementType.WATER, skill: SKILLS.ICE_MIRRORS },
+    6: { name: "Gato's Elite Guard", element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
+    7: { name: 'Zabuza & Haku', element: ElementType.WATER, skill: SKILLS.WATER_DRAGON },
+  },
+  EXAMS_ARC: {
+    1: { name: 'Sound Genin', element: ElementType.WIND, skill: SKILLS.GREAT_BREAKTHROUGH },
+    2: { name: 'Dosu Kinuta', element: ElementType.MENTAL, skill: SKILLS.HELL_VIEWING },
+    3: { name: 'Temari', element: ElementType.WIND, skill: SKILLS.GREAT_BREAKTHROUGH },
+    4: { name: 'Gaara of the Sand', element: ElementType.EARTH, skill: SKILLS.SAND_COFFIN },
+    5: { name: 'Orochimaru', element: ElementType.WIND, skill: SKILLS.POISON_FOG },
+    6: { name: 'Gaara (Shukaku)', element: ElementType.EARTH, skill: SKILLS.SHUKAKU_ARM },
+    7: { name: 'Orochimaru, the Snake', element: ElementType.WIND, skill: SKILLS.SUMMON_MANDA },
+  },
+  ROGUE_ARC: {
+    1: { name: 'Sound Four Initiate', element: ElementType.PHYSICAL, skill: SKILLS.STRONG_FIST },
+    2: { name: 'Jirobo', element: ElementType.EARTH, skill: SKILLS.EARTH_DECAPITATION },
+    3: { name: 'Kidomaru', element: ElementType.PHYSICAL, skill: SKILLS.WIRE_SETUP },
+    4: { name: 'Sakon & Ukon', element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
+    5: { name: 'Kimimaro', element: ElementType.PHYSICAL, skill: SKILLS.BONE_DRILL },
+    6: { name: 'Sasuke Uchiha', element: ElementType.LIGHTNING, skill: SKILLS.CHIDORI },
+    7: { name: 'Sasuke of the Curse Mark', element: ElementType.LIGHTNING, skill: SKILLS.CURSE_SURGE },
+  },
+  WAR_ARC: {
+    1: { name: 'White Zetsu', element: ElementType.EARTH, skill: SKILLS.MUD_WALL },
+    2: { name: 'Reanimated Shinobi', element: ElementType.PHYSICAL, skill: SKILLS.RASENGAN },
+    3: { name: 'Kakuzu', element: ElementType.FIRE, skill: SKILLS.FIREBALL },
+    4: { name: 'Pain (Deva Path)', element: ElementType.WIND, skill: SKILLS.SHINRA_TENSEI },
+    5: { name: 'Obito Uchiha', element: ElementType.FIRE, skill: SKILLS.KAMUI_IMPACT },
+    6: { name: 'Madara Uchiha', element: ElementType.FIRE, skill: SKILLS.TENGAI_SHINSEI },
+    7: { name: 'Ten-Tails Madara', element: ElementType.FIRE, skill: SKILLS.TENGAI_SHINSEI },
+  },
+  ACADEMY_ARC: {
+    1: { name: 'Academy Bully', element: ElementType.PHYSICAL, skill: SKILLS.STRONG_FIST },
+    2: { name: 'Rogue Genin', element: ElementType.FIRE, skill: SKILLS.FIREBALL },
+    3: { name: 'Missing-nin Scout', element: ElementType.WIND, skill: SKILLS.GREAT_BREAKTHROUGH },
+    4: { name: 'Bandit Captain', element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
+    5: { name: 'Chunin Deserter', element: ElementType.LIGHTNING, skill: SKILLS.LIGHTNING_BALL },
+    6: { name: 'Rogue Jonin', element: ElementType.WATER, skill: SKILLS.WATER_DRAGON },
+    7: { name: 'Mizuki', element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
+  },
+};
+
+/**
+ * Resolve boss identity for a danger level and optional story arc.
+ * Danger is clamped to 1–7 (region system); never uses legacy floor keys.
+ */
+export function getBossData(dangerLevel: number, arcName?: string): BossDefinition {
+  const d = Math.max(1, Math.min(7, Math.round(Number(dangerLevel)) || 1));
+  const fromArc = arcName ? BOSS_BY_ARC[arcName]?.[d] : undefined;
+  return fromArc ?? BOSS_BY_DANGER[d] ?? BOSS_BY_DANGER[7];
+}
+
+/** Danger-keyed boss table (1–7). Prefer getBossData(danger, arc) for themed names. */
+export const BOSS_NAMES = BOSS_BY_DANGER;
 
 export const AMBUSH_ENEMIES = [
   { name: 'Zabuza Momochi', element: ElementType.WATER, skill: SKILLS.DEMON_SLASH },

@@ -11,7 +11,7 @@ import {
   calculateTrapDamage,
   getTreasureHuntReward,
 } from '../game/systems/LocationSystem';
-import { addToBag } from '../game/systems/LootSystem';
+import { addToBag, getSellPrice } from '../game/systems/LootSystem';
 import { generateEnemy } from '../game/systems/EnemySystem';
 import { TurnState } from './useCombat';
 import { LaunchProperties, FeatureFlags } from '../config/featureFlags';
@@ -203,17 +203,19 @@ export function useTreasureHandlers(
       return;
     }
 
-    // Add ryo bonus
+    // Atomic ryo + bag add (single setPlayer — two updates would race and drop ryo)
+    let nextPlayer: Player = player;
     if (currentTreasure.ryoBonus > 0) {
-      setPlayer(p => p ? { ...p, ryo: p.ryo + currentTreasure.ryoBonus } : null);
+      nextPlayer = { ...nextPlayer, ryo: nextPlayer.ryo + currentTreasure.ryoBonus };
       addLog(`Found ${currentTreasure.ryoBonus} Ryo alongside the treasure!`, 'loot');
     }
-
-    // Add item directly to bag (skip loot screen)
-    const updatedPlayer = addToBag(player, selectedItem);
-    if (updatedPlayer) {
-      setPlayer(updatedPlayer);
+    const withItem = addToBag(nextPlayer, selectedItem);
+    if (withItem) {
+      setPlayer(withItem);
       addLog(`${selectedItem.name} added to your bag!`, 'loot');
+    } else if (currentTreasure.ryoBonus > 0) {
+      // Bag add failed unexpectedly; still grant ryo if any
+      setPlayer(nextPlayer);
     }
 
     // Complete activity and return to map
@@ -226,12 +228,17 @@ export function useTreasureHandlers(
     if (!currentTreasure || !currentTreasureHunt || !player || !playerStats || !selectedBranchingRoom || !locationFloor) return;
 
     // Generate a guardian enemy based on danger level
+    // T-057: location-themed guardian base (name overridden below)
     const guardian = generateEnemy(
       currentDangerLevel,
       player.locationsCleared,
       'ELITE',
       difficulty,
-      region?.arc ?? 'WAVES_ARC'
+      region?.arc ?? 'WAVES_ARC',
+      undefined,
+      locationFloor?.enemyPool,
+      // T-073: region elemental theme bias
+      region?.lootTheme?.primaryElement ?? locationFloor?.preferredElement,
     );
     guardian.name = 'Treasure Guardian';
 
@@ -243,8 +250,9 @@ export function useTreasureHandlers(
       setEnemy(guardian);
       setTurnState('PLAYER');
       setShowApproachSelector(true);
-      setCurrentTreasure(null);
-      // Keep currentTreasureHunt for after combat
+      // Keep currentTreasure so Approach cancel can restore TREASURE (no soft-lock blank screen).
+      // currentTreasure is cleared when combat actually starts (handleBranchingApproachSelect).
+      // Keep currentTreasureHunt for after combat.
 
       addLog('A guardian appears to protect the treasure map piece!', 'danger');
     } else {
@@ -324,7 +332,15 @@ export function useTreasureHandlers(
       if (isComplete && newHunt) {
         // Generate reward and store it, but don't transition yet
         const wealthLevel = currentLocation?.wealthLevel ?? 4;
-        const reward = getTreasureHuntReward(newHunt.collectedPieces, wealthLevel, currentDangerLevel, difficulty);
+        const reward = getTreasureHuntReward(
+          newHunt.collectedPieces,
+          wealthLevel,
+          currentDangerLevel,
+          difficulty,
+          // T-072: location loot + region theme bias for hunt completion rewards
+          state.currentLocation?.lootTable ?? locationFloor?.lootTable,
+          region?.lootTheme ?? locationFloor?.lootTheme,
+        );
         setTreasureHuntReward({
           items: reward.items,
           skills: reward.skills,
@@ -424,7 +440,7 @@ export function useTreasureHandlers(
   const handleBagFullSell = useCallback(() => {
     if (!pendingBagFullItem || !currentTreasure || !player || !selectedBranchingRoom) return;
 
-    const sellValue = Math.floor(pendingBagFullItem.item.value * 0.6);
+    const sellValue = getSellPrice(pendingBagFullItem.item);
 
     // Add ryo bonus from treasure + sell value
     let totalRyo = sellValue;

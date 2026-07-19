@@ -1,7 +1,8 @@
 /**
  * Combat Simulation Service
  *
- * Provides auto-combat functionality for when ENABLE_MANUAL_COMBAT is false.
+ * Provides full auto-resolve combat when ENABLE_MANUAL_COMBAT is false
+ * (batch simulation — distinct from the in-combat Auto-pass toggle).
  * Uses the same combat math as the BattleSimulator but works with actual game entities.
  */
 
@@ -16,6 +17,7 @@ import {
   CharacterStats,
   TerrainType,
   TerrainDefinition,
+  PrimaryAttributes,
 } from '../types';
 import {
   calculateDamage,
@@ -24,6 +26,7 @@ import {
   calculateDotDamage,
   getPlayerFullStats,
   getEnemyFullStats,
+  resolvePassiveDamageBonus,
 } from './StatSystem';
 import {
   generateId,
@@ -31,6 +34,8 @@ import {
   tickBuffDurations,
   getTerrainElementAmplification,
   applyTerrainHazard,
+  getTerrainEvasionBonus,
+  determineTurnOrder,
 } from './CombatCalculationSystem';
 import {
   processPassivesOnCombatStart,
@@ -39,9 +44,26 @@ import {
   shouldCounterAttack,
   checkExecuteThreshold,
   checkGutsPassive,
+  getTotalDefenseBypass,
+  getCritDefenseBypass,
+  hasAllElementsPassive,
+  getConvertToElementalPercent,
+  getDamageReductionPercent,
+  applyClanTraitToDamageContext,
 } from './EquipmentPassiveSystem';
+import { getEventFlagRunModifiers } from './EventSystem';
 import { LaunchProperties } from '../../config/featureFlags';
 import { TERRAIN_DEFINITIONS } from '../constants/terrain';
+import {
+  APPROACH_DEFINITIONS,
+  calculateApproachSuccessChance,
+} from '../constants/approaches';
+import {
+  applyEnemyDefenseBonus,
+  applyLocationHazardsToPlayer,
+  skillLocationDamageMult,
+  type LocationTerrainMods,
+} from './LocationTerrainSystem';
 
 /**
  * Result of an auto-simulated combat
@@ -63,7 +85,14 @@ interface SimulationContext {
   playerStats: CharacterStats;
   enemyStats: CharacterStats;
   terrain: TerrainDefinition | null;
+  /** T-070: location terrain mods (parity with manual combat) */
+  locationTerrainMods: LocationTerrainMods | null;
   turn: number;
+  /** Opening ambush / FREE_FIRST window — cleared after first player skill */
+  isFirstTurn: boolean;
+  firstHitMultiplier: number;
+  /** FREE_FIRST_SKILL artifact passive */
+  skipFirstSkillCost: boolean;
   metrics: {
     damageDealt: number;
     damageReceived: number;
@@ -74,6 +103,39 @@ interface SimulationContext {
 }
 
 const MAX_TURNS = 100;
+
+/**
+ * Approach success roll using live `calculateApproachSuccessChance`
+ * (parity with BattleSimulator).
+ */
+function rollApproachSuccess(
+  approach: ApproachType,
+  playerStats: { primary: PrimaryAttributes; derived: DerivedStats },
+  terrainStealthBonus: number = 0
+): boolean {
+  if (approach === ApproachType.FRONTAL_ASSAULT) {
+    return true;
+  }
+
+  const stats: Record<string, number> = {
+    speed: playerStats.primary.speed,
+    dexterity: playerStats.primary.dexterity,
+    intelligence: playerStats.primary.intelligence,
+    calmness: playerStats.primary.calmness,
+    accuracy: playerStats.primary.accuracy,
+    willpower: playerStats.primary.willpower,
+    strength: playerStats.primary.strength,
+    spirit: playerStats.primary.spirit,
+    chakra: playerStats.primary.chakra,
+  };
+
+  const successChance = calculateApproachSuccessChance(
+    approach,
+    stats,
+    terrainStealthBonus
+  );
+  return Math.random() * 100 < successChance;
+}
 
 /**
  * Select best available skill for combat
@@ -167,25 +229,74 @@ function executeAttack(
   const attackerStats = isPlayer ? ctx.playerStats : ctx.enemyStats;
   const defenderStats = isPlayer ? ctx.enemyStats : ctx.playerStats;
 
-  // Deduct costs
+  // Deduct costs (FREE_FIRST_SKILL skips chakra on first player skill)
   if (isPlayer) {
+    const skipCost = ctx.skipFirstSkillCost && ctx.isFirstTurn;
     ctx.player.currentHp -= skill.hpCost;
-    ctx.player.currentChakra -= skill.chakraCost;
+    if (!skipCost) {
+      ctx.player.currentChakra -= skill.chakraCost;
+    }
   }
 
-  // Calculate damage
+  // Calculate damage (player attacks get passive damage + artifact offensive modifiers + clan traits T-031)
+  let atkDerived = attackerStats.derived;
+  let defPrimary = isPlayer ? defender.primaryStats : defenderStats.effectivePrimary;
+  let defDerived = isPlayer ? defenderStats.derived : defenderStats.derived;
+  const roomEvasion = getTerrainEvasionBonus(ctx.terrain);
+  if (isPlayer) {
+    const clanCtx = applyClanTraitToDamageContext(
+      ctx.player,
+      attackerStats.derived,
+      defender.primaryStats,
+      defenderStats.derived,
+    );
+    atkDerived = clanCtx.attackerDerived;
+    defPrimary = clanCtx.defenderPrimary;
+    // T-077: room evasion helps enemy dodge player hits in auto combat
+    defDerived =
+      roomEvasion !== 0
+        ? {
+            ...clanCtx.defenderDerived,
+            evasion: Math.min(0.75, clanCtx.defenderDerived.evasion + roomEvasion),
+          }
+        : clanCtx.defenderDerived;
+  } else {
+    // T-072/T-077: location + room evasion raise player dodge vs enemy attacks
+    const locEvasion = ctx.locationTerrainMods?.evasionBonus ?? 0;
+    const totalEvasion = locEvasion + roomEvasion;
+    if (totalEvasion !== 0) {
+      defDerived = {
+        ...defenderStats.derived,
+        evasion: Math.min(0.75, defenderStats.derived.evasion + totalEvasion),
+      };
+    }
+  }
   const result = calculateDamage(
-    attacker.primaryStats,
-    attackerStats.derived,
-    defender.primaryStats,
-    defenderStats.derived,
+    isPlayer ? attackerStats.effectivePrimary : attacker.primaryStats,
+    atkDerived,
+    defPrimary,
+    defDerived,
     skill,
     attacker.element,
-    defender.element
+    defender.element,
+    isPlayer
+      ? {
+          damageBonus:
+            resolvePassiveDamageBonus(attackerStats.passiveBonuses, skill.element)
+            + getEventFlagRunModifiers(ctx.player).damageBonus,
+          defenseBypass: getTotalDefenseBypass(ctx.player),
+          critDefenseBypass: getCritDefenseBypass(ctx.player),
+          forceSuperEffective: hasAllElementsPassive(ctx.player),
+          convertToElementalPercent: getConvertToElementalPercent(ctx.player),
+        }
+      : {}
   );
 
-  // Skip if missed or evaded
+  // Skip if missed or evaded (still consume FREE_FIRST / opening window for player)
   if (result.isMiss || result.isEvaded) {
+    if (isPlayer) {
+      ctx.isFirstTurn = false;
+    }
     return;
   }
 
@@ -204,11 +315,30 @@ function executeAttack(
     }
   }
 
+  // T-070: location terrain mods (parity with PlayerTurnSystem / EnemyTurnSystem)
+  if (isPlayer && ctx.locationTerrainMods) {
+    const locMult = skillLocationDamageMult(skill, ctx.locationTerrainMods);
+    if (locMult !== 1) {
+      damage = Math.floor(damage * locMult);
+    }
+    damage = applyEnemyDefenseBonus(damage, ctx.locationTerrainMods);
+  } else if (!isPlayer && ctx.locationTerrainMods) {
+    const atkBonus = ctx.locationTerrainMods.enemyAttackBonus;
+    if (atkBonus !== 0) {
+      damage = Math.floor(damage * (1 + atkBonus));
+    }
+  }
+
   // Apply LaunchProperties Multipliers
   if (isPlayer) {
     damage = Math.floor(damage * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
   } else {
     damage = Math.floor(damage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
+  }
+
+  // Opening ambush first-hit mult (STEALTH_AMBUSH success → 2.0× from APPROACH_DEFINITIONS)
+  if (isPlayer && ctx.isFirstTurn && ctx.firstHitMultiplier > 1.0) {
+    damage = Math.floor(damage * ctx.firstHitMultiplier);
   }
 
   // Apply execute threshold for player
@@ -253,6 +383,12 @@ function executeAttack(
   } else {
     ctx.player.activeBuffs = mitigation.updatedBuffs;
 
+    // Artifact DAMAGE_REDUCTION (incl. below_half_hp)
+    const drPercent = getDamageReductionPercent(ctx.player, ctx.playerStats.derived.maxHp);
+    if (drPercent !== 0 && damage > 0) {
+      damage = Math.max(0, Math.floor(damage * (1 - drPercent / 100)));
+    }
+
     // Check guts
     const hpBefore = ctx.player.currentHp;
     const hpAfterDamage = hpBefore - damage;
@@ -277,10 +413,10 @@ function executeAttack(
     }
     ctx.metrics.damageReceived += damage;
 
-    // Check counter attack if player survived
+    // Counter: shouldCounterAttack already rolls once — do not re-roll (A-017)
     if (ctx.player.currentHp > 0) {
       const counterCheck = shouldCounterAttack(ctx.player);
-      if (counterCheck.shouldCounter && Math.random() < counterCheck.chance / 100) {
+      if (counterCheck.shouldCounter) {
         const counterDamage = Math.floor(ctx.playerStats.effectivePrimary.strength * 0.3);
         ctx.enemy.currentHp -= counterDamage;
         ctx.metrics.damageDealt += counterDamage;
@@ -297,9 +433,41 @@ function executeAttack(
   // Apply skill effects
   if (skill.effects) {
     for (const effect of skill.effects) {
+      // Instant HEAL: restore HP immediately (not a lingering buff). Parity with PlayerTurnSystem / A-004.
+      if (effect.type === EffectType.HEAL) {
+        const healAmount = Math.floor(effect.value || 0);
+        if (healAmount > 0) {
+          if (isPlayer) {
+            ctx.player.currentHp = Math.min(
+              ctx.playerStats.derived.maxHp,
+              ctx.player.currentHp + healAmount
+            );
+          } else {
+            ctx.enemy.currentHp = Math.min(
+              ctx.enemyStats.derived.maxHp,
+              ctx.enemy.currentHp + healAmount
+            );
+          }
+        }
+        // Medical jutsu that mention poison/bleed also cleanse those DoTs.
+        const desc = (skill.description || '').toLowerCase();
+        if (desc.includes('poison') || desc.includes('bleed')) {
+          if (isPlayer) {
+            ctx.player.activeBuffs = ctx.player.activeBuffs.filter(
+              b => b?.effect?.type !== EffectType.BLEED && b?.effect?.type !== EffectType.POISON
+            );
+          } else {
+            ctx.enemy.activeBuffs = ctx.enemy.activeBuffs.filter(
+              b => b?.effect?.type !== EffectType.BLEED && b?.effect?.type !== EffectType.POISON
+            );
+          }
+        }
+        continue;
+      }
+
       const isSelfBuff = [
         EffectType.BUFF, EffectType.SHIELD, EffectType.REFLECTION,
-        EffectType.REGEN, EffectType.INVULNERABILITY, EffectType.HEAL
+        EffectType.REGEN, EffectType.INVULNERABILITY,
       ].includes(effect.type);
 
       if (isSelfBuff) {
@@ -343,6 +511,8 @@ function executeAttack(
     ctx.player.skills = ctx.player.skills.map(s =>
       s.id === skill.id ? { ...s, currentCooldown: s.cooldown + 1 } : s
     );
+    // Opening window consumed after first player skill (ambush mult + FREE_FIRST)
+    ctx.isFirstTurn = false;
   } else {
     ctx.enemy.skills = ctx.enemy.skills.map(s =>
       s.id === skill.id ? { ...s, currentCooldown: s.cooldown + 1 } : s
@@ -408,7 +578,9 @@ export function simulateGameCombat(
   playerStats: CharacterStats,
   enemy: Enemy,
   approach?: ApproachType,
-  terrain?: TerrainType
+  terrain?: TerrainType,
+  /** T-070: location terrain effects for auto-combat parity */
+  locationTerrainMods?: LocationTerrainMods | null,
 ): CombatSimulationResult {
   // Get full stats
   const playerFullStats = getPlayerFullStats(player);
@@ -421,19 +593,94 @@ export function simulateGameCombat(
     activeBuffs: [...player.activeBuffs]
   };
 
-  // Process passives on combat start
   const clonedEnemy = {
     ...enemy,
     skills: enemy.skills.map(s => ({ ...s, currentCooldown: 0 })),
     activeBuffs: [...enemy.activeBuffs]
   };
 
-  // Process passives on combat start
-  const combatStartResult = processPassivesOnCombatStart(clonedPlayer, clonedEnemy);
-  clonedPlayer.activeBuffs = [...clonedPlayer.activeBuffs, ...combatStartResult.player.activeBuffs];
-  clonedEnemy.activeBuffs = [...clonedEnemy.activeBuffs, ...combatStartResult.enemy.activeBuffs];
+  // Process passives on combat start (SHIELD_ON_START uses max chakra — A-017).
+  // Replace activeBuffs with passive result (no double-append — result already includes prior buffs).
+  // Apply currentHp from result (e.g. Uzumaki combat-start heal).
+  const combatStartResult = processPassivesOnCombatStart(clonedPlayer, clonedEnemy, {
+    maxHp: playerFullStats.derived.maxHp,
+    maxChakra: playerFullStats.derived.maxChakra,
+  });
+  clonedPlayer.activeBuffs = combatStartResult.player.activeBuffs;
+  clonedPlayer.currentHp = combatStartResult.player.currentHp;
+  clonedEnemy.activeBuffs = combatStartResult.enemy.activeBuffs;
+  const skipFirstSkillCost = combatStartResult.skipFirstSkillCost;
 
   const terrainDef = terrain ? TERRAIN_DEFINITIONS[terrain] : null;
+
+  // Approach success + effects from shared APPROACH_DEFINITIONS (parity with BattleSimulator)
+  const approachSucceeded = approach
+    ? rollApproachSuccess(
+        approach,
+        { primary: playerFullStats.primary, derived: playerFullStats.derived },
+        terrainDef?.effects.stealthModifier ?? 0
+      )
+    : false;
+
+  const approachDef = approach ? APPROACH_DEFINITIONS[approach] : null;
+  const approachEffects = approachDef
+    ? (approachSucceeded ? approachDef.successEffects : (approachDef.failureEffects ?? approachDef.successEffects))
+    : null;
+
+  const firstHitMult =
+    approachSucceeded && approachEffects
+      ? (approachEffects.firstHitMultiplier ?? 1.0)
+      : 1.0;
+
+  // Turn order via shared determineTurnOrder (initiativeBonus / guaranteedFirst from data)
+  const whoFirst = determineTurnOrder(playerFullStats, enemyFullStats, {
+    isFirstTurn: true,
+    playerGoesFirst: approachSucceeded && (approachEffects?.guaranteedFirst ?? false),
+    playerInitiativeBonus: approachSucceeded ? (approachEffects?.initiativeBonus ?? 0) : 0,
+    terrain: terrainDef,
+  });
+  const playerGoesFirst = whoFirst === 'player';
+
+  // Apply approach buffs/debuffs/HP cut from live APPROACH_DEFINITIONS (not hard-coded)
+  if (approachSucceeded && approachEffects) {
+    const sourceName = approachDef?.name ?? 'Approach';
+    for (const eff of approachEffects.enemyDebuffs ?? []) {
+      if (Math.random() > (eff.chance ?? 1)) continue;
+      clonedEnemy.activeBuffs.push({
+        id: generateId(),
+        name: eff.type,
+        duration: eff.duration,
+        effect: {
+          type: eff.type,
+          value: eff.value,
+          duration: eff.duration,
+          targetStat: eff.targetStat,
+          chance: eff.chance,
+        },
+        source: sourceName,
+      });
+    }
+    for (const eff of approachEffects.playerBuffs ?? []) {
+      if (Math.random() > (eff.chance ?? 1)) continue;
+      clonedPlayer.activeBuffs.push({
+        id: generateId(),
+        name: eff.type,
+        duration: eff.duration,
+        effect: {
+          type: eff.type,
+          value: eff.value,
+          duration: eff.duration,
+          targetStat: eff.targetStat,
+          chance: eff.chance,
+        },
+        source: sourceName,
+      });
+    }
+    const hpReduction = approachEffects.enemyHpReduction ?? 0;
+    if (hpReduction > 0) {
+      clonedEnemy.currentHp = Math.floor(clonedEnemy.currentHp * (1 - hpReduction));
+    }
+  }
 
   // Initialize context
   const ctx: SimulationContext = {
@@ -442,7 +689,11 @@ export function simulateGameCombat(
     playerStats: playerFullStats,
     enemyStats: enemyFullStats,
     terrain: terrainDef,
+    locationTerrainMods: locationTerrainMods ?? null,
     turn: 0,
+    isFirstTurn: true,
+    firstHitMultiplier: firstHitMult,
+    skipFirstSkillCost,
     metrics: {
       damageDealt: 0,
       damageReceived: 0,
@@ -452,40 +703,16 @@ export function simulateGameCombat(
     artifactGutsUsed: false,
   };
 
-  // Determine turn order (player usually goes first in auto-combat)
-  const playerInit = playerFullStats.derived.initiative + (terrainDef ? terrainDef.effects.initiativeModifier : 0);
-  const enemyInit = enemyFullStats.derived.initiative;
-  let playerGoesFirst = playerInit >= enemyInit;
-
-  // Apply approach bonuses if specified
-  if (approach === ApproachType.STEALTH_AMBUSH) {
-    playerGoesFirst = true;
-    // Deal 25% of enemy HP as bonus damage on first hit
-    const bonusDamage = Math.floor(ctx.enemyStats.derived.maxHp * 0.25);
-    ctx.enemy.currentHp -= bonusDamage;
-    ctx.metrics.damageDealt += bonusDamage;
-  } else if (approach === ApproachType.ENVIRONMENTAL_TRAP) {
-    // Enemy takes 20% HP damage from trap
-    const trapDamage = Math.floor(ctx.enemyStats.derived.maxHp * 0.2);
-    ctx.enemy.currentHp -= trapDamage;
-    ctx.metrics.damageDealt += trapDamage;
-  } else if (approach === ApproachType.GENJUTSU_SETUP) {
-    // Enemy starts confused
-    ctx.enemy.activeBuffs.push({
-      id: generateId(),
-      name: 'Confusion',
-      duration: 2,
-      effect: { type: EffectType.CONFUSION, duration: 2, chance: 1 },
-      source: 'Genjutsu Setup',
-    });
-  }
-
   // Battle loop
   while (ctx.turn < MAX_TURNS) {
     ctx.turn++;
 
-    // Process passives on turn start (player only)
-    const turnStartResult = processPassivesOnTurnStart(ctx.player, ctx.enemy);
+    // Process passives on turn start (player only) — REGEN % of maxHp (A-017)
+    const turnStartResult = processPassivesOnTurnStart(
+      ctx.player,
+      ctx.enemy,
+      ctx.playerStats.derived.maxHp
+    );
     if (turnStartResult.healToPlayer > 0) {
       ctx.player.currentHp = Math.min(ctx.playerStats.derived.maxHp, ctx.player.currentHp + turnStartResult.healToPlayer);
     }
@@ -584,6 +811,22 @@ export function simulateGameCombat(
           ctx.enemy.currentHp = hazardRes.newHp;
           if (ctx.enemy.currentHp <= 0) break;
         }
+      }
+    }
+
+    // T-070: location poison/fall/chakra hazards
+    if (ctx.locationTerrainMods) {
+      const locHaz = applyLocationHazardsToPlayer(
+        ctx.player,
+        ctx.playerStats.derived.maxHp,
+        ctx.playerStats.derived.maxChakra,
+        ctx.locationTerrainMods,
+      );
+      if (locHaz.logs.length > 0) {
+        const hpLost = Math.max(0, ctx.player.currentHp - locHaz.player.currentHp);
+        ctx.metrics.damageReceived += hpLost;
+        ctx.player = locHaz.player;
+        if (ctx.player.currentHp <= 0) break;
       }
     }
   }

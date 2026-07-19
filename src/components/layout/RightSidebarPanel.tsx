@@ -13,10 +13,12 @@ import { useGame } from '../../contexts/GameContext';
 import { Item, EquipmentSlot, DragData, Rarity, TreasureHunt } from '../../game/types';
 import EquipmentPanel from '../inventory/EquipmentPanel';
 import Bag from '../inventory/Bag';
+import ArtIcon from '../shared/ArtIcon';
+import { resolveItemArt } from '../../game/constants/artRegistry';
 import { Coins, Map } from 'lucide-react';
 import './layout.css';
 
-interface RightSidebarPanelProps {
+export interface RightSidebarPanelProps {
   // Synthesis system props
   selectedComponent?: Item | null;
   onSelectComponent?: (item: Item | null) => void;
@@ -52,7 +54,7 @@ const getDragPreviewClass = (rarity: Rarity): string => {
 const ItemDragPreview: React.FC<{ item: Item }> = ({ item }) => {
   return (
     <div className={getDragPreviewClass(item.rarity)}>
-      {item.icon || '?'}
+      <ArtIcon art={resolveItemArt(item)} size="sm" />
     </div>
   );
 };

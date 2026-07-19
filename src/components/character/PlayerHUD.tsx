@@ -13,6 +13,8 @@ import {
   getSeverityColor,
   isPositiveEffect,
 } from '../../game/utils/tooltipFormatters';
+import { getClanArt } from '../../game/constants/artRegistry';
+import ArtIcon from '../shared/ArtIcon';
 import './character.css';
 
 interface PlayerHUDProps {
@@ -32,25 +34,26 @@ interface PlayerHUDProps {
   compact?: boolean;
 }
 
-const getClanData = (clan: Clan): { symbol: string; modifier: string } => {
+const getClanModifier = (clan: Clan): string => {
   switch (clan) {
     case Clan.UCHIHA:
-      return { symbol: '🔥', modifier: 'uchiha' };
+      return 'uchiha';
     case Clan.UZUMAKI:
-      return { symbol: '🌀', modifier: 'uzumaki' };
+      return 'uzumaki';
     case Clan.HYUGA:
-      return { symbol: '👁️', modifier: 'hyuga' };
+      return 'hyuga';
     case Clan.LEE:
-      return { symbol: '💪', modifier: 'lee' };
+      return 'lee';
     case Clan.YAMANAKA:
-      return { symbol: '💠', modifier: 'yamanaka' };
+      return 'yamanaka';
     default:
-      return { symbol: '忍', modifier: '' };
+      return '';
   }
 };
 
 const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerStats, biome, compact = false }, ref) => {
-  const { symbol, modifier } = getClanData(player.clan);
+  const modifier = getClanModifier(player.clan);
+  const clanArt = getClanArt(player.clan);
   const visibleBuffs = player.activeBuffs.slice(0, 4);
   const overflowCount = Math.max(0, player.activeBuffs.length - 4);
   const xpPercent = Math.min(100, (player.exp / player.maxExp) * 100);
@@ -60,7 +63,9 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
       <div className="player-hud__content">
         {/* Clan Avatar */}
         <div className={`player-hud__avatar player-hud__avatar--${modifier}`}>
-          <span className="player-hud__avatar-symbol">{symbol}</span>
+          <span className="player-hud__avatar-symbol">
+            <ArtIcon art={clanArt} size={compact ? 'sm' : 'md'} title={player.clan} />
+          </span>
         </div>
 
         {/* Stats Section */}

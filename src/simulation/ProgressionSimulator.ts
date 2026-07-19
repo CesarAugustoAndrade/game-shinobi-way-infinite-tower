@@ -8,8 +8,8 @@
  * - Tracks win rate by level to identify difficulty breakpoints
  */
 
-import { Clan, PrimaryAttributes, ElementType, SkillTier } from '../game/types';
-import { CLAN_STATS, CLAN_GROWTH, SKILLS } from '../game/constants';
+import { Clan, PrimaryAttributes, SkillTier } from '../game/types';
+import { CLAN_STATS, CLAN_GROWTH, CLAN_ELEMENTS, SKILLS } from '../game/constants';
 import { runBattles } from './BattleSimulator';
 import { EnemyArchetype, getAllArchetypes } from './EnemyArchetypes';
 import {
@@ -165,22 +165,13 @@ function createBuildFromState(
   clan: Clan,
   state: ProgressionState
 ): PlayerBuildConfig {
-  // Determine element based on clan
-  const clanElements: Record<Clan, ElementType> = {
-    [Clan.UCHIHA]: ElementType.FIRE,
-    [Clan.UZUMAKI]: ElementType.WIND,
-    [Clan.HYUGA]: ElementType.PHYSICAL,
-    [Clan.LEE]: ElementType.PHYSICAL,
-    [Clan.YAMANAKA]: ElementType.MENTAL
-  };
-
   return {
     name: `${clan}_Lv${state.currentLevel}`,
     clan,
     level: state.currentLevel,
     customStats: calculateStatsAtLevel(clan, state.currentLevel),
     skillIds: state.currentSkillIds,
-    element: clanElements[clan]
+    element: CLAN_ELEMENTS[clan],
   };
 }
 

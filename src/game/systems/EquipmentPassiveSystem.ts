@@ -67,6 +67,8 @@ import {
   EffectType,
   DamageType,
   DamageProperty,
+  DerivedStats,
+  PrimaryAttributes,
 } from '../types';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -125,10 +127,12 @@ function createDefaultResult(player: Player, enemy: Enemy): PassiveProcessResult
 
 /**
  * Process passive effects at combat start
+ * @param maxResources - Prefer maxChakra for SHIELD_ON_START % (A-017). Falls back to current if omitted.
  */
 export function processPassivesOnCombatStart(
   player: Player,
-  enemy: Enemy
+  enemy: Enemy,
+  maxResources?: { maxHp?: number; maxChakra?: number }
 ): PassiveProcessResult {
   const result = createDefaultResult(player, enemy);
   const passives = getEquippedPassives(player);
@@ -138,8 +142,9 @@ export function processPassivesOnCombatStart(
 
     switch (passive.type) {
       case PassiveEffectType.SHIELD_ON_START: {
-        // Grant shield equal to % of max chakra
-        const shieldValue = Math.floor(player.currentChakra * (passive.value || 50) / 100);
+        // Grant shield equal to % of max chakra (not current — A-017)
+        const maxChakra = maxResources?.maxChakra ?? player.currentChakra;
+        const shieldValue = Math.floor(maxChakra * (passive.value || 50) / 100);
         const shieldBuff: Buff = {
           id: generateId(),
           name: EffectType.SHIELD,
@@ -187,6 +192,24 @@ export function processPassivesOnCombatStart(
     }
   }
 
+  // T-031: clan trait combat-start (logs + Uzumaki vitality heal)
+  const clanMods = getClanTraitCombatModifiers(player);
+  if (clanMods.logs.length > 0) {
+    result.logs.push(...clanMods.logs);
+  }
+  if (clanMods.combatStartHealPercent > 0) {
+    const maxHp = maxResources?.maxHp ?? player.currentHp;
+    const heal = Math.floor(maxHp * (clanMods.combatStartHealPercent / 100));
+    if (heal > 0) {
+      result.healToPlayer += heal;
+      result.player = {
+        ...result.player,
+        currentHp: Math.min(maxHp, result.player.currentHp + heal),
+      };
+      result.logs.push(`Uzumaki Vitality restores ${heal} HP!`);
+    }
+  }
+
   return result;
 }
 
@@ -206,6 +229,10 @@ export function processPassivesOnHit(
     // Handle on_hit triggers
     if (passive.triggerCondition === 'on_hit' || !passive.triggerCondition) {
       switch (passive.type) {
+        case PassiveEffectType.CLAN_TRAIT_HYUGA: {
+          // Handled in aggregate chakra drain below (one drain total for all Hyuga traits)
+          break;
+        }
         case PassiveEffectType.BLEED: {
           // Apply bleed DoT to enemy
           const bleedBuff: Buff = {
@@ -248,10 +275,16 @@ export function processPassivesOnHit(
         }
 
         case PassiveEffectType.CHAKRA_DRAIN: {
-          const drainAmount = passive.value || 10;
-          result.chakraDrained = drainAmount;
-          result.chakraRestored = drainAmount;
-          result.logs.push(`${item.name} drains ${drainAmount} Chakra!`);
+          const drainAmount = Math.min(result.enemy.currentChakra, passive.value || 10);
+          if (drainAmount > 0) {
+            result.enemy = {
+              ...result.enemy,
+              currentChakra: result.enemy.currentChakra - drainAmount,
+            };
+            result.chakraDrained += drainAmount;
+            result.chakraRestored += drainAmount;
+            result.logs.push(`${item.name} drains ${drainAmount} Chakra!`);
+          }
           break;
         }
 
@@ -317,15 +350,36 @@ export function processPassivesOnHit(
     }
   }
 
+  // T-031: Hyuga clan trait — tenketsu chakra drain on hit
+  const clanMods = getClanTraitCombatModifiers(player);
+  if (clanMods.chakraDrainOnHit > 0) {
+    const drain = Math.min(result.enemy.currentChakra, clanMods.chakraDrainOnHit);
+    if (drain > 0) {
+      result.enemy = {
+        ...result.enemy,
+        currentChakra: result.enemy.currentChakra - drain,
+      };
+      result.chakraDrained += drain;
+      result.chakraRestored += drain;
+      result.player = {
+        ...result.player,
+        currentChakra: result.player.currentChakra + drain,
+      };
+      result.logs.push(`Byakugan Awakening disrupts tenketsu: drains ${drain} chakra!`);
+    }
+  }
+
   return result;
 }
 
 /**
  * Process passive effects at the start of player's turn
+ * @param maxHp - Prefer derived max HP for REGEN % (A-017). Falls back to currentHp if omitted.
  */
 export function processPassivesOnTurnStart(
   player: Player,
-  enemy: Enemy
+  enemy: Enemy,
+  maxHp?: number
 ): PassiveProcessResult {
   const result = createDefaultResult(player, enemy);
   const passives = getEquippedPassives(player);
@@ -335,8 +389,9 @@ export function processPassivesOnTurnStart(
 
     switch (passive.type) {
       case PassiveEffectType.REGEN: {
-        const maxHp = player.currentHp; // Should use derived maxHp but approximating
-        const healAmount = Math.floor(maxHp * (passive.value || 5) / 100);
+        // % of max HP, not current (A-017 regression: currentHp under-heals wounded players)
+        const baseHp = maxHp ?? player.currentHp;
+        const healAmount = Math.floor(baseHp * (passive.value || 5) / 100);
         result.healToPlayer += healAmount;
         result.logs.push(`${item.name} regenerates ${healAmount} HP!`);
         break;
@@ -402,7 +457,6 @@ export function processPassivesBelowHalfHp(
 
     switch (passive.type) {
       case PassiveEffectType.DAMAGE_REDUCTION: {
-        // This would need to be tracked as a combat modifier
         result.logs.push(`${item.name}: Taking ${passive.value || 15}% less damage while wounded!`);
         break;
       }
@@ -413,7 +467,66 @@ export function processPassivesBelowHalfHp(
 }
 
 /**
- * Check if player should counter-attack when hit
+ * Total damage reduction % from equipped artifacts.
+ * Unconditional DAMAGE_REDUCTION always applies; below_half_hp only when HP ≤ 50%.
+ * Negative values amplify damage taken. Positive reduction is capped at 75%.
+ */
+export function getDamageReductionPercent(player: Player, maxHp: number): number {
+  let total = 0;
+  const passives = getEquippedPassives(player);
+  const belowHalf = player.currentHp <= maxHp / 2;
+
+  for (const { passive } of passives) {
+    if (passive.type !== PassiveEffectType.DAMAGE_REDUCTION) continue;
+
+    if (passive.triggerCondition === 'below_half_hp') {
+      if (belowHalf) total += passive.value || 0;
+    } else if (!passive.triggerCondition) {
+      total += passive.value || 0;
+    }
+  }
+
+  // Cap beneficial DR; leave negative (damage amp) uncapped beyond a soft floor
+  if (total > 0) return Math.min(75, total);
+  return total;
+}
+
+/**
+ * Crit-only defense pierce % from PIERCE_DEFENSE passives with on_crit trigger.
+ */
+export function getCritDefenseBypass(player: Player): number {
+  let total = 0;
+  const passives = getEquippedPassives(player);
+
+  for (const { passive } of passives) {
+    if (passive.type === PassiveEffectType.PIERCE_DEFENSE && passive.triggerCondition === 'on_crit') {
+      total += passive.value || 0;
+    }
+  }
+
+  return Math.min(total, 100);
+}
+
+/**
+ * CONVERT_TO_ELEMENTAL: % of Physical damage recalculated against elemental defense.
+ */
+export function getConvertToElementalPercent(player: Player): number {
+  let total = 0;
+  const passives = getEquippedPassives(player);
+
+  for (const { passive } of passives) {
+    if (passive.type === PassiveEffectType.CONVERT_TO_ELEMENTAL && !passive.triggerCondition) {
+      total += passive.value || 0;
+    }
+  }
+
+  return Math.min(total, 100);
+}
+
+/**
+ * Check if player should counter-attack when hit.
+ * Performs a SINGLE RNG roll against the passive chance.
+ * Callers must NOT re-roll — use `shouldCounter` as the final decision (A-017).
  */
 export function shouldCounterAttack(player: Player): { shouldCounter: boolean; chance: number; source: string } {
   const passives = getEquippedPassives(player);
@@ -421,9 +534,12 @@ export function shouldCounterAttack(player: Player): { shouldCounter: boolean; c
   for (const { item, passive } of passives) {
     if (passive.type === PassiveEffectType.COUNTER_ATTACK) {
       const chance = passive.value || 25;
+      // Single roll only — EnemyTurnSystem / sims must not re-check chance.
       if (Math.random() * 100 < chance) {
         return { shouldCounter: true, chance, source: item.name };
       }
+      // First COUNTER_ATTACK passive fails the roll → no counter this hit
+      return { shouldCounter: false, chance, source: item.name };
     }
   }
 
@@ -510,4 +626,99 @@ export function getClanTraitPassives(player: Player): PassiveEffectType[] {
   }
 
   return traits;
+}
+
+/** Combat modifiers derived from equipped CLAN_TRAIT_* artifacts (T-031). */
+export interface ClanTraitCombatModifiers {
+  /** Added to crit chance (percentage points, pre-cap). */
+  critChanceBonus: number;
+  /** Added to crit damage multipliers (e.g. 0.25 → +25% crit mult). */
+  critDamageBonus: number;
+  /** Multiplier applied to enemy SPEED for hit/evasion checks. */
+  enemySpeedMult: number;
+  /** Multiplier applied to enemy evasion derived stat. */
+  enemyEvasionMult: number;
+  /** Flat chakra stolen from enemy on each successful hit. */
+  chakraDrainOnHit: number;
+  /** % of max HP healed once at combat start. */
+  combatStartHealPercent: number;
+  logs: string[];
+}
+
+/**
+ * Pure aggregation of clan-trait combat effects from equipped artifacts.
+ * Used by damage pipeline + combat start/on-hit passive processors.
+ */
+export function getClanTraitCombatModifiers(player: Player): ClanTraitCombatModifiers {
+  const mods: ClanTraitCombatModifiers = {
+    critChanceBonus: 0,
+    critDamageBonus: 0,
+    enemySpeedMult: 1,
+    enemyEvasionMult: 1,
+    chakraDrainOnHit: 0,
+    combatStartHealPercent: 0,
+    logs: [],
+  };
+
+  for (const trait of getClanTraitPassives(player)) {
+    switch (trait) {
+      case PassiveEffectType.CLAN_TRAIT_UCHIHA:
+        mods.critChanceBonus += 12;
+        mods.critDamageBonus += 0.25;
+        mods.logs.push('Sharingan Implant: critical focus sharpened!');
+        break;
+      case PassiveEffectType.CLAN_TRAIT_HYUGA:
+        mods.chakraDrainOnHit += 10;
+        mods.logs.push('Byakugan Awakening: tenketsu disruption armed!');
+        break;
+      case PassiveEffectType.CLAN_TRAIT_NARA:
+        mods.enemySpeedMult *= 0.8;
+        mods.enemyEvasionMult *= 0.75;
+        mods.logs.push('Shadow Mastery: enemy movement is bound!');
+        break;
+      case PassiveEffectType.CLAN_TRAIT_UZUMAKI:
+        mods.combatStartHealPercent += 10;
+        mods.logs.push('Uzumaki Vitality: life force surges!');
+        break;
+      default:
+        break;
+    }
+  }
+
+  return mods;
+}
+
+/**
+ * Apply clan trait modifiers to attacker derived stats and defender primary/derived
+ * for a single damage calculation (T-031).
+ */
+export function applyClanTraitToDamageContext(
+  player: Player,
+  attackerDerived: DerivedStats,
+  defenderPrimary: PrimaryAttributes,
+  defenderDerived: DerivedStats,
+): {
+  attackerDerived: DerivedStats;
+  defenderPrimary: PrimaryAttributes;
+  defenderDerived: DerivedStats;
+  mods: ClanTraitCombatModifiers;
+} {
+  const mods = getClanTraitCombatModifiers(player);
+  return {
+    mods,
+    attackerDerived: {
+      ...attackerDerived,
+      critChance: Math.min(75, attackerDerived.critChance + mods.critChanceBonus),
+      critDamageMelee: attackerDerived.critDamageMelee + mods.critDamageBonus,
+      critDamageRanged: attackerDerived.critDamageRanged + mods.critDamageBonus,
+    },
+    defenderPrimary: {
+      ...defenderPrimary,
+      speed: Math.max(1, Math.floor(defenderPrimary.speed * mods.enemySpeedMult)),
+    },
+    defenderDerived: {
+      ...defenderDerived,
+      evasion: Math.max(0, Math.floor(defenderDerived.evasion * mods.enemyEvasionMult)),
+    },
+  };
 }

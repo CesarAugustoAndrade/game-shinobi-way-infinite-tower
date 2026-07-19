@@ -381,17 +381,26 @@ describe('simulateMerchant', () => {
 // ============================================================================
 
 describe('simulateCampaignRun — locationsCleared propagation', () => {
+  // Level 10 + real kit so D1 still clears under live EnemyAISystem (A-007).
+  // basic_atk-only Lv5 often dies before exit once sim uses selectEnemySkill.
   const build: PlayerBuildConfig = {
     name: 'Uzumaki Test',
     clan: Clan.UZUMAKI,
-    level: 5,
-    skillIds: ['basic_atk'],
+    level: 10,
+    skillIds: ['basic_atk', 'rasengan', 'shadow_clones'],
     element: ElementType.WIND,
+  };
+
+  const softConfig = {
+    ...DEFAULT_CAMPAIGN_CONFIG,
+    playerLevel: 10,
+    startDangerLevel: 1,
+    fightEliteChallenges: false,
   };
 
   it('first location snapshot has playerLocationsCleared = 0', () => {
     installSeededRandom(12345);
-    const result = simulateCampaignRun(build, DEFAULT_CAMPAIGN_CONFIG, false, 0);
+    const result = simulateCampaignRun(build, softConfig, false, 0);
     expect(result.locationStats.length).toBeGreaterThan(0);
     expect(result.locationStats[0].playerLocationsCleared).toBe(0);
   });
@@ -400,7 +409,7 @@ describe('simulateCampaignRun — locationsCleared propagation', () => {
     // Run multiple locations; for any location whose index > 1 and whose
     // prior location was cleared, playerLocationsCleared must equal prior clears.
     installSeededRandom(12345);
-    const result = simulateCampaignRun(build, DEFAULT_CAMPAIGN_CONFIG, false, 0);
+    const result = simulateCampaignRun(build, softConfig, false, 0);
 
     expect(result.locationStats.some(s => s.outcome === 'cleared')).toBe(true);
     let expectedCleared = 0;

@@ -25,6 +25,7 @@ import {
   PathType,
   ElementType,
 } from '../../types';
+import { locationIconFromRegistry } from '../artRegistry';
 
 // ============================================================================
 // LOCATION DEFINITIONS
@@ -35,10 +36,7 @@ const THE_DOCKS: LocationConfig = {
   name: 'The Docks',
   description: 'A bustling harbor where fishermen and merchants gather. The gateway to Wave Country. Gato\'s enforcers patrol openly.',
   type: LocationType.SETTLEMENT,
-  icon: {
-    asset: '/assets/icons/locations/the_docks.png',
-    fallback: '⚓',
-  },
+  icon: locationIconFromRegistry('the_docks'),
   dangerLevel: 2,
   terrain: LocationTerrainType.WATER_ADJACENT,
   terrainEffects: [{ type: 'water_damage_bonus', value: 0.2 }],
@@ -66,10 +64,7 @@ const MISTY_BEACH: LocationConfig = {
   name: 'Misty Beach',
   description: 'Fog rolls in from the sea, obscuring everything. Wrecked boats dot the shoreline. Perfect for ambushes.',
   type: LocationType.WILDERNESS,
-  icon: {
-    asset: '/assets/icons/locations/misty_beach.png',
-    fallback: '🌫️',
-  },
+  icon: locationIconFromRegistry('misty_beach'),
   dangerLevel: 1,
   terrain: LocationTerrainType.WATER_ADJACENT,
   terrainEffects: [
@@ -101,7 +96,7 @@ const COASTAL_FOREST: LocationConfig = {
   name: 'Coastal Forest',
   description: 'Dense trees crowd together, blocking out the sun. Bandits and worse are known to lurk here.',
   type: LocationType.WILDERNESS,
-  icon: '🌲',
+  icon: locationIconFromRegistry('coastal_forest'),
   dangerLevel: 3,
   terrain: LocationTerrainType.FOREST,
   terrainEffects: [
@@ -134,7 +129,7 @@ const SMUGGLERS_CAVE: LocationConfig = {
   name: 'Smuggler\'s Cave',
   description: 'A hidden network of caves used by criminals. Dangerous but potentially profitable.',
   type: LocationType.STRONGHOLD,
-  icon: '🕳️',
+  icon: locationIconFromRegistry('smugglers_cave'),
   dangerLevel: 4,
   terrain: LocationTerrainType.UNDERGROUND,
   terrainEffects: [
@@ -170,7 +165,7 @@ const FISHING_VILLAGE: LocationConfig = {
   name: 'Fishing Village',
   description: 'A poor but peaceful village. Gato\'s thugs have been seen nearby, collecting "taxes".',
   type: LocationType.SETTLEMENT,
-  icon: '🏘️',
+  icon: locationIconFromRegistry('fishing_village'),
   dangerLevel: 1,
   terrain: LocationTerrainType.NEUTRAL,
   terrainEffects: [],
@@ -198,7 +193,7 @@ const RIVERSIDE_CAMP: LocationConfig = {
   name: 'Riverside Camp',
   description: 'A makeshift camp by the river. Travelers share information and supplies here.',
   type: LocationType.WILDERNESS,
-  icon: '🔥',
+  icon: locationIconFromRegistry('riverside_camp'),
   dangerLevel: 3,
   terrain: LocationTerrainType.WATER_ADJACENT,
   terrainEffects: [{ type: 'water_damage_bonus', value: 0.1 }],
@@ -228,7 +223,7 @@ const SUNKEN_SHIP: LocationConfig = {
   name: 'Sunken Ship',
   description: 'A merchant vessel lies half-submerged in the shallows. Its cargo hold still beckons treasure hunters.',
   type: LocationType.SECRET,
-  icon: '🚢',
+  icon: locationIconFromRegistry('sunken_ship'),
   dangerLevel: 5,
   terrain: LocationTerrainType.HAZARDOUS,
   terrainEffects: [
@@ -262,7 +257,7 @@ const BRIDGE_CONSTRUCTION: LocationConfig = {
   name: 'Bridge Construction',
   description: 'Tazuna\'s great bridge stretches across the water. Workers toil under constant threat.',
   type: LocationType.LANDMARK,
-  icon: '🌉',
+  icon: locationIconFromRegistry('bridge_construction'),
   dangerLevel: 4,
   terrain: LocationTerrainType.WATER_ADJACENT,
   terrainEffects: [
@@ -293,7 +288,7 @@ const BANDIT_OUTPOST: LocationConfig = {
   name: 'Bandit Outpost',
   description: 'Gato\'s hired muscle operates from this fortified position. A direct assault route.',
   type: LocationType.STRONGHOLD,
-  icon: '⚔️',
+  icon: locationIconFromRegistry('bandit_outpost'),
   dangerLevel: 5,
   terrain: LocationTerrainType.FORTIFIED,
   terrainEffects: [
@@ -326,7 +321,7 @@ const ABANDONED_MANOR: LocationConfig = {
   name: 'Abandoned Manor',
   description: 'An old noble\'s estate, now empty. Or is it? Strange sounds echo in the halls.',
   type: LocationType.LANDMARK,
-  icon: '🏚️',
+  icon: locationIconFromRegistry('abandoned_manor'),
   dangerLevel: 3,
   terrain: LocationTerrainType.NEUTRAL,
   terrainEffects: [{ type: 'mental_damage_bonus', value: 0.2 }],
@@ -352,7 +347,7 @@ const HIDDEN_COVE: LocationConfig = {
   name: 'Hidden Cove',
   description: 'A secret inlet used by smugglers. Rare goods and dark secrets can be found here.',
   type: LocationType.SECRET,
-  icon: '🏝️',
+  icon: locationIconFromRegistry('hidden_cove'),
   dangerLevel: 4,
   terrain: LocationTerrainType.WATER_ADJACENT,
   terrainEffects: [
@@ -385,7 +380,7 @@ const DROWNED_SHRINE: LocationConfig = {
   name: 'Drowned Shrine',
   description: 'An ancient temple now beneath the waves. Powerful chakra resonates here. Dark gods were once worshipped.',
   type: LocationType.SECRET,
-  icon: '🏛️',
+  icon: locationIconFromRegistry('drowned_shrine'),
   dangerLevel: 6,
   terrain: LocationTerrainType.CORRUPTED,
   terrainEffects: [
@@ -417,7 +412,7 @@ const GATOS_COMPOUND: LocationConfig = {
   name: 'Gato\'s Compound',
   description: 'The shipping magnate\'s fortress. A monument to greed built on suffering. All roads lead here.',
   type: LocationType.BOSS,
-  icon: '👹',
+  icon: locationIconFromRegistry('gatos_compound'),
   dangerLevel: 7,
   terrain: LocationTerrainType.FORTIFIED,
   terrainEffects: [

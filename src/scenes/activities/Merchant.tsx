@@ -20,7 +20,9 @@ import {
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import { MERCHANT } from '../../game/config';
 import { calculateMerchantRerollCost } from '../../game/systems/ScalingSystem';
+import { resolveItemArt } from '../../game/constants/artRegistry';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
+import ArtIcon from '../../components/shared/ArtIcon';
 import './Merchant.css';
 
 interface MerchantProps {
@@ -288,7 +290,9 @@ const ItemCard: React.FC<ItemCardProps> = ({
         </div>
 
         {/* The item IS the asset — big visual, PNG-ready slot */}
-        <div className="item-tile__visual" aria-hidden="true">{item.icon || '📦'}</div>
+        <div className="item-tile__visual" aria-hidden="true">
+          <ArtIcon art={resolveItemArt(item)} size="lg" />
+        </div>
 
         {/* Item Info */}
         <div className="item-card__info">

@@ -12,6 +12,10 @@ import {
   logIntelGain
 } from '../game/utils/explorationDebug';
 import { FeatureFlags } from '../config/featureFlags';
+import {
+  applyVisibilityToIntelGain,
+  getLocationTerrainMods,
+} from '../game/systems/LocationTerrainSystem';
 
 /**
  * Activity scene data setters - passed from App.tsx
@@ -34,6 +38,30 @@ export interface ActivitySceneSetters {
   // Treasure system
   setCurrentTreasure: React.Dispatch<React.SetStateAction<TreasureActivity | null>>;
   setCurrentTreasureHunt: React.Dispatch<React.SetStateAction<TreasureHunt | null>>;
+  /** T-049: intel gathering result panel */
+  setIntelResult?: React.Dispatch<
+    React.SetStateAction<{
+      flavorText: string;
+      intelGain: number;
+      intelBefore: number;
+      intelAfter: number;
+    } | null>
+  >;
+  /** T-050: rest heal result panel */
+  setRestResult?: React.Dispatch<
+    React.SetStateAction<{
+      hpHeal: number;
+      chakraHeal: number;
+      healPercent: number;
+      chakraRestorePercent: number;
+      hpBefore: number;
+      hpAfter: number;
+      chakraBefore: number;
+      chakraAfter: number;
+      maxHp: number;
+      maxChakra: number;
+    } | null>
+  >;
 }
 
 /**
@@ -76,6 +104,7 @@ export interface UseActivityHandlerReturn {
  */
 export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandlerReturn {
   const {
+    player,
     playerStats,
     setPlayer,
     addLog,
@@ -102,6 +131,8 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
     setCameFromChain,
     setCurrentTreasure,
     setCurrentTreasureHunt,
+    setIntelResult,
+    setRestResult,
   } = activitySetters;
 
   /**
@@ -175,16 +206,25 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
         break;
 
       case 'rest':
-        if (currentRoom.activities.rest && playerStats) {
+        if (currentRoom.activities.rest && playerStats && player) {
           logActivityStart(currentRoom.id, 'rest', { healPercent: currentRoom.activities.rest.healPercent });
           const restData = currentRoom.activities.rest;
-          const hpHeal = Math.floor(playerStats.derived.maxHp * (restData.healPercent / 100));
-          const chakraHeal = Math.floor(playerStats.derived.maxChakra * (restData.chakraRestorePercent / 100));
+          const maxHp = playerStats.derived.maxHp;
+          const maxChakra = playerStats.derived.maxChakra;
+          const hpHealCap = Math.floor(maxHp * (restData.healPercent / 100));
+          const chakraHealCap = Math.floor(maxChakra * (restData.chakraRestorePercent / 100));
+          const hpBefore = player.currentHp;
+          const chakraBefore = player.currentChakra;
+          const hpAfter = Math.min(maxHp, hpBefore + hpHealCap);
+          const chakraAfter = Math.min(maxChakra, chakraBefore + chakraHealCap);
+          // Actual gained amounts (not theoretical % of max when already near full)
+          const hpHeal = hpAfter - hpBefore;
+          const chakraHeal = chakraAfter - chakraBefore;
 
           setPlayer(p => p ? {
             ...p,
-            currentHp: Math.min(playerStats.derived.maxHp, p.currentHp + hpHeal),
-            currentChakra: Math.min(playerStats.derived.maxChakra, p.currentChakra + chakraHeal)
+            currentHp: hpAfter,
+            currentChakra: chakraAfter,
           } : null);
 
           addLog(`You rest and recover. +${hpHeal} HP, +${chakraHeal} Chakra.`, 'gain');
@@ -192,6 +232,19 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
           const floorAfterRest = completeActivity(updatedFloor, currentRoom.id, 'rest');
           setFloor(floorAfterRest);
           logActivityComplete(currentRoom.id, 'rest');
+          // T-050: visual heal payoff
+          setRestResult?.({
+            hpHeal,
+            chakraHeal,
+            healPercent: restData.healPercent,
+            chakraRestorePercent: restData.chakraRestorePercent,
+            hpBefore,
+            hpAfter,
+            chakraBefore,
+            chakraAfter,
+            maxHp,
+            maxChakra,
+          });
         }
         break;
 
@@ -272,13 +325,28 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
       case 'infoGathering':
         if (currentRoom.activities.infoGathering) {
           const infoActivity = currentRoom.activities.infoGathering;
-          logActivityStart(currentRoom.id, 'infoGathering', { intelGain: infoActivity.intelGain });
-          setCurrentIntel(prev => Math.min(100, prev + infoActivity.intelGain));
-          logIntelGain('InfoGathering', infoActivity.intelGain, Math.min(100, currentIntel + infoActivity.intelGain));
-          addLog(`${infoActivity.flavorText} +${infoActivity.intelGain}% intel.`, 'info');
+          const intelBefore = currentIntel;
+          // T-067: location visibility_penalty scales intel gain
+          const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+          const effectiveGain = applyVisibilityToIntelGain(
+            infoActivity.intelGain,
+            locMods,
+          );
+          const intelAfter = Math.min(100, intelBefore + effectiveGain);
+          logActivityStart(currentRoom.id, 'infoGathering', { intelGain: effectiveGain });
+          setCurrentIntel(intelAfter);
+          logIntelGain('InfoGathering', effectiveGain, intelAfter);
+          addLog(`${infoActivity.flavorText} +${effectiveGain}% intel.`, 'info');
           const floorAfterInfo = completeActivity(updatedFloor, currentRoom.id, 'infoGathering');
           setFloor(floorAfterInfo);
           logActivityComplete(currentRoom.id, 'infoGathering');
+          // T-049: visual payoff before next room action
+          setIntelResult?.({
+            flavorText: infoActivity.flavorText,
+            intelGain: effectiveGain,
+            intelBefore,
+            intelAfter,
+          });
         }
         break;
     }
@@ -288,7 +356,7 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
     setMerchantItems, setMerchantDiscount, setActiveEvent, setCameFromChain,
     setTrainingData, setScrollDiscoveryData, setEliteChallengeData,
     setDroppedItems, setDroppedSkill, setCurrentIntel, currentIntel,
-    setCurrentTreasure, setCurrentTreasureHunt, onAutoCombat, onAutoEliteCombat
+    player, setCurrentTreasure, setCurrentTreasureHunt, setIntelResult, setRestResult, onAutoCombat, onAutoEliteCombat
   ]);
 
   return { executeRoomActivity };

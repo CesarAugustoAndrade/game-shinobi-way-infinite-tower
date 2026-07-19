@@ -18,6 +18,8 @@ import {
   formatEffectDescription,
 } from '../../game/utils/tooltipFormatters';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
+import ArtIcon from '../../components/shared/ArtIcon';
+import { getSkillArt } from '../../game/constants/artRegistry';
 import './ScrollDiscovery.css';
 
 interface ScrollDiscoveryProps {
@@ -223,6 +225,9 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
               }
             >
               <div className={`scroll-card ${getTierCardClass(skill.tier)}`}>
+                <div className="scroll-card__art" aria-hidden="true">
+                  <ArtIcon art={getSkillArt(skill)} size="xl" title={skill.name} />
+                </div>
                 <div className="scroll-card__header">
                   <div className="scroll-card__title-section">
                     <h3 className={`scroll-card__name ${getTierNameClass(skill.tier)}`}>

@@ -1,20 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Item, MAX_BAG_SLOTS, Rarity, DragData } from '../../game/types';
 import { getRecipesUsingComponent, findRecipe } from '../../game/constants/synthesis';
+import { resolveItemArt } from '../../game/constants/artRegistry';
+import { getSellPrice } from '../../game/systems/LootSystem';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import Tooltip from '../shared/Tooltip';
+import ArtIcon from '../shared/ArtIcon';
 import { getRarityTextBorderColor } from '../../utils/colorHelpers';
 import './inventory.css';
+
+export interface CraftResultInfo {
+  item: Item;
+  cost: number;
+  actionName: string;
+}
+
+/** T-058: short bag action feedback toast */
+interface BagActionToast {
+  kind: 'equip' | 'sell';
+  item: Item;
+  detail: string;
+}
 
 interface BagProps {
   items: (Item | null)[];
   onSelectComponent: (item: Item | null) => void;
-  onSellComponent: (item: Item) => void;
+  /** T-058: may return sell price for toast */
+  onSellComponent: (item: Item) => number | null | void;
   selectedComponent: Item | null;
-  onSynthesize?: (componentA: Item, componentB: Item) => void;
-  onEquipFromBag?: (item: Item) => void;
+  /** T-032: may return crafted item for reveal panel */
+  onSynthesize?: (componentA: Item, componentB: Item) => Item | null | void;
+  /** T-058: may return equip summary for toast */
+  onEquipFromBag?: (item: Item) => { replacedName?: string } | null | void;
   isDragging?: boolean;
 }
 
@@ -45,7 +64,7 @@ const BagSlot: React.FC<BagSlotProps> = ({
   getCompatibleRecipes,
   children,
 }) => {
-  const sellValue = item ? Math.floor(item.value * 0.6) : 0;
+  const sellValue = item ? getSellPrice(item) : 0;
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `bag-${index}`,
@@ -106,7 +125,8 @@ const BagSlot: React.FC<BagSlotProps> = ({
           item ? (
             <div className="bag__tooltip">
               <div className={`bag__tooltip-name ${getRarityColor(item.rarity)}`}>
-                {item.icon} {item.name}
+                <ArtIcon art={resolveItemArt(item)} size="sm" className="inline-block align-middle mr-1" />
+                {' '}{item.name}
               </div>
               <div className="bag__tooltip-desc">{item.description}</div>
               <div className="bag__tooltip-stats">
@@ -146,7 +166,7 @@ const BagSlot: React.FC<BagSlotProps> = ({
           className={getSlotClasses()}
         >
           {item ? (
-            <span title={item.name}>{item.icon || '?'}</span>
+            <ArtIcon art={resolveItemArt(item)} size="sm" title={item.name} />
           ) : (
             <span className="bag__slot-empty-icon">·</span>
           )}
@@ -168,6 +188,8 @@ const Bag: React.FC<BagProps> = ({
 }) => {
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  /** T-032: last successful craft reveal */
+  const [craftResult, setCraftResult] = useState<{ item: Item; recipeName: string } | null>(null);
 
   const itemCount = items.filter(item => item !== null).length;
   const getRarityColor = getRarityTextBorderColor;
@@ -177,9 +199,12 @@ const Bag: React.FC<BagProps> = ({
       if (onSynthesize && selectedComponent.componentId && item.componentId) {
         const recipe = findRecipe(selectedComponent.componentId, item.componentId);
         if (recipe) {
-          onSynthesize(selectedComponent, item);
+          const crafted = onSynthesize(selectedComponent, item);
           setSynthesisMode(false);
           setActiveMenu(null);
+          if (crafted) {
+            setCraftResult({ item: crafted, recipeName: recipe.name });
+          }
           return;
         }
       }
@@ -188,11 +213,42 @@ const Bag: React.FC<BagProps> = ({
     onSelectComponent(item);
   };
 
+  const [actionToast, setActionToast] = useState<BagActionToast | null>(null);
+
+  const showActionToast = useCallback((toast: BagActionToast) => {
+    setActionToast(toast);
+  }, []);
+
+  useEffect(() => {
+    if (!actionToast) return;
+    const t = setTimeout(() => setActionToast(null), 2200);
+    return () => clearTimeout(t);
+  }, [actionToast]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && actionToast) {
+        setActionToast(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [actionToast]);
+
   const handleEquip = (item: Item) => {
-    onEquipFromBag?.(item);
+    const result = onEquipFromBag?.(item);
     setActiveMenu(null);
     setSynthesisMode(false);
+    setCraftResult(null);
+    if (result && typeof result === 'object') {
+      const detail = result.replacedName
+        ? `Equipped · ${result.replacedName} → bag`
+        : 'Equipped';
+      showActionToast({ kind: 'equip', item, detail });
+    }
   };
+
+  const dismissCraftResult = () => setCraftResult(null);
 
   const startSynthesis = (item: Item) => {
     onSelectComponent(item);
@@ -202,15 +258,25 @@ const Bag: React.FC<BagProps> = ({
 
   const handleSell = (e: React.MouseEvent, item: Item) => {
     e.stopPropagation();
-    onSellComponent(item);
+    const sold = onSellComponent(item);
     setSynthesisMode(false);
     setActiveMenu(null);
+    if (typeof sold === 'number' && sold >= 0) {
+      // Clear craft reveal if the sold item was the craft result (stale equip CTA)
+      setCraftResult(prev => (prev?.item.id === item.id ? null : prev));
+      showActionToast({ kind: 'sell', item, detail: `+${sold} Ryō` });
+    }
   };
 
   const handleSellFromMenu = (item: Item) => {
-    onSellComponent(item);
+    const sold = onSellComponent(item);
     setSynthesisMode(false);
     setActiveMenu(null);
+    if (typeof sold === 'number' && sold >= 0) {
+      // Clear craft reveal if the sold item was the craft result (stale equip CTA)
+      setCraftResult(prev => (prev?.item.id === item.id ? null : prev));
+      showActionToast({ kind: 'sell', item, detail: `+${sold} Ryō` });
+    }
   };
 
   const cancelSynthesis = () => {
@@ -250,7 +316,7 @@ const Bag: React.FC<BagProps> = ({
           const isSelected = selectedComponent?.id === item?.id;
           const canCombine = item ? canCombineWithSelected(item) : false;
           const isMenuOpen = item && activeMenu === item.id && !synthesisMode;
-          const sellValue = item ? Math.floor(item.value * 0.6) : 0;
+          const sellValue = item ? getSellPrice(item) : 0;
 
           return (
             <BagSlot
@@ -330,10 +396,78 @@ const Bag: React.FC<BagProps> = ({
                     onClick={() => handleComponentClick(c)}
                     className="bag__synthesis-option"
                   >
-                    + {c.icon} - {recipe.name}
+                    + <ArtIcon art={resolveItemArt(c)} size="xs" className="inline-block align-middle" /> - {recipe.name}
                   </div>
                 );
               })}
+          </div>
+        </div>
+      )}
+
+      {/* T-032: craft reveal — art + passive + equip CTA */}
+      {craftResult && (
+        <div className="bag__craft-result" role="status">
+          <div className="bag__craft-result-header">Crafted!</div>
+          <div className="bag__craft-result-body">
+            <ArtIcon art={resolveItemArt(craftResult.item)} size="lg" className="bag__craft-result-art" />
+            <div className="bag__craft-result-info">
+              <div
+                className="bag__craft-result-name"
+                style={{ color: getRarityColor(craftResult.item.rarity) }}
+              >
+                {craftResult.item.name}
+              </div>
+              <div className="bag__craft-result-recipe">{craftResult.recipeName}</div>
+              {(craftResult.item.description || craftResult.item.passive) && (
+                <div className="bag__craft-result-desc">
+                  {craftResult.item.description
+                    || (craftResult.item.passive
+                      ? String(craftResult.item.passive.type).replace(/_/g, ' ')
+                      : '')}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="bag__craft-result-actions">
+            {onEquipFromBag && (
+              <button
+                type="button"
+                className="bag__craft-result-btn bag__craft-result-btn--equip"
+                onClick={() => handleEquip(craftResult.item)}
+              >
+                Equip
+              </button>
+            )}
+            <button
+              type="button"
+              className="bag__craft-result-btn bag__craft-result-btn--dismiss"
+              onClick={dismissCraftResult}
+            >
+              Keep in bag
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* T-058: equip / sell success toast */}
+      {actionToast && (
+        <div
+          className={`bag-toast bag-toast--${actionToast.kind}`}
+          role="status"
+          onClick={() => setActionToast(null)}
+        >
+          <ArtIcon
+            art={resolveItemArt(actionToast.item)}
+            size="md"
+            className="bag-toast__art"
+            title={actionToast.item.name}
+          />
+          <div className="bag-toast__copy">
+            <span className="bag-toast__label">
+              {actionToast.kind === 'equip' ? 'Equipped' : 'Sold'}
+            </span>
+            <span className="bag-toast__name">{actionToast.item.name}</span>
+            <span className="bag-toast__detail">{actionToast.detail}</span>
           </div>
         </div>
       )}

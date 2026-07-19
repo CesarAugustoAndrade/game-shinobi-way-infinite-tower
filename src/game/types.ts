@@ -23,7 +23,10 @@ export enum GameState {
   LOCATION_EXPLORE, // Inside a location (10-room diamond exploration)
   // Treasure system states
   TREASURE,              // Treasure choice screen (locked chests OR treasure hunter)
-  TREASURE_HUNT_REWARD   // Map completion reward screen
+  TREASURE_HUNT_REWARD,  // Map completion reward screen
+  // Campaign macro (T-023)
+  INTERLUDE,             // Post-boss: narrative + heal + boon 1-of-3 → next region
+  VICTORY,               // Campaign clear (provisional after region 1 until T-024..026)
 }
 
 export enum ElementType {
@@ -159,6 +162,8 @@ export interface CharacterStats {
   derived: DerivedStats;
   effectivePrimary: PrimaryAttributes;
   equipmentBonuses?: ItemStatBonus;
+  /** Present when stats come from getPlayerFullStats (player passives) */
+  passiveBonuses?: PassiveBonuses;
 }
 
 // Legacy Attributes interface for backward compatibility during migration
@@ -219,13 +224,16 @@ export enum SkillTier {
 }
 
 // ============================================================================
-// ACTION TYPE SYSTEM - Determines when/how skills can be used
+// ACTION TYPE SYSTEM - Card category for the AP economy (T-004)
 // ============================================================================
+// Action types no longer gate "ends turn" / "free action" rules. Combat spends
+// Action Points (AP) per card; the turn ends when AP is exhausted (or the player
+// ends turn). Defaults: MAIN/TOGGLE ≈ 2 AP, SIDE ≈ 1 AP (see combatCards.ts).
 export enum ActionType {
-  MAIN = 'Main',       // Ends your turn - primary attacks and jutsu
-  TOGGLE = 'Toggle',   // Activate once (ends turn), pays upkeep each turn
-  SIDE = 'Side',       // Free action BEFORE Main, max 2 per turn
-  PASSIVE = 'Passive'  // Always active, no action required
+  MAIN = 'Main',       // Heavy techniques / primary attacks (default 2 AP)
+  TOGGLE = 'Toggle',   // Stance skills: pay AP to activate, upkeep each turn
+  SIDE = 'Side',       // Light support / setup cards (default 1 AP)
+  PASSIVE = 'Passive'  // Always active, never played as a card (0 AP)
 }
 
 // ============================================================================
@@ -403,10 +411,38 @@ export interface SkillRequirements {
 // Passive skill effect for PASSIVE action type skills
 export interface PassiveSkillEffect {
   statBonus?: Partial<PrimaryAttributes>;
-  damageBonus?: number;          // % bonus to all damage dealt
-  defenseBonus?: number;         // % bonus to all defense
+  damageBonus?: number;          // % bonus to damage dealt (0.1 = +10%)
+  /**
+   * When set, damageBonus only applies to skills of this element.
+   * When omitted, nature-element passives (FIRE/WIND/etc. skill.element)
+   * auto-scope to that element; PHYSICAL/MENTAL passives stay global.
+   */
+  damageBonusElement?: ElementType;
+  defenseBonus?: number;         // % bonus added to all percent defenses
   regenBonus?: { hp?: number; chakra?: number };  // Per-turn regeneration
   specialEffect?: string;        // Unique effect identifier
+}
+
+/**
+ * Aggregated bonuses from all equipped passive skills.
+ * Produced by StatSystem.aggregatePassiveSkillBonuses.
+ */
+export interface PassiveBonuses {
+  /** Flat bonuses to primary stats (e.g., +5 Strength) */
+  statBonus: Partial<PrimaryAttributes>;
+  /** Percentage bonus to all outgoing damage (0.1 = +10%) */
+  damageBonus: number;
+  /**
+   * Element-scoped damage bonuses (e.g. FIRE_AFFINITY → Fire only).
+   * Applied when the attacking skill's element matches the key.
+   */
+  elementalDamageBonus: Partial<Record<ElementType, number>>;
+  /** Percentage bonus added to all percent defenses (0.1 = +10%) */
+  defenseBonus: number;
+  /** Flat HP regeneration per turn (added to derived hpRegen) */
+  hpRegen: number;
+  /** Flat chakra regeneration per turn (added to derived chakraRegen) */
+  chakraRegen: number;
 }
 
 export interface Skill {
@@ -576,6 +612,14 @@ export interface Enemy {
   archetype?: string;
   /** Danger level (1-7) at which this enemy was generated — used for Lv. N badge. */
   dangerLevel?: number;
+
+  // Telegraph (A-003) — next skill intent for UI / combat log
+  /** Skill id the enemy intends to use on its next action. */
+  intendedSkillId?: string;
+  /** Display name of the telegraphed skill. */
+  intendedSkillName?: string;
+  /** AI reason for the telegraphed skill (debug / log). */
+  intentReason?: string;
 }
 
 // ============================================================================
@@ -645,11 +689,14 @@ export interface EventOutcome {
     intelGain?: number; // Intel gained from this outcome (0-40 range)
 
     // Combat triggers
+    // archetype = combat build (TANK/ASSASSIN/BALANCED/CASTER/GENJUTSU)
+    // enemyType = tier for scaling (NORMAL/ELITE/BOSS/AMBUSH); defaults to NORMAL
     triggerCombat?: {
       floor: number;
       difficulty: number;
       archetype: string;
       name?: string;
+      enemyType?: 'NORMAL' | 'ELITE' | 'BOSS' | 'AMBUSH';
     };
 
     // --- Event Engine 2.0 (T-008) — all optional, additive ---
@@ -808,7 +855,7 @@ export enum TerrainType {
 
 export enum ApproachType {
   FRONTAL_ASSAULT = 'FRONTAL_ASSAULT',   // Direct combat, no modifiers
-  STEALTH_AMBUSH = 'STEALTH_AMBUSH',     // Sneak attack, first hit 2.5x
+  STEALTH_AMBUSH = 'STEALTH_AMBUSH',     // Sneak attack, first hit 2.0x + initiative
   GENJUTSU_SETUP = 'GENJUTSU_SETUP',     // Mental trap, enemy confused
   ENVIRONMENTAL_TRAP = 'ENVIRONMENTAL',   // Use terrain, enemy loses HP
   SHADOW_BYPASS = 'SHADOW_BYPASS'        // Skip combat entirely (rare)
@@ -873,7 +920,7 @@ export interface ApproachEffects {
   guaranteedFirst: boolean;
 
   // First hit bonus
-  firstHitMultiplier: number;     // 2.5 for stealth ambush
+  firstHitMultiplier: number;     // 2.0 for stealth ambush
 
   // Buffs/Debuffs
   playerBuffs: EffectDefinition[];
@@ -1305,6 +1352,42 @@ export interface BranchingFloor {
   treasureHunt: TreasureHunt | null;
   treasureProbabilityBoost: number;  // Extra chance for treasure rooms during hunt (0-1)
   huntDeclined: boolean;  // If true, all treasures become locked chests
+
+  /**
+   * T-033: story event ids preferred when generating room events
+   * (from Location.tiedStoryEvents).
+   */
+  preferredEventIds?: string[];
+
+  /**
+   * T-046: ambient flavor line for this location (from atmosphereEvents).
+   */
+  atmosphereFlavor?: string;
+
+  /**
+   * T-056: location enemyPool ids for room combat theming.
+   */
+  enemyPool?: string[];
+
+  /**
+   * T-059: location lootTable id for combat/treasure component bias.
+   */
+  lootTable?: string;
+
+  /**
+   * T-064: location terrainEffects for room-gen ambush bias (raw authoring data).
+   */
+  terrainEffects?: LocationTerrainEffect[];
+
+  /**
+   * T-068: region lootTheme.primaryElement for enemy affinity bias.
+   */
+  preferredElement?: ElementType;
+
+  /**
+   * T-070: full region lootTheme for merchant stock bias.
+   */
+  lootTheme?: RegionLootTheme;
 }
 
 // Room type configuration for generation
@@ -1651,6 +1734,13 @@ export interface CardDisplayInfo {
 
   // Location size info
   minRooms: number | null;  // Revealed at PARTIAL intel or higher
+
+  /** T-047: authored description — null when mystery (NONE intel) */
+  description: string | null;
+  /** T-047: optional atmosphere flavor at FULL intel */
+  atmosphereLine: string | null;
+  /** T-063: location terrain effect labels at FULL intel */
+  terrainEffectLines: string[] | null;
 }
 
 /**

@@ -110,7 +110,9 @@ export function executeApproach(
   player: Player,
   playerStats: CharacterStats,
   enemy: Enemy,
-  terrain: TerrainDefinition
+  terrain: TerrainDefinition,
+  /** T-063: extra stealth points from Location.terrainEffects stealth_bonus (fraction*100) */
+  locationStealthBonusPts: number = 0,
 ): ApproachResult {
   const def = APPROACH_DEFINITIONS[approach];
 
@@ -127,8 +129,9 @@ export function executeApproach(
     chakra: playerStats.primary.chakra,
   };
 
-  // Calculate success chance with terrain modifier
-  const terrainStealthBonus = terrain.effects.stealthModifier || 0;
+  // Room terrain stealth (points) + location stealth_bonus (T-063)
+  const terrainStealthBonus =
+    (terrain.effects.stealthModifier || 0) + (locationStealthBonusPts || 0);
   const successChance = calculateApproachSuccessChance(approach, stats, terrainStealthBonus);
 
   // Roll for success (1-100)

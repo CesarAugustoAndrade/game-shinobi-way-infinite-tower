@@ -7,11 +7,11 @@
 
 ## Run config
 
-- run: 2026-07-02-A
-- mode: interactive     <!-- auto | interactive -->
+- run: 2026-07-18-infinite-A
+- mode: auto     <!-- auto | interactive -->
 - maxAttempts: 3
-- activeTopic: — (T-018 PASSED y commiteado d46145b, pusheado a origin/develop. Próximo pending: T-019)
-- updatedAt: 2026-07-05T20:03:11Z
+- activeTopic: T-028 (Lot A done — iterating; ~234 SVG remain)
+- updatedAt: 2026-07-18T17:46:50Z
 
 ## Ledger
 
@@ -61,6 +61,16 @@
 | T-018 | 2 | 90 | 90 | 82 | 90 | FAIL | iterating | 2026-07-05T20:03:11Z | logs/T-018.md#a2 |
 | T-018 | 3 | 92 | 90 | 83 | 90 | FAIL | iterating | 2026-07-05T20:03:11Z | logs/T-018.md#a3 |
 | T-018 | 4 | 92 | 92 | 90 | 90 | PASS | passed | 2026-07-05T20:03:11Z | logs/T-018.md#a4 |
+| T-019 | 1 | 91 | 90 | 86 | 95 | PASS | passed | 2026-07-18T14:50:21Z | logs/T-019.md#a1 |
+| T-020 | 1 | 90 | 90 | 86 | 95 | PASS | passed | 2026-07-18T15:09:30Z | logs/T-020.md#a1 |
+| T-021 | 1 | 90 | 88 | 86 | 95 | PASS | passed | 2026-07-18T15:26:45Z | logs/T-021.md#a1 |
+| T-022 | 1 | 90 | 88 | 88 | 95 | PASS | passed | 2026-07-18T15:48:00Z | logs/T-022.md#a1 |
+| T-023 | 1 | 90 | 90 | 86 | 88 | PASS | passed | 2026-07-18T16:11:00Z | logs/T-023.md#a1 |
+| T-024 | 1 | 90 | 90 | 86 | 86 | PASS | passed | 2026-07-18T16:26:40Z | logs/T-024.md#a1 |
+| T-025 | 1 | 90 | 90 | 87 | 86 | PASS | passed | 2026-07-18T16:48:52Z | logs/T-025.md#a1 |
+| T-026 | 1 | 90 | 90 | 87 | 86 | PASS | passed | 2026-07-18T17:07:10Z | logs/T-026.md#a1 |
+| T-027 | 1 | 90 | 90 | 86 | 86 | PASS | passed | 2026-07-18T17:27:40Z | logs/T-027.md#a1 |
+| T-028 | 1 | 88 | 85 | 70 | 95 | FAIL | iterating | 2026-07-18T17:46:50Z | logs/T-028.md#a1 |
 
 <!--
 Leyenda:

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Item, Skill, Rarity, SkillTier, DamageType } from '../../game/types';
 import { Scroll, MapPin, Coins, Sparkles, Award } from 'lucide-react';
 import { formatStatName, getStatColor, formatScalingStat, getEffectColor, getEffectIcon, formatEffectDescription } from '../../game/utils/tooltipFormatters';
+import { resolveItemArt } from '../../game/constants/artRegistry';
+import ArtIcon from '../../components/shared/ArtIcon';
 import './treasure.css';
 
 interface TreasureHuntReward {
@@ -119,7 +121,9 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
 
       <div className="treasure-reward__card-content">
         {/* The item IS the asset — big visual, PNG-ready slot */}
-        <span className="item-tile__visual" aria-hidden="true">{item.icon || '📦'}</span>
+        <span className="item-tile__visual" aria-hidden="true">
+          <ArtIcon art={resolveItemArt(item)} size="lg" />
+        </span>
         <div className={`treasure-reward__card-name ${getRarityColor(item.rarity)}`}>
           {item.name}
         </div>

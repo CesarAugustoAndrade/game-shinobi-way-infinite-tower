@@ -12,6 +12,10 @@ import {
   formatEffectDescription,
 } from '../../game/utils/tooltipFormatters';
 import { getRecipesUsingComponent } from '../../game/constants/synthesis';
+import { resolveItemArt, getSkillArt } from '../../game/constants/artRegistry';
+import { getSellPrice } from '../../game/systems/LootSystem';
+import { BALANCE } from '../../game/config';
+import ArtIcon from '../../components/shared/ArtIcon';
 import './Loot.css';
 
 interface LootProps {
@@ -179,13 +183,15 @@ const Loot: React.FC<LootProps> = ({
 
                 <div className="item-tooltip__section">
                   <div className="item-tooltip__sell">
-                    Sell: {Math.floor(item.value * 0.6)} Ryo (60%)
+                    Sell: {getSellPrice(item)} Ryo ({Math.round(BALANCE.SELL_PRICE_RATIO * 100)}%)
                   </div>
                 </div>
               </div>
 
               {/* The item IS the asset — big visual, PNG-ready slot */}
-              <div className="item-tile__visual" aria-hidden="true">{item.icon || '📦'}</div>
+              <div className="item-tile__visual" aria-hidden="true">
+                <ArtIcon art={resolveItemArt(item)} size="lg" />
+              </div>
 
               <div className="loot-card__header">
                 <h3 className={`loot-card__name ${getRarityClass(item.rarity)}`}>{item.name}</h3>
@@ -222,7 +228,7 @@ const Loot: React.FC<LootProps> = ({
                   onClick={(e) => { e.stopPropagation(); onSellItem(item); }}
                   className="loot-card__btn loot-card__btn--sell"
                 >
-                  Sell (+{Math.floor(item.value * 0.6)})
+                  Sell (+{getSellPrice(item)})
                 </button>
               </div>
             </div>
@@ -236,6 +242,10 @@ const Loot: React.FC<LootProps> = ({
                 {droppedSkill.name}
               </h3>
               <p className="loot-card__type">Secret Scroll - {droppedSkill.tier}</p>
+            </div>
+
+            <div className="item-tile__visual" aria-hidden="true">
+              <ArtIcon art={getSkillArt(droppedSkill)} size="xl" title={droppedSkill.name} />
             </div>
 
             <div className="loot-card__skill-header">

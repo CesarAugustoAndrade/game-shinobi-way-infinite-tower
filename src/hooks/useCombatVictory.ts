@@ -8,11 +8,20 @@ import {
   getCurrentRoom, completeActivity, addMapPiece, getTreasureHuntReward
 } from '../game/systems/LocationSystem';
 import {
-  calculateLocationXP, calculateLocationRyo, markLocationComplete, INTEL_GAIN
+  calculateLocationXP, calculateLocationRyo, INTEL_GAIN,
+  dangerToFloor
 } from '../game/systems/RegionSystem';
 import {
   applyWealthToRyo
 } from '../game/systems/ScalingSystem';
+import { getEventFlagRunModifiers } from '../game/systems/EventSystem';
+import { generateLoot, applyLootThemeGoldMultiplier } from '../game/systems/LootSystem';
+import {
+  applyVisibilityToIntelGain,
+  getLocationTerrainMods,
+} from '../game/systems/LocationTerrainSystem';
+import { LOOT_BALANCE } from '../game/config';
+import { chance } from '../game/utils/rng';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { logVictory, logRewardModal, logFlowCheckpoint } from '../game/utils/combatDebug';
 import { logActivityComplete, logIntelGain } from '../game/utils/explorationDebug';
@@ -38,7 +47,6 @@ export interface VictorySetters {
   setPlayer: React.Dispatch<React.SetStateAction<Player | null>>;
   setBranchingFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>;
   setLocationFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>;
-  setRegion: React.Dispatch<React.SetStateAction<Region | null>>;
   setCurrentIntel: React.Dispatch<React.SetStateAction<number>>;
   setDiceRollResult: React.Dispatch<React.SetStateAction<any>>;
   setTreasureHuntReward: React.Dispatch<React.SetStateAction<any>>;
@@ -70,7 +78,7 @@ export function useCombatVictory(
   } = state;
 
   const {
-    setPlayer, setBranchingFloor, setLocationFloor, setRegion, setCurrentIntel,
+    setPlayer, setBranchingFloor, setLocationFloor, setCurrentIntel,
     setDiceRollResult, setTreasureHuntReward, setCurrentTreasureHunt, setCurrentTreasure,
     setCombatReward, setGameState, setEnemy, setPendingArtifact, setDroppedItems, setDroppedSkill
   } = setters;
@@ -86,8 +94,8 @@ export function useCombatVictory(
 
     addLog("Enemy Defeated!", 'gain');
 
-    // Check if this was a Treasure Guardian fight
-    const wasTreasureGuardian = defeatedEnemy.name === 'Treasure Guardian' && currentTreasureHunt;
+    // Check if this was a Treasure Guardian fight (name only — do not gate on hunt state)
+    const wasTreasureGuardian = defeatedEnemy.name === 'Treasure Guardian';
 
     // Determine if this was an elite challenge (check pendingArtifact)
     const wasEliteChallenge = pendingArtifact !== null;
@@ -147,9 +155,9 @@ export function useCombatVictory(
 
         const updatedRoom = updatedFloor.rooms.find(r => r.id === combatRoom.id);
         if (updatedRoom?.isCleared && updatedRoom.isExit) {
-          addLog('Location cleared! Intel mission awaits...', 'gain');
-          // Mark location as complete in region
-          setRegion(markLocationComplete(region));
+          // Meta completion (mark + deck + cards + locationsCleared) runs in
+          // returnToMap / completeLocationAndReturnToRegion after rewards close.
+          addLog('Location cleared! Return when ready to choose the next destination.', 'gain');
         }
 
         return updatedFloor;
@@ -168,14 +176,24 @@ export function useCombatVictory(
     const tierBonus = isGuardian ? 300 : enemyTier === 'Jonin' ? 20 : enemyTier === 'Kage Level' ? 200 : isAmbush ? 100 : 0;
     const expGain = Math.floor((baseExp + tierBonus) * xpMultiplier);
 
-    // Apply wealth multiplier to ryo based on current location's wealth level
+    // Apply wealth multiplier + T-034 event-flag ryo modifiers + T-061 region gold
     const baseRyo = calculateLocationRyo(currentDangerLevel, currentBaseDifficulty);
     const locationWealthLevel = currentLocation?.wealthLevel ?? 4;
-    const ryoGain = applyWealthToRyo(baseRyo, locationWealthLevel);
+    let ryoGain = applyWealthToRyo(baseRyo, locationWealthLevel);
+    const flagMods = player ? getEventFlagRunModifiers(player) : { ryoMultiplier: 1, damageBonus: 0, activeLabels: [] as string[] };
+    if (flagMods.ryoMultiplier !== 1) {
+      ryoGain = Math.floor(ryoGain * flagMods.ryoMultiplier);
+    }
+    // T-061: region lootTheme.goldMultiplier (Waves 0.8 … War 1.2)
+    ryoGain = applyLootThemeGoldMultiplier(ryoGain, region?.lootTheme);
 
-    // Add intel from combat victory (+5%)
+    // Add intel from combat victory (+5%, reduced by location visibility_penalty T-067)
     if (region) {
-      const intelGain = INTEL_GAIN.COMBAT_VICTORY;
+      const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+      const intelGain = applyVisibilityToIntelGain(
+        INTEL_GAIN.COMBAT_VICTORY,
+        locMods,
+      );
       setCurrentIntel(prev => Math.min(100, prev + intelGain));
       logIntelGain('Combat', intelGain, Math.min(100, currentIntel + intelGain));
     }
@@ -205,6 +223,33 @@ export function useCombatVictory(
       levelUp: !!levelUpInfo
     });
 
+    // Normal combat (non-elite, non-guardian): chance to drop Broken components.
+    // Elite rewards use pendingArtifact → LOOT after the reward modal; do not
+    // overwrite that path. Treasure guardians use map pieces instead.
+    // T-035: keep local previews for RewardModal (setState is async).
+    let lootPreviews: Item[] = [];
+    if (wasEliteChallenge && pendingArtifact) {
+      lootPreviews = [pendingArtifact];
+    } else if (!wasEliteChallenge && !wasTreasureGuardian) {
+      if (chance(LOOT_BALANCE.COMBAT_ITEM_DROP_CHANCE)) {
+        const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
+        // T-059/T-061: bias combat drops by location lootTable + region lootTheme
+        const drop = generateLoot(
+          effectiveFloor,
+          difficulty,
+          currentLocation?.lootTable,
+          region?.lootTheme,
+        );
+        lootPreviews = [drop];
+        setDroppedItems([drop]);
+        setDroppedSkill(null);
+        addLog(`Found ${drop.name}!`, 'loot');
+      } else {
+        setDroppedItems([]);
+        setDroppedSkill(null);
+      }
+    }
+
     // Handle Treasure Guardian victory - award guaranteed map piece
     if (wasTreasureGuardian && locationFloor) {
       const { floor: updatedFloorWithPiece, isComplete } = addMapPiece(locationFloor);
@@ -229,7 +274,14 @@ export function useCombatVictory(
       // Check if map is complete
       if (isComplete && newHunt) {
         const wealthLevel = currentLocation?.wealthLevel ?? 4;
-        const reward = getTreasureHuntReward(newHunt.collectedPieces, wealthLevel, currentDangerLevel, difficulty);
+        const reward = getTreasureHuntReward(
+          newHunt.collectedPieces,
+          wealthLevel,
+          currentDangerLevel,
+          difficulty,
+          currentLocation?.lootTable,
+          region?.lootTheme,
+        );
         setTreasureHuntReward({
           items: reward.items,
           skills: reward.skills,
@@ -249,14 +301,17 @@ export function useCombatVictory(
       setCombatReward({
         expGain,
         ryoGain,
-        levelUp: levelUpInfo
+        levelUp: levelUpInfo,
+        lootPreviews: [],
+        continuesToLoot: false,
       });
 
       setTimeout(() => {
+        // Never soft-lock on EXPLORE (no UI). Prefer location map when still inside one.
         if (region && region.currentLocationId) {
           setGameState(GameState.LOCATION_EXPLORE);
         } else {
-          setGameState(GameState.EXPLORE);
+          setGameState(GameState.REGION_MAP);
         }
       }, 100);
       return;
@@ -267,25 +322,27 @@ export function useCombatVictory(
     setCombatReward({
       expGain,
       ryoGain,
-      levelUp: levelUpInfo
+      levelUp: levelUpInfo,
+      lootPreviews,
+      continuesToLoot: lootPreviews.length > 0,
     });
 
     // Set game state to appropriate explore view so the modal shows on the map
     logFlowCheckpoint('Transitioning to explore with reward modal');
     setTimeout(() => {
-      // Return to correct explore state based on mode
+      // Never soft-lock on EXPLORE (no UI). Prefer location map when still inside one.
       if (region && region.currentLocationId) {
         setGameState(GameState.LOCATION_EXPLORE);
       } else {
-        setGameState(GameState.EXPLORE);
+        setGameState(GameState.REGION_MAP);
       }
     }, 100);
   }, [
     branchingFloor, region, currentDangerLevel, currentBaseDifficulty, addLog, pendingArtifact,
     currentTreasureHunt, locationFloor, selectedBranchingRoom, currentLocation, difficulty,
     setDiceRollResult, setTreasureHuntReward, setCurrentTreasureHunt, setCurrentTreasure,
-    setBranchingFloor, setLocationFloor, setRegion, setCurrentIntel, setPlayer, setCombatReward,
-    setGameState, checkLevelUp, currentIntel
+    setBranchingFloor, setLocationFloor, setCurrentIntel, setPlayer, setCombatReward,
+    setGameState, checkLevelUp, currentIntel, setDroppedItems, setDroppedSkill
   ]);
 
   const handleAutoCombat = useCallback((
@@ -299,7 +356,10 @@ export function useCombatVictory(
     addLog(`Auto-combat started against ${combatEnemy.name}...`, 'info');
 
     // Run simulation
-    const result = simulateGameCombat(player, playerStats, combatEnemy, undefined, room.terrain);
+    const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+    const result = simulateGameCombat(
+      player, playerStats, combatEnemy, undefined, room.terrain, locMods,
+    );
 
     // Update player HP and chakra based on simulation result
     setPlayer(prev => {
@@ -341,7 +401,10 @@ export function useCombatVictory(
     addLog(`Auto-combat started against elite guardian: ${eliteEnemy.name}...`, 'danger');
 
     // Run simulation
-    const result = simulateGameCombat(player, playerStats, eliteEnemy, undefined, room.terrain);
+    const eliteLocMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+    const result = simulateGameCombat(
+      player, playerStats, eliteEnemy, undefined, room.terrain, eliteLocMods,
+    );
 
     // Update player HP and chakra based on simulation result
     setPlayer(prev => {

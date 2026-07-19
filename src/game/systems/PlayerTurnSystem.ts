@@ -30,6 +30,12 @@
  */
 
 import {
+  skillLocationDamageMult,
+  applyEnemyDefenseBonus,
+  applyMovementPenaltyToMaxAp,
+  applyRoomMovementCostToMaxAp,
+} from './LocationTerrainSystem';
+import {
   Player,
   Enemy,
   Skill,
@@ -41,6 +47,7 @@ import {
 } from '../types';
 import {
   calculateDamage,
+  resolvePassiveDamageBonus,
   resistStatus,
 } from './StatSystem';
 import { CombatModifiers } from './ApproachSystem';
@@ -50,15 +57,24 @@ import {
   generateId,
   applyMitigation,
   getTerrainElementAmplification,
+  getTerrainEvasionBonus,
 } from './CombatCalculationSystem';
 import {
   processPassivesOnHit,
   processPassivesOnTurnStart,
   checkExecuteThreshold,
+  getTotalDefenseBypass,
+  getCritDefenseBypass,
+  hasAllElementsPassive,
+  getConvertToElementalPercent,
+  applyClanTraitToDamageContext,
+  checkGutsPassive,
 } from './EquipmentPassiveSystem';
+import { getEventFlagRunModifiers } from './EventSystem';
 import { getApCost } from '../constants/combatCards';
 import { postureDamageMod, stanceShiftFromSkill } from './PostureSystem';
 import { drawNewTurnHand } from './DeckSystem';
+import { checkLethalDamage } from './EnemyTurnSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
 
 // ============================================================================
@@ -179,7 +195,11 @@ export function processUpkeep(
 
   // Apply artifact turn-start passives (REGEN, CHAKRA_RESTORE)
   if (enemy) {
-    const turnStartResult = processPassivesOnTurnStart(updatedPlayer, enemy);
+    const turnStartResult = processPassivesOnTurnStart(
+      updatedPlayer,
+      enemy,
+      playerStats.derived.maxHp
+    );
 
     // Apply regen from artifact passives
     if (turnStartResult.healToPlayer > 0) {
@@ -203,7 +223,12 @@ export function processUpkeep(
 
   // T-004: restore the AP budget and deal a fresh, posture-weighted hand. The
   // previous hand (whatever was left unplayed) recycles into the discard pile.
-  const maxAp = playerStats.derived.actionPointsPerTurn;
+  // T-082/T-067: re-apply room movementCost then location movement_penalty each turn.
+  let maxAp = applyRoomMovementCostToMaxAp(
+    playerStats.derived.actionPointsPerTurn,
+    combatState.terrain,
+  );
+  maxAp = applyMovementPenaltyToMaxAp(maxAp, combatState.locationTerrainMods);
   const { hand, deck, discard } = drawNewTurnHand(
     combatState.deck,
     combatState.discard,
@@ -278,8 +303,13 @@ export function useSkill(
   // T-004: AP cost to play this card (explicit Skill.apCost, else ActionType default).
   const apCost = getApCost(skill);
 
+  // FREE_FIRST_SKILL: first accepted skill costs 0 chakra (flag cleared by caller).
+  const skipCost = Boolean(combatState?.skipFirstSkillCost);
+  const effectiveChakraCost = skipCost ? 0 : skill.chakraCost;
+
   // Resource check (chakra/HP and — when in the AP economy — Action Points).
-  if (player.currentChakra < skill.chakraCost || player.currentHp <= skill.hpCost) {
+  // Gate uses effectiveChakraCost so free-first works even at low chakra.
+  if (player.currentChakra < effectiveChakraCost || player.currentHp <= skill.hpCost) {
     return {
       damageDealt: 0,
       newEnemyHp: enemy.currentHp,
@@ -327,23 +357,65 @@ export function useSkill(
     };
   }
 
+  // Silence blocks any skill that costs chakra (ninjutsu / medical / toggles), not taijutsu.
+  const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
+  if (isSilenced && skill.chakraCost > 0) {
+    return {
+      damageDealt: 0,
+      newEnemyHp: enemy.currentHp,
+      newPlayerHp: player.currentHp,
+      newPlayerChakra: player.currentChakra,
+      newEnemyBuffs: enemy.activeBuffs,
+      newPlayerBuffs: player.activeBuffs,
+      logMessage: "You are Silenced and cannot use chakra skills!",
+      logType: 'danger',
+      enemyDefeated: false,
+      apCost: 0
+    };
+  }
+
   // Active posture (defaults to BALANCED → neutral 1.0× when no combat state).
   const posture: Posture = combatState?.posture ?? Posture.BALANCED;
 
   // Execute attack
   let newPlayerHp = player.currentHp - skill.hpCost;
-  // Check for FREE_FIRST_SKILL artifact passive - skip chakra cost on first turn
-  const skipCost = combatState?.skipFirstSkillCost && combatState?.isFirstTurn;
-  let newPlayerChakra = skipCost ? player.currentChakra : player.currentChakra - skill.chakraCost;
+  let newPlayerChakra = player.currentChakra - effectiveChakraCost;
+  let newEnemyChakra = enemy.currentChakra;
+  let artifactGutsTriggered = false;
 
-  const damageResult = calculateDamage(
-    playerStats.effectivePrimary,
+  // T-031: clan trait artifacts modify crit and enemy speed/evasion for this hit
+  const clanCtx = applyClanTraitToDamageContext(
+    player,
     playerStats.derived,
     enemyStats.effectivePrimary,
     enemyStats.derived,
+  );
+  // T-077: room terrain evasion also helps the enemy dodge your attacks
+  const roomEvasion = getTerrainEvasionBonus(combatState?.terrain ?? null);
+  const defenderDerived =
+    roomEvasion !== 0
+      ? {
+          ...clanCtx.defenderDerived,
+          evasion: Math.min(0.75, clanCtx.defenderDerived.evasion + roomEvasion),
+        }
+      : clanCtx.defenderDerived;
+  const damageResult = calculateDamage(
+    playerStats.effectivePrimary,
+    clanCtx.attackerDerived,
+    clanCtx.defenderPrimary,
+    defenderDerived,
     skill,
     player.element,
-    enemy.element
+    enemy.element,
+    {
+      damageBonus:
+        resolvePassiveDamageBonus(playerStats.passiveBonuses, skill.element)
+        + getEventFlagRunModifiers(player).damageBonus,
+      defenseBypass: getTotalDefenseBypass(player),
+      critDefenseBypass: getCritDefenseBypass(player),
+      forceSuperEffective: hasAllElementsPassive(player),
+      convertToElementalPercent: getConvertToElementalPercent(player),
+    }
   );
 
   let logMsg = '';
@@ -372,6 +444,18 @@ export function useSkill(
       if (terrainAmp > 1.0) {
         modifiedDamage = Math.floor(modifiedDamage * terrainAmp);
       }
+    }
+
+    // T-063: location terrain effects (water/fire/mental + enemy defense)
+    if (combatState?.locationTerrainMods) {
+      const locMult = skillLocationDamageMult(skill, combatState.locationTerrainMods);
+      if (locMult !== 1) {
+        modifiedDamage = Math.floor(modifiedDamage * locMult);
+      }
+      modifiedDamage = applyEnemyDefenseBonus(
+        modifiedDamage,
+        combatState.locationTerrainMods,
+      );
     }
 
     // Apply player damage multiplier from launch properties
@@ -407,15 +491,36 @@ export function useSkill(
       newPlayerHp = Math.min(playerStats.derived.maxHp, newPlayerHp + onHitResult.healToPlayer);
     }
 
-    // Apply chakra restore from artifact passives
+    // Apply chakra restore from artifact passives (including CHAKRA_DRAIN steal)
     if (onHitResult.chakraRestored > 0) {
       newPlayerChakra = Math.min(playerStats.derived.maxChakra, newPlayerChakra + onHitResult.chakraRestored);
     }
 
-    // Handle Reflection
+    // Artifact/clan CHAKRA_DRAIN mutates enemy chakra on hit
+    if (onHitResult.enemy.currentChakra !== enemy.currentChakra) {
+      newEnemyChakra = onHitResult.enemy.currentChakra;
+    } else if (onHitResult.chakraDrained > 0) {
+      newEnemyChakra = Math.max(0, enemy.currentChakra - onHitResult.chakraDrained);
+    }
+
+    // Handle Reflection — guts check if reflected damage would be lethal
+    let reflectionGutsLog: string | undefined;
     if (mitigation.reflectedDamage > 0) {
-      newPlayerHp -= mitigation.reflectedDamage;
-      logMsg += ` (Reflected ${mitigation.reflectedDamage}!)`;
+      const artifactGuts = checkGutsPassive(player);
+      const lethalCheck = checkLethalDamage(
+        newPlayerHp,
+        mitigation.reflectedDamage,
+        playerStats.derived.gutsChance,
+        { triggered: false, artifactTriggered: false },
+        artifactGuts,
+        combatState?.artifactGutsUsed,
+        playerStats.derived.maxHp
+      );
+      newPlayerHp = lethalCheck.newHp;
+      if (lethalCheck.artifactGutsTriggered) {
+        artifactGutsTriggered = true;
+      }
+      reflectionGutsLog = lethalCheck.log;
     }
 
     // Construct Log Message
@@ -428,6 +533,12 @@ export function useSkill(
     if (firstHitApplied) logMsg += " AMBUSH!";
     if (mitigation.messages.length > 0) {
       logMsg += ` [${mitigation.messages.join(', ')}]`;
+    }
+    if (mitigation.reflectedDamage > 0) {
+      logMsg += ` (Reflected ${mitigation.reflectedDamage}!)`;
+    }
+    if (reflectionGutsLog) {
+      logMsg += ` ${reflectionGutsLog}`;
     }
     if (damageResult.flatReduction > 0) logMsg += ` (${damageResult.flatReduction} blocked)`;
     if (damageResult.elementMultiplier > 1) logMsg += " SUPER EFFECTIVE!";
@@ -450,14 +561,38 @@ export function useSkill(
     // Apply effects
     if (skill.effects) {
       skill.effects.forEach(eff => {
-        // Self-buffs (applied to player)
+        // Instant HEAL: restore HP immediately (not a lingering buff).
+        // Medical jutsu that mention poison/bleed also cleanse those DoTs.
+        if (eff.type === EffectType.HEAL) {
+          const healAmount = Math.floor(eff.value || 0);
+          if (healAmount > 0) {
+            const healed = Math.min(healAmount, playerStats.derived.maxHp - newPlayerHp);
+            if (healed > 0) {
+              newPlayerHp += healed;
+              logMsg += ` HEAL +${healed} HP!`;
+            }
+          }
+          const desc = (skill.description || '').toLowerCase();
+          if (desc.includes('poison') || desc.includes('bleed')) {
+            const before = newPlayerBuffs.length;
+            newPlayerBuffs = newPlayerBuffs.filter(
+              b => b?.effect?.type !== EffectType.BLEED && b?.effect?.type !== EffectType.POISON
+            );
+            if (newPlayerBuffs.length < before) {
+              logMsg += ' Cleansed poison/bleed!';
+            }
+          }
+          return;
+        }
+
+        // Self-buffs (applied to player) — CHAKRA_REGEN restores chakra on tick
         const isSelfBuff = [
           EffectType.BUFF,
           EffectType.SHIELD,
           EffectType.REFLECTION,
           EffectType.REGEN,
           EffectType.INVULNERABILITY,
-          EffectType.HEAL
+          EffectType.CHAKRA_REGEN,
         ].includes(eff.type);
 
         if (isSelfBuff) {
@@ -487,6 +622,7 @@ export function useSkill(
     newEnemyHp,
     newPlayerHp,
     newPlayerChakra,
+    newEnemyChakra,
     newEnemyBuffs,
     newPlayerBuffs,
     logMessage: logMsg,
@@ -495,7 +631,8 @@ export function useSkill(
     enemyDefeated: newEnemyHp <= 0,
     playerDefeated: newPlayerHp <= 0,
     apCost,
-    newPosture
+    newPosture,
+    artifactGutsTriggered: artifactGutsTriggered || undefined,
   };
 
   logFlowCheckpoint('useSkill END', {

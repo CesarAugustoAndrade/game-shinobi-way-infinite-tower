@@ -47,6 +47,15 @@ interface ScoredSkill {
 }
 
 /**
+ * Result of enemy skill selection including AI reason (A-003 telegraph).
+ * `skill` is undefined only when the enemy has no skills at all.
+ */
+export interface EnemySkillDecision {
+  skill: Skill | undefined;
+  reason: string;
+}
+
+/**
  * Check if a skill has a healing effect
  */
 function hasHealEffect(skill: Skill): boolean {
@@ -58,11 +67,12 @@ function hasHealEffect(skill: Skill): boolean {
 }
 
 /**
- * Check if a skill has a debuff effect (stun, confusion, etc.)
+ * Check if a skill has a debuff effect (stat debuff, stun, confusion, DoTs, etc.)
  */
 function hasDebuffEffect(skill: Skill): boolean {
   if (!skill.effects) return false;
   return skill.effects.some(e =>
+    e.type === EffectType.DEBUFF ||
     e.type === EffectType.STUN ||
     e.type === EffectType.CONFUSION ||
     e.type === EffectType.SILENCE ||
@@ -96,25 +106,56 @@ function estimateDamage(skill: Skill, enemyStats: CharacterStats): number {
 }
 
 /**
- * Selects the best skill for an enemy to use based on the current combat state.
+ * Selects the best skill for an enemy, returning skill + AI reason.
+ * Honors a telegraphed intended skill when it is still off cooldown (A-003).
  *
  * @param context - The AI decision context with enemy, player, and stats
- * @returns The selected skill to use
+ * @param options.honorIntent - When true (default), use enemy.intendedSkillId if available
+ * @returns Selected skill and reason string for logging / telegraph
  */
-export function selectEnemySkill(context: AIContext): Skill {
+export function selectEnemySkillDecision(
+  context: AIContext,
+  options: { honorIntent?: boolean } = {}
+): EnemySkillDecision {
   const { enemy, enemyStats, player, playerStats } = context;
+  const honorIntent = options.honorIntent !== false;
+
+  // Empty kit: no skill to cast (caller must no-op safely)
+  if (!enemy.skills || enemy.skills.length === 0) {
+    return {
+      skill: undefined,
+      reason: 'no skills available',
+    };
+  }
 
   // Get available skills (not on cooldown)
   const availableSkills = enemy.skills.filter(s => (s.currentCooldown || 0) <= 0);
 
-  // Fallback: if no skills available, return first skill
+  // Fallback: if all on cooldown, return first skill (legacy spam behavior)
   if (availableSkills.length === 0) {
-    return enemy.skills[0];
+    return {
+      skill: enemy.skills[0],
+      reason: 'no skills available',
+    };
+  }
+
+  // Honor 1-turn telegraph when the intended skill is still ready
+  if (honorIntent && enemy.intendedSkillId) {
+    const intended = availableSkills.find(s => s.id === enemy.intendedSkillId);
+    if (intended) {
+      return {
+        skill: intended,
+        reason: enemy.intentReason || 'telegraphed',
+      };
+    }
   }
 
   // If only one skill available, use it
   if (availableSkills.length === 1) {
-    return availableSkills[0];
+    return {
+      skill: availableSkills[0],
+      reason: 'only available skill',
+    };
   }
 
   // Score each available skill
@@ -177,5 +218,18 @@ export function selectEnemySkill(context: AIContext): Skill {
   // Sort by score descending and return the best skill
   scoredSkills.sort((a, b) => b.score - a.score);
 
-  return scoredSkills[0].skill;
+  return {
+    skill: scoredSkills[0].skill,
+    reason: scoredSkills[0].reason,
+  };
+}
+
+/**
+ * Selects the best skill for an enemy to use based on the current combat state.
+ *
+ * @param context - The AI decision context with enemy, player, and stats
+ * @returns The selected skill to use, or undefined when the enemy has no skills
+ */
+export function selectEnemySkill(context: AIContext): Skill | undefined {
+  return selectEnemySkillDecision(context).skill;
 }

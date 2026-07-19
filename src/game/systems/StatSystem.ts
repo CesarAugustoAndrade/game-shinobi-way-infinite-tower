@@ -72,7 +72,7 @@ import {
   ElementType,
   STAT_FORMULAS,
   ActionType,
-  PassiveSkillEffect
+  PassiveBonuses
 } from '../types';
 import { ELEMENTAL_CYCLE } from '../constants';
 import { BALANCE } from '../config';
@@ -84,25 +84,28 @@ import { percentChance, chance } from '../utils/rng';
 // ============================================================================
 
 /**
- * Aggregated bonuses from all equipped passive skills.
- * These bonuses are applied AFTER equipment but BEFORE buffs.
+ * Nature elements that can receive element-scoped damage bonuses
+ * (e.g. FIRE_AFFINITY only buffs Fire skills).
  */
-export interface PassiveBonuses {
-  /** Flat bonuses to primary stats (e.g., +5 Strength) */
-  statBonus: Partial<PrimaryAttributes>;
-  /** Percentage bonus to all outgoing damage (0.1 = +10%) */
-  damageBonus: number;
-  /** Percentage bonus to all defense types (0.1 = +10%) */
-  defenseBonus: number;
-  /** Flat HP regeneration per turn (added to derived hpRegen) */
-  hpRegen: number;
-  /** Flat chakra regeneration per turn (added to derived chakraRegen) */
-  chakraRegen: number;
-}
+const NATURE_ELEMENTS: ReadonlySet<ElementType> = new Set([
+  ElementType.FIRE,
+  ElementType.WIND,
+  ElementType.LIGHTNING,
+  ElementType.EARTH,
+  ElementType.WATER,
+]);
+
+// Re-export for callers that imported PassiveBonuses from StatSystem
+export type { PassiveBonuses };
 
 /**
  * Collects and sums all passive skill bonuses from a player's skill list.
  * Only processes skills with ActionType.PASSIVE and a valid passiveEffect.
+ *
+ * damageBonus is global unless the passive skill is itself a nature element
+ * (FIRE/WIND/LIGHTNING/EARTH/WATER), in which case it is stored under
+ * elementalDamageBonus for that element (e.g. FIRE_AFFINITY → Fire only).
+ * Explicit `damageBonusElement` on the effect overrides that default.
  *
  * @param skills - Array of all player skills (active and passive)
  * @returns Aggregated PassiveBonuses object with summed values
@@ -111,6 +114,7 @@ export function aggregatePassiveSkillBonuses(skills: Skill[]): PassiveBonuses {
   const bonuses: PassiveBonuses = {
     statBonus: {},
     damageBonus: 0,
+    elementalDamageBonus: {},
     defenseBonus: 0,
     hpRegen: 0,
     chakraRegen: 0
@@ -135,9 +139,18 @@ export function aggregatePassiveSkillBonuses(skills: Skill[]): PassiveBonuses {
       });
     }
 
-    // Aggregate damage bonus
+    // Aggregate damage bonus (global or element-scoped)
     if (effect.damageBonus) {
-      bonuses.damageBonus += effect.damageBonus;
+      const elementFilter =
+        effect.damageBonusElement ??
+        (NATURE_ELEMENTS.has(skill.element) ? skill.element : undefined);
+
+      if (elementFilter) {
+        bonuses.elementalDamageBonus[elementFilter] =
+          (bonuses.elementalDamageBonus[elementFilter] || 0) + effect.damageBonus;
+      } else {
+        bonuses.damageBonus += effect.damageBonus;
+      }
     }
 
     // Aggregate defense bonus
@@ -157,6 +170,23 @@ export function aggregatePassiveSkillBonuses(skills: Skill[]): PassiveBonuses {
   });
 
   return bonuses;
+}
+
+/**
+ * Resolves the total passive damage multiplier bonus for a given attack element.
+ * Combines global damageBonus with any matching elementalDamageBonus.
+ *
+ * @param passiveBonuses - Aggregated passive skill bonuses
+ * @param skillElement - Element of the skill being used
+ * @returns Combined damage bonus fraction (0.15 = +15%)
+ */
+export function resolvePassiveDamageBonus(
+  passiveBonuses: PassiveBonuses | undefined,
+  skillElement: ElementType
+): number {
+  if (!passiveBonuses) return 0;
+  const elemental = passiveBonuses.elementalDamageBonus[skillElement] || 0;
+  return passiveBonuses.damageBonus + elemental;
 }
 
 // ============================================================================
@@ -234,8 +264,12 @@ export function applyPassiveBonusesToStats(
  * - gutsChance = willpower / (willpower + 30) (survive lethal hit at 1 HP)
  * - initiative = 10 + (speed × 0.5)
  *
- * @param primary - Modified primary attributes (after equipment/passives/buffs)
- * @param equipmentBonuses - Direct bonuses from equipment (for flat HP/Chakra/etc)
+ * @param primary - Modified primary attributes (after equipment/passives/buffs).
+ *   Primary-stat equipment bonuses must already be folded into this object
+ *   (via applyEquipmentToPrimaryStats) — they are NOT re-applied here.
+ * @param equipmentBonuses - Direct derived bonuses from equipment only
+ *   (flatHp, flatChakra, flat/percent def, critChance, critDamage).
+ *   Primary keys on this object are ignored to avoid double-counting.
  * @returns Complete DerivedStats object ready for combat
  */
 export function calculateDerivedStats(
@@ -244,18 +278,10 @@ export function calculateDerivedStats(
 ): DerivedStats {
   const F = STAT_FORMULAS;
 
-  // Build effective stats by adding equipment bonuses to primary stats
-  const effective = {
-    willpower: primary.willpower + (equipmentBonuses.willpower || 0),
-    chakra: primary.chakra + (equipmentBonuses.chakra || 0),
-    strength: primary.strength + (equipmentBonuses.strength || 0),
-    spirit: primary.spirit + (equipmentBonuses.spirit || 0),
-    intelligence: primary.intelligence + (equipmentBonuses.intelligence || 0),
-    calmness: primary.calmness + (equipmentBonuses.calmness || 0),
-    speed: primary.speed + (equipmentBonuses.speed || 0),
-    accuracy: primary.accuracy + (equipmentBonuses.accuracy || 0),
-    dexterity: primary.dexterity + (equipmentBonuses.dexterity || 0),
-  };
+  // Use primary as-is. Equipment primaries are applied once upstream
+  // (getPlayerFullStats → applyEquipmentToPrimaryStats) so re-adding them
+  // here would double-count willpower/strength/etc. into maxHp and defenses.
+  const effective = primary;
 
   // ─────────────────────────────────────────────────────────────────────────
   // RESOURCE POOLS - HP and Chakra capacity
@@ -463,12 +489,29 @@ export function getPlayerFullStats(player: Player): {
   const withPassives = applyPassiveBonusesToStats(withEquipment, passiveBonuses);
   const effectivePrimary = applyBuffsToPrimaryStats(withPassives, player.activeBuffs);
 
-  // 4. Calculate derived stats
+  // 4. Calculate derived stats (equipment primaries already in effectivePrimary;
+  //    only flat/percent derived gear bonuses are applied inside)
   const derived = calculateDerivedStats(effectivePrimary, equipmentBonuses);
 
   // 5. Apply passive regen bonuses to derived stats
   derived.chakraRegen += passiveBonuses.chakraRegen;
   derived.hpRegen += passiveBonuses.hpRegen;
+
+  // 6. Apply passive defenseBonus to all percent defenses (soft-capped at 75%)
+  if (passiveBonuses.defenseBonus > 0) {
+    derived.physicalDefensePercent = Math.min(
+      0.75,
+      derived.physicalDefensePercent + passiveBonuses.defenseBonus
+    );
+    derived.elementalDefensePercent = Math.min(
+      0.75,
+      derived.elementalDefensePercent + passiveBonuses.defenseBonus
+    );
+    derived.mentalDefensePercent = Math.min(
+      0.75,
+      derived.mentalDefensePercent + passiveBonuses.defenseBonus
+    );
+  }
 
   return {
     primary: player.primaryStats,
@@ -534,53 +577,77 @@ export function getEffectiveAtk(player: Player): number {
 // ============================================================================
 
 /**
+ * Optional modifiers for calculateDamage.
+ * damageBonus is the passive-skill multiplier (global + element-scoped).
+ * Other fields wire equipped artifact passives into real damage.
+ */
+export interface CalculateDamageOptions {
+  /** Passive skill damage bonus fraction (0.15 = +15%) */
+  damageBonus?: number;
+  /** Artifact: permanent % of defense ignored (0-100) */
+  defenseBypass?: number;
+  /** Artifact: extra % defense ignored on crits (0-100) */
+  critDefenseBypass?: number;
+  /** Artifact: treat matchup as always super-effective (ALL_ELEMENTS) */
+  forceSuperEffective?: boolean;
+  /** Artifact: % of PHYSICAL damage resolved against elemental defense (0-100) */
+  convertToElementalPercent?: number;
+  /**
+   * Skip hit/miss and evasion rolls (always connect).
+   * Used by UI damage previews so tooltips do not flicker between hit/miss.
+   */
+  forceHit?: boolean;
+  /**
+   * Override crit roll: `true` always crits, `false` never crits.
+   * `undefined` keeps normal RNG. Previews use `false` for stable non-crit numbers.
+   */
+  forceCrit?: boolean;
+}
+
+/**
+ * Apply flat + % defense for a raw damage slice, respecting damage property.
+ */
+function applyDefenseSlice(
+  raw: number,
+  flatDef: number,
+  percentDef: number,
+  damageProperty: DamageProperty | undefined
+): { after: number; flatReduction: number; percentReduction: number } {
+  let damageAfterDefense = raw;
+  let flatReduction = 0;
+  let percentReduction = 0;
+
+  if (damageProperty === DamageProperty.PIERCING) {
+    flatReduction = 0;
+    percentReduction = Math.floor(damageAfterDefense * percentDef);
+    damageAfterDefense -= percentReduction;
+  } else if (damageProperty === DamageProperty.ARMOR_BREAK) {
+    flatReduction = Math.min(flatDef, damageAfterDefense * BALANCE.FLAT_DEFENSE_MAX_REDUCTION);
+    damageAfterDefense -= flatReduction;
+    percentReduction = 0;
+  } else {
+    // NORMAL (default): flat then %
+    flatReduction = Math.min(flatDef, damageAfterDefense * BALANCE.FLAT_DEFENSE_MAX_REDUCTION);
+    damageAfterDefense -= flatReduction;
+    percentReduction = Math.floor(damageAfterDefense * percentDef);
+    damageAfterDefense -= percentReduction;
+  }
+
+  return { after: damageAfterDefense, flatReduction, percentReduction };
+}
+
+/**
  * The core damage calculation function used for all combat attacks.
  * Handles the complete damage pipeline from raw damage to final result.
  *
- * ## DAMAGE CALCULATION PIPELINE (5 Steps)
+ * ## DAMAGE CALCULATION PIPELINE
+ * 1. Hit/Miss + Evasion
+ * 2. Base damage (scalingStat × damageMult) + passive damageBonus
+ * 3. Elemental effectiveness (ALL_ELEMENTS can force SE)
+ * 4. Critical hit (+ critDefenseBypass when crit)
+ * 5. Defense (pierce / convert-to-elemental / property)
  *
- * ### Step 1: Hit/Miss Check
- * - AUTO attacks always hit (toggle skills, certain abilities)
- * - MELEE: hitChance = baseHit + (attacker_speed × 0.3) - (defender_speed × 0.5)
- * - RANGED: hitChance = baseHit + (attacker_accuracy × 0.3) - (defender_speed × 0.5)
- * - Hit chance clamped to 30-98% range
- * - If hit succeeds, separate EVASION check occurs
- *
- * ### Step 2: Base Damage
- * - rawDamage = scalingStat × skill.damageMult
- * - Scaling stat determined by skill.scalingStat (e.g., STRENGTH, SPIRIT)
- *
- * ### Step 3: Elemental Effectiveness
- * - Element cycle: Fire > Wind > Lightning > Earth > Water > Fire
- * - Super effective: 1.5× damage multiplier
- * - Resisted: 0.5× damage multiplier
- * - Neutral: 1.0× (no change)
- * - PHYSICAL and MENTAL elements are neutral to all
- *
- * ### Step 4: Critical Hit
- * - Roll against critChance + skill.critBonus
- * - Super effective attacks get +20% bonus crit chance
- * - Crit multiplier: 1.5× base (ranged gets bonus from accuracy)
- *
- * ### Step 5: Defense Application
- * - Select defense type based on skill.damageType (Physical/Elemental/Mental)
- * - TRUE damage bypasses ALL defense
- * - Super effective hits ignore 50% of % defense (pseudo-penetration)
- * - Skill penetration further reduces % defense
- * - Apply damage property modifiers:
- *   - NORMAL: Flat (max 60% reduction) then % defense
- *   - PIERCING: Only % defense (ignores flat)
- *   - ARMOR_BREAK: Only flat defense (ignores %)
- * - Minimum 1 damage after all reductions
- *
- * @param attackerPrimary - Attacker's primary attributes
- * @param attackerDerived - Attacker's calculated derived stats
- * @param defenderPrimary - Defender's primary attributes
- * @param defenderDerived - Defender's calculated derived stats
- * @param skill - The skill being used for the attack
- * @param attackerElement - Attacker's elemental affinity
- * @param defenderElement - Defender's elemental affinity
- * @returns DamageResult with all calculation details (for combat log)
+ * @param options - Optional modifiers. Also accepts a bare number as legacy damageBonus.
  */
 export function calculateDamage(
   attackerPrimary: PrimaryAttributes,
@@ -589,8 +656,13 @@ export function calculateDamage(
   defenderDerived: DerivedStats,
   skill: Skill,
   attackerElement: ElementType,
-  defenderElement: ElementType
+  defenderElement: ElementType,
+  options: CalculateDamageOptions | number = {}
 ): DamageResult {
+  // Accept legacy bare-number damageBonus for convenience
+  const opts: CalculateDamageOptions =
+    typeof options === 'number' ? { damageBonus: options } : options;
+  const damageBonus = opts.damageBonus ?? 0;
   const result: DamageResult = {
     rawDamage: 0,
     flatReduction: 0,
@@ -606,14 +678,13 @@ export function calculateDamage(
   // ========================================
   // STEP 1: HIT/MISS CHECK
   // ========================================
-  if (skill.attackMethod !== AttackMethod.AUTO) {
+  // forceHit skips both miss and evasion so previews / tests stay deterministic.
+  if (!opts.forceHit && skill.attackMethod !== AttackMethod.AUTO) {
     let hitChance: number;
-    
+
     if (skill.attackMethod === AttackMethod.MELEE) {
-      // Melee: Attacker SPEED vs Defender SPEED
       hitChance = attackerDerived.meleeHitRate - (defenderPrimary.speed * BALANCE.EVASION_SCALING);
     } else {
-      // Ranged: Attacker ACCURACY vs Defender SPEED
       hitChance = attackerDerived.rangedHitRate - (defenderPrimary.speed * BALANCE.EVASION_SCALING);
     }
 
@@ -624,7 +695,6 @@ export function calculateDamage(
       return result;
     }
 
-    // Evasion check (separate from miss)
     if (chance(defenderDerived.evasion)) {
       result.isEvaded = true;
       return result;
@@ -639,9 +709,18 @@ export function calculateDamage(
   result.rawDamage = Math.floor(scalingValue * skill.damageMult);
 
   // ========================================
+  // STEP 2b: PASSIVE DAMAGE BONUS
+  // ========================================
+  if (damageBonus > 0) {
+    result.rawDamage = Math.floor(result.rawDamage * (1 + damageBonus));
+  }
+
+  // ========================================
   // STEP 3: ELEMENTAL EFFECTIVENESS
   // ========================================
-  if (skill.element !== ElementType.PHYSICAL && skill.element !== ElementType.MENTAL) {
+  if (opts.forceSuperEffective) {
+    result.elementMultiplier = 1.2;
+  } else if (skill.element !== ElementType.PHYSICAL && skill.element !== ElementType.MENTAL) {
     if (ELEMENTAL_CYCLE[skill.element] === defenderElement) {
       result.elementMultiplier = 1.2; // Super effective
     } else if (ELEMENTAL_CYCLE[defenderElement] === skill.element) {
@@ -655,18 +734,23 @@ export function calculateDamage(
   // ========================================
   let effectiveCritChance = attackerDerived.critChance + (skill.critBonus || 0);
 
-  // BONUS: Super Effective hits get +10% Crit Chance (reduced from 20%)
   if (result.elementMultiplier > 1.0) {
     effectiveCritChance += 10;
   }
 
-  // Cap effective crit chance at 95% (always some uncertainty)
   effectiveCritChance = Math.min(95, effectiveCritChance);
 
-  if (percentChance(effectiveCritChance)) {
+  const doesCrit =
+    opts.forceCrit === true
+      ? true
+      : opts.forceCrit === false
+        ? false
+        : percentChance(effectiveCritChance);
+
+  if (doesCrit) {
     result.isCrit = true;
-    const critMult = skill.attackMethod === AttackMethod.RANGED 
-      ? attackerDerived.critDamageRanged 
+    const critMult = skill.attackMethod === AttackMethod.RANGED
+      ? attackerDerived.critDamageRanged
       : attackerDerived.critDamageMelee;
     result.rawDamage = Math.floor(result.rawDamage * critMult);
   }
@@ -674,58 +758,104 @@ export function calculateDamage(
   // ========================================
   // STEP 5: DEFENSE APPLICATION
   // ========================================
-  let flatDef = 0;
-  let percentDef = 0;
+  const bypassPct = Math.min(
+    100,
+    (opts.defenseBypass || 0) + (result.isCrit ? (opts.critDefenseBypass || 0) : 0)
+  ) / 100;
+  const defMult = 1 - bypassPct;
 
-  // Select defense type based on damage type
+  const scaledDef = (type: DamageType): { flat: number; percent: number } => {
+    if (type === DamageType.TRUE) return { flat: 0, percent: 0 };
+    let flat = 0;
+    let percent = 0;
+    if (type === DamageType.PHYSICAL) {
+      flat = defenderDerived.physicalDefenseFlat;
+      percent = defenderDerived.physicalDefensePercent;
+    } else if (type === DamageType.ELEMENTAL) {
+      flat = defenderDerived.elementalDefenseFlat;
+      percent = defenderDerived.elementalDefensePercent;
+    } else if (type === DamageType.MENTAL) {
+      flat = defenderDerived.mentalDefenseFlat;
+      percent = defenderDerived.mentalDefensePercent;
+    }
+    if (skill.penetration) {
+      percent = percent * (1 - skill.penetration);
+    }
+    return { flat: flat * defMult, percent: percent * defMult };
+  };
+
+  const convertPct = Math.min(100, Math.max(0, opts.convertToElementalPercent || 0));
+  const canConvert = convertPct > 0 && skill.damageType === DamageType.PHYSICAL;
+
+  // Min-1 chip only when the skill actually dealt damage. Utility/heal kits with
+  // damageMult 0 must not poke the enemy for 1 (was Math.max(1, 0) → 1).
+  const floorDamage = (afterDefense: number): number => {
+    const floored = Math.floor(afterDefense);
+    if (result.rawDamage <= 0) return 0;
+    return Math.max(1, floored);
+  };
+
   if (skill.damageType === DamageType.TRUE) {
-    // TRUE damage bypasses ALL defense
-    flatDef = 0;
-    percentDef = 0;
-  } else if (skill.damageType === DamageType.PHYSICAL) {
-    flatDef = defenderDerived.physicalDefenseFlat;
-    percentDef = defenderDerived.physicalDefensePercent;
-  } else if (skill.damageType === DamageType.ELEMENTAL) {
-    flatDef = defenderDerived.elementalDefenseFlat;
-    percentDef = defenderDerived.elementalDefensePercent;
-  } else if (skill.damageType === DamageType.MENTAL) {
-    flatDef = defenderDerived.mentalDefenseFlat;
-    percentDef = defenderDerived.mentalDefensePercent;
-  }
-
-  // NOTE: Super effective defense ignore removed for balance
-  // Super effective now only grants +10% crit chance bonus
-
-  // Apply penetration if skill has it
-  if (skill.penetration) {
-    percentDef = percentDef * (1 - skill.penetration);
-  }
-
-  // Apply damage property modifiers
-  let damageAfterDefense = result.rawDamage;
-
-  if (skill.damageProperty === DamageProperty.NORMAL) {
-    // Normal: Both flat and % apply
-    // Order: Flat first, then %
-    result.flatReduction = Math.min(flatDef, damageAfterDefense * BALANCE.FLAT_DEFENSE_MAX_REDUCTION);
-    damageAfterDefense -= result.flatReduction;
-    result.percentReduction = Math.floor(damageAfterDefense * percentDef);
-    damageAfterDefense -= result.percentReduction;
-  } else if (skill.damageProperty === DamageProperty.PIERCING) {
-    // Piercing: Ignores FLAT, only % applies
     result.flatReduction = 0;
-    result.percentReduction = Math.floor(damageAfterDefense * percentDef);
-    damageAfterDefense -= result.percentReduction;
-  } else if (skill.damageProperty === DamageProperty.ARMOR_BREAK) {
-    // Armor Break: Ignores %, only FLAT applies
-    result.flatReduction = Math.min(flatDef, damageAfterDefense * BALANCE.FLAT_DEFENSE_MAX_REDUCTION);
-    damageAfterDefense -= result.flatReduction;
     result.percentReduction = 0;
+    result.finalDamage = floorDamage(result.rawDamage);
+    return result;
   }
 
-  result.finalDamage = Math.max(1, Math.floor(damageAfterDefense));
+  if (canConvert) {
+    const ratio = convertPct / 100;
+    const physRaw = result.rawDamage * (1 - ratio);
+    const elemRaw = result.rawDamage * ratio;
+    const physDef = scaledDef(DamageType.PHYSICAL);
+    const elemDef = scaledDef(DamageType.ELEMENTAL);
+    const physSlice = applyDefenseSlice(physRaw, physDef.flat, physDef.percent, skill.damageProperty);
+    const elemSlice = applyDefenseSlice(elemRaw, elemDef.flat, elemDef.percent, skill.damageProperty);
+    result.flatReduction = physSlice.flatReduction + elemSlice.flatReduction;
+    result.percentReduction = physSlice.percentReduction + elemSlice.percentReduction;
+    result.finalDamage = floorDamage(physSlice.after + elemSlice.after);
+    return result;
+  }
+
+  const damageType = skill.damageType || DamageType.PHYSICAL;
+  const { flat: flatDef, percent: percentDef } = scaledDef(damageType);
+  const slice = applyDefenseSlice(result.rawDamage, flatDef, percentDef, skill.damageProperty);
+  result.flatReduction = slice.flatReduction;
+  result.percentReduction = slice.percentReduction;
+  result.finalDamage = floorDamage(slice.after);
 
   return result;
+}
+
+/**
+ * Deterministic damage preview for UI tooltips / AI evaluation.
+ * Always hits and never crits so numbers stay stable across re-renders
+ * (avoids hit/miss and CRIT flicker while hovering a skill card).
+ *
+ * Same signature as {@link calculateDamage}; merges `forceHit: true` and
+ * `forceCrit: false` into options (call-site flags for those keys are overridden).
+ */
+export function previewDamage(
+  attackerPrimary: PrimaryAttributes,
+  attackerDerived: DerivedStats,
+  defenderPrimary: PrimaryAttributes,
+  defenderDerived: DerivedStats,
+  skill: Skill,
+  attackerElement: ElementType,
+  defenderElement: ElementType,
+  options: CalculateDamageOptions | number = {}
+): DamageResult {
+  const opts: CalculateDamageOptions =
+    typeof options === 'number' ? { damageBonus: options } : { ...options };
+  return calculateDamage(
+    attackerPrimary,
+    attackerDerived,
+    defenderPrimary,
+    defenderDerived,
+    skill,
+    attackerElement,
+    defenderElement,
+    { ...opts, forceHit: true, forceCrit: false }
+  );
 }
 
 // ============================================================================

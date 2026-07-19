@@ -37,17 +37,20 @@ import {
   calculateDotDamage,
   calculateDamage,
 } from './StatSystem';
-import { selectEnemySkill } from './EnemyAISystem';
+import { selectEnemySkillDecision } from './EnemyAISystem';
 import { combatLog } from '../utils/combatDebug';
 import {
   generateId,
   tickBuffDurations,
   applyMitigation,
   applyTerrainHazard,
+  getTerrainEvasionBonus,
 } from './CombatCalculationSystem';
+import { applyLocationHazardsToPlayer } from './LocationTerrainSystem';
 import {
   shouldCounterAttack,
   checkGutsPassive,
+  getDamageReductionPercent,
 } from './EquipmentPassiveSystem';
 import { postureDefenseMod } from './PostureSystem';
 import { chance } from '../utils/rng';
@@ -59,16 +62,24 @@ import { LaunchProperties } from '../../config/featureFlags';
 // ============================================================================
 
 /**
- * Result of processing buff ticks (DoT/Regen) on an entity.
+ * Result of processing buff ticks (DoT/Regen/Chakra) on an entity.
  */
 interface BuffTickResult {
   /** Updated HP after DoT damage and regen healing */
   newHp: number;
+  /** Updated chakra after CHAKRA_REGEN / CHAKRA_DRAIN ticks */
+  newChakra: number;
   /** Updated buff list with durations decremented */
   updatedBuffs: Buff[];
   /** Log messages from this phase */
   logs: string[];
 }
+
+/** Defensive combat-start buffs that must survive Phase 2 and expire after Phase 4 */
+const DEFERRED_DURATION_TYPES: EffectType[] = [
+  EffectType.INVULNERABILITY,
+  EffectType.REFLECTION,
+];
 
 /**
  * Context for tracking guts state across turn phases.
@@ -146,8 +157,8 @@ interface TerrainHazardPhaseResult {
 // ============================================================================
 
 /**
- * Process DoT and Regen buff effects on an entity.
- * Handles Bleed, Burn, Poison (damage) and Regen (healing).
+ * Process DoT, Regen, and Chakra buff effects on an entity.
+ * Handles Bleed, Burn, Poison (damage), Regen (healing), CHAKRA_REGEN, CHAKRA_DRAIN.
  * For players, DoT damage is mitigated by shields.
  *
  * @param entityHp - Current HP of the entity
@@ -156,6 +167,12 @@ interface TerrainHazardPhaseResult {
  * @param entityName - Name for log messages
  * @param isPlayer - Whether this is the player (enables shield mitigation)
  * @param maxHp - Max HP for capping regen healing (required for player)
+ * @param tickDurations - When false, effects apply but durations are NOT decremented
+ *   (used for the acting enemy so duration-1 STUN still blocks this action)
+ * @param entityChakra - Current chakra (for CHAKRA_REGEN / CHAKRA_DRAIN)
+ * @param maxChakra - Max chakra for capping regen
+ * @param durationExceptTypes - Effect types to skip when decrementing durations
+ *   (INVULNERABILITY/REFLECTION deferred until after Phase 4)
  */
 export function processBuffTicks(
   entityHp: number,
@@ -163,9 +180,14 @@ export function processBuffTicks(
   entityStats: CharacterStats,
   entityName: string,
   isPlayer: boolean,
-  maxHp?: number
+  maxHp?: number,
+  tickDurations: boolean = true,
+  entityChakra: number = 0,
+  maxChakra?: number,
+  durationExceptTypes?: EffectType[]
 ): BuffTickResult {
   let newHp = entityHp;
+  let newChakra = entityChakra;
   let updatedBuffs = [...entityBuffs];
   const logs: string[] = [];
 
@@ -196,7 +218,7 @@ export function processBuffTicks(
       }
     }
 
-    // Regen
+    // Regen (HP)
     if (buff.effect.type === EffectType.REGEN && buff.effect.value) {
       const healAmount = buff.effect.value;
       if (isPlayer && maxHp) {
@@ -206,12 +228,38 @@ export function processBuffTicks(
       }
       logs.push(`${entityName} regenerates ${healAmount} HP`);
     }
+
+    // Chakra regen (self-buff tick)
+    if (buff.effect.type === EffectType.CHAKRA_REGEN && buff.effect.value) {
+      const regenAmount = buff.effect.value;
+      if (maxChakra !== undefined) {
+        newChakra = Math.min(maxChakra, newChakra + regenAmount);
+      } else {
+        newChakra += regenAmount;
+      }
+      logs.push(`${entityName} regenerates ${regenAmount} CP`);
+    }
+
+    // Chakra drain (debuff tick)
+    if (buff.effect.type === EffectType.CHAKRA_DRAIN && buff.effect.value) {
+      const drainAmount = Math.min(newChakra, buff.effect.value);
+      if (drainAmount > 0) {
+        newChakra -= drainAmount;
+        logs.push(`${entityName} loses ${drainAmount} CP to Chakra Drain`);
+      }
+    }
   });
 
-  // Tick down buff durations
-  updatedBuffs = tickBuffDurations(updatedBuffs);
+  // Tick down buff durations (optional — see stun duration-1 fix for acting enemy;
+  // durationExceptTypes defers INVULNERABILITY/REFLECTION until after Phase 4)
+  if (tickDurations) {
+    updatedBuffs = tickBuffDurations(
+      updatedBuffs,
+      durationExceptTypes?.length ? { exceptTypes: durationExceptTypes } : undefined
+    );
+  }
 
-  return { newHp, updatedBuffs, logs };
+  return { newHp, newChakra, updatedBuffs, logs };
 }
 
 // ============================================================================
@@ -371,8 +419,9 @@ export function executeEnemyAction(
     };
   }
 
-  // Normal enemy attack
-  const selectedSkill = selectEnemySkill({ enemy, enemyStats, player, playerStats });
+  // Normal enemy attack — honor telegraphed intent when still available (A-003)
+  const decision = selectEnemySkillDecision({ enemy, enemyStats, player, playerStats });
+  const selectedSkill = decision.skill;
   if (!selectedSkill) {
     logs.push(`${enemy.name} has no available skills!`);
     return {
@@ -384,13 +433,29 @@ export function executeEnemyAction(
       gutsContext: updatedGutsContext
     };
   }
+  // Clear spent intent; next telegraph is set after the turn
+  updatedEnemy.intendedSkillId = undefined;
+  updatedEnemy.intendedSkillName = undefined;
+  updatedEnemy.intentReason = undefined;
+
+  // T-066/T-077: location evasion_bonus + room terrain.evasionModifier
+  const locEvasion = combatState?.locationTerrainMods?.evasionBonus ?? 0;
+  const roomEvasion = getTerrainEvasionBonus(combatState?.terrain ?? null);
+  const totalEvasionBonus = locEvasion + roomEvasion;
+  const defenderDerived =
+    totalEvasionBonus !== 0
+      ? {
+          ...playerStats.derived,
+          evasion: Math.min(0.75, playerStats.derived.evasion + totalEvasionBonus),
+        }
+      : playerStats.derived;
 
   // Calculate damage
   const damageResult = calculateDamage(
     enemyStats.effectivePrimary,
     enemyStats.derived,
     playerStats.effectivePrimary,
-    playerStats.derived,
+    defenderDerived,
     selectedSkill,
     enemy.element,
     player.element
@@ -402,11 +467,24 @@ export function executeEnemyAction(
     logs.push(`${enemy.name} uses ${selectedSkill.name} but you EVADE!`);
   } else {
     // Apply enemy damage multiplier from launch properties
-    const modifiedDamage = Math.floor(damageResult.finalDamage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
+    let modifiedDamage = Math.floor(damageResult.finalDamage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
 
-    // Apply mitigation (base math — frozen; calculateDamage/applyMitigation untouched)
+    // T-064: location enemy_attack_bonus (fraction) from terrainEffects
+    const atkBonus = combatState?.locationTerrainMods?.enemyAttackBonus ?? 0;
+    if (atkBonus !== 0) {
+      modifiedDamage = Math.floor(modifiedDamage * (1 + atkBonus));
+    }
+
+    // Apply mitigation (invuln → reflect → curse → shield)
     const mitigation = applyMitigation(player.activeBuffs, modifiedDamage, 'You');
     updatedPlayer.activeBuffs = mitigation.updatedBuffs;
+
+    // Artifact DAMAGE_REDUCTION (incl. below_half_hp) after buff mitigation
+    let mitigatedDamage = mitigation.finalDamage;
+    const drPercent = getDamageReductionPercent(player, playerStats.derived.maxHp);
+    if (drPercent !== 0 && mitigatedDamage > 0) {
+      mitigatedDamage = Math.max(0, Math.floor(mitigatedDamage * (1 - drPercent / 100)));
+    }
 
     // Posture scales the post-mitigation damage the player actually takes, giving
     // DEFENSIVE a real upside (T-004): inflict ×0.85 / take ×0.85 (tanky),
@@ -414,7 +492,7 @@ export function executeEnemyAction(
     // Applied AFTER base mitigation/shields as an external posture modifier; the
     // outgoing side is scaled symmetrically in PlayerTurnSystem via postureDamageMod.
     const postureMod = combatState ? postureDefenseMod(combatState.posture) : 1;
-    const incomingDamage = Math.floor(mitigation.finalDamage * postureMod);
+    const incomingDamage = Math.floor(mitigatedDamage * postureMod);
 
     // Check lethal damage
     const artifactGuts = checkGutsPassive(player);
@@ -476,42 +554,68 @@ export function executeEnemyAction(
       };
     }
 
-    // Apply enemy skill effects (debuffs on player)
+    // Apply enemy skill effects (mirror player: HEAL/self-buffs on enemy, debuffs on player)
     if (selectedSkill.effects) {
       selectedSkill.effects.forEach(eff => {
-        // Skip self-buff effects
+        // Instant HEAL on self (not a lingering buff)
+        if (eff.type === EffectType.HEAL) {
+          const healAmount = Math.floor(eff.value || 0);
+          if (healAmount > 0) {
+            const cap = enemyStats.derived.maxHp;
+            const healed = Math.min(healAmount, Math.max(0, cap - updatedEnemy.currentHp));
+            if (healed > 0) {
+              updatedEnemy.currentHp += healed;
+              logs.push(`${enemy.name} HEAL +${healed} HP!`);
+            }
+          }
+          const desc = (selectedSkill.description || '').toLowerCase();
+          if (desc.includes('poison') || desc.includes('bleed')) {
+            updatedEnemy.activeBuffs = updatedEnemy.activeBuffs.filter(
+              b => b?.effect?.type !== EffectType.BLEED && b?.effect?.type !== EffectType.POISON
+            );
+          }
+          return;
+        }
+
         const isSelfBuff = [
           EffectType.BUFF,
           EffectType.SHIELD,
           EffectType.REFLECTION,
           EffectType.REGEN,
           EffectType.INVULNERABILITY,
-          EffectType.HEAL
+          EffectType.CHAKRA_REGEN,
         ].includes(eff.type);
 
-        if (!isSelfBuff) {
-          // Debuff with resistance check
+        if (isSelfBuff) {
+          updatedEnemy.activeBuffs.push({
+            id: generateId(),
+            name: eff.type,
+            duration: eff.duration,
+            effect: eff,
+            source: selectedSkill.name,
+          });
+        } else {
+          // Debuff on player with resistance check
           const resisted = !resistStatus(eff.chance, playerStats.derived.statusResistance);
           if (!resisted) {
-            const buff: Buff = {
+            updatedPlayer.activeBuffs.push({
               id: generateId(),
               name: eff.type,
               duration: eff.duration,
               effect: eff,
-              source: selectedSkill.name
-            };
-            updatedPlayer.activeBuffs.push(buff);
+              source: selectedSkill.name,
+            });
           }
         }
       });
     }
 
-    // Check for counter attack
+    // Counter: shouldCounterAttack already rolls RNG once — do not re-roll (was p^2).
     const counterCheck = shouldCounterAttack(player);
-    if (counterCheck.shouldCounter && chance(counterCheck.chance / 100)) {
+    if (counterCheck.shouldCounter) {
       const counterDamage = Math.floor(playerStats.effectivePrimary.strength * 0.3);
       updatedEnemy.currentHp -= counterDamage;
-      logs.push(`Counter attack deals ${counterDamage} to ${enemy.name}!`);
+      logs.push(`${counterCheck.source}: Counter attack deals ${counterDamage} to ${enemy.name}!`);
 
       if (updatedEnemy.currentHp <= 0) {
         return {
@@ -667,15 +771,34 @@ function buildTurnResult(
 ): EnemyTurnResult {
   return {
     newPlayerHp: player.currentHp,
+    newPlayerChakra: player.currentChakra,
     newPlayerBuffs: player.activeBuffs,
     newEnemyHp: enemy.currentHp,
+    newEnemyChakra: enemy.currentChakra,
     newEnemyBuffs: enemy.activeBuffs,
     logMessages: logs,
     playerDefeated,
     enemyDefeated,
     playerSkills: player.skills,
     enemySkills: enemy.skills,
-    artifactGutsTriggered
+    artifactGutsTriggered,
+    intendedSkillId: enemy.intendedSkillId,
+    intendedSkillName: enemy.intendedSkillName,
+    intentReason: enemy.intentReason,
+  };
+}
+
+/**
+ * Tick deferred defensive buffs (INVULNERABILITY / REFLECTION) after the
+ * enemy's action opportunity so duration-1 combat-start shields still block
+ * the first enemy hit.
+ */
+function tickDeferredDefensiveBuffs(player: Player): Player {
+  return {
+    ...player,
+    activeBuffs: tickBuffDurations(player.activeBuffs, {
+      onlyTypes: DEFERRED_DURATION_TYPES,
+    }),
   };
 }
 
@@ -761,20 +884,22 @@ function checkDoTDeaths(
  *
  * ## Turn Processing Order (Critical for correct behavior!)
  *
- * ### Phase 1: DoT/Regen on Enemy
+ * ### Phase 1: DoT/Regen on Enemy (no duration tick yet)
  * - Process all DoT effects (Bleed, Burn, Poison) dealing damage
  * - Process Regen effects healing the enemy
- * - Decrement buff durations, remove expired buffs
+ * - Durations are NOT decremented here so duration-1 STUN still blocks Phase 4
  *
- * ### Phase 2: DoT/Regen on Player
+ * ### Phase 2: DoT/Regen/Chakra on Player
  * - Process all DoT effects on player
  * - DoT damage goes through shield mitigation (can be absorbed)
- * - Process Regen effects healing the player
- * - Decrement buff durations, remove expired buffs
+ * - Process Regen / CHAKRA_REGEN / CHAKRA_DRAIN effects
+ * - Decrement player buff durations EXCEPT INVULNERABILITY/REFLECTION
+ *   (deferred so duration-1 combat-start shields still block Phase 4)
  *
  * ### Phase 3: Death Checks (DoT)
  * - Check if enemy died from DoT → early return with victory
  * - Check if player died from DoT → Guts check → defeat or survive at 1 HP
+ * - Early exits still tick deferred INVULNERABILITY/REFLECTION
  *
  * ### Phase 4: Enemy Action
  * - If STUNNED: Skip action, log message
@@ -784,6 +909,10 @@ function checkDoTDeaths(
  *   - Apply mitigation (player shields, reflection)
  *   - Guts check on lethal damage
  *   - Apply skill effects with status resistance
+ *
+ * ### Phase 4b: Tick deferred durations
+ * - Enemy buff durations (after action opportunity so STUN duration 1 skips once)
+ * - Player INVULNERABILITY/REFLECTION durations (after first enemy hit)
  *
  * ### Phase 5: Resource Recovery
  * - Reduce all player skill cooldowns by 1
@@ -822,31 +951,45 @@ export function processEnemyTurn(
   let gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
 
   // ============================================
-  // Phase 1: Process DoT/Regen on Enemy
+  // Phase 1: Process DoT/Regen on Enemy (defer duration tick)
   // ============================================
+  // Do not tick enemy durations before the action check: STUN duration 1 must
+  // still be present so the enemy skips this turn (A-004).
   const enemyTickResult = processBuffTicks(
     updatedEnemy.currentHp,
     updatedEnemy.activeBuffs,
     enemyStats,
     enemy.name,
-    false
+    false,
+    undefined,
+    false, // tickDurations deferred to Phase 4b
+    updatedEnemy.currentChakra,
+    enemyStats.derived.maxChakra
   );
   updatedEnemy.currentHp = enemyTickResult.newHp;
+  updatedEnemy.currentChakra = enemyTickResult.newChakra;
   updatedEnemy.activeBuffs = enemyTickResult.updatedBuffs;
   logs.push(...enemyTickResult.logs);
 
   // ============================================
   // Phase 2: Process DoT/Regen on Player
   // ============================================
+  // Do NOT expire INVULNERABILITY/REFLECTION here — they must survive to block
+  // the Phase 4 enemy hit (duration-1 combat-start invuln/reflect).
   const playerTickResult = processBuffTicks(
     updatedPlayer.currentHp,
     updatedPlayer.activeBuffs,
     playerStats,
     'You',
     true,
-    playerStats.derived.maxHp
+    playerStats.derived.maxHp,
+    true,
+    updatedPlayer.currentChakra,
+    playerStats.derived.maxChakra,
+    DEFERRED_DURATION_TYPES
   );
   updatedPlayer.currentHp = playerTickResult.newHp;
+  updatedPlayer.currentChakra = playerTickResult.newChakra;
   updatedPlayer.activeBuffs = playerTickResult.updatedBuffs;
   logs.push(...playerTickResult.logs);
 
@@ -867,6 +1010,10 @@ export function processEnemyTurn(
   logs.push(...dotDeath.logs);
 
   if (dotDeath.enemyDefeated || dotDeath.playerDefeated) {
+    // Still tick enemy buffs so DoTs/status expire correctly on early exit
+    updatedEnemy.activeBuffs = tickBuffDurations(updatedEnemy.activeBuffs);
+    // Deferred defensive buffs also expire on early exit after Phase 2
+    updatedPlayer = tickDeferredDefensiveBuffs(updatedPlayer);
     return buildTurnResult(
       updatedPlayer,
       updatedEnemy,
@@ -893,6 +1040,13 @@ export function processEnemyTurn(
   updatedEnemy = actionResult.enemy;
   logs.push(...actionResult.logs);
   gutsContext = actionResult.gutsContext;
+
+  // ============================================
+  // Phase 4b: Tick enemy buff durations (after action opportunity)
+  // + deferred player INVULNERABILITY/REFLECTION (after first enemy hit)
+  // ============================================
+  updatedEnemy.activeBuffs = tickBuffDurations(updatedEnemy.activeBuffs);
+  updatedPlayer = tickDeferredDefensiveBuffs(updatedPlayer);
 
   // Check for defeats from enemy action
   if (actionResult.playerDefeated || actionResult.enemyDefeated) {
@@ -927,8 +1081,30 @@ export function processEnemyTurn(
     currentCooldown: Math.max(0, s.currentCooldown - 1),
   }));
 
+  // A-003: pre-select next skill (1-turn telegraph) after CDs tick; log intent
+  {
+    const nextDecision = selectEnemySkillDecision(
+      {
+        enemy: updatedEnemy,
+        enemyStats,
+        player: updatedPlayer,
+        playerStats,
+      },
+      { honorIntent: false }
+    );
+    if (nextDecision.skill) {
+      updatedEnemy = {
+        ...updatedEnemy,
+        intendedSkillId: nextDecision.skill.id,
+        intendedSkillName: nextDecision.skill.name,
+        intentReason: nextDecision.reason,
+      };
+      logs.push(`${updatedEnemy.name} prepares ${nextDecision.skill.name}...`);
+    }
+  }
+
   // ============================================
-  // Phase 6: Terrain Hazards
+  // Phase 6: Terrain Hazards (room + location)
   // ============================================
   if (combatState?.terrain) {
     const hazardResult = applyTerrainHazardsPhase(
@@ -956,6 +1132,20 @@ export function processEnemyTurn(
         hazardResult.enemyDefeated,
         gutsContext.artifactTriggered
       );
+    }
+  }
+
+  // T-066: location poison/fall/chakra hazards after room terrain
+  if (combatState?.locationTerrainMods) {
+    const locHaz = applyLocationHazardsToPlayer(
+      updatedPlayer,
+      playerStats.derived.maxHp,
+      playerStats.derived.maxChakra,
+      combatState.locationTerrainMods,
+    );
+    if (locHaz.logs.length > 0) {
+      updatedPlayer = locHaz.player;
+      logs.push(...locHaz.logs);
     }
   }
 

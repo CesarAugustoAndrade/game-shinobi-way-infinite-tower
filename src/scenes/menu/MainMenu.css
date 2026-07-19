@@ -299,6 +299,37 @@
   z-index: 1;
 }
 
+/* T-027: Infinite Ascent CTA */
+.main-menu__infinite {
+  position: relative;
+  width: 100%;
+  padding: var(--sw-space-4) var(--sw-space-6);
+  background: #2a1040;
+  border: 3px solid #c44dff;
+  border-radius: var(--sw-radius-md);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #f0d0ff;
+  cursor: pointer;
+  box-shadow: var(--sw-pix-shadow);
+  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
+}
+
+.main-menu__infinite:hover {
+  color: #e8b84a;
+  border-color: #e8b84a;
+  transform: translate(-1px, -1px);
+  box-shadow: var(--sw-pix-shadow-lg);
+}
+
+.main-menu__infinite:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 0 var(--sw-hard);
+}
+
 /* Secondary buttons */
 .main-menu__secondary {
   display: flex;

@@ -29,7 +29,8 @@ import {
   resistStatus,
   calculateDotDamage,
   getPlayerFullStats,
-  getEnemyFullStats
+  getEnemyFullStats,
+  resolvePassiveDamageBonus,
 } from '../game/systems/StatSystem';
 import { SKILLS } from '../game/constants';
 import { getApCost } from '../game/constants/combatCards';
@@ -49,13 +50,14 @@ import {
 } from './types';
 import { EnemyArchetype, generateSimEnemy } from './EnemyArchetypes';
 import { createBuildFromConfig } from './BuildGenerator';
-import { selectBestSkill, selectBestCard } from './SkillSelectionAI';
+import { selectBestCard } from './SkillSelectionAI';
 import {
   generateId,
   applyMitigation as applyMitigationCalc,
   tickBuffDurations,
   getTerrainElementAmplification,
   applyTerrainHazard,
+  determineTurnOrder,
 } from '../game/systems/CombatCalculationSystem';
 import {
   processPassivesOnCombatStart,
@@ -65,50 +67,45 @@ import {
   checkExecuteThreshold,
   checkGutsPassive,
 } from '../game/systems/EquipmentPassiveSystem';
+import { selectEnemySkill } from '../game/systems/EnemyAISystem';
+import {
+  APPROACH_DEFINITIONS,
+  calculateApproachSuccessChance,
+} from '../game/constants/approaches';
 import { LaunchProperties } from '../config/featureFlags';
 import { BIOME_TERRAINS, TERRAIN_DEFINITIONS } from '../game/constants/terrain';
 import { getStoryArcForFloor } from '../game/entities/Enemy';
 
 /**
- * Calculate approach success based on player stats and approach type
- * Returns true if approach succeeds, false otherwise
+ * Approach success roll using the **live** `calculateApproachSuccessChance`
+ * (same formulas as ApproachSystem / APPROACH_DEFINITIONS).
  */
-function calculateApproachSuccess(
+function rollApproachSuccess(
   approach: ApproachType,
-  playerStats: { primary: PrimaryAttributes; derived: DerivedStats }
+  playerStats: { primary: PrimaryAttributes; derived: DerivedStats },
+  terrainStealthBonus: number = 0
 ): boolean {
   if (approach === ApproachType.FRONTAL_ASSAULT) {
-    return true; // Always succeeds (no stealth needed)
+    return true;
   }
 
-  let baseChance = 50;
-  let scalingStat = 0;
+  const stats: Record<string, number> = {
+    speed: playerStats.primary.speed,
+    dexterity: playerStats.primary.dexterity,
+    intelligence: playerStats.primary.intelligence,
+    calmness: playerStats.primary.calmness,
+    accuracy: playerStats.primary.accuracy,
+    willpower: playerStats.primary.willpower,
+    strength: playerStats.primary.strength,
+    spirit: playerStats.primary.spirit,
+    chakra: playerStats.primary.chakra,
+  };
 
-  switch (approach) {
-    case ApproachType.STEALTH_AMBUSH:
-      // Speed-based stealth
-      scalingStat = playerStats.primary.speed;
-      baseChance = 40 + scalingStat * 1.5; // 40% base + 1.5% per speed
-      break;
-    case ApproachType.GENJUTSU_SETUP:
-      // Intelligence-based mental setup
-      scalingStat = playerStats.primary.intelligence;
-      baseChance = 35 + scalingStat * 2; // 35% base + 2% per intelligence
-      break;
-    case ApproachType.ENVIRONMENTAL_TRAP:
-      // Dexterity-based trap setup
-      scalingStat = playerStats.primary.dexterity;
-      baseChance = 45 + scalingStat * 1.2; // 45% base + 1.2% per dexterity
-      break;
-    case ApproachType.SHADOW_BYPASS:
-      // Very hard - requires high calmness
-      scalingStat = playerStats.primary.calmness;
-      baseChance = 20 + scalingStat * 1.5; // 20% base + 1.5% per calmness
-      break;
-  }
-
-  // Cap at 95%
-  const successChance = Math.min(95, baseChance);
+  const successChance = calculateApproachSuccessChance(
+    approach,
+    stats,
+    terrainStealthBonus
+  );
   return Math.random() * 100 < successChance;
 }
 
@@ -426,15 +423,18 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
   ctx.metrics.skillsUsed[skill.id] = (ctx.metrics.skillsUsed[skill.id] || 0) + 1;
   ctx.metrics.totalAttacks++;
 
-  // Calculate damage
+  // Calculate damage (player gets passive skill damageBonus / FIRE_AFFINITY etc.)
   const result = calculateDamage(
-    attacker.primaryStats,
+    isPlayer ? attackerStats.effectivePrimary : attacker.primaryStats,
     attackerStats.derived,
-    defender.primaryStats,
+    isPlayer ? defender.primaryStats : defenderStats.effectivePrimary,
     defenderStats.derived,
     skill,
     attacker.element,
-    defender.element
+    defender.element,
+    isPlayer
+      ? { damageBonus: resolvePassiveDamageBonus(attackerStats.passiveBonuses, skill.element) }
+      : undefined
   );
 
   let damage = result.finalDamage;
@@ -584,10 +584,10 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
     }
     ctx.metrics.totalDamageReceived += damage;
 
-    // Check counter attack if player survived
+    // Counter: shouldCounterAttack already rolls once — do not re-roll (A-017)
     if (ctx.player.currentHp > 0) {
       const counterCheck = shouldCounterAttack(ctx.player);
-      if (counterCheck.shouldCounter && Math.random() < counterCheck.chance / 100) {
+      if (counterCheck.shouldCounter) {
         const counterDamage = Math.floor(ctx.playerStats.effectivePrimary.strength * 0.3);
         ctx.enemy.currentHp -= counterDamage;
         ctx.metrics.totalDamageDealt += counterDamage;
@@ -604,9 +604,40 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
   // Apply skill effects
   if (skill.effects) {
     for (const effect of skill.effects) {
+      // Instant HEAL: restore HP immediately (not a lingering buff). Parity with PlayerTurnSystem / A-004.
+      if (effect.type === EffectType.HEAL) {
+        const healAmount = Math.floor(effect.value || 0);
+        if (healAmount > 0) {
+          if (isPlayer) {
+            ctx.player.currentHp = Math.min(
+              ctx.playerDerived.maxHp,
+              ctx.player.currentHp + healAmount
+            );
+          } else {
+            ctx.enemy.currentHp = Math.min(
+              ctx.enemyDerived.maxHp,
+              ctx.enemy.currentHp + healAmount
+            );
+          }
+        }
+        const desc = (skill.description || '').toLowerCase();
+        if (desc.includes('poison') || desc.includes('bleed')) {
+          if (isPlayer) {
+            ctx.player.activeBuffs = ctx.player.activeBuffs.filter(
+              b => b?.effect?.type !== EffectType.BLEED && b?.effect?.type !== EffectType.POISON
+            );
+          } else {
+            ctx.enemy.activeBuffs = ctx.enemy.activeBuffs.filter(
+              b => b?.effect?.type !== EffectType.BLEED && b?.effect?.type !== EffectType.POISON
+            );
+          }
+        }
+        continue;
+      }
+
       const isSelfBuff = [
         EffectType.BUFF, EffectType.SHIELD, EffectType.REFLECTION,
-        EffectType.REGEN, EffectType.INVULNERABILITY, EffectType.HEAL
+        EffectType.REGEN, EffectType.INVULNERABILITY,
       ].includes(effect.type);
 
       if (isSelfBuff) {
@@ -670,10 +701,10 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
 }
 
 /**
- * Execute enemy turn with intelligent AI (same logic as player)
+ * Execute enemy turn using live EnemyAISystem.selectEnemySkill (same as EnemyTurnSystem).
  */
-function executeEnemyTurn(ctx: BattleContext, useSmartAI: boolean = true): void {
-  const { enemy, enemyDerived, player, playerDerived } = ctx;
+function executeEnemyTurn(ctx: BattleContext): void {
+  const { enemy } = ctx;
 
   // Check stun
   if (enemy.activeBuffs.some(b => b?.effect?.type === EffectType.STUN)) {
@@ -711,29 +742,13 @@ function executeEnemyTurn(ctx: BattleContext, useSmartAI: boolean = true): void 
     }
   }
 
-  let skill: Skill;
-
-  if (useSmartAI) {
-    // Use intelligent skill selection (same as player)
-    const simEnemy = toSimCombatant(enemy, enemyDerived);
-    const simPlayer = toSimCombatant(player, playerDerived);
-
-    skill = selectBestSkill(
-      enemy.skills,
-      simEnemy,
-      enemyDerived,
-      simPlayer,
-      playerDerived,
-      false, // Not first turn for enemy
-      1.0    // No first hit multiplier
-    );
-  } else {
-    // Legacy random skill selection
-    const availableSkills = enemy.skills.filter(s => s.currentCooldown === 0);
-    skill = availableSkills.length > 0
-      ? availableSkills[Math.floor(Math.random() * availableSkills.length)]
-      : enemy.skills[0];
-  }
+  // Live AI (EnemyTurnSystem parity) — scores skills by HP/effects/cooldowns
+  let skill = selectEnemySkill({
+    enemy: ctx.enemy,
+    enemyStats: ctx.enemyStats,
+    player: ctx.player,
+    playerStats: ctx.playerStats,
+  });
 
   // Fallback if no skill found
   if (!skill && enemy.skills.length > 0) {
@@ -783,13 +798,11 @@ export interface BattleResolution {
  * parameterised on the entities instead of building them inline.
  *
  * Mutation contract: combat runs on shallow copies (`ctx.player`/`ctx.enemy`), so
- * the input objects' HP/chakra/etc. are NOT mutated — read the surviving pools back
- * from the returned resolution. The ONE exception is `activeBuffs`: combat-start
- * passives are appended in place to `player.activeBuffs` and `enemy.activeBuffs`
- * before the copy is taken. A caller that intends to reuse a combatant must
- * therefore pass it with a throwaway `activeBuffs` array. The LocationSimulator
- * already does this for the player (`prepareForCombat` resets `activeBuffs: []`)
- * and uses each room's enemy for exactly one battle, so the mutation is inert.
+ * most input fields are NOT mutated — read surviving pools from the resolution.
+ * Exceptions before the copy: combat-start passives **replace** `player`/`enemy`
+ * `activeBuffs` and may set `player.currentHp` (e.g. Uzumaki heal). Callers that
+ * reuse a combatant should pass throwaway buff arrays (LocationSimulator already
+ * does via `prepareForCombat` → `activeBuffs: []`) and re-sync HP if needed.
  */
 export function resolveBattle(
   player: Player,
@@ -807,19 +820,47 @@ export function resolveBattle(
   const selectedTerrain = terrain || (config.floorNumber ? getRandomTerrainForFloor(config.floorNumber) : undefined);
   const terrainDef = selectedTerrain ? TERRAIN_DEFINITIONS[selectedTerrain] : null;
 
-  // Calculate approach success (only if approach is used)
+  // Calculate approach success (only if approach is used) — shared formulas
   const approachSucceeded = approach
-    ? calculateApproachSuccess(approach, { primary: playerStats.primary, derived: playerStats.derived })
+    ? rollApproachSuccess(
+        approach,
+        { primary: playerStats.primary, derived: playerStats.derived },
+        terrainDef?.effects.stealthModifier ?? 0
+      )
     : false;
 
-  // Process passives on combat start
-  const combatStartResult = processPassivesOnCombatStart(player, enemy);
-  player.activeBuffs = [...player.activeBuffs, ...combatStartResult.player.activeBuffs];
-  enemy.activeBuffs = [...enemy.activeBuffs, ...combatStartResult.enemy.activeBuffs];
+  // Process passives on combat start (SHIELD_ON_START uses max chakra — A-017).
+  // Replace activeBuffs with passive result (no double-append — result already includes prior buffs).
+  // Apply currentHp from result (e.g. Uzumaki combat-start heal).
+  const combatStartResult = processPassivesOnCombatStart(player, enemy, {
+    maxHp: playerStats.derived.maxHp,
+    maxChakra: playerStats.derived.maxChakra,
+  });
+  player.activeBuffs = combatStartResult.player.activeBuffs;
+  player.currentHp = combatStartResult.player.currentHp;
+  enemy.activeBuffs = combatStartResult.enemy.activeBuffs;
 
   // T-004: build the player's draw pile (non-PASSIVE cards) and open in the
   // neutral BALANCED posture, mirroring the real game's combat opening.
   const deck = buildDeck(player.skills);
+
+  // Resolve approach effects from shared APPROACH_DEFINITIONS (parity with live game)
+  const approachDef = approach ? APPROACH_DEFINITIONS[approach] : null;
+  const approachEffects = approachDef
+    ? (approachSucceeded ? approachDef.successEffects : (approachDef.failureEffects ?? approachDef.successEffects))
+    : null;
+
+  // First-hit mult from data (stealth = 2.0), not a hard-coded 2.5
+  const firstHitMult =
+    approachSucceeded && approachEffects
+      ? (approachEffects.firstHitMultiplier ?? 1.0)
+      : 1.0;
+
+  // Light synergy: successful stealth opens Aggressive (mirrors useCombat.startCombat)
+  const openingPosture =
+    approachSucceeded && approach === ApproachType.STEALTH_AMBUSH
+      ? Posture.AGGRESSIVE
+      : Posture.BALANCED;
 
   // Initialize battle context
   const ctx: BattleContext = {
@@ -832,11 +873,10 @@ export function resolveBattle(
     terrain: terrainDef,
     turn: 0,
     isFirstTurn: true,
-    // Only apply first hit multiplier if approach succeeded
-    firstHitMultiplier: (approach === ApproachType.STEALTH_AMBUSH && approachSucceeded) ? 2.5 : 1.0,
+    firstHitMultiplier: firstHitMult,
     approachSucceeded,
     // AP/card/posture economy (player). Hand is dealt on the first player turn.
-    posture: Posture.BALANCED,
+    posture: openingPosture,
     deck,
     hand: [],
     discard: [],
@@ -859,39 +899,67 @@ export function resolveBattle(
     artifactGutsUsed: false
   };
 
-  // Determine who goes first
-  const playerInit = playerStats.derived.initiative +
-    ((approach === ApproachType.STEALTH_AMBUSH && approachSucceeded) ? 100 : 0) +
-    (terrainDef ? terrainDef.effects.initiativeModifier : 0);
-  const enemyInit = enemyStats.derived.initiative;
-  let playerGoesFirst = playerInit + Math.random() * 10 >= enemyInit + Math.random() * 10;
+  // Turn order via shared determineTurnOrder (initiativeBonus / guaranteedFirst from data)
+  // Live STEALTH/GENJUTSU both have guaranteedFirst: false — only initiativeBonus applies.
+  const whoFirst = determineTurnOrder(playerStats, enemyStats, {
+    isFirstTurn: true,
+    playerGoesFirst: approachSucceeded && (approachEffects?.guaranteedFirst ?? false),
+    playerInitiativeBonus: approachSucceeded ? (approachEffects?.initiativeBonus ?? 0) : 0,
+    terrain: terrainDef,
+  });
+  const playerGoesFirst = whoFirst === 'player';
 
-  // Only guarantee first if approach succeeded
-  if (approachSucceeded && (approach === ApproachType.STEALTH_AMBUSH || approach === ApproachType.GENJUTSU_SETUP)) {
-    playerGoesFirst = true;
-  }
-
-  // Apply approach effects only if succeeded
-  if (approachSucceeded && approach === ApproachType.GENJUTSU_SETUP) {
-    ctx.enemy.activeBuffs.push({
-      id: generateId(),
-      name: 'Confusion',
-      duration: 3,
-      effect: { type: EffectType.CONFUSION, duration: 3, chance: 1 },
-      source: 'Genjutsu Setup'
-    });
-  }
-
-  if (approachSucceeded && approach === ApproachType.ENVIRONMENTAL_TRAP) {
-    ctx.enemy.currentHp = Math.floor(ctx.enemy.currentHp * 0.8); // 20% HP reduction
+  // Apply approach buffs/debuffs/HP cut from live APPROACH_DEFINITIONS (not hard-coded)
+  if (approachSucceeded && approachEffects) {
+    const sourceName = approachDef?.name ?? 'Approach';
+    for (const eff of approachEffects.enemyDebuffs ?? []) {
+      if (Math.random() > (eff.chance ?? 1)) continue;
+      ctx.enemy.activeBuffs.push({
+        id: generateId(),
+        name: eff.type,
+        duration: eff.duration,
+        effect: {
+          type: eff.type,
+          value: eff.value,
+          duration: eff.duration,
+          targetStat: eff.targetStat,
+          chance: eff.chance,
+        },
+        source: sourceName,
+      });
+    }
+    for (const eff of approachEffects.playerBuffs ?? []) {
+      if (Math.random() > (eff.chance ?? 1)) continue;
+      ctx.player.activeBuffs.push({
+        id: generateId(),
+        name: eff.type,
+        duration: eff.duration,
+        effect: {
+          type: eff.type,
+          value: eff.value,
+          duration: eff.duration,
+          targetStat: eff.targetStat,
+          chance: eff.chance,
+        },
+        source: sourceName,
+      });
+    }
+    const hpReduction = approachEffects.enemyHpReduction ?? 0;
+    if (hpReduction > 0) {
+      ctx.enemy.currentHp = Math.floor(ctx.enemy.currentHp * (1 - hpReduction));
+    }
   }
 
   // Battle loop
   while (ctx.turn < config.maxTurnsPerBattle) {
     ctx.turn++;
 
-    // Process passives on turn start (player only)
-    const turnStartResult = processPassivesOnTurnStart(ctx.player, ctx.enemy);
+    // Process passives on turn start (player only) — REGEN % of maxHp (A-017)
+    const turnStartResult = processPassivesOnTurnStart(
+      ctx.player,
+      ctx.enemy,
+      ctx.playerStats.derived.maxHp
+    );
     if (turnStartResult.healToPlayer > 0) {
       ctx.player.currentHp = Math.min(ctx.playerStats.derived.maxHp, ctx.player.currentHp + turnStartResult.healToPlayer);
     }

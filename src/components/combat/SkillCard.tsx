@@ -1,5 +1,6 @@
 import React from 'react';
 import { Skill, DamageType, ActionType } from '../../game/types';
+import { getSkillArt } from '../../game/constants/artRegistry';
 import './SkillCard.css';
 
 interface SkillCardProps {
@@ -32,35 +33,9 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   const isToggle = actionType === ActionType.TOGGLE;
   const isActive = skill.isActive || false;
 
-  // Map skill names to specific background images
-  const getSkillBackground = () => {
-    const skillName = skill.name.toLowerCase();
-    if (skillName.includes('shuriken')) {
-      return '/assets/skill_shuriken.png';
-    }
-    if (skillName.includes('fireball')) {
-      return '/assets/skill_fireball.png';
-    }
-    if (skillName.includes('taijutsu')) {
-      return '/assets/skill_taijutsu.png';
-    }
-    if (skillName.includes('primary lotus')) {
-      return '/assets/skill_primary_lotus.png';
-    }
-    if (skillName.includes('shadow') && skillName.includes('clone')) {
-      return '/assets/skill_shadow_clones.png';
-    }
-    if (skillName.includes('gentle') && skillName.includes('fist')) {
-      return '/assets/skill_gentle_fist.png';
-    }
-    if (skillName.includes('mind')) {
-      return '/assets/skill_mind_body_disturbing.png';
-    }
-    // Default fallback image
-    return 'https://i.pinimg.com/736x/2c/a6/34/2ca6347bd392eb997d74720838b90839.jpg';
-  };
-
-  const bgImage = getSkillBackground();
+  // Art registry (T-020): every skill has a dedicated tile / painted card. No external hotlink.
+  const skillArt = getSkillArt(skill);
+  const bgImage = skillArt.src ?? skill.image;
 
   // Build class names
   const getCardClasses = () => {
@@ -94,7 +69,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
     return classes.join(' ');
   };
 
-  // Get action type badge config
+  // Get action type badge config (category only — turn economy is AP, not MAIN/SIDE rules)
   const getActionBadge = () => {
     if (isPassive) return { text: 'PASSIVE', className: 'skill-card__action-badge--passive' };
     if (isToggle) {
@@ -103,7 +78,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
         : { text: 'TOGGLE', className: 'skill-card__action-badge--toggle' };
     }
     if (isSide) return { text: 'SIDE', className: 'skill-card__action-badge--side' };
-    return null; // No badge for MAIN
+    return { text: 'MAIN', className: 'skill-card__action-badge--main' };
   };
 
   // Get damage type class
@@ -132,14 +107,17 @@ export const SkillCard: React.FC<SkillCardProps> = ({
         <div className="skill-card__shortcut">{shortcutKey}</div>
       )}
 
-      {/* Background Image Layer (decorative — missing assets must not paint alt-text) */}
-      <img
-        src={bgImage}
-        alt=""
-        aria-hidden="true"
-        className="skill-card__bg"
-        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-      />
+      {/* Background Image Layer — registry art (T-020); hide on error, never external hotlink */}
+      {bgImage && (
+        <img
+          src={bgImage}
+          alt=""
+          aria-hidden="true"
+          className="skill-card__bg"
+          style={{ imageRendering: 'pixelated' }}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      )}
 
       {/* Gradient Overlay */}
       <div className="skill-card__overlay" />

@@ -4,6 +4,116 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Fixed (16-agent audit packages 1–8)
+
+- **P1 skipCombat / stale map return** (`App.tsx`, `useActivityHandlers`): SHADOW_BYPASS completes `locationFloor` (not only legacy `branchingFloor`) and returns via `returnToMapActivityComplete(freshFloor)`. Elite escape success uses the same path.
+- **P2 Treasure Guardian soft-lock** (`useTreasureHandlers`, `App`, `useCombatVictory`): keep treasure UI until combat starts; approach cancel restores TREASURE; atomic ryo+bag claim; map-piece detection by guardian name only.
+- **P3 Enemy self-buffs + intent** (`EnemyTurnSystem`, `EnemyAISystem`, `EnemySystem`): HEAL/SHIELD/BUFF apply on enemy; opening intent prefers damaging non-basic; DEBUFF AI scoring; empty-kit safety.
+- **P4 Double danger** (`LocationSystem`, `RegionSystem`, `useLocationCards`): combat uses location `dangerLevel` (no D1→D5 re-derive); pass `player` for `locationsCleared`; wealth/min-rooms use real location values.
+- **P5 FREE_FIRST / invuln / chakra / guts / Uzumaki** (`PlayerTurnSystem`, `EnemyTurnSystem`, `useCombat`, `Combat`): free chakra gate + UI; invuln/reflect survive first enemy hit; CHAKRA_REGEN/DRAIN ticks; reflection Guts; combat-start HP merge.
+- **P6 Inventory membership** (`useInventoryHandlers`, `Bag`, `LootSystem`): no double-sell ryo; equip/craft require bag membership; craft aborts without charge; clear craftResult on sell.
+- **P7 Deterministic preview** (`StatSystem.previewDamage`, `Hand`, `Combat`): forceHit/non-crit preview; ignore key-repeat; `useSkill` gated to player turn.
+- **P8 Sim HEAL + approaches** (`CombatSimulationService`, `BattleSimulator`): instant HEAL; combat-start buff replace; approaches from `APPROACH_DEFINITIONS`; FREE_FIRST in auto-sim.
+
+### Fixed (clan starting element)
+
+- **Yamanaka affinity was Physical** (`createPlayer` in `Player.ts`): only Uchiha/Uzumaki got real elements; Yamanaka (and any non-Uchiha/Uzumaki) fell through to `'Physical' as any`. Now uses shared `CLAN_ELEMENTS` so Yamanaka starts as **Mental** (matching progression sims). Affects HUD affinity, terrain amp, and gear-scoring weights in campaign sim.
+
+### Fixed (zero-damage skills + event safety)
+
+- **Heal/utility chips for 1 damage** (`calculateDamage` in `StatSystem.ts`): `Math.max(1, …)` turned `damageMult: 0` skills (Basic Medical, pure buffs) into a forced 1-damage poke. Min-1 chip now applies only when pre-defense raw damage is > 0.
+- **Event statChanges / ryo** (`EventSystem.ts`): ignore unknown primary-stat keys (avoids `NaN` stats); clamp ryo at 0 after event grants/penalties.
+
+### Fixed (combat cooldown carry + movement AP)
+
+- **Skill cooldowns carried across fights** (`useCombat.startCombat`): live combat never zeroed `currentCooldown` at encounter start (auto-sim already did). A high-CD skill used late in fight 1 could stay unusable deep into fight 2. Cooldowns now reset when combat starts.
+- **Movement terrain AP only on turn 1** (`processUpkeep`): T-067 `movement_penalty` was applied in `startCombat` but every later turn refilled full `actionPointsPerTurn`. Upkeep now re-applies `applyMovementPenaltyToMaxAp` using `combatState.locationTerrainMods`.
+
+### Fixed (encounter hygiene + floor immutability)
+
+- **Toggles/buffs leaked across fights** (`useCombat.startCombat`): matched `prepareForCombat` — deactivate toggles, clear combat buffs, keep only event/CURSE buffs, then re-apply combat-start artifact passives (avoids stacked shields/toggle auras).
+- **On-kill passives used pre-hit player** (`useCombat.useSkill`): `processPassivesOnKill` now receives post-blow skills/HP/chakra.
+- **`completeActivity` mutated child rooms** (`LocationSystem.ts`): unlocking children set `isAccessible = true` on shared room references from the previous floor snapshot. Children are now copied immutably.
+
+### Fixed (rest log + damage preview)
+
+- **Rest heal log overstated recovery** (`useActivityHandler.ts`): log and rest-result panel used theoretical % of max even when already near full. Now reports actual HP/chakra gained.
+- **Hand damage preview ignored ambush + location terrain** (`Hand.tsx` / `Combat.tsx` / `App.tsx`): preview now applies first-hit mult and T-063 location water/fire/mental/enemy-defense mods like live `PlayerTurnSystem`.
+
+### Fixed (ambush consume + training + room terrain preview)
+
+- **Ambush first-hit burned on miss/utility** (`useCombat.ts`): `isFirstTurn` was cleared after any non-rejected card play (miss, heal, buff), so ambush was often wasted before a real hit. Now only clears when `damageDealt > 0`.
+- **Training could undershoot resources** (`useActivityHandlers.ts`): re-check affordability and clamp HP ≥ 1 / chakra ≥ 0 (UI already gated; handler is now safe).
+- **Hand preview missed room terrain amp** (`Hand.tsx`): also applies `getTerrainElementAmplification` from room terrain like live combat.
+
+### Fixed / Changed (A-009, A-010, A-012, A-015)
+
+- **A-009 Approach initiative live** (`useCombat.ts`, `BattleSimulator.ts`, `ApproachSelector.tsx`): `startCombat` calls `determineTurnOrder` with approach `initiativeBonus` / `guaranteedFirst`, so stealth can open player-first or enemy-first. Successful Silent Strike opens Aggressive posture. Sims use `APPROACH_DEFINITIONS` for first-hit mult (**2.0×**, not 2.5) and initiative; ApproachSelector shows “+N initiative”.
+- **A-010 Combat mini-log + hit juice** (`GameLog.tsx`, `Combat.tsx`, `CinematicViewscreen`): reintegrated orphan GameLog as a compact 4-line stage overlay (`aria-live="polite"`). Enemy damage/crit triggers a brief CSS hit-flash on the sprite.
+- **A-012 Feature-flag purge** (`featureFlags.ts`): removed unused `DEBUG_OVERLAY`, `DEBUG_BOOSTED_STATS`, `ENABLE_COMBAT_ANIMATIONS`, `EXPERIMENTAL_*`, `DEV_MODE`, `STARTING_HP_PERCENT`, `MAX_ACTIVITIES_PER_ROOM`. `DEBUG_STATE_TRANSITIONS` defaults to `false`. Clarified auto-pass (in-combat end-turn timer) vs full auto-resolve (`ENABLE_MANUAL_COMBAT=false`). Helpers `isFeatureEnabled` / `getProperty` kept as preferred API.
+- **A-015 ActionType ↔ AP semantics** (`types.ts`, `SkillCard`, `Hand`, `GLOSSARY.md`): docs/UI no longer claim MAIN ends the turn or SIDE is free (max 2). Action types are card categories with default AP costs; tooltips show `{type} · {N} AP`.
+
+### Fixed (A-004 — combat promises: HEAL, stun, silence, preview, Auto-end)
+
+- **HEAL** restores HP instantly (no useless buff); medical skills whose description mentions poison/bleed also cleanse those DoTs.
+- **STUN duration 1** skips one enemy action: enemy buff durations tick after the action check, not before.
+- **Silence** blocks any skill with `chakraCost > 0` in `useSkill` / `useCombat` / `canUseSkill` (not only toggle activation); free taijutsu still works.
+- **Hand damage preview** applies `PLAYER_DAMAGE_MULTIPLIER` + `postureDamageMod` like live hits.
+- Combat UI button/labels renamed **Auto → Auto-end** (countdown pass only, not full auto-play).
+
+### Fixed (A-017 — counter single roll + REGEN/SHIELD max bases)
+
+- **Counter attack**: `shouldCounterAttack` is the sole RNG roll; live + sim callers no longer re-roll (~p² bug).
+- **REGEN** uses `% of maxHp`; **SHIELD_ON_START** uses `% of maxChakra` (callers pass derived max).
+- Regression tests in `EquipmentPassiveSystem.test.ts` / `EnemyTurnSystem.test.ts` / `PlayerTurnSystem.test.ts`.
+
+### Added (A-003 — enemy identity: kits, bosses, telegraph)
+
+- **Archetype skill kits** (`EnemySystem.getArchetypeKit`): every combat archetype (TANK, ASSASSIN, BALANCED, CASTER, GENJUTSU) ships ≥3 skills from `constants/skills.ts`. TANK/BALANCED are no longer BASIC-only; CASTER kits are element-aware.
+- **Boss table by danger + arc** (`getBossData`, `BOSS_BY_DANGER`, `BOSS_BY_ARC` in `constants/index.ts`): danger levels 1–7 resolve real named bosses; legacy floor keys 8/17/25… removed (no more default *Edo Tensei Legend* on region danger).
+- **1-turn telegraph** (`Enemy.intendedSkillId/Name`, `selectEnemySkillDecision`, enemy turn + combat log): enemies open with a signature intent; after each enemy turn the AI pre-selects the next skill and logs `"X prepares Y..."`.
+
+### Changed (A-007 — sim ↔ live combat parity, pragmatic)
+
+- **`generateSimEnemy`** (`EnemyArchetypes.ts`): wraps live `EnemySystem.generateEnemy` with forced archetype; `--floor` reverse-mapped to danger via `floorToApproxDanger`. No more legacy `floor×0.08` scaling in 1v1.
+- **Enemy AI in BattleSimulator**: uses `EnemyAISystem.selectEnemySkill` (same as `EnemyTurnSystem`).
+- **Approaches in sim**: success chance + effects from `APPROACH_DEFINITIONS` (first-hit **2.0×**, initiative bonus from data, no hard-coded force-first / 2.5×).
+- **`SIMULATION.md`**: documents location/campaign modes and remaining parity caveats.
+
+### Added (A-013 — hot-path unit tests)
+
+- `PlayerTurnSystem.test.ts`: damage, AP gate, stun, miss costs, first-hit, instant HEAL, upkeep.
+- `RegionSystem.test.ts`: draw cards, deck completion penalty, `markLocationComplete`.
+- Golden scaling: BALANCED HP strictly increases danger 1→7 (`EnemySystem.test.ts`).
+
+### Fixed (A-002 — combat drops + artifact passives + elite rarity)
+
+- **Normal combat item drops** (`useCombatVictory.ts` + `App.tsx`): victories roll `LOOT_BALANCE.COMBAT_ITEM_DROP_CHANCE` (40%) for a Broken component via `generateLoot`; reward modal close opens LOOT when drops exist.
+- **Artifact passives in real damage** (`StatSystem.calculateDamage` options + `PlayerTurnSystem` / `EnemyTurnSystem` / `CombatSimulationService`):
+  - permanent + on-crit `PIERCE_DEFENSE` scales enemy defense
+  - unconditional and `below_half_hp` `DAMAGE_REDUCTION` reduce (or amplify) incoming damage
+  - `ALL_ELEMENTS` forces 1.2× super-effective
+  - `CONVERT_TO_ELEMENTAL` splits PHYSICAL hits across physical/elemental defense
+- **Elite free artifacts are RARE** (`generateRandomArtifact`): aligned with craft `synthesize()`; EPIC remains 2× RARE upgrade path only.
+
+### Fixed (A-005 — honest onboarding)
+
+- **Handbook combat/elements** (`src/game/constants/helpText.ts` + `GameGuide.tsx`): Super Effective is now **1.2× damage +10% crit** (removed false 1.5× / +20% crit / ignore 50% def); Resisted is **0.8×**. Combat tab documents deck/hand/AP economy, in-combat postures (Aggressive/Balanced/Defensive), and real pre-fight approaches (Frontal Assault, Silent Strike, Mind Trap, Terrain Trap, Shadow Passage) instead of invented stances.
+- **Starting loadout** (`App.tsx` + `CharacterSelect.tsx` + `entities/Player.ts`): `startGame` uses `createPlayer` → `getClanStartingSkills` / `CLAN_START_LOADOUT` (full MAIN/SIDE/TOGGLE/PASSIVE deck) instead of the legacy single `CLAN_START_SKILL` triple. CharacterSelect shows signature skills and full loadout in the clan tooltip.
+- **GameOver run summary** (`GameOver.tsx`): shows clan, level, locations cleared, and ryo when available.
+
+### Fixed (A-016 — Body/Mind/Technique taxonomy)
+
+- **Stat triad unified** (`CharacterSelect.tsx` + `PrimaryStatsPanel.tsx` + CSS): UI ranks/groups now match types/Training/helpText — **Body** (WIL/CHA/STR), **Mind** (SPI/INT/CAL), **Technique** (SPD/ACC/DEX). Removed the old Spirit/Mind/Body grouping.
+
+### Fixed (A-006 / A-011 / A-018)
+
+- **Merchant buy price** (`useActivityHandlers.buyItem`): charged price now matches UI — `item.value × MERCHANT.ITEM_PRICE_MULTIPLIER × (1 − discount%)` (was missing the 1.8× multiplier).
+- **Merchant stock quality** (`generateMerchantItem` in LootSystem + LocationSystem + reroll): shops mix Broken/Common/Rare by floor and `player.treasureQuality` instead of only Broken combat drops.
+- **Sell ratio** (`getSellPrice`): all UI/handlers use `BALANCE.SELL_PRICE_RATIO` via `getSellPrice()` — no hardcoded `0.6`.
+- **Event combat archetypes** (A-011): `triggerCombat.archetype` (TANK/ASSASSIN/…) is passed as `forcedArchetype` to `generateEnemy`; enemy tier stays NORMAL (or optional `enemyType`). ELITE/BOSS tier is separate from combat build.
+- **Event RNG** (A-018): `rollOutcome` uses project `utils/rng` (`random` / injectable `RandomGenerator`); seeded tests reproduce outcomes. No `Math.random` in EventSystem core.
+
 ### Fixed (T-018 attempt 4 — item-tile tooltip stacking)
 
 - **Tooltip buried under sibling sections** (`src/styles/item-tile.css` + `Merchant.css` + `treasure.css`): in Merchant the item tooltip rendered UNDER the ryo/resources strip — the strip (`sw-panel--ornate` → `position: relative`) carried `z-index: 1` while the hovered card sat at `z-index: auto` (its `transform` creates a stacking context), so the tooltip's own z-index could never win from inside. Fixed at the pattern level: `.item-tile:hover, .item-tile:focus-within { z-index: var(--sw-z-popover) }` elevates the host, and the superfluous `z-index: 1` was removed from `.merchant__resources`. `.treasure-modal__container` changed `overflow: hidden` → `visible` so upward-opening tooltips are not clipped (modal body keeps its own `overflow-y: auto`). Dead `z-index: 10` declarations (no `position`, never effective) removed from `.merchant`, `.loot` and `.training`.

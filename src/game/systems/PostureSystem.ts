@@ -27,7 +27,7 @@
  * =============================================================================
  */
 
-import { Posture, Skill } from '../types';
+import { ApproachType, Posture, Skill } from '../types';
 
 // ============================================================================
 // TUNING — light, reciprocal trade-offs. Balanced is the neutral baseline.
@@ -123,4 +123,53 @@ export function describePosture(posture: Posture): PostureProfile {
     defenseMod: postureDefenseMod(posture),
     drawBias: POSTURE_DRAW_BIAS[posture],
   };
+}
+
+// ============================================================================
+// APPROACH → OPENING POSTURE (T-039)
+// ============================================================================
+
+/**
+ * Opening combat posture after an approach attempt.
+ * Success maps each approach to a stance identity; failure resets to Balanced
+ * so failed setups do not soft-lock into a bad stance.
+ */
+export function openingPostureForApproach(
+  approach: ApproachType,
+  success: boolean,
+): Posture {
+  if (!success) {
+    return Posture.BALANCED;
+  }
+
+  switch (approach) {
+    case ApproachType.STEALTH_AMBUSH:
+      return Posture.AGGRESSIVE;
+    case ApproachType.GENJUTSU_SETUP:
+      return Posture.DEFENSIVE;
+    case ApproachType.ENVIRONMENTAL_TRAP:
+      return Posture.DEFENSIVE;
+    case ApproachType.FRONTAL_ASSAULT:
+      return Posture.BALANCED;
+    case ApproachType.SHADOW_BYPASS:
+      // Bypass usually skips combat; if combat still starts, stay neutral.
+      return Posture.BALANCED;
+    default:
+      return Posture.BALANCED;
+  }
+}
+
+/** Short log line when combat opens in a non-balanced posture. */
+export function openingPostureLog(posture: Posture, approach: ApproachType): string | null {
+  if (posture === Posture.BALANCED) return null;
+  if (approach === ApproachType.STEALTH_AMBUSH && posture === Posture.AGGRESSIVE) {
+    return 'Ambush! You open in Aggressive posture.';
+  }
+  if (posture === Posture.AGGRESSIVE) {
+    return `You open in Aggressive posture.`;
+  }
+  if (posture === Posture.DEFENSIVE) {
+    return `You open in Defensive posture.`;
+  }
+  return null;
 }

@@ -76,13 +76,45 @@ export const generateId = () => rngGenerateId();
  * Decrements buff durations and removes expired buffs.
  * Buffs with duration -1 are permanent and never expire.
  *
+ * Optional filters:
+ * - `onlyTypes`: tick only buffs whose effect type is in the list (others unchanged)
+ * - `exceptTypes`: tick all buffs except those whose effect type is in the list
+ *
+ * Used so INVULNERABILITY/REFLECTION can survive Phase 2 player ticks and
+ * expire only after the enemy's action opportunity (Package 5).
+ *
  * @param buffs - Array of active buffs
- * @returns New array with durations decremented and expired buffs removed
+ * @param options - Optional type filters for selective duration ticking
+ * @returns New array with selected durations decremented and expired buffs removed
  */
-export function tickBuffDurations(buffs: Buff[]): Buff[] {
-  return buffs
-    .filter(b => b?.duration > 1 || b?.duration === -1)
-    .map(b => b.duration === -1 ? b : { ...b, duration: b.duration - 1 });
+export function tickBuffDurations(
+  buffs: Buff[],
+  options?: { onlyTypes?: EffectType[]; exceptTypes?: EffectType[] }
+): Buff[] {
+  const { onlyTypes, exceptTypes } = options ?? {};
+
+  return buffs.flatMap(b => {
+    if (!b) return [];
+
+    const type = b.effect?.type;
+    const shouldTick =
+      (!onlyTypes || (type !== undefined && onlyTypes.includes(type))) &&
+      (!exceptTypes || type === undefined || !exceptTypes.includes(type));
+
+    if (!shouldTick) {
+      return [b];
+    }
+
+    // Permanent buffs never expire
+    if (b.duration === -1) {
+      return [b];
+    }
+    // Duration 1 expires this tick
+    if (b.duration <= 1) {
+      return [];
+    }
+    return [{ ...b, duration: b.duration - 1 }];
+  });
 }
 
 // ============================================================================

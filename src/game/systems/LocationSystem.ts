@@ -65,7 +65,12 @@ import {
   TreasureHunt,
 } from '../types';
 import { generateEnemy } from './EnemySystem';
-import { generateLoot, generateRandomArtifact, generateSkillForFloor, generateComponentByQuality } from './LootSystem';
+import { generateLoot, generateRandomArtifact, generateSkillForFloor, generateComponentByQuality, generateMerchantItem } from './LootSystem';
+import {
+  getLocationTerrainMods,
+  getRoomHiddenRoomBonus,
+} from './LocationTerrainSystem';
+import { TERRAIN_DEFINITIONS } from '../constants/terrain';
 import {
   ROOM_TYPE_CONFIGS,
   ROOM_TYPE_ACTIVITY_CONFIGS,
@@ -195,7 +200,12 @@ export function getChildPositions(childCount: number): RoomPosition[] {
 // ============================================================================
 
 /**
- * Convert floor number to danger level for enemy scaling.
+ * Convert floor number to danger level — LEGACY only.
+ * Used solely by generateBranchingFloor() (legacy floor crawler entry).
+ * Region/location path must pass explicit dangerLevel via FloorGenerationConfig
+ * and must NOT call this on effectiveFloor (that double-counts danger:
+ * D1 → dangerToFloor≈14 → ceil(14/3)=5).
+ *
  * Maps floors to danger levels 1-7:
  * - Floors 1-3 → Danger 1
  * - Floors 4-6 → Danger 2
@@ -253,7 +263,18 @@ function createRoom(
   arc: string,
   forceType?: BranchingRoomType,
   depth: number = 0,
-  player?: Player
+  player?: Player,
+  preferredEventIds?: string[],
+  enemyPool?: string[],
+  lootTable?: string,
+  ambushChanceBonus: number = 0,
+  terrainEffects?: import('../types').LocationTerrainEffect[],
+  preferredElement?: import('../types').ElementType,
+  lootTheme?: import('../types').RegionLootTheme,
+  /** Location danger (1-7) — must come from FloorGenerationConfig, NOT floorToDangerLevel(floor) */
+  dangerLevel: number = 4,
+  /** Location wealth (1-7) for treasure/merchant scaling */
+  wealthLevel: number = 4,
 ): BranchingRoom {
   // Select room type
   const type = forceType ?? selectRandomRoomType(tier);
@@ -292,8 +313,12 @@ function createRoom(
     hasGeneratedChildren: false,
   };
 
-  // Generate activities based on room type config
-  room.activities = generateActivities(room, config, floor, difficulty, arc, player);
+  // Generate activities (T-033/056/059/064/068/070) — use config danger/wealth, not floor→danger
+  room.activities = generateActivities(
+    room, config, floor, difficulty, arc, player, wealthLevel, null, false,
+    preferredEventIds, enemyPool, lootTable, ambushChanceBonus, preferredElement, lootTheme,
+    dangerLevel,
+  );
 
   return room;
 }
@@ -335,12 +360,32 @@ function generateCombatActivity(
   floor: number,
   difficulty: number,
   arc: string,
-  player?: Player
+  player?: Player,
+  enemyPool?: string[],
+  ambushChanceBonus: number = 0,
+  preferredElement?: import('../types').ElementType,
+  /** Explicit location danger (1-7). Do NOT derive via floorToDangerLevel(floor). */
+  dangerLevel: number = 4,
 ): RoomActivities['combat'] {
-  const isElite = room.tier === 2 && Math.random() < 0.3;
-  const enemyType = isElite ? 'ELITE' : 'NORMAL';
-  const dangerLevel = floorToDangerLevel(floor);
-  const enemy = generateEnemy(dangerLevel, player?.locationsCleared ?? 0, enemyType, difficulty, arc);
+  // Base elite chance 30% on tier-2; location ambush_chance (T-064) stacks, capped
+  const eliteChance = Math.min(0.7, 0.3 + Math.max(0, ambushChanceBonus));
+  const isElite = room.tier === 2 && Math.random() < eliteChance;
+  // High ambush: small chance of AMBUSH archetype-style enemy type on non-elite
+  const forceAmbush =
+    !isElite && ambushChanceBonus > 0 && Math.random() < Math.min(0.25, ambushChanceBonus);
+  const enemyType = isElite ? 'ELITE' : forceAmbush ? 'AMBUSH' : 'NORMAL';
+  // Use config dangerLevel directly — floor is effectiveFloor for loot/training only.
+  // floorToDangerLevel(effectiveFloor) double-counts danger (e.g. D1→floor 14→D5).
+  const enemy = generateEnemy(
+    dangerLevel,
+    player?.locationsCleared ?? 0,
+    enemyType,
+    difficulty,
+    arc,
+    undefined,
+    enemyPool,
+    preferredElement,
+  );
 
   const modifiers: CombatModifierType[] = config.combatModifiers
     ? [config.combatModifiers[Math.floor(Math.random() * config.combatModifiers.length)]]
@@ -356,12 +401,15 @@ function generateCombatActivity(
 function generateMerchantActivity(
   floor: number,
   difficulty: number,
-  player?: Player
+  player?: Player,
+  lootTable?: string,
+  lootTheme?: import('../types').RegionLootTheme,
 ): RoomActivities['merchant'] {
   const itemCount = player?.merchantSlots ?? DEFAULT_MERCHANT_SLOTS;
+  const treasureQuality = player?.treasureQuality ?? DEFAULT_TREASURE_QUALITY;
   const items: Item[] = [];
   for (let i = 0; i < itemCount; i++) {
-    items.push(generateLoot(floor, difficulty));
+    items.push(generateMerchantItem(floor, difficulty, treasureQuality, lootTable, lootTheme));
   }
 
   return {
@@ -372,30 +420,44 @@ function generateMerchantActivity(
 }
 
 /**
+ * Pick an event for a room activity (T-033).
+ * Prefers location-tied story event ids when they are eligible for the player.
+ * Exported for unit tests.
+ */
+export function pickEventForLocation(
+  arc: string,
+  player?: Player,
+  preferredEventIds?: string[],
+  rng: () => number = Math.random,
+): (typeof EVENTS)[number] | undefined {
+  const arcEvents = EVENTS.filter(e => !e.allowedArcs || e.allowedArcs.includes(arc));
+  const eligible = player ? getAvailableEventsForPlayer(arcEvents, player) : arcEvents;
+  const basePool = eligible.length > 0 ? eligible : arcEvents;
+  if (basePool.length === 0) return EVENTS[0];
+
+  if (preferredEventIds && preferredEventIds.length > 0) {
+    const preferred = basePool.filter((e) => preferredEventIds.includes(e.id));
+    if (preferred.length > 0) {
+      return selectWeightedEvent(preferred, rng()) ?? preferred[0];
+    }
+  }
+
+  return selectWeightedEvent(basePool, rng()) ?? basePool[0];
+}
+
+/**
  * Generate event activity for a room.
  * Called only when weighted selection picks event for this room.
  */
 function generateEventActivity(
   arc: string,
-  player?: Player
+  player?: Player,
+  preferredEventIds?: string[],
 ): RoomActivities['event'] | undefined {
   // Check feature flag first
   if (!FeatureFlags.ENABLE_STORY_EVENTS) return undefined;
 
-  const arcEvents = EVENTS.filter(e => !e.allowedArcs || e.allowedArcs.includes(arc));
-
-  // T-008: apply flag gating so events locked behind (or hidden by) the player's
-  // run flags are only offered when eligible. Falls back to the arc pool when no
-  // player is supplied (e.g. legacy callers) or when gating leaves nothing.
-  const eligible = player ? getAvailableEventsForPlayer(arcEvents, player) : arcEvents;
-  const pool = eligible.length > 0 ? eligible : arcEvents;
-
-  // T-016: draw from the eligible pool weighted by event rarity (rarer events
-  // surface less often) instead of a uniform pick.
-  const event = pool.length > 0
-    ? selectWeightedEvent(pool, Math.random()) ?? EVENTS[0]
-    : EVENTS[0];
-
+  const event = pickEventForLocation(arc, player, preferredEventIds);
   if (!event) return undefined;
 
   return { definition: event, completed: false };
@@ -426,13 +488,28 @@ function generateEliteChallengeActivity(
   floor: number,
   difficulty: number,
   arc: string,
-  player?: Player
+  player?: Player,
+  enemyPool?: string[],
+  preferredElement?: import('../types').ElementType,
+  /** Explicit location danger (1-7). Elite bumps one step, capped at 7. */
+  dangerLevel: number = 4,
 ): RoomActivities['eliteChallenge'] | undefined {
   // Check feature flag first
   if (!FeatureFlags.ENABLE_ELITE_CHALLENGES) return undefined;
 
-  const eliteDangerLevel = floorToDangerLevel(floor + 1);
-  const eliteEnemy = generateEnemy(eliteDangerLevel, player?.locationsCleared ?? 0, 'ELITE', difficulty + 15, arc);
+  // Elite is one danger step harder than the location (preserves old floor+1 intent)
+  // without double-counting via floorToDangerLevel(effectiveFloor).
+  const eliteDangerLevel = Math.min(7, dangerLevel + 1);
+  const eliteEnemy = generateEnemy(
+    eliteDangerLevel,
+    player?.locationsCleared ?? 0,
+    'ELITE',
+    difficulty + 15,
+    arc,
+    undefined,
+    enemyPool,
+    preferredElement,
+  );
   eliteEnemy.name = `${eliteEnemy.name} (Artifact Guardian)`;
 
   return {
@@ -540,7 +617,9 @@ function generateTreasureActivity(
   wealthLevel: number = 4,
   player?: Player,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean
+  huntDeclined?: boolean,
+  lootTable?: string,
+  lootTheme?: import('../types').RegionLootTheme,
 ): RoomActivities['treasure'] {
   const quality = maybeUpgradeQuality(player?.treasureQuality ?? DEFAULT_TREASURE_QUALITY);
   const { choiceCount, artifactChance, ryoMultiplier } = getTreasureConfig(wealthLevel);
@@ -556,7 +635,10 @@ function generateTreasureActivity(
       });
     } else {
       choices.push({
-        item: generateComponentByQuality(floor, difficulty + 5, quality),
+        // T-071: stack lootTable + region lootTheme like merchant
+        item: generateComponentByQuality(
+          floor, difficulty + 5, quality, lootTable, lootTheme,
+        ),
         isArtifact: false,
       });
     }
@@ -668,19 +750,24 @@ export function getTreasureHuntReward(
   pieces: number,
   wealthLevel: number,
   floor: number,
-  difficulty: number
+  difficulty: number,
+  /** T-072: location/region loot bias for component rewards */
+  lootTable?: string,
+  lootTheme?: import('../types').RegionLootTheme,
 ): { items: Item[]; skills: import('../types').Skill[]; ryo: number } {
   const items: Item[] = [];
   const skills: import('../types').Skill[] = [];
   let ryo = 0;
+  const genComp = (q: TreasureQuality) =>
+    generateComponentByQuality(floor, difficulty, q, lootTable, lootTheme);
 
   // Reward matrix based on pieces and wealth
   if (pieces === 2) {
     if (wealthLevel <= 2) {
-      items.push(generateComponentByQuality(floor, difficulty, TreasureQuality.COMMON));
+      items.push(genComp(TreasureQuality.COMMON));
       ryo = 100;
     } else if (wealthLevel <= 4) {
-      items.push(generateComponentByQuality(floor, difficulty, TreasureQuality.RARE));
+      items.push(genComp(TreasureQuality.RARE));
       ryo = 150;
     } else if (wealthLevel <= 6) {
       skills.push(generateSkillForFloor(floor));
@@ -689,7 +776,7 @@ export function getTreasureHuntReward(
     }
   } else if (pieces === 3) {
     if (wealthLevel <= 2) {
-      items.push(generateComponentByQuality(floor, difficulty, TreasureQuality.RARE));
+      items.push(genComp(TreasureQuality.RARE));
       ryo = 150;
     } else if (wealthLevel <= 4) {
       skills.push(generateSkillForFloor(floor));
@@ -757,17 +844,29 @@ function generateActivityData(
   player?: Player,
   wealthLevel: number = 4,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean
+  huntDeclined?: boolean,
+  preferredEventIds?: string[],
+  enemyPool?: string[],
+  lootTable?: string,
+  ambushChanceBonus: number = 0,
+  preferredElement?: import('../types').ElementType,
+  lootTheme?: import('../types').RegionLootTheme,
+  dangerLevel: number = 4,
 ): RoomActivities[keyof RoomActivities] | undefined {
   switch (activityKey) {
     case 'combat':
-      return generateCombatActivity(room, config, floor, difficulty, arc, player);
+      return generateCombatActivity(
+        room, config, floor, difficulty, arc, player, enemyPool, ambushChanceBonus,
+        preferredElement, dangerLevel,
+      );
     case 'eliteChallenge':
-      return generateEliteChallengeActivity(room, floor, difficulty, arc, player);
+      return generateEliteChallengeActivity(
+        room, floor, difficulty, arc, player, enemyPool, preferredElement, dangerLevel,
+      );
     case 'merchant':
-      return generateMerchantActivity(floor, difficulty, player);
+      return generateMerchantActivity(floor, difficulty, player, lootTable, lootTheme);
     case 'event':
-      return generateEventActivity(arc, player);
+      return generateEventActivity(arc, player, preferredEventIds);
     case 'scrollDiscovery':
       return generateScrollDiscoveryActivity(floor);
     case 'rest':
@@ -775,7 +874,10 @@ function generateActivityData(
     case 'training':
       return generateTrainingActivity(floor);
     case 'treasure':
-      return generateTreasureActivity(floor, difficulty, wealthLevel, player, treasureHunt, huntDeclined);
+      return generateTreasureActivity(
+        floor, difficulty, wealthLevel, player, treasureHunt, huntDeclined, lootTable,
+        lootTheme,
+      );
     case 'infoGathering':
       return generateInfoGatheringActivity();
     default:
@@ -803,7 +905,14 @@ function generateActivities(
   player?: Player,
   wealthLevel: number = 4,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean
+  huntDeclined?: boolean,
+  preferredEventIds?: string[],
+  enemyPool?: string[],
+  lootTable?: string,
+  ambushChanceBonus: number = 0,
+  preferredElement?: import('../types').ElementType,
+  lootTheme?: import('../types').RegionLootTheme,
+  dangerLevel: number = 4,
 ): RoomActivities {
   const roomType = room.type;
   const activityConfig = ROOM_TYPE_ACTIVITY_CONFIGS[roomType];
@@ -866,7 +975,14 @@ function generateActivities(
       player,
       wealthLevel,
       treasureHunt,
-      huntDeclined
+      huntDeclined,
+      preferredEventIds,
+      enemyPool,
+      lootTable,
+      ambushChanceBonus,
+      preferredElement,
+      lootTheme,
+      dangerLevel,
     );
     if (activityData) {
       (activities as Record<keyof RoomActivities, unknown>)[activityKey] = activityData;
@@ -892,15 +1008,28 @@ function generateActivities(
  * This ensures the Guardian has significantly more health than regular
  * elite enemies, making them a meaningful floor-ending challenge.
  *
- * @param floor - Current floor for base stat scaling
+ * @param floor - Effective floor (loot/label scaling only; NOT used for danger)
  * @param difficulty - Difficulty modifier (extra +15 applied)
  * @param locationsCleared - Global count of locations cleared (for scaling)
  * @param arc - Story arc name for theming
+ * @param dangerLevel - Explicit location danger (1-7); do not derive from floor
  * @returns Enhanced Enemy with Guardian tier and boosted stats
  */
-function generateGuardian(floor: number, difficulty: number, locationsCleared: number, arc: string): Enemy {
-  const dangerLevel = floorToDangerLevel(floor);
-  const enemy = generateEnemy(dangerLevel, locationsCleared, 'ELITE', difficulty + 15, arc);
+function generateGuardian(
+  floor: number,
+  difficulty: number,
+  locationsCleared: number,
+  arc: string,
+  enemyPool?: string[],
+  preferredElement?: import('../types').ElementType,
+  dangerLevel: number = 4,
+): Enemy {
+  // Use config dangerLevel directly — floorToDangerLevel(effectiveFloor) double-counts.
+  // T-057/T-073: pool art + region preferred element bias
+  const enemy = generateEnemy(
+    dangerLevel, locationsCleared, 'ELITE', difficulty + 15, arc, undefined, enemyPool,
+    preferredElement,
+  );
 
   // Apply Guardian stat multipliers
   enemy.name = `Guardian ${enemy.name}`;
@@ -952,12 +1081,18 @@ function getMinRoomsBeforeExit(dangerLevel: number): number {
  * - At minimum: 30% base chance
  * - Each room beyond: +5% cumulative
  * - Maximum: 80% (always some uncertainty)
+ * - T-081: optional hiddenRoomBonus from parent room terrain (± fraction)
  *
  * @param roomsVisited - Total rooms player has entered
  * @param dangerLevel - Location danger level (affects minimum)
+ * @param hiddenRoomBonus - Absolute bonus from terrain (e.g. 0.2 from +20)
  * @returns Probability 0.0-0.8 that next room is the exit
  */
-function calculateExitProbability(roomsVisited: number, dangerLevel: number): number {
+export function calculateExitProbability(
+  roomsVisited: number,
+  dangerLevel: number,
+  hiddenRoomBonus: number = 0,
+): number {
   const minRooms = getMinRoomsBeforeExit(dangerLevel);
 
   if (roomsVisited < minRooms) {
@@ -969,21 +1104,32 @@ function calculateExitProbability(roomsVisited: number, dangerLevel: number): nu
   const baseChance = 0.3;
   const incrementPerRoom = 0.05; // +5% per room beyond minimum
 
-  return Math.min(0.8, baseChance + (roomsBeyondMin * incrementPerRoom));
+  const raw = baseChance + (roomsBeyondMin * incrementPerRoom) + hiddenRoomBonus;
+  return Math.max(0, Math.min(0.8, raw));
 }
 
 /**
- * Determine if a new room should be the exit
+ * Determine if a new room should be the exit.
+ * @param parentRoom - Room whose children are being generated (terrain bonus source)
  */
-function shouldBeExitRoom(branchingFloor: BranchingFloor): boolean {
+function shouldBeExitRoom(
+  branchingFloor: BranchingFloor,
+  parentRoom?: BranchingRoom,
+): boolean {
   // If exit already exists, no more exit rooms
   if (branchingFloor.exitRoomId) {
     return false;
   }
 
+  // T-081: parent room terrain hiddenRoomBonus shifts exit discovery
+  const bonus = parentRoom
+    ? getRoomHiddenRoomBonus(TERRAIN_DEFINITIONS[parentRoom.terrain])
+    : 0;
+
   const probability = calculateExitProbability(
     branchingFloor.roomsVisited,
-    branchingFloor.dangerLevel
+    branchingFloor.dangerLevel,
+    bonus,
   );
 
   return Math.random() < probability;
@@ -1003,7 +1149,12 @@ function configureAsExitRoom(
   difficulty: number,
   arc: string,
   player?: Player,
-  wealthLevel: number = 4
+  wealthLevel: number = 4,
+  enemyPool?: string[],
+  lootTable?: string,
+  lootTheme?: import('../types').RegionLootTheme,
+  preferredElement?: import('../types').ElementType,
+  dangerLevel: number = 4,
 ): BranchingRoom {
   const quality = maybeUpgradeQuality(player?.treasureQuality ?? DEFAULT_TREASURE_QUALITY);
   const { choiceCount, artifactChance, ryoMultiplier } = getTreasureConfig(wealthLevel);
@@ -1018,7 +1169,9 @@ function configureAsExitRoom(
       });
     } else {
       choices.push({
-        item: generateComponentByQuality(floor, difficulty + 15, quality),
+        item: generateComponentByQuality(
+          floor, difficulty + 15, quality, lootTable, lootTheme,
+        ),
         isArtifact: false,
       });
     }
@@ -1032,7 +1185,11 @@ function configureAsExitRoom(
     icon: ROOM_TYPE_CONFIGS[BranchingRoomType.BOSS_GATE].icon,
     activities: {
       combat: {
-        enemy: generateGuardian(floor, difficulty, player?.locationsCleared ?? 0, arc),
+        enemy: generateGuardian(
+          floor, difficulty, player?.locationsCleared ?? 0, arc, enemyPool,
+          preferredElement ?? lootTheme?.primaryElement,
+          dangerLevel,
+        ),
         modifiers: [CombatModifierType.NONE],
         completed: false,
       },
@@ -1081,7 +1238,7 @@ export function generateChildrenForRoom(
     return branchingFloor;
   }
 
-  const { floor, arc, difficulty } = branchingFloor;
+  const { floor, arc, difficulty, dangerLevel, wealthLevel } = branchingFloor;
   const newRooms: BranchingRoom[] = [];
   const childDepth = room.depth + 1;
   let updatedFloor = branchingFloor;
@@ -1091,8 +1248,10 @@ export function generateChildrenForRoom(
   const positions = getChildPositions(childCount);
 
   for (let i = 0; i < childCount; i++) {
-    const isExit = shouldBeExitRoom(updatedFloor);
+    // T-081: pass parent room so its terrain.hiddenRoomBonus affects exit odds
+    const isExit = shouldBeExitRoom(updatedFloor, room);
 
+    const childAmbush = getLocationTerrainMods(branchingFloor.terrainEffects).ambushChance;
     const childRoom = createRoom(
       2, // Children are always displayed as tier 2 (grandchildren in relative view)
       positions[i],
@@ -1102,11 +1261,25 @@ export function generateChildrenForRoom(
       arc,
       isExit ? BranchingRoomType.BOSS_GATE : undefined,
       childDepth,
-      player
+      player,
+      branchingFloor.preferredEventIds,
+      branchingFloor.enemyPool,
+      branchingFloor.lootTable,
+      childAmbush,
+      branchingFloor.terrainEffects,
+      branchingFloor.preferredElement,
+      branchingFloor.lootTheme,
+      dangerLevel,
+      wealthLevel,
     );
 
     const finalRoom = isExit
-      ? configureAsExitRoom(childRoom, floor, difficulty, arc, player)
+      ? configureAsExitRoom(
+          childRoom, floor, difficulty, arc, player, wealthLevel, branchingFloor.enemyPool,
+          branchingFloor.lootTable, branchingFloor.lootTheme,
+          branchingFloor.preferredElement,
+          dangerLevel,
+        )
       : childRoom;
 
     if (isExit) {
@@ -1171,6 +1344,18 @@ export interface FloorGenerationConfig {
   difficulty: number;
   initialIntel?: number;  // Defaults to 0
   player?: Player;
+  /** T-033: Location.tiedStoryEvents preferred for room event activities */
+  preferredEventIds?: string[];
+  /** T-056: Location.enemyPool for room combat names/art */
+  enemyPool?: string[];
+  /** T-059: Location.lootTable for drop component bias */
+  lootTable?: string;
+  /** T-064: Location.terrainEffects for ambush bias */
+  terrainEffects?: import('../types').LocationTerrainEffect[];
+  /** T-068: region lootTheme.primaryElement for enemy affinity bias */
+  preferredElement?: import('../types').ElementType;
+  /** T-070: region lootTheme for merchant component bias */
+  lootTheme?: import('../types').RegionLootTheme;
 }
 
 /**
@@ -1189,7 +1374,15 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     difficulty,
     initialIntel = 0,
     player,
+    preferredEventIds,
+    enemyPool,
+    lootTable,
+    terrainEffects,
+    preferredElement,
+    lootTheme,
   } = config;
+
+  const ambushChanceBonus = getLocationTerrainMods(terrainEffects).ambushChance;
 
   const rooms: BranchingRoom[] = [];
   const isFirstFloor = floor === 1;
@@ -1197,15 +1390,15 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   // Tier 0: Start room (Gateway) - ONLY on floor 1
   let startRoom: BranchingRoom | null = null;
   if (isFirstFloor) {
-    startRoom = createRoom(0, 'CENTER', null, floor, difficulty, arc, BranchingRoomType.START, 0, player);
+    startRoom = createRoom(0, 'CENTER', null, floor, difficulty, arc, BranchingRoomType.START, 0, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
     startRoom.hasGeneratedChildren = true;
     rooms.push(startRoom);
   }
 
   // Tier 1: Two rooms branching from start
   const tier1Depth = isFirstFloor ? 1 : 0;
-  const tier1Left = createRoom(1, 'LEFT', startRoom?.id ?? null, floor, difficulty, arc, undefined, tier1Depth, player);
-  const tier1Right = createRoom(1, 'RIGHT', startRoom?.id ?? null, floor, difficulty, arc, undefined, tier1Depth, player);
+  const tier1Left = createRoom(1, 'LEFT', startRoom?.id ?? null, floor, difficulty, arc, undefined, tier1Depth, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
+  const tier1Right = createRoom(1, 'RIGHT', startRoom?.id ?? null, floor, difficulty, arc, undefined, tier1Depth, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
 
   tier1Left.isAccessible = true;
   tier1Right.isAccessible = true;
@@ -1232,7 +1425,7 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   const leftPositions = getChildPositions(leftChildCount);
   const leftChildren: BranchingRoom[] = [];
   for (let i = 0; i < leftChildCount; i++) {
-    const childRoom = createRoom(2, leftPositions[i], tier1Left.id, floor, difficulty, arc, undefined, tier2Depth, player);
+    const childRoom = createRoom(2, leftPositions[i], tier1Left.id, floor, difficulty, arc, undefined, tier2Depth, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
     leftChildren.push(childRoom);
   }
   tier2Rooms.push(...leftChildren);
@@ -1243,7 +1436,7 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   const rightPositions = getChildPositions(rightChildCount);
   const rightChildren: BranchingRoom[] = [];
   for (let i = 0; i < rightChildCount; i++) {
-    const childRoom = createRoom(2, rightPositions[i], tier1Right.id, floor, difficulty, arc, undefined, tier2Depth, player);
+    const childRoom = createRoom(2, rightPositions[i], tier1Right.id, floor, difficulty, arc, undefined, tier2Depth, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
     rightChildren.push(childRoom);
   }
   tier2Rooms.push(...rightChildren);
@@ -1271,11 +1464,18 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     wealthLevel,
     roomGenerationMode,
     targetRoomCount,
-    minRoomsBeforeExit: getMinRoomsBeforeExit(floor),
+    // minRooms uses dangerLevel (1-7), not effectiveFloor (would inflate min rooms)
+    minRoomsBeforeExit: getMinRoomsBeforeExit(dangerLevel),
     dangerLevel,
     treasureHunt: null,
     treasureProbabilityBoost: 0,
     huntDeclined: false,
+    preferredEventIds,
+    enemyPool,
+    lootTable,
+    terrainEffects,
+    preferredElement,
+    lootTheme,
   };
 
   if (!isFirstFloor) {
@@ -1445,22 +1645,24 @@ export function completeActivity(
     };
   });
 
-  // If the room was cleared, update child room accessibility
+  // If the room was cleared, unlock children without mutating prior room objects
+  // (map kept non-target rooms by reference — in-place isAccessible=true corrupted history).
   const clearedRoom = updatedRooms.find(r => r.id === roomId);
-  if (clearedRoom?.isCleared) {
-    updatedRooms.forEach(room => {
-      if (clearedRoom.childIds.includes(room.id)) {
-        room.isAccessible = true;
-      }
-    });
-  }
+  const roomsAfterUnlock =
+    clearedRoom?.isCleared
+      ? updatedRooms.map((room) =>
+          clearedRoom.childIds.includes(room.id) && !room.isAccessible
+            ? { ...room, isAccessible: true }
+            : room
+        )
+      : updatedRooms;
 
   // Count cleared rooms
-  const clearedCount = updatedRooms.filter(r => r.isCleared).length;
+  const clearedCount = roomsAfterUnlock.filter(r => r.isCleared).length;
 
   return {
     ...branchingFloor,
-    rooms: updatedRooms,
+    rooms: roomsAfterUnlock,
     clearedRooms: clearedCount,
   };
 }

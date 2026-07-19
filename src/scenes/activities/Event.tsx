@@ -13,6 +13,8 @@ import {
   checkEventCost,
   getAvailableChoices,
 } from '../../game/systems/EventSystem';
+import { getEventArt } from '../../game/constants/artRegistry';
+import ArtIcon from '../../components/shared/ArtIcon';
 import { Scroll, CheckCircle, Lock, Info } from 'lucide-react';
 import './Event.css';
 
@@ -436,6 +438,9 @@ const Event: React.FC<EventProps> = ({
 
       {/* Header */}
       <header className="event__header">
+        <div className="event__art" aria-hidden="true">
+          <ArtIcon art={getEventArt(activeEvent.id)} size="xl" title={activeEvent.title} />
+        </div>
         <div className="event__icon">
           <Scroll size={36} strokeWidth={2} />
         </div>

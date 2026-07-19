@@ -9,8 +9,9 @@ import {
   ActionType,
   Posture,
   LogEntry,
+  ApproachType,
 } from '../game/types';
-import { getEnemyFullStats } from '../game/systems/StatSystem';
+import { getEnemyFullStats, getPlayerFullStats } from '../game/systems/StatSystem';
 import {
   processEnemyTurn,
   useSkill as useSkillCombat,
@@ -21,6 +22,7 @@ import {
   buildDeck,
   drawHand,
 } from '../game/systems/CombatWorkflowSystem';
+import { determineTurnOrder } from '../game/systems/CombatCalculationSystem';
 import { getApCost } from '../game/constants/combatCards';
 import { LaunchProperties } from '../config/featureFlags';
 import { ApproachResult, getCombatModifiers } from '../game/systems/ApproachSystem';
@@ -35,6 +37,11 @@ import {
   logCombatStart,
 } from '../game/utils/combatDebug';
 import { processPassivesOnCombatStart, processPassivesOnKill } from '../game/systems/EquipmentPassiveSystem';
+import { openingPostureForApproach, openingPostureLog } from '../game/systems/PostureSystem';
+import {
+  applyMovementPenaltyToMaxAp,
+  applyRoomMovementCostToMaxAp,
+} from '../game/systems/LocationTerrainSystem';
 
 export type TurnState = 'PLAYER' | 'ENEMY_TURN';
 
@@ -68,7 +75,8 @@ export interface UseCombatReturn {
     newEnemy: Enemy,
     result: ApproachResult,
     playerAfterCosts: Player,
-    terrain: any
+    terrain: any,
+    locationTerrainMods?: import('../game/systems/LocationTerrainSystem').LocationTerrainMods | null,
   ) => void;
   resetCombat: () => void;
   autoCombatEnabled: boolean;
@@ -145,6 +153,8 @@ export function useCombat({
   const useSkill = useCallback(
     (skill: Skill) => {
       if (!player || !enemy || !playerStats || !enemyStats || !combatState) return;
+      // Gate off-player-turn race (double-click / late key after ENEMY_TURN)
+      if (turnState !== 'PLAYER') return;
 
       logPlayerAction(skill.name, {
         enemyHpBefore: enemy.currentHp
@@ -162,6 +172,10 @@ export function useCombat({
         addLog('Passive abilities are always active!', 'info');
         return;
       }
+
+      // Silence blocks any skill that costs chakra (activation / cast), not free taijutsu
+      // and not toggle deactivation (handled below for toggles).
+      const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
 
       // Action Point gate
       const apCost = getApCost(skill);
@@ -198,8 +212,7 @@ export function useCombat({
         const isActive = skill.isActive || false;
 
         // Silence blocks toggle activation (but not deactivation)
-        const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
-        if (!isActive && isSilenced) {
+        if (!isActive && isSilenced && skill.chakraCost > 0) {
           addLog('Cannot activate - you are Silenced!', 'danger');
           return;
         }
@@ -247,6 +260,12 @@ export function useCombat({
         return;
       }
 
+      // ── Regular cards: silence blocks chakra-cost skills before paying ──
+      if (isSilenced && skill.chakraCost > 0) {
+        addLog('You are Silenced and cannot use chakra skills!', 'danger');
+        return;
+      }
+
       // ── Regular cards: run the combat math ──
       const result = useSkillCombat(
         player,
@@ -267,9 +286,23 @@ export function useCombat({
         return;
       }
 
-      // Mark first turn as complete if applicable
-      if (combatState.isFirstTurn) {
-        setCombatState((prev) => (prev ? { ...prev, isFirstTurn: false } : null));
+      // Consume free-first after any accepted skill; ambush first-hit only on a real hit.
+      // Matches PlayerTurnSystem: firstHitMultiplier only scales successful damage.
+      if (
+        combatState.skipFirstSkillCost ||
+        (combatState.isFirstTurn && result.damageDealt > 0) ||
+        result.artifactGutsTriggered
+      ) {
+        setCombatState((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            skipFirstSkillCost: combatState.skipFirstSkillCost ? false : prev.skipFirstSkillCost,
+            isFirstTurn:
+              combatState.isFirstTurn && result.damageDealt > 0 ? false : prev.isFirstTurn,
+            artifactGutsUsed: result.artifactGutsTriggered ? true : prev.artifactGutsUsed,
+          };
+        });
       }
 
       // Spawn floating combat text
@@ -301,6 +334,8 @@ export function useCombat({
           ? {
               ...prev,
               currentHp: result.newEnemyHp,
+              currentChakra:
+                result.newEnemyChakra !== undefined ? result.newEnemyChakra : prev.currentChakra,
               activeBuffs: result.newEnemyBuffs,
             }
           : null
@@ -313,12 +348,18 @@ export function useCombat({
 
       // Check for victory/defeat
       if (result.enemyDefeated) {
-        // Process on-kill passives (cooldown reset)
+        // On-kill passives use post-hit player (skills/HP after the killing blow)
         if (player && enemy) {
-          const onKillResult = processPassivesOnKill(player, enemy);
+          const playerAfterHit: Player = {
+            ...player,
+            currentHp: result.newPlayerHp,
+            currentChakra: result.newPlayerChakra,
+            activeBuffs: result.newPlayerBuffs,
+            skills: result.skillsUpdate || player.skills,
+          };
+          const onKillResult = processPassivesOnKill(playerAfterHit, enemy);
           if (onKillResult.logs.length > 0) {
             onKillResult.logs.forEach(log => addLog(log, 'gain'));
-            // Update player skills with reset cooldowns
             setPlayer(prev => prev ? { ...prev, skills: onKillResult.player.skills } : null);
           }
         }
@@ -332,7 +373,7 @@ export function useCombat({
 
       finishCardPlay(result.newPosture);
     },
-    [player, enemy, playerStats, enemyStats, combatState, addLog, setPlayer, setCombatState, handleVictory, setGameState, setTurnState]
+    [player, enemy, playerStats, enemyStats, combatState, turnState, addLog, setPlayer, setCombatState, handleVictory, setGameState, setTurnState]
   );
 
   /**
@@ -370,7 +411,9 @@ export function useCombat({
       newEnemy: Enemy,
       result: ApproachResult,
       playerAfterCosts: Player,
-      terrain: any
+      terrain: any,
+      /** T-063: location terrain effect mods */
+      locationTerrainMods?: import('../game/systems/LocationTerrainSystem').LocationTerrainMods | null,
     ) => {
       logSceneEnter('COMBAT', {
         enemy: newEnemy.name,
@@ -380,55 +423,119 @@ export function useCombat({
       });
 
       const modifiers = getCombatModifiers(result);
+
+      // Fresh encounter hygiene (mirrors simulatorUtils.prepareForCombat):
+      // - reset cooldowns, deactivate toggles
+      // - drop leftover combat buffs (shields/DoTs/toggle auras) that stacked across fights
+      // - keep narrative curses/event flags' buffs (source === 'event' or CURSE)
+      const persistentBuffs = (playerAfterCosts.activeBuffs || []).filter(
+        (b) => b.source === 'event' || b.effect?.type === EffectType.CURSE
+      );
+      const encounterPlayer: Player = {
+        ...playerAfterCosts,
+        activeBuffs: persistentBuffs,
+        skills: playerAfterCosts.skills.map((s) => ({
+          ...s,
+          currentCooldown: 0,
+          isActive: false,
+        })),
+      };
+
       let { player: preparedPlayer, enemy: preparedEnemy, logs: effectLogs } = applyApproachEffects(
-        playerAfterCosts,
+        encounterPlayer,
         newEnemy,
         modifiers
       );
       effectLogs.forEach((log) => addLog(log, 'info'));
 
       // Process artifact passives at combat start (shields, invuln, reflect, free skill)
-      const passiveResult = processPassivesOnCombatStart(preparedPlayer, preparedEnemy);
+      // SHIELD_ON_START uses max chakra from derived stats (A-017)
+      const combatStartStats = playerStats ?? getPlayerFullStats(preparedPlayer);
+      const passiveResult = processPassivesOnCombatStart(preparedPlayer, preparedEnemy, {
+        maxHp: combatStartStats.derived.maxHp,
+        maxChakra: combatStartStats.derived.maxChakra,
+      });
       passiveResult.logs.forEach(log => addLog(log, 'gain'));
 
-      // Apply passive buffs to player
+      // Merge combat-start passive state including Uzumaki heal (currentHp) and any chakra changes
       preparedPlayer = {
         ...preparedPlayer,
-        activeBuffs: passiveResult.player.activeBuffs
+        activeBuffs: passiveResult.player.activeBuffs,
+        skills: passiveResult.player.skills,
+        currentHp: passiveResult.player.currentHp,
+        currentChakra: passiveResult.player.currentChakra,
       };
 
-      // Create combat state with modifiers
-      const newCombatState = createCombatState(modifiers, terrain);
+      // Create combat state with modifiers + T-063 location terrain mods
+      const newCombatState = createCombatState(
+        modifiers,
+        terrain,
+        locationTerrainMods ?? null,
+      );
       // Store skipFirstSkillCost from artifact passive
       newCombatState.skipFirstSkillCost = passiveResult.skipFirstSkillCost;
 
-      // T-004: initialise the deckbuilder/AP economy for turn 1. The deck is the
-      // player's non-PASSIVE skills; the opening hand is drawn under a neutral
-      // (BALANCED) posture and AP is filled from the player's speed-derived budget.
-      const maxAp = playerStats
+      // T-004 / T-039: initialise deckbuilder/AP and opening posture from approach.
+      const openingPosture = openingPostureForApproach(result.approach, result.success);
+
+      let maxAp = playerStats
         ? playerStats.derived.actionPointsPerTurn
         : LaunchProperties.AP_BASE;
+      // T-082: room movementCost (footing) then T-067 location movement_penalty
+      maxAp = applyRoomMovementCostToMaxAp(maxAp, terrain ?? null);
+      maxAp = applyMovementPenaltyToMaxAp(maxAp, locationTerrainMods ?? null);
       const deck = buildDeck(preparedPlayer.skills);
-      const opening = drawHand(deck, Posture.BALANCED, LaunchProperties.HAND_SIZE);
       newCombatState.maxAp = maxAp;
-      newCombatState.currentAp = maxAp;
-      newCombatState.posture = Posture.BALANCED;
-      newCombatState.deck = opening.deck;
-      newCombatState.hand = opening.hand;
+      newCombatState.posture = openingPosture;
       newCombatState.discard = [];
+
+      // Who acts first — approach initiativeBonus / guaranteedFirst actually govern combat.
+      const openingPlayerStats = playerStats ?? getPlayerFullStats(preparedPlayer);
+      const openingEnemyStats = getEnemyFullStats(preparedEnemy);
+      const whoFirst = determineTurnOrder(openingPlayerStats, openingEnemyStats, {
+        isFirstTurn: true,
+        playerGoesFirst: newCombatState.playerGoesFirst,
+        playerInitiativeBonus: newCombatState.playerInitiativeBonus,
+        terrain: newCombatState.terrain,
+      });
+
+      if (whoFirst === 'player') {
+        // Player opens: draw hand now and skip the first upkeep redraw.
+        const opening = drawHand(deck, openingPosture, LaunchProperties.HAND_SIZE);
+        newCombatState.currentAp = maxAp;
+        newCombatState.deck = opening.deck;
+        newCombatState.hand = opening.hand;
+        setUpkeepProcessedThisTurn(true);
+        setTurnState('PLAYER');
+        const postureLog = openingPostureLog(openingPosture, result.approach);
+        if (postureLog) {
+          addLog(postureLog, 'gain');
+        }
+        if (modifiers.playerGoesFirst || modifiers.playerInitiativeBonus > 0) {
+          addLog('You seize the initiative!', 'info');
+        }
+      } else {
+        // Enemy opens: player draws on their first turn via processUpkeep.
+        newCombatState.currentAp = 0;
+        newCombatState.deck = deck;
+        newCombatState.hand = [];
+        setUpkeepProcessedThisTurn(false);
+        setTurnState('ENEMY_TURN');
+        addLog('The enemy acts first!', 'danger');
+      }
 
       setCombatState(newCombatState);
       setApproachResult(result);
 
-      // startCombat handles turn-1 setup itself, so skip the first upkeep redraw.
-      setUpkeepProcessedThisTurn(true);
-
       // Set up combat
       setPlayer(preparedPlayer);
       setEnemy(preparedEnemy);
-      setTurnState('PLAYER');
       setGameState(GameState.COMBAT);
       addLog(`Engaged: ${newEnemy.name}`, 'danger');
+      // A-003: surface opening telegraph in the combat log (UI can also read intendedSkillName)
+      if (preparedEnemy.intendedSkillName) {
+        addLog(`${preparedEnemy.name} prepares ${preparedEnemy.intendedSkillName}...`, 'danger');
+      }
 
       logCombatStart(
         {
@@ -554,6 +661,7 @@ export function useCombat({
             ? {
                 ...prev,
                 currentHp: result.newPlayerHp,
+                currentChakra: result.newPlayerChakra,
                 activeBuffs: result.newPlayerBuffs,
                 skills: result.playerSkills,
               }
@@ -565,8 +673,13 @@ export function useCombat({
             ? {
                 ...prev,
                 currentHp: result.newEnemyHp,
+                currentChakra: result.newEnemyChakra,
                 activeBuffs: result.newEnemyBuffs,
                 skills: result.enemySkills,
+                // A-003: persist next-skill telegraph for UI / next enemy turn
+                intendedSkillId: result.intendedSkillId,
+                intendedSkillName: result.intendedSkillName,
+                intentReason: result.intentReason,
               }
             : null
         );

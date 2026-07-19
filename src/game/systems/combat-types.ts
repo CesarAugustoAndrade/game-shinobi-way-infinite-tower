@@ -13,6 +13,7 @@
  */
 
 import { Buff, Player, Posture, Skill, TerrainDefinition } from '../types';
+import type { LocationTerrainMods } from './LocationTerrainSystem';
 
 // ============================================================================
 // COMBAT STATE
@@ -34,6 +35,11 @@ export interface CombatState {
   skipFirstSkillCost: boolean;
   /** Tracks if artifact GUTS passive has been used this combat (one-time) */
   artifactGutsUsed: boolean;
+  /**
+   * T-063: location-level terrain effect mods (from Location.terrainEffects).
+   * Stacks with room TerrainDefinition amplification.
+   */
+  locationTerrainMods: LocationTerrainMods | null;
 
   // ──────────────────────────────────────────────────────────────────────────
   // DECKBUILDER / AP ECONOMY (T-004)
@@ -70,6 +76,8 @@ export interface CombatResult {
   newPlayerHp: number;
   /** Player's chakra after paying skill cost */
   newPlayerChakra: number;
+  /** Enemy's chakra after artifact/skill drain (optional when unchanged) */
+  newEnemyChakra?: number;
   /** Enemy's updated buff list */
   newEnemyBuffs: Buff[];
   /** Player's updated buff list (may include new self-buffs) */
@@ -88,6 +96,8 @@ export interface CombatResult {
   apCost: number;
   /** New posture if the card shifted the player's stance on play. T-004 */
   newPosture?: Posture;
+  /** True if artifact GUTS triggered from reflection lethal (caller updates combatState) */
+  artifactGutsTriggered?: boolean;
 }
 
 /**
@@ -117,10 +127,14 @@ export interface UpkeepResult {
 export interface EnemyTurnResult {
   /** Player's HP after enemy turn (may be reduced by attack, DoT, or hazard) */
   newPlayerHp: number;
+  /** Player's chakra after turn (regen ticks, hazards, post-turn recovery) */
+  newPlayerChakra: number;
   /** Player's updated buff list (duration decremented, expired removed) */
   newPlayerBuffs: Buff[];
   /** Enemy's HP after enemy turn (may be reduced by DoT, confusion, or hazard) */
   newEnemyHp: number;
+  /** Enemy's chakra after CHAKRA_DRAIN ticks */
+  newEnemyChakra: number;
   /** Enemy's updated buff list (duration decremented, expired removed) */
   newEnemyBuffs: Buff[];
   /** All combat log messages from this turn */
@@ -139,4 +153,10 @@ export interface EnemyTurnResult {
   enemySkills: Skill[];
   /** True if artifact GUTS passive was triggered this turn (caller should update combatState) */
   artifactGutsTriggered?: boolean;
+  /** A-003: telegraphed next skill id (persist on enemy for UI / next turn) */
+  intendedSkillId?: string;
+  /** A-003: telegraphed next skill display name */
+  intendedSkillName?: string;
+  /** A-003: AI reason for the telegraphed skill */
+  intentReason?: string;
 }

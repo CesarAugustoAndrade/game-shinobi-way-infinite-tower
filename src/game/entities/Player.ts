@@ -1,11 +1,11 @@
 import { Player, Clan, EquipmentSlot, TreasureQuality, DEFAULT_MERCHANT_SLOTS, MAX_BAG_SLOTS } from '../types';
-import { CLAN_STATS, CLAN_START_SKILL, CLAN_GROWTH, SKILLS, getClanStartingSkills } from '../constants';
+import { CLAN_STATS, CLAN_GROWTH, CLAN_ELEMENTS, getClanStartingSkills } from '../constants';
 import { calculateDerivedStats, getPlayerFullStats } from '../systems/StatSystem';
 import { LaunchProperties } from '../../config/featureFlags';
 
 /**
- * Create a new player with starting stats for the given clan
- * Uses the full Jutsu Card System loadout with MAIN, SIDE, TOGGLE, and PASSIVE skills
+ * Create a new player with starting stats for the given clan.
+ * Starting loadout mixes MAIN/SIDE/TOGGLE/PASSIVE cards under the AP economy.
  */
 export const createPlayer = (clan: Clan): Player => {
   const baseStats = CLAN_STATS[clan];
@@ -23,7 +23,7 @@ export const createPlayer = (clan: Clan): Player => {
     primaryStats: { ...baseStats },
     currentHp: derived.maxHp,
     currentChakra: derived.maxChakra,
-    element: clan === Clan.UCHIHA ? 'Fire' : clan === Clan.UZUMAKI ? 'Wind' : 'Physical' as any,
+    element: CLAN_ELEMENTS[clan],
     ryo: LaunchProperties.STARTING_RYO,
     equipment: {
       [EquipmentSlot.SLOT_1]: null,
@@ -33,7 +33,7 @@ export const createPlayer = (clan: Clan): Player => {
     },
     skills,
     activeBuffs: [],
-    bag: Array(MAX_BAG_SLOTS).fill(null), // 12 fixed slots for components and artifacts
+    bag: Array(MAX_BAG_SLOTS).fill(null),
     // Progression systems
     treasureQuality: TreasureQuality.BROKEN,  // Start with broken quality drops
     merchantSlots: DEFAULT_MERCHANT_SLOTS,     // Start with 1 merchant slot

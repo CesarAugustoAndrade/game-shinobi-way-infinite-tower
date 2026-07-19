@@ -460,7 +460,7 @@
 ## T-019 · Registry de arte + iconografía del juego
 - id: T-019
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 35
 - targetScore: 85
 - lensFocus: [PRESENTACION, ARQUITECTURA]
@@ -486,7 +486,7 @@
 ## T-020 · Arte de skills (catálogo completo)
 - id: T-020
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 40
 - targetScore: 85
 - lensFocus: [PRESENTACION]
@@ -508,7 +508,7 @@
 ## T-021 · Retratos de enemigos + ilustraciones de eventos
 - id: T-021
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 40
 - targetScore: 85
 - lensFocus: [PRESENTACION]
@@ -530,7 +530,7 @@
 ## T-022 · Exploración cinemática: overlays de mochila y ficha
 - id: T-022
 - section: presentation
-- status: pending
+- status: passed
 - initialScore: 40
 - targetScore: 85
 - lensFocus: [PRESENTACION, ARQUITECTURA]
@@ -556,7 +556,7 @@
 ## T-023 · Esqueleto de campaña + interludio entre regiones
 - id: T-023
 - section: exploration
-- status: pending
+- status: passed
 - initialScore: 30
 - targetScore: 85
 - lensFocus: [SISTEMA, ARQUITECTURA, PRESENTACION]
@@ -580,7 +580,7 @@
 ## T-024 · Región 2: Chunin Exams (Forest of Death)
 - id: T-024
 - section: exploration
-- status: pending
+- status: passed
 - initialScore: 30
 - targetScore: 85
 - lensFocus: [SISTEMA, PRESENTACION, BALANCE]
@@ -602,7 +602,7 @@
 ## T-025 · Región 3: Sasuke Retrieval (Valley of the End)
 - id: T-025
 - section: exploration
-- status: pending
+- status: passed
 - initialScore: 30
 - targetScore: 85
 - lensFocus: [SISTEMA, PRESENTACION, BALANCE]
@@ -622,7 +622,7 @@
 ## T-026 · Región 4: Great Ninja War (Divine Tree Roots)
 - id: T-026
 - section: exploration
-- status: pending
+- status: passed
 - initialScore: 30
 - targetScore: 85
 - lensFocus: [SISTEMA, PRESENTACION, BALANCE]
@@ -643,7 +643,7 @@
 ## T-027 · Ascenso infinito (modo torre)
 - id: T-027
 - section: exploration
-- status: pending
+- status: passed
 - initialScore: 30
 - targetScore: 85
 - lensFocus: [SISTEMA, BALANCE, ARQUITECTURA]
@@ -661,4 +661,57 @@
     - src/game/systems/ScalingSystem.ts
     - src/scenes/menu/GameOver.tsx
     - src/simulation/LocationSimulator.ts
+
+---
+
+## T-028 · Todo el arte del juego con /imagine (CERO SVG)
+- id: T-028
+- section: presentation
+- status: active
+- initialScore: 35
+- targetScore: 90
+- lensFocus: [PRESENTACION, ARQUITECTURA]
+- origen: decisión humana — "nada SVG, todo con /imagine". Anula el enfoque de tiles SVG de T-019..T-024.
+- orden: puede partirse en sub-lotes (T-028·A..E) pero el **definition of done** es global: 0 .svg servidos al juego.
+- description: >
+    **REGLA DE ORO: NADA DE SVG para arte del juego.** Todo asset visual jugable se genera con **Imagine**
+    (`image_gen` / `image_edit`; dirección `combat-art` + `game-asset-core` / `game-ui-icons` / `game-character-consistency`).
+    Prohibido como arte final: SVG, emoji-en-SVG, generadores `scripts/generate-*-icons.mjs` que emitan .svg,
+    hotlinks externos. El emoji del registry queda SOLO como fallback onError de PNG, no como asset principal.
+    ## Definition of done
+    1) Cero archivos `.svg` bajo `public/assets/` referenciados por el registry (borrar o dejar de servir).
+    2) Todas las claves de `ART_REGISTRY` / manifests tienen `src` → **PNG Imagine** (path `/assets/.../*.png`).
+    3) `npx tsc`, `npm test`, `npm run build`; smoke: SkillCard, Bag, Location cards, Event art, enemy portraits
+       cargan PNG sin 404.
+    4) Documentar prompts en `loop/logs/T-028-prompts.md` (lote, prompt, path salida).
+    ## Pipeline (cada lote del loop)
+    - Generar con Imagine (pixel/16-bit Neo Geo: outlines 1–2px, cel-shading, saturado; transparencia en iconos).
+    - Guardar PNG en `public/assets/icons/{components|artifacts|locations|activities|clans|skills|enemies|events}/`
+      o `public/assets/enemy_*.png` / `skill_*.png` según convención existente.
+    - Actualizar manifests + `artRegistry` a `.png` únicamente (sin dual svg|png).
+    - Eliminar el `.svg` sustituido.
+    ## Lotes obligatorios (cubrir TODO, no solo “priority polish”)
+    A. Clans (5) + activities (9) + components (9)
+    B. Artifacts (todas las del synthesis matrix)
+    C. Skills (114 − las que ya tengan PNG pintado válido; re-generar o conservar PNG reales, nunca SVG)
+    D. Locations: Land of Waves (13) + Chunin Exams (13) y futuras regiones al nacer
+    E. Enemies: archetypes, jobs, bosses, pool ids Waves+Exams
+    F. Events: todos los event ids + category fallbacks
+    ## Anti-patrones
+    - Dejar “temporalmente” un SVG “mientras tanto”.
+    - Scripts que regeneren SVG.
+    - Art “placeholder” que no sea PNG Imagine.
+    Fuera de alcance de este topic: mecánicas de juego, regiones nuevas (solo su arte cuando existan).
+- entryPoints:
+    - src/game/constants/artRegistry.ts
+    - src/game/constants/skillArtManifest.ts
+    - src/game/constants/enemyArtManifest.ts
+    - src/game/constants/eventArtManifest.ts
+    - public/assets/
+    - public/assets/icons/
+    - .agents/skills/combat-art/SKILL.md
+    - scripts/generate-skill-icons.mjs
+    - scripts/generate-enemy-event-art.mjs
+    - scripts/generate-exams-location-icons.mjs
+    - scripts/generate-icon-set.mjs
 

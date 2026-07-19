@@ -6,6 +6,9 @@ interface MainMenuProps {
   difficulty: number;
   onDifficultyChange: (value: number) => void;
   onEnter: () => void;
+  /** T-027: Infinite Ascent (only when campaign unlocked) */
+  onInfiniteEnter?: () => void;
+  infiniteUnlocked?: boolean;
   onGuide: () => void;
 }
 
@@ -13,6 +16,8 @@ const MainMenu: React.FC<MainMenuProps> = ({
   difficulty,
   onDifficultyChange,
   onEnter,
+  onInfiniteEnter,
+  infiniteUnlocked = false,
   onGuide
 }) => {
   // Keyboard shortcuts
@@ -21,7 +26,11 @@ const MainMenu: React.FC<MainMenuProps> = ({
       e.preventDefault();
       onEnter();
     }
-  }, [onEnter]);
+    if ((e.key === 'i' || e.key === 'I') && infiniteUnlocked && onInfiniteEnter) {
+      e.preventDefault();
+      onInfiniteEnter();
+    }
+  }, [onEnter, infiniteUnlocked, onInfiniteEnter]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -73,10 +82,18 @@ const MainMenu: React.FC<MainMenuProps> = ({
         <div className="main-menu__actions">
           <button type="button" onClick={onEnter} className="main-menu__enter">
             <span className="main-menu__enter-content">
-              <span>Enter Tower</span>
+              <span>Campaign</span>
               <span className="sw-shortcut">Enter</span>
             </span>
           </button>
+          {infiniteUnlocked && onInfiniteEnter && (
+            <button type="button" onClick={onInfiniteEnter} className="main-menu__infinite">
+              <span className="main-menu__enter-content">
+                <span>Infinite Ascent</span>
+                <span className="sw-shortcut">I</span>
+              </span>
+            </button>
+          )}
 
           <button type="button" onClick={onGuide} className="main-menu__secondary">
             <BookOpen size={14} />
