@@ -231,6 +231,31 @@
     drop-shadow(0 0  4px rgba(191, 219, 254, 0.35));
 }
 
+/* Hit juice: brief white flash + micro scale when damage lands (A-010) */
+.cinematic__enemy-sprite--hit {
+  animation: cinematic-hit-flash 180ms ease-out;
+}
+
+@keyframes cinematic-hit-flash {
+  0% {
+    filter:
+      brightness(2.4)
+      drop-shadow(0 0 16px rgba(255, 255, 255, 0.9));
+    transform: scale(1.04);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic__enemy-sprite--hit {
+    animation: none;
+    filter: brightness(1.5);
+  }
+}
+
 /* ============================================================
    Layer 11: Lámina 3 — Foreground (optional, occludes enemy)
    Faster drift (18 s). Absent when asset not provided → no 404.

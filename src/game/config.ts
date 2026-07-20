@@ -10,7 +10,7 @@ export const TIMING = {
   ENEMY_TURN_DELAY: 800,
   FLOATING_TEXT_DURATION: 1500,
   COMBAT_ANIMATION_DELAY: 300,
-  AUTO_PASS_DELAY: 2500, // Delay before auto-passing turn when auto-combat is enabled
+  AUTO_PASS_DELAY: 2500, // Delay before auto-passing turn when in-combat Auto (pass) is enabled
 } as const;
 
 // Unified difficulty scaling configuration
@@ -122,6 +122,9 @@ export const LOOT_BALANCE = {
 
   // Artifact upgrade
   UPGRADE_STAT_RETENTION: 0.75,   // Keep 75% of combined stats when upgrading
+
+  // Combat drops (Broken components from normal victories)
+  COMBAT_ITEM_DROP_CHANCE: 0.40,  // 40% chance to drop a Broken component
 } as const;
 
 // System limits - controlled by LaunchProperties where applicable

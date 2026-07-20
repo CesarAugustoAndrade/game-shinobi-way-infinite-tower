@@ -1,4 +1,4 @@
-import { GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
+import { Clan, GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
 
 export const EXAMS_ARC_EVENTS: GameEvent[] = [
   {
@@ -66,6 +66,25 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
             effects: {
               logMessage: 'Fire consumed the trap. The scroll burned too.',
               logType: 'info',
+            },
+          },
+        ],
+      },
+      // T-041: Hyuga exclusive — Byakugan sees every wire
+      {
+        label: 'Byakugan Trace the Wires',
+        description: 'CLAN - Hyuga near-vision maps every thread',
+        riskLevel: RiskLevel.SAFE,
+        requirements: { requiredClan: Clan.HYUGA },
+        outcomes: [
+          {
+            weight: 100,
+            effects: {
+              ryo: 180,
+              exp: 70,
+              logMessage:
+                'Your Byakugan maps every tension line. You claim the scroll without a scratch.',
+              logType: 'loot',
             },
           },
         ],
@@ -169,6 +188,33 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
             effects: {
               hpChange: { percent: -15 },
               logMessage: 'They throw weapons as you flee. One grazes your back.',
+              logType: 'danger',
+            },
+          },
+        ],
+      },
+      // T-041: Lee disciple exclusive — pure taijutsu intimidation
+      {
+        label: 'Open Gates Posture (Lee)',
+        description: 'CLAN - Leaf Disciple pressure without drawing a kunai',
+        riskLevel: RiskLevel.MEDIUM,
+        requirements: { requiredClan: Clan.LEE },
+        outcomes: [
+          {
+            weight: 85,
+            effects: {
+              exp: 90,
+              statChanges: { strength: 1, speed: 1 },
+              logMessage:
+                'Your blazing taijutsu stance freezes the rivals. They yield the path without a fight.',
+              logType: 'gain',
+            },
+          },
+          {
+            weight: 15,
+            effects: {
+              hpChange: { percent: -10 },
+              logMessage: 'They call your bluff and strike. You shrug it off and push through.',
               logType: 'danger',
             },
           },

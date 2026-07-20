@@ -99,13 +99,27 @@ export function applyApproachEffects(
   let updatedPlayer = { ...player };
   let updatedEnemy = { ...enemy };
 
-  // Apply player buffs from approach
+  // Apply player buffs/penalties from approach (success = buffs; failure = debuffs/curses)
   if (modifiers.playerBuffs && modifiers.playerBuffs.length > 0) {
     updatedPlayer.activeBuffs = [...updatedPlayer.activeBuffs, ...modifiers.playerBuffs];
-    logs.push('Your approach grants combat advantages!');
+    const isPenalty = modifiers.playerBuffs.some((b) => {
+      const t = b.effect?.type;
+      return (
+        t === EffectType.DEBUFF ||
+        t === EffectType.CURSE ||
+        t === EffectType.CONFUSION ||
+        t === EffectType.STUN ||
+        t === EffectType.SILENCE
+      );
+    });
+    logs.push(
+      isPenalty
+        ? 'Your approach fails — you enter combat at a disadvantage!'
+        : 'Your approach grants combat advantages!',
+    );
   }
 
-  // Apply enemy debuffs from approach
+  // Apply enemy debuffs from approach (success only in practice)
   if (modifiers.enemyDebuffs && modifiers.enemyDebuffs.length > 0) {
     updatedEnemy.activeBuffs = [...updatedEnemy.activeBuffs, ...modifiers.enemyDebuffs];
     logs.push(`${enemy.name} is affected by your approach!`);
@@ -426,6 +440,13 @@ export function useSkill(
 
   if (damageResult.isMiss) {
     logMsg = `You used ${skill.name} but MISSED!`;
+    // T-103: CLIFF — miss risks a fall (% max HP)
+    const fallFrac = combatState?.fallDamageOnMiss ?? 0;
+    if (fallFrac > 0 && playerStats.derived.maxHp > 0) {
+      const fallDmg = Math.max(1, Math.floor(playerStats.derived.maxHp * fallFrac));
+      newPlayerHp = Math.max(1, newPlayerHp - fallDmg);
+      logMsg += ` You slip on the cliff edge for ${fallDmg} damage!`;
+    }
   } else if (damageResult.isEvaded) {
     logMsg = `You used ${skill.name} but ${enemy.name} EVADED!`;
   } else {

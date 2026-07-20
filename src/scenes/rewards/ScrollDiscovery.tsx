@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Skill,
   SkillTier,
@@ -30,6 +30,19 @@ interface ScrollDiscoveryProps {
   onSkip: () => void;
   /** Biome background image — fills the scene like CinematicViewscreen. */
   background?: string;
+}
+
+/** T-051: local result before parent applies learn and leaves */
+interface ScrollLearnResult {
+  skill: Skill;
+  mode: 'learned' | 'upgraded' | 'replaced';
+  chakraCost: number;
+  chakraBefore: number;
+  chakraAfter: number;
+  levelBefore?: number;
+  levelAfter?: number;
+  forgottenName?: string;
+  slotIndex?: number;
 }
 
 // Helper functions for tier-based styling
@@ -86,19 +99,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   onSkip,
   background,
 }) => {
-  // Keyboard shortcut: SPACE/ENTER to leave scrolls
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'Enter') {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-        e.preventDefault();
-        onSkip();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onSkip]);
+  const [result, setResult] = useState<ScrollLearnResult | null>(null);
 
   const chakraCost = scrollDiscovery.cost?.chakra || 0;
   const canAfford = player.currentChakra >= chakraCost;
@@ -106,6 +107,80 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   // Check if player already knows the skill
   const alreadyKnows = (skill: Skill) => player.skills.some(s => s.id === skill.id);
   const skillSlotsFull = player.skills.length >= 4;
+
+  // T-051: preview result then apply via parent on continue
+  const prepareLearn = useCallback(
+    (skill: Skill, slotIndex?: number) => {
+      if (!canAfford) return;
+      const known = alreadyKnows(skill);
+      const chakraBefore = player.currentChakra;
+      const chakraAfter = chakraBefore - chakraCost;
+
+      if (known) {
+        const existing = player.skills.find((s) => s.id === skill.id)!;
+        const levelBefore = existing.level || 1;
+        setResult({
+          skill,
+          mode: 'upgraded',
+          chakraCost,
+          chakraBefore,
+          chakraAfter,
+          levelBefore,
+          levelAfter: levelBefore + 1,
+        });
+        return;
+      }
+
+      if (slotIndex !== undefined) {
+        const forgotten = player.skills[slotIndex];
+        setResult({
+          skill,
+          mode: 'replaced',
+          chakraCost,
+          chakraBefore,
+          chakraAfter,
+          forgottenName: forgotten?.name,
+          slotIndex,
+        });
+        return;
+      }
+
+      setResult({
+        skill,
+        mode: 'learned',
+        chakraCost,
+        chakraBefore,
+        chakraAfter,
+      });
+    },
+    [canAfford, player.currentChakra, player.skills, chakraCost],
+  );
+
+  const handleResultContinue = useCallback(() => {
+    if (!result) return;
+    // Clear local result first so double Enter/click cannot re-learn / re-spend chakra
+    const { skill, slotIndex } = result;
+    setResult(null);
+    onLearnScroll(skill, slotIndex);
+  }, [result, onLearnScroll]);
+
+  // Keyboard: result → continue; else leave scrolls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        if (result) {
+          handleResultContinue();
+        } else {
+          onSkip();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onSkip, result, handleResultContinue]);
 
   // Check skill requirements
   const meetsRequirements = (skill: Skill): { meets: boolean; reason?: string } => {
@@ -125,6 +200,52 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
 
     return { meets: true };
   };
+
+  // T-051: learn/upgrade/replace result beat before parent unmounts
+  if (result) {
+    const modeLabel =
+      result.mode === 'upgraded'
+        ? `Upgraded to Level ${result.levelAfter}`
+        : result.mode === 'replaced'
+          ? `Replaced ${result.forgottenName ?? 'a skill'}`
+          : 'Technique Learned';
+    return (
+      <SceneBackdrop background={background}>
+        <div className="scroll-discovery scroll-discovery--result">
+          <div className="scroll-result" role="status">
+            <div className="scroll-result__art">
+              <ArtIcon art={getSkillArt(result.skill)} size="xl" title={result.skill.name} />
+            </div>
+            <h2 className="scroll-result__title">{modeLabel}</h2>
+            <p className="scroll-result__name">{result.skill.name}</p>
+            {result.mode === 'upgraded' && result.levelBefore != null && (
+              <p className="scroll-result__detail">
+                Level {result.levelBefore} → {result.levelAfter}
+              </p>
+            )}
+            {result.mode === 'replaced' && result.forgottenName && (
+              <p className="scroll-result__detail">
+                Forgot {result.forgottenName} to make room
+              </p>
+            )}
+            {result.chakraCost > 0 && (
+              <p className="scroll-result__chakra">
+                Chakra {result.chakraBefore} → {result.chakraAfter} (−{result.chakraCost})
+              </p>
+            )}
+            <button
+              type="button"
+              className="scroll-result__continue"
+              onClick={handleResultContinue}
+            >
+              Continue
+              <span className="sw-shortcut">Enter</span>
+            </button>
+          </div>
+        </div>
+      </SceneBackdrop>
+    );
+  }
 
   return (
     <SceneBackdrop background={background}>
@@ -279,7 +400,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
                     <button
                       type="button"
                       disabled={!canAfford || !reqCheck.meets}
-                      onClick={() => onLearnScroll(skill)}
+                      onClick={() => prepareLearn(skill)}
                       className={`scroll-card__btn scroll-card__btn--learn ${!canAfford || !reqCheck.meets ? 'scroll-card__btn--learn:disabled' : ''}`}
                     >
                       <Sparkles size={14} />
@@ -300,7 +421,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
                           type="button"
                           key={idx}
                           disabled={!canAfford}
-                          onClick={() => onLearnScroll(skill, idx)}
+                          onClick={() => prepareLearn(skill, idx)}
                           className="scroll-card__btn--replace"
                         >
                           Replace {s.name}

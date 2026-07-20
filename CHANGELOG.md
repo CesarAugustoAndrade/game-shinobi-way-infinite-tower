@@ -4,6 +4,20 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Fixed (exploit / multi-action / UX balance pass)
+
+- **Broken component upgrade path** (`LootSystem.getCraftCombination`, `Bag`, `useInventoryHandlers`): 2× matching Broken (e.g. two Broken Chakra Pills) upgrades to Common; UI no longer requires artifact recipes for that step.
+- **Treasure dice multi-roll** (`useTreasureHandlers`, `TreasureChoice`): one roll/fight opportunity per room; consume `mapPieceAvailable`; odds from `LaunchProperties.TREASURE_DICE_ODDS`.
+- **Treasure reveal/claim multi-click** (`useTreasureHandlers`): atomic `isRevealed` / `collected` before chakra/loot/ryo.
+- **Treasure hunt claim / start / dice continue** (`useTreasureHandlers`, `TreasureHuntReward`): one claim, no re-init hunt, one modal dismiss.
+- **Training / Scroll Continue multi-apply** (`useActivityHandlers`, `Training`, `ScrollDiscovery`): consume session after validation; clear local result before parent apply.
+- **Merchant leave / services multi-click** (`useActivityHandlers`): leave consumes room; reroll/slot/quality gated with `isProcessingLoot`.
+- **Event outcome double intel** (`useActivityHandlers`): consume `eventOutcome` before complete + intel grant; event UI locks choices after confirm.
+- **Elite fight/escape double resolve** (`useActivityHandlers`): consume `eliteChallengeData` first.
+- **Location complete double Continue** (`useLocationCards`): consume panel before `executeLocationComplete`.
+- **LOOT multi-drop leave-early** (`useInventoryHandlers`, `App`, `Loot`): claim removes item from pile; leave only when empty; sell grants ryo without bag membership; reward modal close is one-shot.
+- **Approaches** (`approaches.ts`, `ApproachSystem`, `ApproachSelector`, `PostureSystem`): new **Iron Guard** (Willpower/shield); lower early reqs; expanded terrain traps; failure penalties for all non-Frontal; Exit Room button; readable benefit/failure chips.
+
 ### Fixed (16-agent audit packages 1–8)
 
 - **P1 skipCombat / stale map return** (`App.tsx`, `useActivityHandlers`): SHADOW_BYPASS completes `locationFloor` (not only legacy `branchingFloor`) and returns via `returnToMapActivityComplete(freshFloor)`. Elite escape success uses the same path.

@@ -136,6 +136,83 @@
   box-shadow: 3px 3px 0 0 var(--sw-hard, #0a0a0f);
 }
 
+/* T-042: story-run bonuses on character sheet */
+/* T-101: region theme on character sheet */
+.explore-overlay__region {
+  margin-bottom: var(--sw-space-4);
+}
+
+.explore-overlay__region-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.explore-overlay__region-chip {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  color: #e2e8f0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.explore-overlay__region-chip--affinity {
+  color: #7dd3fc;
+  border-color: #0e7490;
+}
+
+.explore-overlay__region-chip--focus {
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+.explore-overlay__region-chip--gold {
+  color: #fcd34d;
+  border-color: #a16207;
+}
+
+.explore-overlay__story {
+  border: 2px solid #000;
+  padding: var(--sw-space-3);
+  background: rgba(88, 28, 135, 0.2);
+  box-shadow: 3px 3px 0 0 #000;
+  margin-bottom: var(--sw-space-3);
+}
+
+.explore-overlay__story-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.explore-overlay__story-chip {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #e9d5ff;
+  background: rgba(88, 28, 135, 0.55);
+  border: 2px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  padding: 2px 6px;
+  line-height: 1.25;
+}
+
+.explore-overlay__story-summary {
+  margin: var(--sw-space-2) 0 0;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: var(--sw-text-secondary, #ccc);
+}
+
 .explore-overlay__empty {
   margin: 0;
   font-size: var(--sw-text-xs);

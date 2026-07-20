@@ -46,6 +46,74 @@
   margin-top: var(--sw-space-2);
 }
 
+/* T-093: region lootTheme + Focus badges on combat drops */
+.loot__theme {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: var(--sw-space-3);
+}
+
+.loot__theme-chip {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  color: #e2e8f0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.loot__theme-chip--affinity {
+  color: #7dd3fc;
+  border-color: #0e7490;
+}
+
+.loot__theme-chip--focus {
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+.loot__theme-chip--gold {
+  color: #fcd34d;
+  border-color: #a16207;
+}
+
+.loot-card__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.loot-card__focus-badge {
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border: 1px solid #6d28d9;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.3);
+  box-shadow: 1px 1px 0 #000;
+}
+
+.loot-tooltip__focus {
+  color: #c4b5fd;
+}
+
+.item-tooltip__row--focus .item-tooltip__label {
+  color: #c4b5fd;
+}
+
+.item-tooltip__focus-mark {
+  color: #c4b5fd;
+}
+
 /* Keyboard Hints */
 .loot__hints {
   display: flex;
@@ -60,6 +128,98 @@
   display: flex;
   align-items: center;
   gap: var(--sw-space-1);
+}
+
+/* T-052: unclaimed count + leave confirm */
+.loot__remaining-badge {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fcd34d;
+  background: rgba(180, 83, 9, 0.35);
+  border: 2px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  padding: 2px 6px;
+}
+
+.loot-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sw-space-4);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.loot-confirm__panel {
+  max-width: 22rem;
+  width: 100%;
+  padding: var(--sw-space-5);
+  background: var(--sw-bg-secondary, #12121a);
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0 #000;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  text-align: center;
+  color: var(--sw-text-primary, #f0e8d8);
+}
+
+.loot-confirm__title {
+  margin: 0 0 var(--sw-space-3);
+  font-size: var(--sw-text-base);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fcd34d;
+}
+
+.loot-confirm__body {
+  margin: 0 0 var(--sw-space-4);
+  font-size: var(--sw-text-sm);
+  font-family: var(--sw-font-body, VT323, monospace);
+  line-height: 1.4;
+  color: var(--sw-text-secondary, #ccc);
+}
+
+.loot-confirm__actions {
+  display: flex;
+  gap: var(--sw-space-2);
+}
+
+.loot-confirm__btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: var(--sw-space-2) var(--sw-space-3);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.loot-confirm__btn--cancel {
+  background: #3f3f46;
+  color: #e4e4e7;
+}
+
+.loot-confirm__btn--leave {
+  background: rgba(185, 28, 28, 0.45);
+  color: #fca5a5;
+  border-color: #ef4444;
+}
+
+.loot-confirm__btn--cancel:hover {
+  background: #52525b;
+}
+
+.loot-confirm__btn--leave:hover {
+  background: rgba(185, 28, 28, 0.65);
 }
 
 /* ===========================================

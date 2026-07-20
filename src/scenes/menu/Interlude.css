@@ -53,6 +53,83 @@
   color: #4ade80;
 }
 
+/* T-095: next region lootTheme at boon pick */
+.interlude__next-theme {
+  margin: 0 0 var(--sw-space-4);
+  padding: var(--sw-space-3);
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  background: rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+.interlude__next-theme-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+
+.interlude__next-theme-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.interlude__theme-chip {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.interlude__theme-chip--affinity {
+  color: #7dd3fc;
+  border-color: #0e7490;
+}
+
+.interlude__theme-chip--focus {
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+.interlude__theme-chip--gold {
+  color: #fcd34d;
+  border-color: #a16207;
+}
+
+.interlude__boon-top {
+  position: relative;
+}
+
+.interlude__boon--focus {
+  border-color: #6d28d9;
+}
+
+.interlude__boon-focus-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border: 1px solid #6d28d9;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.35);
+  box-shadow: 1px 1px 0 #000;
+}
+
 .interlude__boon-heading {
   margin: 0 0 var(--sw-space-3);
   font-size: var(--sw-text-sm);
@@ -86,6 +163,67 @@
   color: inherit;
   cursor: pointer;
   font-family: inherit;
+}
+
+/* T-043: boon art + story chips */
+.interlude__boon-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--sw-space-2);
+  margin-bottom: 4px;
+}
+
+.interlude__boon-art-wrap {
+  width: 3rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  overflow: hidden;
+}
+
+.interlude__boon-art {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.interlude__boon-stat-glyph {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.interlude__story {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--sw-space-3);
+}
+
+.interlude__story-label {
+  font-size: 10px;
+  color: var(--sw-text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.interlude__story-chip {
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #e9d5ff;
+  background: rgba(88, 28, 135, 0.5);
+  border: 2px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  padding: 1px 5px;
 }
 
 .interlude__boon:hover {

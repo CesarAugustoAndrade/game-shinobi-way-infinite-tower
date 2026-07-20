@@ -566,6 +566,87 @@ export interface CraftResult {
   reason?: string;
 }
 
+/** Craft path for two bag/equipment items (mirrors handleSynthesize routing). */
+export type CraftMode = 'upgrade_broken' | 'synthesize' | 'upgrade_artifact';
+
+export interface CraftCombination {
+  mode: CraftMode;
+  /** Short label for UI previews (product name). */
+  previewName: string;
+  actionName: 'Upgraded' | 'Synthesized' | 'Forged';
+}
+
+/**
+ * Pure check: can these two items be crafted together, and how?
+ *
+ * Rules:
+ * - 2× BROKEN components, same componentId → COMMON component (repair/upgrade)
+ * - 2× COMMON components with a recipe → RARE artifact
+ * - 2× RARE artifacts, same recipe → EPIC artifact
+ */
+export const getCraftCombination = (a: Item, b: Item): CraftCombination | null => {
+  if (!a || !b || a.id === b.id) return null;
+
+  // 2× Broken same type → Common component
+  if (
+    a.isComponent &&
+    b.isComponent &&
+    a.rarity === Rarity.BROKEN &&
+    b.rarity === Rarity.BROKEN &&
+    a.componentId &&
+    a.componentId === b.componentId
+  ) {
+    const def = COMPONENT_DEFINITIONS[a.componentId];
+    return {
+      mode: 'upgrade_broken',
+      previewName: def?.name ?? a.componentId,
+      actionName: 'Upgraded',
+    };
+  }
+
+  // 2× Common with recipe → Rare artifact
+  if (
+    a.isComponent &&
+    b.isComponent &&
+    a.rarity === Rarity.COMMON &&
+    b.rarity === Rarity.COMMON &&
+    a.componentId &&
+    b.componentId
+  ) {
+    const recipe = findRecipe(a.componentId, b.componentId);
+    if (recipe) {
+      return {
+        mode: 'synthesize',
+        previewName: recipe.name,
+        actionName: 'Synthesized',
+      };
+    }
+    return null;
+  }
+
+  // 2× Rare same artifact → Epic
+  if (
+    !a.isComponent &&
+    !b.isComponent &&
+    a.rarity === Rarity.RARE &&
+    b.rarity === Rarity.RARE &&
+    a.recipe &&
+    b.recipe
+  ) {
+    const recipeA = [...a.recipe].sort().join(',');
+    const recipeB = [...b.recipe].sort().join(',');
+    if (recipeA === recipeB) {
+      return {
+        mode: 'upgrade_artifact',
+        previewName: a.name,
+        actionName: 'Forged',
+      };
+    }
+  }
+
+  return null;
+};
+
 /**
  * Upgrade two BROKEN components of the same type into one COMMON component
  * Cost: 100 + floor×15

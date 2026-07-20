@@ -1,4 +1,4 @@
-import { GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
+import { Clan, GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
 
 export const ACADEMY_ARC_EVENTS: GameEvent[] = [
   {
@@ -155,6 +155,26 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
             effects: {
               logMessage: 'They mock you and leave anyway.',
               logType: 'info',
+            },
+          },
+        ],
+      },
+      // T-042: Yamanaka exclusive — mind-body reading de-escalates without violence
+      {
+        label: 'Yamanaka Mind-Body Read',
+        description: 'CLAN - Sense fear and redirect it into shame',
+        riskLevel: RiskLevel.SAFE,
+        requirements: { requiredClan: Clan.YAMANAKA },
+        outcomes: [
+          {
+            weight: 100,
+            effects: {
+              exp: 45,
+              ryo: 80,
+              statChanges: { intelligence: 1, calmness: 1 },
+              logMessage:
+                'Your Yamanaka techniques surface their buried guilt. The bullies scatter; the victim thanks you with a shared ration scroll.',
+              logType: 'gain',
             },
           },
         ],

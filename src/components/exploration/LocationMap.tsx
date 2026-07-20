@@ -8,6 +8,16 @@ import {
 import RoomCard from './RoomCard';
 import { getCurrentRoom, getChildRooms } from '../../game/systems/LocationSystem';
 import { ACTIVITY_FULL_NAMES } from '../../game/constants/activityLabels';
+import {
+  formatLocationTerrainEffectLines,
+  formatRoomTerrainEffectLines,
+  getRoomHiddenRoomBonus,
+  getRoomMovementCost,
+  getRoomVisibilityRange,
+} from '../../game/systems/LocationTerrainSystem';
+import { TERRAIN_DEFINITIONS } from '../../game/constants/terrain';
+import { COMBAT_MODIFIER_EFFECTS } from '../../game/constants/roomTypes';
+import { CombatModifierType } from '../../game/types';
 import './exploration.css';
 
 interface LocationMapProps {
@@ -40,6 +50,63 @@ const LocationMap: React.FC<LocationMapProps> = ({
     () => selectedRoomId ? branchingFloor.rooms.find(r => r.id === selectedRoomId) : null,
     [branchingFloor.rooms, selectedRoomId]
   );
+
+  // T-074: location terrain effects active while exploring (from floor thread)
+  const terrainLines = useMemo(
+    () => formatLocationTerrainEffectLines(branchingFloor.terrainEffects),
+    [branchingFloor.terrainEffects],
+  );
+
+  // T-080: room terrain visibilityRange gates grandchild foresight
+  const currentTerrainDef = useMemo(() => {
+    if (!currentRoom) return null;
+    return TERRAIN_DEFINITIONS[currentRoom.terrain];
+  }, [currentRoom]);
+  const visibilityRange = useMemo(
+    () => getRoomVisibilityRange(currentTerrainDef),
+    [currentTerrainDef],
+  );
+  const showGrandchildren = visibilityRange >= 2;
+  // T-081: secrets/exit discovery bonus from current room terrain
+  const secretsBonusPct = useMemo(() => {
+    const frac = getRoomHiddenRoomBonus(currentTerrainDef);
+    return Math.round(frac * 100);
+  }, [currentTerrainDef]);
+  // T-082: room movementCost (pace) shown when not 1.0
+  const movementCost = useMemo(
+    () => getRoomMovementCost(currentTerrainDef),
+    [currentTerrainDef],
+  );
+
+  // T-084: selected room terrain (path choice honesty)
+  const selectedTerrainDef = useMemo(() => {
+    if (!selectedRoom) return null;
+    return TERRAIN_DEFINITIONS[selectedRoom.terrain];
+  }, [selectedRoom]);
+  const selectedSight = useMemo(
+    () => getRoomVisibilityRange(selectedTerrainDef),
+    [selectedTerrainDef],
+  );
+  const selectedSecretsPct = useMemo(
+    () => Math.round(getRoomHiddenRoomBonus(selectedTerrainDef) * 100),
+    [selectedTerrainDef],
+  );
+  const selectedPace = useMemo(
+    () => getRoomMovementCost(selectedTerrainDef),
+    [selectedTerrainDef],
+  );
+  const selectedRoomCombatLines = useMemo(
+    () => formatRoomTerrainEffectLines(selectedTerrainDef).slice(0, 3),
+    [selectedTerrainDef],
+  );
+  // T-105: room combat condition (Ambush / Sanctuary / …) before enter
+  const selectedCombatConditions = useMemo(() => {
+    const mods = selectedRoom?.activities.combat?.modifiers ?? [];
+    return mods
+      .filter((m) => m !== CombatModifierType.NONE)
+      .map((m) => COMBAT_MODIFIER_EFFECTS[m]?.name)
+      .filter(Boolean) as string[];
+  }, [selectedRoom]);
 
   // Handle room click
   const handleRoomClick = (room: BranchingRoom) => {
@@ -139,6 +206,43 @@ const LocationMap: React.FC<LocationMapProps> = ({
             <h2 className="location-map__title">
               {branchingFloor.biome}
             </h2>
+            {/* T-046: ambient flavor from location atmosphereEvents */}
+            {branchingFloor.atmosphereFlavor && (
+              <p className="location-map__atmosphere">{branchingFloor.atmosphereFlavor}</p>
+            )}
+            {/* T-074: live terrain mods (combat/intel already apply these) */}
+            {terrainLines.length > 0 && (
+              <p className="location-map__terrain" aria-label="Location terrain effects">
+                Terrain: {terrainLines.slice(0, 4).join(' · ')}
+              </p>
+            )}
+            {/* T-080: room foresight from current room terrain */}
+            <p className="location-map__sight" aria-label="Map foresight range">
+              Sight: {visibilityRange}
+              {!showGrandchildren && (
+                <span className="location-map__sight-fog"> · path ahead fogged</span>
+              )}
+            </p>
+            {/* T-081: hiddenRoomBonus shifts exit discovery when branching from here */}
+            {secretsBonusPct !== 0 && (
+              <p className="location-map__secrets" aria-label="Exit discovery bonus">
+                Secrets:{' '}
+                <span className={secretsBonusPct > 0 ? 'location-map__secrets--pos' : 'location-map__secrets--neg'}>
+                  {secretsBonusPct > 0 ? '+' : ''}{secretsBonusPct}%
+                </span>
+                {' '}exit find
+              </p>
+            )}
+            {/* T-082: room footing affects combat AP budget */}
+            {movementCost !== 1 && (
+              <p className="location-map__pace" aria-label="Room movement pace">
+                Pace:{' '}
+                <span className={movementCost > 1 ? 'location-map__pace--slow' : 'location-map__pace--fast'}>
+                  ×{movementCost.toFixed(1)}
+                </span>
+                {movementCost > 1 ? ' (slower AP)' : ' (easier footing)'}
+              </p>
+            )}
           </div>
           <div className="location-map__stats">
             <p className="location-map__stat">
@@ -168,22 +272,34 @@ const LocationMap: React.FC<LocationMapProps> = ({
       <div className="location-map__area">
         {/* Room Cards Container */}
         <div className="location-map__rooms">
-          {/* Grandchildren grouped by parent - Top row (2 per group) */}
+          {/* Grandchildren — T-080: fogged when current room visibilityRange < 2 */}
           <div className="location-map__row">
             {childRooms.map((child) => {
               const childGrandchildren = getChildRooms(branchingFloor, child.id);
               return (
                 <div key={`gc-group-${child.id}`} className="location-map__row-group">
-                  {childGrandchildren.map((room) => (
-                    <RoomCard
-                      key={room.id}
-                      room={room}
-                      isSelected={selectedRoomId === room.id}
-                      onClick={() => handleRoomClick(room)}
-                    />
-                  ))}
-                  {childGrandchildren.length === 0 && (
-                    <div className="location-map__placeholder">...</div>
+                  {showGrandchildren ? (
+                    <>
+                      {childGrandchildren.map((room) => (
+                        <RoomCard
+                          key={room.id}
+                          room={room}
+                          isSelected={selectedRoomId === room.id}
+                          onClick={() => handleRoomClick(room)}
+                        />
+                      ))}
+                      {childGrandchildren.length === 0 && (
+                        <div className="location-map__placeholder">...</div>
+                      )}
+                    </>
+                  ) : (
+                    <div
+                      className="location-map__fog"
+                      title="Low visibility — advance to scout further"
+                      aria-label="Path ahead obscured by terrain"
+                    >
+                      ???
+                    </div>
                   )}
                 </div>
               );
@@ -232,6 +348,38 @@ const LocationMap: React.FC<LocationMapProps> = ({
               <p className="location-map__selected-desc">
                 {selectedRoom.description}
               </p>
+
+              {/* T-084: room terrain identity before enter */}
+              {selectedTerrainDef && (
+                <div className="location-map__selected-terrain" aria-label="Selected room terrain">
+                  <p className="location-map__selected-terrain-name">
+                    Terrain: <strong>{selectedTerrainDef.name}</strong>
+                  </p>
+                  <div className="location-map__selected-terrain-chips">
+                    <span className="location-map__chip">Sight {selectedSight}</span>
+                    {selectedSecretsPct !== 0 && (
+                      <span className={`location-map__chip ${selectedSecretsPct > 0 ? 'location-map__chip--pos' : 'location-map__chip--neg'}`}>
+                        Secrets {selectedSecretsPct > 0 ? '+' : ''}{selectedSecretsPct}%
+                      </span>
+                    )}
+                    {selectedPace !== 1 && (
+                      <span className={`location-map__chip ${selectedPace > 1 ? 'location-map__chip--slow' : 'location-map__chip--fast'}`}>
+                        Pace ×{selectedPace.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
+                  {selectedRoomCombatLines.length > 0 && (
+                    <p className="location-map__selected-terrain-mods">
+                      {selectedRoomCombatLines.join(' · ')}
+                    </p>
+                  )}
+                  {selectedCombatConditions.length > 0 && (
+                    <p className="location-map__selected-condition" aria-label="Room combat condition">
+                      Fight: {selectedCombatConditions.join(' · ')}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Activity list */}
               <div className="location-map__selected-activities">

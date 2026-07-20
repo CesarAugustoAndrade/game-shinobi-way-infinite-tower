@@ -14,6 +14,7 @@ import {
   isPositiveEffect,
 } from '../../game/utils/tooltipFormatters';
 import { getClanArt } from '../../game/constants/artRegistry';
+import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
 import ArtIcon from '../shared/ArtIcon';
 import './character.css';
 
@@ -57,6 +58,8 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
   const visibleBuffs = player.activeBuffs.slice(0, 4);
   const overflowCount = Math.max(0, player.activeBuffs.length - 4);
   const xpPercent = Math.min(100, (player.exp / player.maxExp) * 100);
+  // T-037: narrative run flags that grant combat/loot mods (from T-034)
+  const runFlagLabels = getEventFlagRunModifiers(player).activeLabels;
 
   return (
     <div ref={ref} className={`player-hud ${compact ? 'player-hud--compact' : ''}`}>
@@ -199,6 +202,21 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
                 +{overflowCount}
               </div>
             )}
+          </div>
+        )}
+
+        {/* T-037: persistent run-flag bonuses (event choices → power) */}
+        {runFlagLabels.length > 0 && (
+          <div
+            className="player-hud__run-flags"
+            title="Bonuses from story choices this run"
+            aria-label={`Story bonuses: ${runFlagLabels.join(', ')}`}
+          >
+            {runFlagLabels.map((label) => (
+              <span key={label} className="player-hud__run-flag">
+                {compact ? label.replace(/\s+/g, ' ').split(' ').slice(-2).join(' ') : label}
+              </span>
+            ))}
           </div>
         )}
       </div>

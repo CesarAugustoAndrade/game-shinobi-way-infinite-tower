@@ -9,9 +9,11 @@ import {
   // Card-based location selection types
   IntelPool, LocationDeck, LocationCard, IntelRevealLevel,
   // Treasure system types
-  TreasureActivity, TreasureHunt, TreasureType, DiceRollResult
+  TreasureActivity, TreasureHunt, TreasureType, DiceRollResult,
+  CombatModifierType,
 } from './game/types';
 import { CLAN_GROWTH } from './game/constants';
+import { COMBAT_MODIFIER_EFFECTS } from './game/constants/roomTypes';
 import { createPlayer } from './game/entities/Player';
 import {
   getPlayerFullStats,
@@ -146,12 +148,14 @@ const App: React.FC = () => {
     changes: OutcomeChange[];
     nextEventId?: string;
   } | null>(null);
-  /** T-049: info gathering result panel */
+  /** T-049/T-086: info gathering result panel */
   const [intelResult, setIntelResult] = useState<{
     flavorText: string;
     intelGain: number;
     intelBefore: number;
     intelAfter: number;
+    baseIntelGain?: number;
+    fogNote?: string | null;
   } | null>(null);
   /** T-050: rest heal result panel */
   const [restResult, setRestResult] = useState<{
@@ -189,6 +193,8 @@ const App: React.FC = () => {
     regionName: string;
     nextRegionName: string;
     nextIndex: number;
+    /** T-095: next region's lootTheme for Focus honesty at boon pick */
+    nextLootTheme?: import('./game/types').RegionLootTheme | null;
   } | null>(null);
   /** T-027: campaign vs infinite ascent */
   const [runMode, setRunMode] = useState<'campaign' | 'infinite'>('campaign');
@@ -213,6 +219,12 @@ const App: React.FC = () => {
     /** T-035: items previewed on victory (elite artifact / combat drops) */
     lootPreviews?: Item[];
     continuesToLoot?: boolean;
+    /** T-087: combat intel (fog-scaled) */
+    intelGain?: number;
+    baseIntelGain?: number;
+    fogNote?: string;
+    /** T-089: wealth / region gold note under ryo */
+    ryoNote?: string;
   } | null>(null);
   const logIdCounter = useRef<number>(0);
   const returnToMapRef = useRef<() => void>(() => {});
@@ -519,6 +531,7 @@ const App: React.FC = () => {
         regionName: clearedRegion.name,
         nextRegionName: nextEntry.name,
         nextIndex: nextIdx,
+        nextLootTheme: nextEntry.config?.lootTheme ?? null,
       });
       setGameState(GameState.INTERLUDE);
     },
@@ -719,9 +732,9 @@ const App: React.FC = () => {
     }
   }, [gameState]);
 
-  // Cancel approach selection — restore prior context (guardian → TREASURE, elite/map → explore)
+  // Exit room / cancel approach — restore prior context (guardian → TREASURE, elite/map → explore)
   const handleApproachCancel = () => {
-    logModalClose('ApproachSelector', 'cancelled');
+    logModalClose('ApproachSelector', 'exit room');
     setShowApproachSelector(false);
 
     const isTreasureGuardian =
@@ -735,11 +748,13 @@ const App: React.FC = () => {
       // Restore treasure screen (never blank TREASURE: requires currentTreasure)
       // Keep selectedBranchingRoom for subsequent treasure actions
       setGameState(GameState.TREASURE);
+      addLog('You step back from the Treasure Guardian.', 'info');
       return;
     }
 
-    // Elite / regular combat: stay on map (elite fight already set LOCATION_EXPLORE / REGION_MAP)
+    // Elite / regular combat: return to map without starting the fight
     setSelectedBranchingRoom(null);
+    addLog('You leave the room without fighting.', 'info');
   };
 
   // Handle approach selection for BRANCHING exploration combat (also works for region mode)
@@ -773,11 +788,14 @@ const App: React.FC = () => {
 
     setApproachResult(result);
     logExplorationCheckpoint('Approach result', { approach, success: result.success, skipCombat: result.skipCombat });
-    addLog(result.description, result.success ? 'gain' : 'info');
+    addLog(result.description, result.success ? 'gain' : 'danger');
 
-    // Apply costs
+    // Apply costs (chakra/HP — failure still charges and may add HP backfire)
     const playerAfterCosts = applyApproachCosts(player, result);
     setPlayer(playerAfterCosts);
+    if (!result.success && result.hpCost > 0) {
+      addLog(`Approach backfire: −${result.hpCost} HP!`, 'danger');
+    }
 
     if (result.skipCombat) {
       // Successfully bypassed combat — complete LIVE locationFloor (not only legacy branchingFloor)
@@ -848,7 +866,9 @@ const App: React.FC = () => {
     if (isTreasureGuardian) {
       setCurrentTreasure(null);
     }
-    startCombat(combatEnemy, result, playerAfterCosts, terrain, locMods);
+    // T-102: room combat modifiers from combat activity
+    const roomMods = selectedBranchingRoom.activities.combat?.modifiers;
+    startCombat(combatEnemy, result, playerAfterCosts, terrain, locMods, roomMods);
   };
 
   // Branching exploration handlers moved to useExploration hook
@@ -857,8 +877,16 @@ const App: React.FC = () => {
 
   // --- Hooks for Inventory & Activities ---
   const inventoryHandlers = useInventoryHandlers(
-    { player, currentDangerLevel, currentBaseDifficulty, difficulty, isProcessingLoot },
-    { setPlayer, setIsProcessingLoot, setSelectedComponent },
+    {
+      player,
+      currentDangerLevel,
+      currentBaseDifficulty,
+      difficulty,
+      isProcessingLoot,
+      droppedItems,
+      droppedSkill,
+    },
+    { setPlayer, setIsProcessingLoot, setSelectedComponent, setDroppedItems },
     { addLog, returnToMap }
   );
 
@@ -904,19 +932,28 @@ const App: React.FC = () => {
   // Close reward modal - check for pending artifact from elite challenge,
   // or component drops from normal combat victories.
   const handleRewardClose = () => {
+    // Consume reward first — blocks double Continue (double LOOT open / double returnToMap)
+    let hadReward = false;
+    setCombatReward(prev => {
+      if (!prev) return null;
+      hadReward = true;
+      return null;
+    });
+    if (!hadReward) return;
+
     logRewardModal('close');
+    const artifact = pendingArtifact;
     const hasCombatDrops = droppedItems.length > 0;
     logModalClose(
       'RewardModal',
-      pendingArtifact ? 'showing loot' : hasCombatDrops ? 'showing combat loot' : 'staying on map'
+      artifact ? 'showing loot' : hasCombatDrops ? 'showing combat loot' : 'staying on map'
     );
-    setCombatReward(null);
 
     // If there's a pending artifact from elite challenge, show loot screen
-    if (pendingArtifact) {
-      logFlowCheckpoint('Pending artifact found - showing LOOT screen', { artifact: pendingArtifact.name });
+    if (artifact) {
+      logFlowCheckpoint('Pending artifact found - showing LOOT screen', { artifact: artifact.name });
       logStateChange('LOCATION_EXPLORE', 'LOOT', 'elite challenge artifact');
-      setDroppedItems([pendingArtifact]);
+      setDroppedItems([artifact]);
       setDroppedSkill(null);
       setPendingArtifact(null);
       addLog('The artifact guardian has fallen! Claim your prize.', 'loot');
@@ -937,6 +974,8 @@ const App: React.FC = () => {
 
   const learnSkill = (skill: Skill, slotIndex?: number) => {
     if (!player || !playerStats) return;
+    // Already claimed this skill drop
+    if (!droppedSkill || droppedSkill.id !== skill.id) return;
 
     const checkResult = canLearnSkill(skill, playerStats.effectivePrimary.intelligence, player.level, player.clan);
     if (!checkResult.canLearn) {
@@ -966,7 +1005,10 @@ const App: React.FC = () => {
     }
     setPlayer({ ...player, skills: newSkills });
     setDroppedSkill(null);
-    returnToMap();
+    // Stay on LOOT if items remain; only leave when pile is empty
+    if (droppedItems.length === 0) {
+      returnToMap();
+    }
   };
 
   // --- Layout flags + hooks MUST run before any early return (Rules of Hooks) ---
@@ -1083,6 +1125,7 @@ const App: React.FC = () => {
           regionsCompleted,
         }}
         player={player}
+        nextLootTheme={interludeMeta.nextLootTheme}
         onChooseBoon={handleInterludeBoon}
         background={combatBackground}
       />
@@ -1138,6 +1181,8 @@ const App: React.FC = () => {
     onDragEquipToBag: dragEquipToBag,
     onSwapEquipment: swapEquipment,
     treasureHunt: locationFloor?.treasureHunt || currentTreasureHunt,
+    // T-096: bag Focus honesty while equipping
+    lootTheme: region?.lootTheme,
   };
 
   return (
@@ -1162,6 +1207,7 @@ const App: React.FC = () => {
             onOpenCharacter={() => setExploreOverlay((p) => (p === 'character' ? 'none' : 'character'))}
             bagOpen={exploreOverlay === 'bag'}
             characterOpen={exploreOverlay === 'character'}
+            lootTheme={region?.lootTheme}
           />
         )}
         <div className={`flex-1 flex flex-col items-center justify-center relative overflow-y-auto parchment-panel ${isExplorationMap ? 'p-2 sm:p-4' : 'p-6'}`}>
@@ -1210,12 +1256,20 @@ const App: React.FC = () => {
                 locationTerrainMods={combatState?.locationTerrainMods ?? null}
                 skipFirstSkillCost={combatState?.skipFirstSkillCost ?? false}
                 roomTerrain={combatState?.terrain ?? null}
+                roomConditionNames={combatState?.roomConditionNames ?? null}
               />
             </ErrorBoundary>
           )}
 
           {gameState === GameState.EVENT && activeEvent && (
-            <Event activeEvent={activeEvent} onChoice={handleEventChoice} player={player} playerStats={playerStats} cameFromChain={cameFromChain} />
+            <Event
+              activeEvent={activeEvent}
+              onChoice={handleEventChoice}
+              player={player}
+              playerStats={playerStats}
+              cameFromChain={cameFromChain}
+              locationTerrainMods={getLocationTerrainMods(currentLocation?.terrainEffects)}
+            />
           )}
 
           {gameState === GameState.ELITE_CHALLENGE && eliteChallengeData && player && playerStats && (
@@ -1246,6 +1300,7 @@ const App: React.FC = () => {
                 getDamageTypeColor={getDamageTypeColor}
                 isProcessing={isProcessingLoot}
                 background={combatBackground}
+                lootTheme={region?.lootTheme}
               />
             </ErrorBoundary>
           )}
@@ -1265,6 +1320,7 @@ const App: React.FC = () => {
                 onUpgradeQuality={handleUpgradeTreasureQuality}
                 isProcessing={isProcessingLoot}
                 background={combatBackground}
+                lootTheme={region?.lootTheme}
               />
             </ErrorBoundary>
           )}
@@ -1310,6 +1366,8 @@ const App: React.FC = () => {
                 onBagFullLeave={handleBagFullLeave}
                 getRarityColor={getRarityColor}
                 background={combatBackground}
+                lootTheme={region?.lootTheme}
+                diceRollPending={diceRollResult !== null}
               />
             </ErrorBoundary>
           )}
@@ -1323,6 +1381,7 @@ const App: React.FC = () => {
                 getRarityColor={getRarityColor}
                 getDamageTypeColor={getDamageTypeColor}
                 background={combatBackground}
+                lootTheme={region?.lootTheme}
               />
             </ErrorBoundary>
           )}
@@ -1365,6 +1424,10 @@ const App: React.FC = () => {
                     levelUp={combatReward.levelUp}
                     lootPreviews={combatReward.lootPreviews}
                     continuesToLoot={combatReward.continuesToLoot}
+                    intelGain={combatReward.intelGain}
+                    baseIntelGain={combatReward.baseIntelGain}
+                    fogNote={combatReward.fogNote}
+                    ryoNote={combatReward.ryoNote}
                     onClose={handleRewardClose}
                   />
                 )}
@@ -1432,6 +1495,7 @@ const App: React.FC = () => {
           player={player}
           playerStats={playerStats}
           onClose={() => setExploreOverlay('none')}
+          lootTheme={region?.lootTheme}
         />
       )}
 
@@ -1461,6 +1525,21 @@ const App: React.FC = () => {
             locationEvasionBonus={
               getLocationTerrainMods(currentLocation?.terrainEffects).evasionBonus
             }
+            roomConditionNames={(() => {
+              // T-104: pre-fight honesty for room combat modifiers (T-102/103)
+              const mods = selectedBranchingRoom.activities.combat?.modifiers ?? [];
+              return mods
+                .filter((m) => m !== CombatModifierType.NONE)
+                .map((m) => COMBAT_MODIFIER_EFFECTS[m]?.name)
+                .filter(Boolean) as string[];
+            })()}
+            roomConditionHints={(() => {
+              const mods = selectedBranchingRoom.activities.combat?.modifiers ?? [];
+              return mods
+                .filter((m) => m !== CombatModifierType.NONE)
+                .map((m) => COMBAT_MODIFIER_EFFECTS[m]?.description)
+                .filter(Boolean) as string[];
+            })()}
             onSelectApproach={handleBranchingApproachSelect}
             onCancel={handleApproachCancel}
           />

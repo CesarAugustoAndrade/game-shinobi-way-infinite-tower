@@ -87,8 +87,8 @@ export const HELP_TEXT = {
 
   ELEMENTS: {
     CYCLE: "Fire > Wind > Lightning > Earth > Water > Fire",
-    BONUS: "Super Effective hits deal 1.5x Damage, have +20% Crit Chance, and ignore 50% of %-Defense.",
-    RESIST: "Resisted hits deal 0.5x Damage."
+    BONUS: "Super Effective hits deal 1.2x Damage and gain +10% Critical Chance.",
+    RESIST: "Resisted hits deal 0.8x Damage. Physical and Mental attacks are always neutral."
   },
 
   // ============================================================================
@@ -233,20 +233,55 @@ export const HELP_TEXT = {
   },
 
   // ============================================================================
-  // COMBAT MECHANICS - Approaches & Terrain
+  // COMBAT MECHANICS - Deck/AP/Posture, Approaches & Terrain
   // ============================================================================
   COMBAT_MECHANICS: {
-    APPROACHES: [
-      { type: "Aggressive", desc: "Offensive stance. Increased damage output but reduced defenses.", color: "red" },
-      { type: "Defensive", desc: "Protective stance. Enhanced defenses but lower damage.", color: "blue" },
-      { type: "Balanced", desc: "Neutral stance. No bonuses or penalties.", color: "gray" },
-      { type: "Evasive", desc: "Mobile stance. Higher evasion chance but inconsistent damage.", color: "green" }
+    DECK_ECONOMY: {
+      title: "Deck, Hand & Action Points",
+      overview: "Combat is a card-based system. Your known jutsu form a deck; each turn you draw a hand and spend Action Points (AP) to play cards.",
+      points: [
+        { label: "Deck", desc: "Built from your skill list (MAIN, SIDE, TOGGLE, PASSIVE). Every jutsu you know can appear as a card." },
+        { label: "Hand", desc: "You draw 4 cards at the start of each turn. Posture biases which kinds of cards appear." },
+        { label: "Action Points (AP)", desc: "Base 3 AP/turn + 1 per 10 Speed. Each card costs AP; when AP is gone, your turn ends. Harsh location terrain (movement penalty) can cut your AP budget — the combat HUD shows Terrain −N when that happens." },
+        { label: "Playing cards", desc: "MAIN skills are attacks/heals; SIDE are setups/utility; TOGGLE shift combat posture; PASSIVES stay on your character." }
+      ]
+    },
+    POSTURES: [
+      { type: "Aggressive", desc: "Favors attack cards. Deal +15% damage, take +15% damage.", color: "red" },
+      { type: "Balanced", desc: "Even draw. Neutral damage and defense (default).", color: "gray" },
+      { type: "Defensive", desc: "Favors guard/utility cards. Deal −15% damage, take −15% damage.", color: "blue" }
     ],
+    APPROACHES: [
+      { type: "Frontal Assault", desc: "Always available. Face the enemy head-on with no bonuses or penalties.", color: "gray" },
+      { type: "Silent Strike", desc: "Requires Speed 12+. On success: first hit deals 2× damage, high initiative, chance to stun. +15% XP. Location stealth_bonus improves success chance (shown on the approach panel).", color: "green" },
+      { type: "Mind Trap", desc: "Requires Calmness 15+. Costs chakra. On success: enemy starts confused and slowed. +20% XP.", color: "blue" },
+      { type: "Terrain Trap", desc: "Requires Intelligence 14+ and trap-friendly room terrain. On success: enemy loses 20% HP before combat. +25% XP.", color: "red" },
+      { type: "Shadow Passage", desc: "Requires Speed 35+ and Body Flicker. On success: skip the fight entirely (no XP/loot).", color: "green" }
+    ],
+    /**
+     * T-076: real location terrainEffects (LocationTerrainSystem), not fluff biomes.
+     * Room TerrainType still applies stealth/init/element amp separately.
+     */
     TERRAIN: [
-      { type: "Open Field", desc: "Standard terrain with no special modifiers." },
-      { type: "Forest", desc: "Dense cover. Boosts evasion for both sides." },
-      { type: "Water", desc: "Aquatic environment. Water jutsu enhanced, Fire weakened." },
-      { type: "Rocky", desc: "Unstable ground. Earth jutsu enhanced, Speed reduced." }
+      { type: "Water dmg / Fire dmg", desc: "Location tags can boost Water skills and cut Fire (and similar). Stacks with room elemental amp when both apply." },
+      { type: "Mental dmg", desc: "Boosts mental-damage skills and mental-element techniques on that location." },
+      { type: "Stealth", desc: "Adds to approach stealth success (room stealth + location stealth). Approach panel shows combined %." },
+      { type: "Enemy atk / def", desc: "Enemy attack bonus hits harder; enemy defense reduces your outgoing damage. Watch the open-combat terrain strip." },
+      { type: "Ambush", desc: "Raises elite/ambush spawn odds on that location’s rooms." },
+      { type: "Poison / Fall / Chakra drain", desc: "End-of-enemy-turn hazards: % max HP damage or chakra drain (chance-gated). Logs when they trigger." },
+      { type: "Evasion", desc: "Raises your dodge chance against enemy attacks (manual + auto combat)." },
+      { type: "Movement / Visibility", desc: "Location movement_penalty cuts combat AP (HUD: Terrain −N). Visibility penalty reduces intel gains from combat, events, and info gathering." },
+      { type: "Room Pace (movementCost)", desc: "Each room's footing multiplies combat AP (Pace ×0.8 easier … ×1.5 slower). Shown on the location map, approach strip, and open-combat terrain line. Floor AP never goes below 1." },
+      { type: "Room Sight / Secrets", desc: "Sight (visibilityRange) fogs grandchild foresight on the map when ≤1. Secrets (hiddenRoomBonus) shifts exit-find chance when branching from that room." },
+      /**
+       * T-107: room combat conditions (CombatModifierType) — wired T-102–106.
+       * Distinct from location Ambush spawn odds above.
+       */
+      { type: "Room Fight: Ambush", desc: "Enemy tends to act first and hits harder on the opening strike (×1.25). Shown as Fight chip on the map, approach strip, and open-combat banner." },
+      { type: "Room Fight: Prepared", desc: "You seize initiative and deal bonus first-hit damage (×1.2). Path and approach UI label it Prepared." },
+      { type: "Room Fight: Sanctuary", desc: "Sacred ground heals ~20% max HP before the fight starts." },
+      { type: "Room Fight: Corrupted", desc: "Lingering poison ticks during the fight (combat log + buff)." },
+      { type: "Room Fight: Forest / Swamp / Cliff", desc: "Forest: +evasion cover. Swamp: initiative drag. Cliff: missing an attack can cost % max HP from a slip." }
     ]
   },
 
@@ -255,24 +290,32 @@ export const HELP_TEXT = {
   // ============================================================================
   EXPLORATION: {
     HIERARCHY: [
-      { term: "Region", desc: "Themed area containing multiple locations (e.g., Land of Waves)", icon: "map" },
-      { term: "Location", desc: "Specific area within a region with danger level 1-7", icon: "location" },
-      { term: "Room", desc: "Individual explorable space using 1→2→4 branching structure", icon: "room" }
+      { term: "Region", desc: "Themed area with multiple locations. Shows Affinity (enemy element bias), Focus (loot stat bias), and Ryo multiplier on the region map.", icon: "map" },
+      { term: "Location", desc: "Danger 1–7 node. Atmosphere line + Terrain strip list location effects that already apply in combat, intel, and approaches.", icon: "location" },
+      { term: "Room", desc: "Branching spaces with activities. Room terrain sets Sight/Secrets/Pace; combat rooms also roll a Fight condition (Ambush, Prepared, Sanctuary, Corrupted, Forest, Cliff) that changes the encounter — shown on the map card, approach strip, and combat open banner.", icon: "room" }
+    ],
+    /**
+     * T-076: region lootTheme identity (wired T-061/068/069/074).
+     */
+    REGION_IDENTITY: [
+      { term: "Affinity", desc: "Region primary element. About half of normal/elite enemies lean this element (combat, events, guardians)." },
+      { term: "Focus", desc: "Equipment focus stats (e.g. Speed · Dexterity). Component drops and shops bias toward those primary stats." },
+      { term: "Ryo ×N", desc: "Gold multiplier after wealth/flags. Waves is poorer; later regions pay more." }
     ],
     DANGER_LEVELS: {
       desc: "Difficulty scaling within each location, ranging from 1 (easiest) to 7 (hardest)",
       formula: "effectiveFloor = 10 + (dangerLevel × 2) + floor(baseDifficulty / 20)",
-      note: "Higher danger levels mean stronger enemies and better rewards"
+      note: "Higher danger levels mean stronger enemies and better rewards. Foggy/low-visibility locations also cut intel gains."
     },
     ACTIVITIES: [
-      { order: 1, activity: "Combat", desc: "Fight room enemy for XP and loot" },
+      { order: 1, activity: "Combat", desc: "Fight room enemy for XP and loot (open banner shows approach + active location terrain)" },
       { order: 2, activity: "Elite Challenge", desc: "Optional guardian fight - choose to fight or escape" },
-      { order: 3, activity: "Merchant", desc: "Buy items and equipment with Ryo" },
-      { order: 4, activity: "Event", desc: "Story/choice encounter with multiple outcomes" },
+      { order: 3, activity: "Merchant", desc: "Buy items; stock biased by location loot table + region Focus" },
+      { order: 4, activity: "Event", desc: "Story/choice encounter; intel rewards respect visibility fog" },
       { order: 5, activity: "Scroll Discovery", desc: "Learn new jutsu skills" },
       { order: 6, activity: "Rest", desc: "Restore HP and chakra" },
       { order: 7, activity: "Training", desc: "Spend resources to upgrade stats" },
-      { order: 8, activity: "Treasure", desc: "Collect components and Ryo" }
+      { order: 8, activity: "Treasure", desc: "Components/Ryo; drops use loot table + region Focus" }
     ],
     ROOM_STATES: [
       { state: "Accessible", desc: "Room can be entered from current position" },
@@ -281,7 +324,7 @@ export const HELP_TEXT = {
     ],
     LOCATION_BOSS: {
       title: "Location Boss",
-      desc: "Elite fight at room 10 of each location. Defeating the guardian completes the location and returns you to the region map."
+      desc: "Guardian at the exit. Clearing the location shows progress, secrets, terrain summary, and region Affinity/Focus before returning to the region map."
     },
     ARCHETYPES: [
       {
@@ -316,10 +359,10 @@ export const HELP_TEXT = {
       }
     ],
     STORY_ARCS: [
-      { arc: 1, danger: "1-7", name: "Land of Waves", desc: "Coastal region controlled by Gato. Face bandits and hired ninja." },
-      { arc: 2, danger: "1-7", name: "Chunin Exams", desc: "Forest of Death examination. Challenging competitors emerge." },
-      { arc: 3, danger: "1-7", name: "Sasuke Retrieval", desc: "Valley of the End. Conflict escalates; stronger foes." },
-      { arc: 4, danger: "1-7", name: "Great Ninja War", desc: "Divine Tree Roots. Legendary enemies appear." }
+      { arc: 1, danger: "1-7", name: "Land of Waves", desc: "Coastal region (Water affinity, Focus Speed/Dex/Spirit, lower Ryo). Bandits and hired ninja." },
+      { arc: 2, danger: "1-7", name: "Chunin Exams", desc: "Forest of Death (Wind affinity). Competitors and exam dangers." },
+      { arc: 3, danger: "1-7", name: "Sasuke Retrieval", desc: "Valley of the End (Lightning affinity). Escalating conflict." },
+      { arc: 4, danger: "1-7", name: "Great Ninja War", desc: "Divine Tree Roots (Fire affinity, higher Ryo). Legendary foes." }
     ]
   },
 

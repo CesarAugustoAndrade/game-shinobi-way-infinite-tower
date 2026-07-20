@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   BranchingRoom,
   BranchingRoomType,
+  CombatModifierType,
 } from '../../game/types';
 import {
   Sword,
@@ -26,6 +27,13 @@ import {
 import { getCurrentActivity } from '../../game/systems/LocationSystem';
 import { getBranchingRoomColors } from '../../game/constants/roomTypeMapping';
 import { ACTIVITY_LABELS } from '../../game/constants/activityLabels';
+import { TERRAIN_DEFINITIONS } from '../../game/constants/terrain';
+import { COMBAT_MODIFIER_EFFECTS } from '../../game/constants/roomTypes';
+import {
+  getRoomHiddenRoomBonus,
+  getRoomMovementCost,
+  getRoomVisibilityRange,
+} from '../../game/systems/LocationTerrainSystem';
 import './exploration.css';
 
 interface RoomCardProps {
@@ -100,6 +108,43 @@ const RoomCard: React.FC<RoomCardProps> = ({
   const currentActivity = getCurrentActivity(room);
   const activityIcons = getActivityIcons();
 
+  // T-085: terrain micro-hints for path scan (same semantics as selected panel)
+  const terrainHint = useMemo(() => {
+    const def = TERRAIN_DEFINITIONS[room.terrain];
+    if (!def) return null;
+    const sight = getRoomVisibilityRange(def);
+    const secretsPct = Math.round(getRoomHiddenRoomBonus(def) * 100);
+    const pace = getRoomMovementCost(def);
+    const chips: string[] = [];
+    if (sight !== 2) chips.push(`S${sight}`);
+    if (secretsPct !== 0) chips.push(`X${secretsPct > 0 ? '+' : ''}${secretsPct}`);
+    if (pace !== 1) chips.push(`P×${pace.toFixed(1)}`);
+    return {
+      name: def.name,
+      chips,
+      title: [
+        def.name,
+        sight !== 2 ? `Sight ${sight}` : null,
+        secretsPct !== 0 ? `Secrets ${secretsPct > 0 ? '+' : ''}${secretsPct}%` : null,
+        pace !== 1 ? `Pace ×${pace.toFixed(1)}` : null,
+      ].filter(Boolean).join(' · '),
+    };
+  }, [room.terrain]);
+
+  // T-106: combat condition micro-chip (Ambush / Sanctuary / …)
+  const fightCondition = useMemo(() => {
+    const mods = room.activities.combat?.modifiers ?? [];
+    const names = mods
+      .filter((m) => m !== CombatModifierType.NONE)
+      .map((m) => COMBAT_MODIFIER_EFFECTS[m]?.name)
+      .filter(Boolean) as string[];
+    if (names.length === 0) return null;
+    return {
+      short: names[0].slice(0, 6),
+      title: names.join(' · '),
+    };
+  }, [room.activities.combat?.modifiers]);
+
   // Determine card state
   const isLocked = !room.isAccessible && !room.isCleared;
   const canClick = room.isAccessible || room.isCurrent;
@@ -141,6 +186,24 @@ const RoomCard: React.FC<RoomCardProps> = ({
             {room.name}
           </h3>
         </div>
+
+        {/* T-085: terrain micro-hint (scan before select) */}
+        {terrainHint && !isLocked && (
+          <div className="room-card__terrain" title={terrainHint.title}>
+            <span className="room-card__terrain-name">{terrainHint.name}</span>
+            {terrainHint.chips.length > 0 && (
+              <span className="room-card__terrain-chips">
+                {terrainHint.chips.join(' ')}
+              </span>
+            )}
+          </div>
+        )}
+        {/* T-106: fight condition chip */}
+        {fightCondition && !isLocked && (
+          <div className="room-card__fight" title={fightCondition.title}>
+            {fightCondition.short}
+          </div>
+        )}
 
         {/* Activity indicators */}
         {activityIcons.length > 0 && (

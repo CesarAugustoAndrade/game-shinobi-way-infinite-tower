@@ -1,8 +1,11 @@
 /**
  * Campaign victory screen (T-023). Provisional after Wave with only region 1.
+ * T-044: story-run bonus chips from eventFlags.
  */
 
 import React, { useEffect, useCallback } from 'react';
+import { Player } from '../../game/types';
+import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './Victory.css';
 
@@ -16,6 +19,8 @@ interface VictoryProps {
   provisional?: boolean;
   /** T-027: infinite mode unlocked after full campaign */
   infiniteUnlocked?: boolean;
+  /** T-044: optional player for story chips */
+  player?: Player | null;
   onMenu: () => void;
   onStartInfinite?: () => void;
   background?: string;
@@ -30,10 +35,12 @@ const Victory: React.FC<VictoryProps> = ({
   lastRegionName,
   provisional = false,
   infiniteUnlocked = false,
+  player,
   onMenu,
   onStartInfinite,
   background,
 }) => {
+  const storyLabels = player ? getEventFlagRunModifiers(player).activeLabels : [];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
@@ -82,6 +89,19 @@ const Victory: React.FC<VictoryProps> = ({
               <span>{regionsCompleted}</span>
             </li>
           </ul>
+
+          {storyLabels.length > 0 && (
+            <div className="victory__story" aria-label="Story bonuses this run">
+              <p className="victory__story-title">Story bonuses this run</p>
+              <div className="victory__story-chips">
+                {storyLabels.map((label) => (
+                  <span key={label} className="victory__story-chip">
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="victory__actions">
             {infiniteUnlocked && onStartInfinite && (

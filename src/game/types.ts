@@ -858,6 +858,7 @@ export enum ApproachType {
   STEALTH_AMBUSH = 'STEALTH_AMBUSH',     // Sneak attack, first hit 2.0x + initiative
   GENJUTSU_SETUP = 'GENJUTSU_SETUP',     // Mental trap, enemy confused
   ENVIRONMENTAL_TRAP = 'ENVIRONMENTAL',   // Use terrain, enemy loses HP
+  IRON_GUARD = 'IRON_GUARD',             // Willpower fortify — shield + defensive open
   SHADOW_BYPASS = 'SHADOW_BYPASS'        // Skip combat entirely (rare)
 }
 

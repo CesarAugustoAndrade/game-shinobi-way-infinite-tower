@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Item, MAX_BAG_SLOTS, Rarity, DragData } from '../../game/types';
-import { getRecipesUsingComponent, findRecipe } from '../../game/constants/synthesis';
+import { Item, MAX_BAG_SLOTS, Rarity, DragData, RegionLootTheme } from '../../game/types';
+import { getRecipesUsingComponent } from '../../game/constants/synthesis';
 import { resolveItemArt } from '../../game/constants/artRegistry';
-import { getSellPrice } from '../../game/systems/LootSystem';
+import { getSellPrice, getCraftCombination } from '../../game/systems/LootSystem';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
+import {
+  itemMatchesEquipmentFocus,
+  isFocusStat,
+} from '../../game/utils/itemFocusMatch';
 import Tooltip from '../shared/Tooltip';
 import ArtIcon from '../shared/ArtIcon';
 import { getRarityTextBorderColor } from '../../utils/colorHelpers';
@@ -35,6 +39,10 @@ interface BagProps {
   /** T-058: may return equip summary for toast */
   onEquipFromBag?: (item: Item) => { replacedName?: string } | null | void;
   isDragging?: boolean;
+  /**
+   * T-096: region lootTheme for Focus honesty while equipping between loot peaks.
+   */
+  lootTheme?: RegionLootTheme | null;
 }
 
 interface BagSlotProps {
@@ -50,6 +58,8 @@ interface BagSlotProps {
   getRarityColor: (r: Rarity) => string;
   getCompatibleRecipes: (item: Item) => { name: string }[];
   children?: React.ReactNode;
+  /** T-096 */
+  equipmentFocus?: string[] | null;
 }
 
 const BagSlot: React.FC<BagSlotProps> = ({
@@ -63,8 +73,10 @@ const BagSlot: React.FC<BagSlotProps> = ({
   getRarityColor,
   getCompatibleRecipes,
   children,
+  equipmentFocus = null,
 }) => {
   const sellValue = item ? getSellPrice(item) : 0;
+  const isFocusItem = item ? itemMatchesEquipmentFocus(item, equipmentFocus) : false;
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `bag-${index}`,
@@ -127,17 +139,36 @@ const BagSlot: React.FC<BagSlotProps> = ({
               <div className={`bag__tooltip-name ${getRarityColor(item.rarity)}`}>
                 <ArtIcon art={resolveItemArt(item)} size="sm" className="inline-block align-middle mr-1" />
                 {' '}{item.name}
+                {isFocusItem && (
+                  <span className="bag__tooltip-focus" title="Matches region Focus"> · Focus</span>
+                )}
               </div>
               <div className="bag__tooltip-desc">{item.description}</div>
               <div className="bag__tooltip-stats">
                 {Object.entries(item.stats).map(([key, val]) => (
-                  <div key={key} className="bag__tooltip-stat">
-                    <span>{formatStatName(key)}</span>
+                  <div
+                    key={key}
+                    className={`bag__tooltip-stat ${isFocusStat(key, equipmentFocus) ? 'bag__tooltip-stat--focus' : ''}`}
+                  >
+                    <span>
+                      {formatStatName(key)}
+                      {isFocusStat(key, equipmentFocus) && (
+                        <span className="bag__tooltip-focus-mark"> ★</span>
+                      )}
+                    </span>
                     <span className="bag__tooltip-stat-value">+{val}</span>
                   </div>
                 ))}
               </div>
-              {item.componentId && (
+              {item.isComponent && item.rarity === Rarity.BROKEN && item.componentId && (
+                <div className="bag__tooltip-recipes">
+                  <div className="bag__tooltip-recipes-title">Upgrade path:</div>
+                  <div className="bag__tooltip-recipe">
+                    2× matching Broken → Common component
+                  </div>
+                </div>
+              )}
+              {item.isComponent && item.rarity === Rarity.COMMON && item.componentId && (
                 <div className="bag__tooltip-recipes">
                   <div className="bag__tooltip-recipes-title">Can combine into:</div>
                   {getCompatibleRecipes(item).slice(0, 3).map(recipe => (
@@ -166,7 +197,14 @@ const BagSlot: React.FC<BagSlotProps> = ({
           className={getSlotClasses()}
         >
           {item ? (
-            <ArtIcon art={resolveItemArt(item)} size="sm" title={item.name} />
+            <>
+              <ArtIcon art={resolveItemArt(item)} size="sm" title={item.name} />
+              {isFocusItem && (
+                <span className="bag__slot-focus" title="Matches region Focus stats">
+                  F
+                </span>
+              )}
+            </>
           ) : (
             <span className="bag__slot-empty-icon">·</span>
           )}
@@ -185,7 +223,9 @@ const Bag: React.FC<BagProps> = ({
   onSynthesize,
   onEquipFromBag,
   isDragging: globalDragging = false,
+  lootTheme = null,
 }) => {
+  const equipmentFocus = lootTheme?.equipmentFocus ?? null;
   const [synthesisMode, setSynthesisMode] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   /** T-032: last successful craft reveal */
@@ -196,14 +236,14 @@ const Bag: React.FC<BagProps> = ({
 
   const handleComponentClick = (item: Item) => {
     if (synthesisMode && selectedComponent && selectedComponent.id !== item.id) {
-      if (onSynthesize && selectedComponent.componentId && item.componentId) {
-        const recipe = findRecipe(selectedComponent.componentId, item.componentId);
-        if (recipe) {
+      if (onSynthesize) {
+        const combo = getCraftCombination(selectedComponent, item);
+        if (combo) {
           const crafted = onSynthesize(selectedComponent, item);
           setSynthesisMode(false);
           setActiveMenu(null);
           if (crafted) {
-            setCraftResult({ item: crafted, recipeName: recipe.name });
+            setCraftResult({ item: crafted, recipeName: combo.previewName });
           }
           return;
         }
@@ -291,9 +331,10 @@ const Bag: React.FC<BagProps> = ({
   };
 
   const canCombineWithSelected = (item: Item) => {
-    if (!synthesisMode || !selectedComponent || !selectedComponent.componentId || !item.componentId) return false;
+    if (!synthesisMode || !selectedComponent) return false;
     if (selectedComponent.id === item.id) return false;
-    return findRecipe(selectedComponent.componentId, item.componentId) !== null;
+    // Broken + same Broken, Common + recipe partner, or matching Rare artifacts
+    return getCraftCombination(selectedComponent, item) !== null;
   };
 
   return (
@@ -304,10 +345,21 @@ const Bag: React.FC<BagProps> = ({
           <button type="button" onClick={cancelSynthesis} className="bag__cancel">Cancel</button>
         )}
       </div>
+      {/* T-096: region Focus while equipping between loot peaks */}
+      {equipmentFocus && equipmentFocus.length > 0 && (
+        <div className="bag__focus-chip" title="Region Focus — matching items marked F">
+          Focus{' '}
+          {equipmentFocus
+            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+            .join(' · ')}
+        </div>
+      )}
 
       {synthesisMode && selectedComponent && (
         <div className="bag__synthesis-hint">
-          Select another component to synthesize with {selectedComponent.name}
+          {selectedComponent.rarity === Rarity.BROKEN
+            ? `Select a matching Broken component to upgrade ${selectedComponent.name}`
+            : `Select another component to synthesize with ${selectedComponent.name}`}
         </div>
       )}
 
@@ -327,6 +379,7 @@ const Bag: React.FC<BagProps> = ({
               canCombine={canCombine}
               isMenuOpen={!!isMenuOpen}
               sellValue={sellValue}
+              equipmentFocus={equipmentFocus}
               globalDragging={globalDragging}
               onItemClick={handleComponentClick}
               onContextMenu={handleSell}
@@ -344,13 +397,13 @@ const Bag: React.FC<BagProps> = ({
                       Equip
                     </button>
                   )}
-                  {onSynthesize && item.componentId && (
+                  {onSynthesize && (item.isComponent || item.rarity === Rarity.RARE) && (
                     <button
                       type="button"
                       onClick={() => startSynthesis(item)}
                       className="bag__menu-btn bag__menu-btn--synthesize"
                     >
-                      Synthesize
+                      {item.rarity === Rarity.BROKEN ? 'Upgrade' : 'Synthesize'}
                     </button>
                   )}
                   <button
@@ -379,24 +432,28 @@ const Bag: React.FC<BagProps> = ({
         Drag to reorder/equip - Click for actions - Right-click to quick sell
       </div>
 
-      {synthesisMode && selectedComponent && selectedComponent.componentId && (
+      {synthesisMode && selectedComponent && (
         <div className="bag__synthesis-preview">
           <div className="bag__synthesis-title">Available combinations:</div>
           <div className="bag__synthesis-grid">
             {items
-              .filter((c): c is Item => c !== null && c.id !== selectedComponent.id && !!c.componentId)
+              .filter((c): c is Item => c !== null && c.id !== selectedComponent.id)
               .map(c => {
-                const recipe = c.componentId && selectedComponent.componentId
-                  ? findRecipe(selectedComponent.componentId, c.componentId)
-                  : null;
-                if (!recipe) return null;
+                const combo = getCraftCombination(selectedComponent, c);
+                if (!combo) return null;
+                const label =
+                  combo.mode === 'upgrade_broken'
+                    ? `Upgrade → ${combo.previewName}`
+                    : combo.mode === 'upgrade_artifact'
+                      ? `Forge Epic ${combo.previewName}`
+                      : combo.previewName;
                 return (
                   <div
                     key={c.id}
                     onClick={() => handleComponentClick(c)}
                     className="bag__synthesis-option"
                   >
-                    + <ArtIcon art={resolveItemArt(c)} size="xs" className="inline-block align-middle" /> - {recipe.name}
+                    + <ArtIcon art={resolveItemArt(c)} size="xs" className="inline-block align-middle" /> - {label}
                   </div>
                 );
               })}
@@ -404,26 +461,57 @@ const Bag: React.FC<BagProps> = ({
         </div>
       )}
 
-      {/* T-032: craft reveal — art + passive + equip CTA */}
-      {craftResult && (
+      {/* T-032/T-098: craft reveal — art + Focus honesty + equip CTA */}
+      {craftResult && (() => {
+        const crafted = craftResult.item;
+        const isFocusCraft = itemMatchesEquipmentFocus(crafted, equipmentFocus);
+        const stats = Object.entries(crafted.stats || {}).filter(
+          ([, v]) => typeof v === 'number' && v !== 0,
+        );
+        return (
         <div className="bag__craft-result" role="status">
-          <div className="bag__craft-result-header">Crafted!</div>
+          <div className="bag__craft-result-header">
+            Crafted!
+            {isFocusCraft && (
+              <span className="bag__craft-result-focus" title="Matches region Focus stats">
+                Focus
+              </span>
+            )}
+          </div>
           <div className="bag__craft-result-body">
-            <ArtIcon art={resolveItemArt(craftResult.item)} size="lg" className="bag__craft-result-art" />
+            <ArtIcon art={resolveItemArt(crafted)} size="lg" className="bag__craft-result-art" />
             <div className="bag__craft-result-info">
               <div
                 className="bag__craft-result-name"
-                style={{ color: getRarityColor(craftResult.item.rarity) }}
+                style={{ color: getRarityColor(crafted.rarity) }}
               >
-                {craftResult.item.name}
+                {crafted.name}
               </div>
               <div className="bag__craft-result-recipe">{craftResult.recipeName}</div>
-              {(craftResult.item.description || craftResult.item.passive) && (
+              {(crafted.description || crafted.passive) && (
                 <div className="bag__craft-result-desc">
-                  {craftResult.item.description
-                    || (craftResult.item.passive
-                      ? String(craftResult.item.passive.type).replace(/_/g, ' ')
+                  {crafted.description
+                    || (crafted.passive
+                      ? String(crafted.passive.type).replace(/_/g, ' ')
                       : '')}
+                </div>
+              )}
+              {stats.length > 0 && (
+                <div className="bag__craft-result-stats">
+                  {stats.map(([key, val]) => (
+                    <div
+                      key={key}
+                      className={`bag__craft-result-stat ${isFocusStat(key, equipmentFocus) ? 'bag__craft-result-stat--focus' : ''}`}
+                    >
+                      <span>
+                        {formatStatName(key)}
+                        {isFocusStat(key, equipmentFocus) && (
+                          <span className="bag__craft-result-stat-mark"> ★</span>
+                        )}
+                      </span>
+                      <span>+{val as number}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -433,7 +521,7 @@ const Bag: React.FC<BagProps> = ({
               <button
                 type="button"
                 className="bag__craft-result-btn bag__craft-result-btn--equip"
-                onClick={() => handleEquip(craftResult.item)}
+                onClick={() => handleEquip(crafted)}
               >
                 Equip
               </button>
@@ -447,7 +535,8 @@ const Bag: React.FC<BagProps> = ({
             </button>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* T-058: equip / sell success toast */}
       {actionToast && (

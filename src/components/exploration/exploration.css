@@ -248,6 +248,42 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
+/* T-099: persistent region Affinity / Focus / Ryo chrome */
+.location-panel__theme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.location-panel__theme-chip {
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 5px;
+  border: 1px solid rgba(0, 0, 0, 0.8);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.6);
+  color: #e2e8f0;
+  background: rgba(0, 0, 0, 0.55);
+  text-shadow: none;
+}
+
+.location-panel__theme-chip--affinity {
+  color: #7dd3fc;
+  border-color: #0e7490;
+}
+
+.location-panel__theme-chip--focus {
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+.location-panel__theme-chip--gold {
+  color: #fcd34d;
+  border-color: #a16207;
+}
+
 /* ===========================================
    ROOM CARD
    =========================================== */
@@ -358,6 +394,55 @@
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
   line-height: 1.2;
+}
+
+/* T-085: terrain micro-hint on path-scan cards */
+.room-card__terrain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 2px 0 4px;
+  max-width: 100%;
+  padding: 0 2px;
+}
+
+.room-card__terrain-name {
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #7dd3fc;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 7.5rem;
+}
+
+.room-card__terrain-chips {
+  font-size: 7px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #a1a1aa;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* T-106: combat condition micro-chip on path scan */
+.room-card__fight {
+  font-size: 7px;
+  font-family: var(--sw-font-mono, monospace);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fbbf24;
+  border: 1px solid #a16207;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 1px 4px;
+  margin: 0 0 3px;
+  max-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .room-card__activities {
@@ -828,6 +913,97 @@
   text-transform: uppercase;
 }
 
+/* T-046: ambient atmosphere flavor under biome title */
+.location-map__atmosphere {
+  margin: var(--sw-space-1) 0 0;
+  font-size: 11px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #c4b5fd;
+  max-width: 28rem;
+  line-height: 1.35;
+}
+
+/* T-074: active location terrain while exploring */
+.location-map__terrain {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #7dd3fc;
+  max-width: 32rem;
+  line-height: 1.35;
+}
+
+/* T-080: room terrain visibility foresight */
+.location-map__sight {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.location-map__sight-fog {
+  color: #64748b;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* T-081: hiddenRoomBonus exit-find chip */
+.location-map__secrets {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.location-map__secrets--pos {
+  color: #c4b5fd;
+  font-weight: 700;
+}
+
+.location-map__secrets--neg {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+/* T-082: room movementCost pace chip */
+.location-map__pace {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.location-map__pace--slow {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.location-map__pace--fast {
+  color: #86efac;
+  font-weight: 700;
+}
+
+.location-map__fog {
+  min-width: 5.5rem;
+  min-height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #475569;
+  background: rgba(15, 23, 42, 0.65);
+  color: #94a3b8;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  font-size: 14px;
+  letter-spacing: 0.15em;
+  box-shadow: 2px 2px 0 #000;
+}
+
 .location-map__stats {
   text-align: right;
   display: flex;
@@ -956,6 +1132,82 @@
   font-size: var(--sw-text-xs);
   color: var(--sw-text-muted);
   margin-top: var(--sw-space-1);
+}
+
+/* T-084: selected room terrain foresight */
+.location-map__selected-terrain {
+  margin-top: var(--sw-space-2);
+  padding: var(--sw-space-2);
+  border: 2px solid #000;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 2px 2px 0 #000;
+}
+
+.location-map__selected-terrain-name {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  color: #e2e8f0;
+}
+
+.location-map__selected-terrain-name strong {
+  color: #7dd3fc;
+}
+
+.location-map__selected-terrain-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.location-map__chip {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border: 1px solid #475569;
+  color: #cbd5e1;
+  background: rgba(30, 41, 59, 0.8);
+}
+
+.location-map__chip--pos {
+  color: #c4b5fd;
+  border-color: #7c3aed;
+}
+
+.location-map__chip--neg {
+  color: #fca5a5;
+  border-color: #b91c1c;
+}
+
+.location-map__chip--slow {
+  color: #fbbf24;
+  border-color: #b45309;
+}
+
+.location-map__chip--fast {
+  color: #86efac;
+  border-color: #15803d;
+}
+
+.location-map__selected-terrain-mods {
+  margin: 6px 0 0;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* T-105: room combat condition before enter */
+.location-map__selected-condition {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
 }
 
 .location-map__selected-activities {
@@ -1123,6 +1375,40 @@
   letter-spacing: var(--sw-tracking-wide);
 }
 
+/* T-069: elemental affinity from lootTheme (affects enemy element bias) */
+.region-map__affinity {
+  margin: var(--sw-space-2) 0 0;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+
+.region-map__affinity-el {
+  color: #7dd3fc;
+  font-weight: 700;
+}
+
+.region-map__affinity-gold {
+  color: #fcd34d;
+}
+
+/* T-074: equipmentFocus (loot bias stats) */
+.region-map__focus {
+  margin: 4px 0 0;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.region-map__focus-stats {
+  color: #c4b5fd;
+  font-weight: 700;
+}
+
 /* Cards area */
 .region-map__cards {
   position: relative;
@@ -1223,6 +1509,33 @@
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-base);
   color: var(--sw-text-tertiary);
+}
+
+/* T-047: authored location blurb + atmosphere under select preview */
+.region-map__preview-desc {
+  margin: var(--sw-space-2) auto 0;
+  max-width: 36rem;
+  font-family: var(--sw-font-body, VT323, monospace);
+  font-size: var(--sw-text-sm);
+  line-height: 1.4;
+  color: var(--sw-text-secondary, #ccc);
+}
+
+.region-map__preview-atmosphere {
+  margin: var(--sw-space-1) auto 0;
+  max-width: 36rem;
+  font-size: 11px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #c4b5fd;
+}
+
+/* T-063: location terrain effects at FULL intel */
+.region-map__preview-terrain {
+  margin: var(--sw-space-1) auto 0;
+  max-width: 36rem;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #7dd3fc;
 }
 
 /* Footer */

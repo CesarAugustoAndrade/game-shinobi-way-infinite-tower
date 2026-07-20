@@ -79,6 +79,93 @@
   max-width: 28rem;
 }
 
+/* T-090: region lootTheme identity (stock already biased T-070) */
+.merchant__theme {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  max-width: 32rem;
+  margin-top: 2px;
+}
+
+.merchant__theme-chip {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  color: #e2e8f0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.merchant__theme-chip--affinity {
+  color: #7dd3fc;
+  border-color: #0e7490;
+}
+
+.merchant__theme-chip--focus {
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+.merchant__theme-chip--gold {
+  color: #fcd34d;
+  border-color: #a16207;
+}
+
+/* T-091: per-item Focus match cues */
+.item-card__header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.item-card__focus-badge {
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border: 1px solid #6d28d9;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.25);
+  box-shadow: 1px 1px 0 #000;
+}
+
+.item-tooltip__row--focus .item-tooltip__label {
+  color: #c4b5fd;
+}
+
+.item-tooltip__focus-mark {
+  color: #c4b5fd;
+}
+
+.preview-panel__focus-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border: 2px solid #000;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.3);
+  box-shadow: 2px 2px 0 #000;
+  vertical-align: middle;
+}
+
+.preview-panel__stat--focus .preview-panel__stat-name {
+  color: #c4b5fd;
+}
+
+.preview-panel__focus-mark {
+  color: #c4b5fd;
+}
+
 .merchant__discount-badge {
   display: inline-block;
   padding: var(--sw-space-1) var(--sw-space-2);
@@ -879,4 +966,77 @@
   .service-button {
     justify-content: center;
   }
+}
+
+/* T-055: purchase success toast */
+.merchant-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.75rem;
+  transform: translateX(-50%);
+  z-index: 50;
+  cursor: pointer;
+  animation: merchant-toast-in 0.2s ease-out;
+}
+
+.merchant-toast__panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 14rem;
+  max-width: min(22rem, 92vw);
+  padding: 10px 12px;
+  background: rgba(12, 12, 18, 0.95);
+  border: 3px solid #4ade80;
+  box-shadow: 3px 3px 0 #14532d;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+}
+
+.merchant-toast__art {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  image-rendering: pixelated;
+  border: 2px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  flex-shrink: 0;
+}
+
+.merchant-toast__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.merchant-toast__label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #86efac;
+}
+
+.merchant-toast__name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f0e8d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.merchant-toast__price {
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #fcd34d;
+}
+
+.merchant-toast__ok {
+  color: #4ade80;
+  flex-shrink: 0;
+}
+
+@keyframes merchant-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }

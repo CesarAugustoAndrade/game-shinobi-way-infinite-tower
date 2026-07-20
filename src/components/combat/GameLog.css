@@ -1,0 +1,79 @@
+/**
+ * GameLog — full and compact (combat mini-log) variants
+ */
+
+.game-log {
+  height: 12rem;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--sw-frame-soft, #3f3f46);
+  border-radius: 4px;
+  padding: 1rem;
+  overflow-y: auto;
+  font-family: var(--sw-font-mono, ui-monospace, monospace);
+  font-size: 0.875rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.game-log--compact {
+  height: auto;
+  max-height: 6.5rem;
+  padding: 0.4rem 0.55rem;
+  background: rgba(5, 7, 12, 0.78);
+  border: 1px solid rgba(63, 63, 70, 0.65);
+  border-radius: 3px;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  pointer-events: none;
+  overflow-y: hidden;
+  box-shadow: 2px 2px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+.game-log__empty {
+  color: #71717a;
+  font-style: italic;
+}
+
+.game-log__line {
+  margin-bottom: 0.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-bottom: 0.15rem;
+}
+
+.game-log__line:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.game-log__id {
+  opacity: 0.45;
+  font-size: 0.7em;
+  margin-right: 0.35rem;
+}
+
+.game-log__line--combat {
+  color: #facc15;
+}
+
+.game-log__line--danger {
+  color: #f87171;
+  font-weight: 700;
+}
+
+.game-log__line--gain {
+  color: #4ade80;
+}
+
+.game-log__line--loot {
+  color: #c084fc;
+}
+
+.game-log__line--info {
+  color: #d4d4d8;
+}
+
+.game-log--compact .game-log__line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

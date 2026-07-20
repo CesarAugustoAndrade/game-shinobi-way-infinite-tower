@@ -13,6 +13,8 @@ import {
   checkEventCost,
   getAvailableChoices,
 } from '../../game/systems/EventSystem';
+import { applyVisibilityToIntelGain } from '../../game/systems/LocationTerrainSystem';
+import type { LocationTerrainMods } from '../../game/systems/LocationTerrainSystem';
 import { getEventArt } from '../../game/constants/artRegistry';
 import ArtIcon from '../../components/shared/ArtIcon';
 import { Scroll, CheckCircle, Lock, Info } from 'lucide-react';
@@ -25,6 +27,11 @@ interface EventProps {
   playerStats?: CharacterStats | null;
   /** T-011: true when this event was reached by chaining from a prior outcome. */
   cameFromChain?: boolean;
+  /**
+   * T-088: location visibility mods for fog-honest outcome preview
+   * (same scaling as applyVisibilityToIntelGain on resolve).
+   */
+  locationTerrainMods?: LocationTerrainMods | null;
 }
 
 /* ===========================================
@@ -115,7 +122,10 @@ const getOutcomeType = (outcome: EventOutcome): 'reward' | 'danger' | 'neutral' 
   return 'neutral';
 };
 
-const formatOutcomeText = (outcome: EventOutcome): string => {
+const formatOutcomeText = (
+  outcome: EventOutcome,
+  locationTerrainMods?: LocationTerrainMods | null,
+): string => {
   const { effects } = outcome;
   const parts: string[] = [];
 
@@ -139,7 +149,16 @@ const formatOutcomeText = (outcome: EventOutcome): string => {
   if (effects.removeRandomItem) parts.push('Lose item');
   if (effects.upgradeTreasureQuality) parts.push('Treasure ↑');
   if (effects.addMerchantSlot) parts.push('+1 Merchant slot');
-  if (effects.intelGain) parts.push(`+${effects.intelGain}% Intel`);
+  // T-088: fog-honest intel preview (matches resolve path)
+  if (effects.intelGain) {
+    const base = effects.intelGain;
+    const effective = applyVisibilityToIntelGain(base, locationTerrainMods);
+    if (effective !== base) {
+      parts.push(`+${base}%→+${effective}% Intel · fog`);
+    } else {
+      parts.push(`+${effective}% Intel`);
+    }
+  }
 
   return parts.length > 0 ? parts.join(' · ') : 'The story continues…';
 };
@@ -171,7 +190,10 @@ const RiskMeter: React.FC<{ riskLevel: RiskLevel }> = ({ riskLevel }) => {
    Outcome Preview (revealed when selected)
    =========================================== */
 
-const OutcomePreview: React.FC<{ outcomes: EventOutcome[] }> = ({ outcomes }) => {
+const OutcomePreview: React.FC<{
+  outcomes: EventOutcome[];
+  locationTerrainMods?: LocationTerrainMods | null;
+}> = ({ outcomes, locationTerrainMods }) => {
   const totalWeight = outcomes.reduce((sum, o) => sum + o.weight, 0);
 
   return (
@@ -186,7 +208,9 @@ const OutcomePreview: React.FC<{ outcomes: EventOutcome[] }> = ({ outcomes }) =>
             <span className={`choice-card__outcome-type choice-card__outcome-type--${type}`}>
               {type}
             </span>
-            <span className="choice-card__outcome-text">{formatOutcomeText(outcome)}</span>
+            <span className="choice-card__outcome-text">
+              {formatOutcomeText(outcome, locationTerrainMods)}
+            </span>
           </div>
         );
       })}
@@ -207,6 +231,8 @@ interface ChoiceCardProps {
   index: number;
   onSelect: () => void;
   onConfirm: () => void;
+  /** T-088: fog mods for outcome preview */
+  locationTerrainMods?: LocationTerrainMods | null;
 }
 
 const ChoiceCard: React.FC<ChoiceCardProps> = ({
@@ -218,6 +244,7 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
   index,
   onSelect,
   onConfirm,
+  locationTerrainMods,
 }) => {
   const meetsRequirements = checkRequirements(player, choice.requirements, playerStats);
   const canAffordCost = checkEventCost(player, choice.costs);
@@ -330,7 +357,10 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
               <span>Possible Outcomes</span>
             </span>
             <div className="choice-card__tooltip" role="tooltip">
-              <OutcomePreview outcomes={choice.outcomes} />
+              <OutcomePreview
+                outcomes={choice.outcomes}
+                locationTerrainMods={locationTerrainMods}
+              />
             </div>
           </div>
         )}
@@ -356,8 +386,11 @@ const Event: React.FC<EventProps> = ({
   player,
   playerStats,
   cameFromChain = false,
+  locationTerrainMods = null,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  /** Blocks double confirm (double resolveEventChoice / double rewards) */
+  const [choiceLocked, setChoiceLocked] = useState(false);
 
   // T-008: hide choices gated out by the player's run flags. Requirement/cost
   // gating still shows-but-disables; flag gating removes the choice entirely.
@@ -373,28 +406,34 @@ const Event: React.FC<EventProps> = ({
   // Reset selection whenever the event changes (e.g. a chain advances).
   useEffect(() => {
     setSelectedIndex(null);
+    setChoiceLocked(false);
   }, [activeEvent]);
 
   const handleSelect = useCallback((index: number) => {
+    if (choiceLocked) return;
     setSelectedIndex((prev) => (prev === index ? null : index));
-  }, []);
+  }, [choiceLocked]);
 
-  const handleConfirm = useCallback((choice: EventChoice) => onChoice(choice), [onChoice]);
+  const handleConfirm = useCallback((choice: EventChoice) => {
+    if (choiceLocked) return;
+    setChoiceLocked(true);
+    onChoice(choice);
+  }, [choiceLocked, onChoice]);
 
   const isChoiceAvailable = useCallback(
     (choice: EventChoice) => {
-      if (!player) return false;
+      if (!player || choiceLocked) return false;
       return (
         checkRequirements(player, choice.requirements, playerStats) &&
         checkEventCost(player, choice.costs)
       );
     },
-    [player, playerStats],
+    [player, playerStats, choiceLocked],
   );
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (!player) return;
+      if (!player || choiceLocked) return;
       const key = e.key;
 
       if (key >= '1' && key <= '4') {
@@ -408,7 +447,7 @@ const Event: React.FC<EventProps> = ({
       if (key === 'Enter' && selectedIndex !== null) {
         e.preventDefault();
         const choice = availableChoices[selectedIndex];
-        if (isChoiceAvailable(choice)) onChoice(choice);
+        if (isChoiceAvailable(choice)) handleConfirm(choice);
       }
 
       if (key === 'Escape' && selectedIndex !== null) {
@@ -416,7 +455,7 @@ const Event: React.FC<EventProps> = ({
         setSelectedIndex(null);
       }
     },
-    [player, availableChoices, selectedIndex, isChoiceAvailable, handleSelect, onChoice],
+    [player, availableChoices, selectedIndex, isChoiceAvailable, handleSelect, handleConfirm, choiceLocked],
   );
 
   useEffect(() => {
@@ -477,6 +516,7 @@ const Event: React.FC<EventProps> = ({
             index={idx}
             onSelect={() => handleSelect(idx)}
             onConfirm={() => handleConfirm(choice)}
+            locationTerrainMods={locationTerrainMods}
           />
         ))}
       </div>

@@ -16,6 +16,7 @@ import { generateEnemy } from '../game/systems/EnemySystem';
 import { TurnState } from './useCombat';
 import { LaunchProperties, FeatureFlags } from '../config/featureFlags';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
+import { getLocationTerrainMods } from '../game/systems/LocationTerrainSystem';
 
 /**
  * State dependencies for treasure handlers
@@ -171,37 +172,60 @@ export function useTreasureHandlers(
       setLocationFloor, setBranchingFloor, setCurrentTreasure,
       setCurrentTreasureHunt, returnToMapActivityComplete]);
 
-  // Reveal treasure choices (pay chakra)
+  // Reveal treasure choices (pay chakra) — one reveal only (no multi-click chakra drain)
   const handleTreasureReveal = useCallback(() => {
     if (!currentTreasure || !player) return;
-    if (player.currentChakra < currentTreasure.revealCost) {
+    if (currentTreasure.isRevealed) return;
+
+    const cost = currentTreasure.revealCost;
+    if (player.currentChakra < cost) {
       addLog('Not enough chakra to reveal the treasure!', 'danger');
       return;
     }
 
-    // Deduct chakra
-    setPlayer(p => p ? { ...p, currentChakra: p.currentChakra - currentTreasure.revealCost } : null);
+    // Atomically mark revealed before charging (blocks double-click exploit)
+    let consumed = false;
+    setCurrentTreasure(prev => {
+      if (!prev || prev.isRevealed) return prev;
+      consumed = true;
+      return { ...prev, isRevealed: true };
+    });
+    if (!consumed) return;
 
-    // Update treasure to revealed state
-    setCurrentTreasure(prev => prev ? { ...prev, isRevealed: true } : null);
-    addLog(`Spent ${currentTreasure.revealCost} chakra to reveal the treasure contents.`, 'info');
+    setPlayer(p => {
+      if (!p) return null;
+      if (p.currentChakra < cost) return p;
+      return { ...p, currentChakra: p.currentChakra - cost };
+    });
+    addLog(`Spent ${cost} chakra to reveal the treasure contents.`, 'info');
   }, [currentTreasure, player, addLog, setPlayer, setCurrentTreasure]);
 
-  // Select an item from treasure choices
+  // Select an item from treasure choices — one claim only (no multi-loot / multi-ryo)
   const handleTreasureSelectItem = useCallback((index: number) => {
     if (!currentTreasure || !player || !selectedBranchingRoom) return;
+    if (currentTreasure.collected) return;
     if (index < 0 || index >= currentTreasure.choices.length) return;
 
     const selectedItem = currentTreasure.choices[index].item;
 
-    // Check bag space first
+    // Check bag space first (do not mark collected until resolved)
     const hasBagSpace = player.bag.some(slot => slot === null);
 
     if (!hasBagSpace) {
       // Bag is full - show options to user instead of losing item
+      if (pendingBagFullItem) return; // already waiting on a claim decision
       setPendingBagFullItem({ item: selectedItem, index });
       return;
     }
+
+    // Atomically claim this chest (blocks double-select exploit)
+    let claimed = false;
+    setCurrentTreasure(prev => {
+      if (!prev || prev.collected) return prev;
+      claimed = true;
+      return { ...prev, collected: true, selectedIndex: index };
+    });
+    if (!claimed) return;
 
     // Atomic ryo + bag add (single setPlayer — two updates would race and drop ryo)
     let nextPlayer: Player = player;
@@ -220,12 +244,17 @@ export function useTreasureHandlers(
 
     // Complete activity and return to map
     completeTreasureAndReturn();
-  }, [currentTreasure, player, selectedBranchingRoom, addLog,
-      setPlayer, setPendingBagFullItem, completeTreasureAndReturn]);
+  }, [currentTreasure, player, selectedBranchingRoom, pendingBagFullItem, addLog,
+      setPlayer, setPendingBagFullItem, setCurrentTreasure, completeTreasureAndReturn]);
 
   // Fight guardian for guaranteed map piece (treasure hunter)
   const handleTreasureFightGuardian = useCallback(() => {
     if (!currentTreasure || !currentTreasureHunt || !player || !playerStats || !selectedBranchingRoom || !locationFloor) return;
+    // Already resolved this room via dice (or previous attempt) — no double claim
+    if (!currentTreasure.mapPieceAvailable) {
+      addLog('This map piece opportunity is already spent.', 'info');
+      return;
+    }
 
     // Generate a guardian enemy based on danger level
     // T-057: location-themed guardian base (name overridden below)
@@ -257,8 +286,18 @@ export function useTreasureHandlers(
       addLog('A guardian appears to protect the treasure map piece!', 'danger');
     } else {
       // Auto-simulate treasure guardian combat
+      // T-107: location terrain + room combat modifiers (parity with T-106 auto combat)
       addLog(`Engaging Treasure Guardian...`, 'danger');
-      const simResult = simulateGameCombat(player, playerStats, guardian, undefined, selectedBranchingRoom?.terrain);
+      const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+      const simResult = simulateGameCombat(
+        player,
+        playerStats,
+        guardian,
+        undefined,
+        selectedBranchingRoom?.terrain,
+        locMods,
+        selectedBranchingRoom?.activities.combat?.modifiers,
+      );
 
       // Update player HP and chakra
       setPlayer(prev => {
@@ -286,16 +325,32 @@ export function useTreasureHandlers(
       }
     }
   }, [currentTreasure, currentTreasureHunt, player, playerStats, selectedBranchingRoom, locationFloor,
-      currentDangerLevel, difficulty, region, addLog, setPendingArtifact, setEnemy,
+      currentDangerLevel, difficulty, region, currentLocation, addLog, setPendingArtifact, setEnemy,
       setTurnState, setShowApproachSelector, setCurrentTreasure, setPlayer, setGameState,
       onAutoTreasureGuardianVictory]);
 
   // Roll dice for map piece (treasure hunter)
+  // One roll per room: trap / nothing / piece by TREASURE_DICE_ODDS.
+  // Multi-click exploit: consume mapPieceAvailable before resolving.
   const handleTreasureRollDice = useCallback(() => {
     if (!currentTreasure || !currentTreasureHunt || !player || !playerStats || !selectedBranchingRoom || !locationFloor) return;
 
-    const { trap, nothing } = LaunchProperties.TREASURE_DICE_ODDS;
-    const roll = Math.random() * 100;
+    // Atomically consume the map-piece opportunity (blocks re-rolls / fight after dice)
+    let consumed = false;
+    setCurrentTreasure(prev => {
+      if (!prev?.mapPieceAvailable) return prev;
+      consumed = true;
+      return { ...prev, mapPieceAvailable: false };
+    });
+    if (!consumed) {
+      addLog('You already rolled the dice for this treasure.', 'info');
+      return;
+    }
+
+    // Probabilities: trap% / nothing% / piece% (sum need not be 100 — we normalize)
+    const { trap, nothing, piece } = LaunchProperties.TREASURE_DICE_ODDS;
+    const total = Math.max(1, trap + nothing + piece);
+    const roll = Math.random() * total;
 
     // Track which floor to use for completing the activity
     let floorForCompletion = locationFloor;
@@ -311,7 +366,7 @@ export function useTreasureHandlers(
       setDiceRollResult({ type: 'nothing' });
       addLog('The chest was empty... no map piece found.', 'info');
     } else {
-      // Map piece!
+      // Map piece! (remaining share of odds = piece)
       const { floor: updatedFloorWithPiece, isComplete } = addMapPiece(locationFloor);
       const newHunt = updatedFloorWithPiece.treasureHunt;
 
@@ -359,123 +414,161 @@ export function useTreasureHandlers(
     const updatedFloor = completeActivity(floorForCompletion, selectedBranchingRoom.id, 'treasure');
     setLocationFloor(updatedFloor);
   }, [currentTreasure, currentTreasureHunt, player, playerStats, selectedBranchingRoom,
-      locationFloor, currentDangerLevel, difficulty, currentLocation, addLog,
-      setPlayer, setLocationFloor, setCurrentTreasureHunt, setTreasureHuntReward,
+      locationFloor, currentDangerLevel, difficulty, currentLocation, region, addLog,
+      setPlayer, setLocationFloor, setCurrentTreasure, setCurrentTreasureHunt, setTreasureHuntReward,
       setDiceRollResult]);
 
-  // Continue after dice roll result modal
+  // Continue after dice roll result modal — one dismiss only
   const handleDiceResultContinue = useCallback(() => {
-    // Check if we have a pending treasure hunt reward (map complete)
+    let hadResult = false;
+    setDiceRollResult(prev => {
+      if (!prev) return null;
+      hadResult = true;
+      return null;
+    });
+    if (!hadResult) return;
+
+    setCurrentTreasure(null);
+    setCurrentTreasureHunt(null);
+    setSelectedBranchingRoom(null);
+
     if (treasureHuntReward) {
-      setDiceRollResult(null);
-      setCurrentTreasure(null);
-      setCurrentTreasureHunt(null);
-      setSelectedBranchingRoom(null);
       setGameState(GameState.TREASURE_HUNT_REWARD);
     } else {
-      // Normal flow - return to map
-      setDiceRollResult(null);
-      setCurrentTreasure(null);
-      setCurrentTreasureHunt(null);
-      setSelectedBranchingRoom(null);
       returnToMap();
     }
   }, [treasureHuntReward, returnToMap, setDiceRollResult, setCurrentTreasure,
       setCurrentTreasureHunt, setSelectedBranchingRoom, setGameState]);
 
-  // Start treasure hunt (called when first treasure room is encountered)
+  // Start treasure hunt — once per location (re-init would reset collected pieces)
   const handleTreasureStartHunt = useCallback(() => {
     if (!locationFloor || !currentLocation) return;
+    if (locationFloor.treasureHunt?.isActive) return;
 
-    const updatedFloor = initializeTreasureHunt(locationFloor);
-    setLocationFloor(updatedFloor);
-    setCurrentTreasureHunt(updatedFloor.treasureHunt);
+    const box: { hunt: TreasureHunt | null } = { hunt: null };
+    setLocationFloor(prev => {
+      if (!prev || prev.treasureHunt?.isActive) return prev;
+      const next = initializeTreasureHunt(prev);
+      box.hunt = next.treasureHunt;
+      return next;
+    });
+    if (!box.hunt) return;
 
-    if (updatedFloor.treasureHunt) {
-      addLog(`Treasure hunt initiated! Collect ${updatedFloor.treasureHunt.requiredPieces} map pieces to unlock the grand treasure.`, 'gain');
-    }
+    setCurrentTreasureHunt(box.hunt);
+    addLog(
+      `Treasure hunt initiated! Collect ${box.hunt.requiredPieces} map pieces to unlock the grand treasure.`,
+      'gain',
+    );
   }, [locationFloor, currentLocation, addLog, setLocationFloor, setCurrentTreasureHunt]);
 
   // Decline treasure hunt (all treasures become locked chests)
   const handleTreasureDeclineHunt = useCallback(() => {
     if (!locationFloor) return;
+    if (locationFloor.huntDeclined) return;
 
-    // Set huntDeclined flag on floor
-    const updatedFloor = { ...locationFloor, huntDeclined: true };
-    setLocationFloor(updatedFloor);
+    let declined = false;
+    setLocationFloor(prev => {
+      if (!prev || prev.huntDeclined) return prev;
+      declined = true;
+      return { ...prev, huntDeclined: true };
+    });
+    if (!declined) return;
 
-    // Also update branchingFloor if it exists
     if (branchingFloor) {
-      setBranchingFloor({ ...branchingFloor, huntDeclined: true });
+      setBranchingFloor(prev => (prev ? { ...prev, huntDeclined: true } : prev));
     }
 
     addLog('You declined the treasure hunt. All treasure rooms will now be regular chests.', 'info');
   }, [locationFloor, branchingFloor, addLog, setLocationFloor, setBranchingFloor]);
 
-  // Claim treasure hunt reward
+  // Claim treasure hunt reward — one claim only (no double ryo/loot)
   const handleTreasureHuntRewardClaim = useCallback(() => {
-    if (!treasureHuntReward || !player) return;
+    if (!player) return;
 
-    // Add ryo
-    if (treasureHuntReward.ryo > 0) {
-      setPlayer(p => p ? { ...p, ryo: p.ryo + treasureHuntReward.ryo } : null);
-      addLog(`Gained ${treasureHuntReward.ryo} Ryo from the treasure map!`, 'loot');
+    const box: { reward: TreasureHuntRewardData | null } = { reward: null };
+    setTreasureHuntReward(prev => {
+      if (!prev) return null;
+      box.reward = prev;
+      return null;
+    });
+    if (!box.reward) return;
+
+    const reward = box.reward;
+    if (reward.ryo > 0) {
+      const ryoGain = reward.ryo;
+      setPlayer(p => (p ? { ...p, ryo: p.ryo + ryoGain } : null));
+      addLog(`Gained ${ryoGain} Ryo from the treasure map!`, 'loot');
     }
 
-    // If there are items/skills, go to loot screen
-    if (treasureHuntReward.items.length > 0 || treasureHuntReward.skills.length > 0) {
-      setDroppedItems(treasureHuntReward.items);
-      setDroppedSkill(treasureHuntReward.skills[0] ?? null);
-      setTreasureHuntReward(null);
+    if (reward.items.length > 0 || reward.skills.length > 0) {
+      setDroppedItems(reward.items);
+      setDroppedSkill(reward.skills[0] ?? null);
       setGameState(GameState.LOOT);
     } else {
-      // No items, return to map
-      setTreasureHuntReward(null);
       returnToMap();
     }
-  }, [treasureHuntReward, player, addLog, returnToMap, setPlayer, setDroppedItems,
+  }, [player, addLog, returnToMap, setPlayer, setDroppedItems,
       setDroppedSkill, setTreasureHuntReward, setGameState]);
 
-  // Sell pending item when bag is full
+  // Sell pending item when bag is full — one resolution only
   const handleBagFullSell = useCallback(() => {
     if (!pendingBagFullItem || !currentTreasure || !player || !selectedBranchingRoom) return;
+    if (currentTreasure.collected) return;
 
     const sellValue = getSellPrice(pendingBagFullItem.item);
+    const pending = pendingBagFullItem;
+    const ryoBonus = currentTreasure.ryoBonus;
 
-    // Add ryo bonus from treasure + sell value
-    let totalRyo = sellValue;
-    if (currentTreasure.ryoBonus > 0) {
-      totalRyo += currentTreasure.ryoBonus;
-    }
-    setPlayer(p => p ? { ...p, ryo: p.ryo + totalRyo } : null);
-    addLog(`Sold ${pendingBagFullItem.item.name} for ${sellValue} Ryo.`, 'loot');
-    if (currentTreasure.ryoBonus > 0) {
-      addLog(`Found ${currentTreasure.ryoBonus} Ryo alongside the treasure!`, 'loot');
-    }
+    // Claim chest before payout (blocks double sell)
+    let claimed = false;
+    setCurrentTreasure(prev => {
+      if (!prev || prev.collected) return prev;
+      claimed = true;
+      return { ...prev, collected: true, selectedIndex: pending.index };
+    });
+    if (!claimed) return;
 
-    // Clear pending state and complete activity
     setPendingBagFullItem(null);
+
+    let totalRyo = sellValue;
+    if (ryoBonus > 0) totalRyo += ryoBonus;
+    setPlayer(p => p ? { ...p, ryo: p.ryo + totalRyo } : null);
+    addLog(`Sold ${pending.item.name} for ${sellValue} Ryo.`, 'loot');
+    if (ryoBonus > 0) {
+      addLog(`Found ${ryoBonus} Ryo alongside the treasure!`, 'loot');
+    }
+
     completeTreasureAndReturn();
   }, [pendingBagFullItem, currentTreasure, player, selectedBranchingRoom,
-      addLog, setPlayer, setPendingBagFullItem, completeTreasureAndReturn]);
+      addLog, setPlayer, setPendingBagFullItem, setCurrentTreasure, completeTreasureAndReturn]);
 
-  // Leave pending item behind when bag is full
+  // Leave pending item behind when bag is full — one resolution only
   const handleBagFullLeave = useCallback(() => {
     if (!pendingBagFullItem || !currentTreasure || !player || !selectedBranchingRoom) return;
+    if (currentTreasure.collected) return;
 
-    addLog(`Left ${pendingBagFullItem.item.name} behind.`, 'info');
+    const pending = pendingBagFullItem;
+    const ryoBonus = currentTreasure.ryoBonus;
 
-    // Add ryo bonus if any
-    if (currentTreasure.ryoBonus > 0) {
-      setPlayer(p => p ? { ...p, ryo: p.ryo + currentTreasure.ryoBonus } : null);
-      addLog(`Found ${currentTreasure.ryoBonus} Ryo alongside the treasure!`, 'loot');
+    let claimed = false;
+    setCurrentTreasure(prev => {
+      if (!prev || prev.collected) return prev;
+      claimed = true;
+      return { ...prev, collected: true, selectedIndex: pending.index };
+    });
+    if (!claimed) return;
+
+    setPendingBagFullItem(null);
+    addLog(`Left ${pending.item.name} behind.`, 'info');
+
+    if (ryoBonus > 0) {
+      setPlayer(p => p ? { ...p, ryo: p.ryo + ryoBonus } : null);
+      addLog(`Found ${ryoBonus} Ryo alongside the treasure!`, 'loot');
     }
 
-    // Clear pending state and complete activity
-    setPendingBagFullItem(null);
     completeTreasureAndReturn();
   }, [pendingBagFullItem, currentTreasure, player, selectedBranchingRoom,
-      addLog, setPlayer, setPendingBagFullItem, completeTreasureAndReturn]);
+      addLog, setPlayer, setPendingBagFullItem, setCurrentTreasure, completeTreasureAndReturn]);
 
   return {
     handleTreasureReveal,

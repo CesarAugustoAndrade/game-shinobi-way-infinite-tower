@@ -1,4 +1,4 @@
-import { GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
+import { Clan, GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
 
 export const WAVES_ARC_EVENTS: GameEvent[] = [
   {
@@ -112,7 +112,9 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             weight: 45,
             effects: {
               ryo: 250,
-              logMessage: 'You grab weapons and supplies before fleeing. Excellent haul!',
+              // T-030: maps unlockCondition for Sunken Ship secret location
+              setFlags: { sunken_ship_discovered: 1 },
+              logMessage: 'You grab weapons and supplies before fleeing. A tide chart points to a sunken wreck!',
               logType: 'loot',
             },
           },
@@ -142,7 +144,9 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 150,
               exp: 60,
-              logMessage: 'You sabotage their supplies without being detected!',
+              // T-030: smuggler intel unlocks Hidden Cove
+              setFlags: { hidden_cove_discovered: 1 },
+              logMessage: 'You sabotage their supplies and overhear talk of a hidden cove!',
               logType: 'gain',
             },
           },
@@ -157,6 +161,26 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               },
               logMessage: 'A hidden guard spots you!',
               logType: 'danger',
+            },
+          },
+        ],
+      },
+      // T-041: Uchiha exclusive — Sharingan reads patrol patterns
+      {
+        label: 'Predict Patrols with Sharingan',
+        description: 'CLAN - Uchiha insight into their timing',
+        riskLevel: RiskLevel.SAFE,
+        requirements: { requiredClan: Clan.UCHIHA },
+        outcomes: [
+          {
+            weight: 100,
+            effects: {
+              ryo: 200,
+              exp: 50,
+              setFlags: { sunken_ship_discovered: 1, hidden_cove_discovered: 1 },
+              logMessage:
+                'Your Sharingan maps their routes. You loot safely and mark a sunken wreck and hidden cove.',
+              logType: 'loot',
             },
           },
         ],

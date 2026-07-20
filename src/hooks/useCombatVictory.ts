@@ -185,17 +185,39 @@ export function useCombatVictory(
       ryoGain = Math.floor(ryoGain * flagMods.ryoMultiplier);
     }
     // T-061: region lootTheme.goldMultiplier (Waves 0.8 … War 1.2)
+    const goldMult = region?.lootTheme?.goldMultiplier ?? 1;
     ryoGain = applyLootThemeGoldMultiplier(ryoGain, region?.lootTheme);
+    // T-089: notes for RewardModal / log (wealth + story + region ryo)
+    const ryoNoteParts: string[] = [];
+    if (locationWealthLevel !== 4) {
+      ryoNoteParts.push(locationWealthLevel > 4 ? 'wealthy area' : 'poor area');
+    }
+    if (flagMods.ryoMultiplier !== 1) {
+      ryoNoteParts.push(`story ×${flagMods.ryoMultiplier}`);
+    }
+    if (goldMult !== 1) {
+      ryoNoteParts.push(`region Ryo ×${goldMult}`);
+    }
+    const ryoNote = ryoNoteParts.length > 0 ? ryoNoteParts.join(' · ') : null;
 
     // Add intel from combat victory (+5%, reduced by location visibility_penalty T-067)
+    // T-087: keep base/effective for RewardModal fog honesty
+    let intelGain = 0;
+    let baseIntelGain = 0;
+    let fogNote: string | null = null;
     if (region) {
       const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
-      const intelGain = applyVisibilityToIntelGain(
-        INTEL_GAIN.COMBAT_VICTORY,
-        locMods,
-      );
+      baseIntelGain = INTEL_GAIN.COMBAT_VICTORY;
+      intelGain = applyVisibilityToIntelGain(baseIntelGain, locMods);
       setCurrentIntel(prev => Math.min(100, prev + intelGain));
       logIntelGain('Combat', intelGain, Math.min(100, currentIntel + intelGain));
+      if (intelGain !== baseIntelGain) {
+        const fogPct = Math.round((locMods.visibilityPenalty || 0) * 100);
+        fogNote = `Fog reduced intel (visibility ${fogPct > 0 ? '+' : ''}${fogPct}%)`;
+        addLog(`Gained +${intelGain}% intel (fog: ${baseIntelGain}%→${intelGain}%).`, 'info');
+      } else if (intelGain > 0) {
+        addLog(`Gained +${intelGain}% intel.`, 'info');
+      }
     }
 
     let levelUpInfo: { oldLevel: number; newLevel: number; statGains: Record<string, number> } | undefined;
@@ -211,7 +233,10 @@ export function useCombatVictory(
       levelUpInfo = levelUpResult.levelUpInfo;
 
       updatedPlayer.ryo += ryoGain;
-      addLog(`Gained ${ryoGain} Ryō${locationWealthLevel !== 4 ? ` (${locationWealthLevel > 4 ? 'wealthy' : 'poor'} area)` : ''}.`, 'loot');
+      addLog(
+        `Gained ${ryoGain} Ryō${ryoNote ? ` (${ryoNote})` : ''}.`,
+        'loot',
+      );
 
       return updatedPlayer;
     });
@@ -304,6 +329,11 @@ export function useCombatVictory(
         levelUp: levelUpInfo,
         lootPreviews: [],
         continuesToLoot: false,
+        intelGain: intelGain > 0 ? intelGain : undefined,
+        baseIntelGain:
+          intelGain > 0 && intelGain !== baseIntelGain ? baseIntelGain : undefined,
+        fogNote: fogNote || undefined,
+        ryoNote: ryoNote || undefined,
       });
 
       setTimeout(() => {
@@ -325,6 +355,11 @@ export function useCombatVictory(
       levelUp: levelUpInfo,
       lootPreviews,
       continuesToLoot: lootPreviews.length > 0,
+      intelGain: intelGain > 0 ? intelGain : undefined,
+      baseIntelGain:
+        intelGain > 0 && intelGain !== baseIntelGain ? baseIntelGain : undefined,
+      fogNote: fogNote || undefined,
+      ryoNote: ryoNote || undefined,
     });
 
     // Set game state to appropriate explore view so the modal shows on the map
@@ -358,7 +393,13 @@ export function useCombatVictory(
     // Run simulation
     const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
     const result = simulateGameCombat(
-      player, playerStats, combatEnemy, undefined, room.terrain, locMods,
+      player,
+      playerStats,
+      combatEnemy,
+      undefined,
+      room.terrain,
+      locMods,
+      room.activities.combat?.modifiers,
     );
 
     // Update player HP and chakra based on simulation result
@@ -403,7 +444,13 @@ export function useCombatVictory(
     // Run simulation
     const eliteLocMods = getLocationTerrainMods(currentLocation?.terrainEffects);
     const result = simulateGameCombat(
-      player, playerStats, eliteEnemy, undefined, room.terrain, eliteLocMods,
+      player,
+      playerStats,
+      eliteEnemy,
+      undefined,
+      room.terrain,
+      eliteLocMods,
+      room.activities.combat?.modifiers,
     );
 
     // Update player HP and chakra based on simulation result

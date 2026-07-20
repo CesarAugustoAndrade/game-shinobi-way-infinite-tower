@@ -26,6 +26,8 @@ import { determineTurnOrder } from '../game/systems/CombatCalculationSystem';
 import { getApCost } from '../game/constants/combatCards';
 import { LaunchProperties } from '../config/featureFlags';
 import { ApproachResult, getCombatModifiers } from '../game/systems/ApproachSystem';
+import { applyRoomCombatModifiers } from '../game/systems/RoomCombatModifierSystem';
+import type { CombatModifierType } from '../game/types';
 import { CombatRef } from '../scenes/combat';
 import { TIMING } from '../game/config';
 import {
@@ -77,6 +79,8 @@ export interface UseCombatReturn {
     playerAfterCosts: Player,
     terrain: any,
     locationTerrainMods?: import('../game/systems/LocationTerrainSystem').LocationTerrainMods | null,
+    /** T-102: room combat activity modifiers */
+    roomCombatModifiers?: CombatModifierType[] | null,
   ) => void;
   resetCombat: () => void;
   autoCombatEnabled: boolean;
@@ -414,6 +418,8 @@ export function useCombat({
       terrain: any,
       /** T-063: location terrain effect mods */
       locationTerrainMods?: import('../game/systems/LocationTerrainSystem').LocationTerrainMods | null,
+      /** T-102: room CombatActivity.modifiers */
+      roomCombatModifiers?: CombatModifierType[] | null,
     ) => {
       logSceneEnter('COMBAT', {
         enemy: newEnemy.name,
@@ -422,7 +428,7 @@ export function useCombat({
         approach: result.approach
       });
 
-      const modifiers = getCombatModifiers(result);
+      let modifiers = getCombatModifiers(result);
 
       // Fresh encounter hygiene (mirrors simulatorUtils.prepareForCombat):
       // - reset cooldowns, deactivate toggles
@@ -431,7 +437,7 @@ export function useCombat({
       const persistentBuffs = (playerAfterCosts.activeBuffs || []).filter(
         (b) => b.source === 'event' || b.effect?.type === EffectType.CURSE
       );
-      const encounterPlayer: Player = {
+      let encounterPlayer: Player = {
         ...playerAfterCosts,
         activeBuffs: persistentBuffs,
         skills: playerAfterCosts.skills.map((s) => ({
@@ -440,6 +446,18 @@ export function useCombat({
           isActive: false,
         })),
       };
+
+      // T-102: room type combat modifiers (AMBUSH / PREPARED / SANCTUARY / …)
+      const combatStartStatsPreview = playerStats ?? getPlayerFullStats(encounterPlayer);
+      const roomApplied = applyRoomCombatModifiers(
+        roomCombatModifiers,
+        modifiers,
+        encounterPlayer,
+        combatStartStatsPreview.derived.maxHp,
+      );
+      modifiers = roomApplied.modifiers;
+      encounterPlayer = roomApplied.player;
+      roomApplied.logs.forEach((log) => addLog(log, 'info'));
 
       let { player: preparedPlayer, enemy: preparedEnemy, logs: effectLogs } = applyApproachEffects(
         encounterPlayer,
@@ -466,11 +484,17 @@ export function useCombat({
         currentChakra: passiveResult.player.currentChakra,
       };
 
-      // Create combat state with modifiers + T-063 location terrain mods
+      // Create combat state with modifiers + T-063 location + T-103 room combat residual
       const newCombatState = createCombatState(
         modifiers,
         terrain,
         locationTerrainMods ?? null,
+        {
+          roomCombatEvasion: roomApplied.playerEvasionBonus,
+          fallDamageOnMiss: roomApplied.environment.fallDamageOnMiss,
+          roomConditionNames: roomApplied.activeNames,
+          enemyFirstHitMultiplier: roomApplied.enemyFirstHitMultiplier,
+        },
       );
       // Store skipFirstSkillCost from artifact passive
       newCombatState.skipFirstSkillCost = passiveResult.skipFirstSkillCost;
@@ -513,6 +537,8 @@ export function useCombat({
         }
         if (modifiers.playerGoesFirst || modifiers.playerInitiativeBonus > 0) {
           addLog('You seize the initiative!', 'info');
+        } else if (modifiers.playerInitiativeBonus < 0) {
+          addLog('You recovered initiative despite a failed approach.', 'info');
         }
       } else {
         // Enemy opens: player draws on their first turn via processUpkeep.
@@ -521,7 +547,11 @@ export function useCombat({
         newCombatState.hand = [];
         setUpkeepProcessedThisTurn(false);
         setTurnState('ENEMY_TURN');
-        addLog('The enemy acts first!', 'danger');
+        if (modifiers.playerInitiativeBonus < 0) {
+          addLog('Failed approach — the enemy seizes the initiative!', 'danger');
+        } else {
+          addLog('The enemy acts first!', 'danger');
+        }
       }
 
       setCombatState(newCombatState);

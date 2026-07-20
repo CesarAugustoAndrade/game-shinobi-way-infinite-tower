@@ -149,6 +149,8 @@ export function openingPostureForApproach(
       return Posture.DEFENSIVE;
     case ApproachType.ENVIRONMENTAL_TRAP:
       return Posture.DEFENSIVE;
+    case ApproachType.IRON_GUARD:
+      return Posture.DEFENSIVE;
     case ApproachType.FRONTAL_ASSAULT:
       return Posture.BALANCED;
     case ApproachType.SHADOW_BYPASS:
@@ -164,6 +166,9 @@ export function openingPostureLog(posture: Posture, approach: ApproachType): str
   if (posture === Posture.BALANCED) return null;
   if (approach === ApproachType.STEALTH_AMBUSH && posture === Posture.AGGRESSIVE) {
     return 'Ambush! You open in Aggressive posture.';
+  }
+  if (approach === ApproachType.IRON_GUARD && posture === Posture.DEFENSIVE) {
+    return 'Iron Guard! You open in Defensive posture with a shield.';
   }
   if (posture === Posture.AGGRESSIVE) {
     return `You open in Aggressive posture.`;

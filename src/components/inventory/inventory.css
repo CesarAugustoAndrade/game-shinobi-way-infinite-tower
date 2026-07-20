@@ -16,6 +16,54 @@
   padding: var(--sw-space-3);
 }
 
+/* T-096: region Focus while equipping */
+.bag__focus-chip {
+  margin: 0 0 var(--sw-space-2);
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border: 2px solid #6d28d9;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.2);
+  box-shadow: 2px 2px 0 #000;
+}
+
+.bag__slot {
+  position: relative;
+}
+
+.bag__slot-focus {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 2;
+  font-size: 7px;
+  font-family: var(--sw-font-mono, monospace);
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 3px;
+  border: 1px solid #6d28d9;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.45);
+  box-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+}
+
+.bag__tooltip-focus {
+  color: #c4b5fd;
+  font-size: 0.85em;
+}
+
+.bag__tooltip-stat--focus {
+  color: #c4b5fd;
+}
+
+.bag__tooltip-focus-mark {
+  color: #c4b5fd;
+}
+
 .bag__header {
   display: flex;
   justify-content: space-between;
@@ -161,6 +209,138 @@
 
 .bag__synthesis-option:hover {
   background: rgba(168, 85, 247, 0.2);
+}
+
+/* T-032: craft reveal after successful synthesis */
+.bag__craft-result {
+  margin-top: var(--sw-space-2);
+  padding: var(--sw-space-2);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  border-radius: var(--sw-radius-md);
+  background: linear-gradient(160deg, rgba(88, 28, 135, 0.35), rgba(24, 24, 27, 0.9));
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.bag__craft-result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: var(--sw-tracking-widest);
+  text-transform: uppercase;
+  color: #e9d5ff;
+  margin-bottom: var(--sw-space-2);
+}
+
+/* T-098: Focus honesty on craft reveal */
+.bag__craft-result-focus {
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border: 1px solid #6d28d9;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.35);
+  box-shadow: 1px 1px 0 #000;
+}
+
+.bag__craft-result-stats {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bag__craft-result-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #a1a1aa;
+}
+
+.bag__craft-result-stat--focus {
+  color: #c4b5fd;
+}
+
+.bag__craft-result-stat-mark {
+  color: #c4b5fd;
+}
+
+.bag__craft-result-body {
+  display: flex;
+  gap: var(--sw-space-2);
+  align-items: flex-start;
+  margin-bottom: var(--sw-space-2);
+}
+
+.bag__craft-result-art {
+  flex-shrink: 0;
+  width: 3rem !important;
+  height: 3rem !important;
+  image-rendering: pixelated;
+}
+
+.bag__craft-result-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.bag__craft-result-name {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.bag__craft-result-recipe {
+  font-size: 9px;
+  color: var(--sw-text-muted);
+  margin-top: 2px;
+}
+
+.bag__craft-result-desc {
+  font-size: 9px;
+  color: #d4d4d8;
+  margin-top: var(--sw-space-1);
+  line-height: 1.35;
+}
+
+.bag__craft-result-actions {
+  display: flex;
+  gap: var(--sw-space-1);
+}
+
+.bag__craft-result-btn {
+  flex: 1;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--sw-space-1) var(--sw-space-2);
+  border: 2px solid #000;
+  border-radius: 0;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.bag__craft-result-btn--equip {
+  background: #a855f7;
+  color: #fff;
+}
+
+.bag__craft-result-btn--equip:hover {
+  background: #c084fc;
+}
+
+.bag__craft-result-btn--dismiss {
+  background: #3f3f46;
+  color: #e4e4e7;
+}
+
+.bag__craft-result-btn--dismiss:hover {
+  background: #52525b;
 }
 
 /* ===========================================
@@ -403,6 +583,38 @@
   color: var(--sw-accent-primary);
 }
 
+/* T-097: equipped Focus honesty (bag already T-096) */
+.equipment-panel__slot-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.equipment-panel__slot-focus {
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 4px;
+  border: 1px solid #6d28d9;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.4);
+  box-shadow: 1px 1px 0 #000;
+}
+
+.equipment-panel__tooltip-focus {
+  color: #c4b5fd;
+  font-size: 0.85em;
+}
+
+.equipment-panel__tooltip-stat--focus {
+  color: #c4b5fd;
+}
+
+.equipment-panel__tooltip-focus-mark {
+  color: #c4b5fd;
+}
+
 .equipment-panel__slot-rarity {
   font-size: 9px;
   text-transform: uppercase;
@@ -600,3 +812,81 @@
 .rarity-text--epic { color: var(--sw-rarity-epic); }
 .rarity-text--legendary { color: var(--sw-rarity-legendary); }
 .rarity-text--cursed { color: var(--sw-rarity-cursed); }
+
+/* T-058: bag equip/sell toast */
+.bag-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 13rem;
+  max-width: min(22rem, 92vw);
+  padding: 10px 12px;
+  background: rgba(12, 12, 18, 0.95);
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  cursor: pointer;
+  animation: bag-toast-in 0.2s ease-out;
+}
+
+.bag-toast--equip {
+  border-color: #a855f7;
+  box-shadow: 3px 3px 0 #4c1d95;
+}
+
+.bag-toast--sell {
+  border-color: #fcd34d;
+  box-shadow: 3px 3px 0 #854d0e;
+}
+
+.bag-toast__art {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  image-rendering: pixelated;
+  border: 2px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  flex-shrink: 0;
+}
+
+.bag-toast__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bag-toast__label {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c4b5fd;
+}
+
+.bag-toast--sell .bag-toast__label {
+  color: #fde68a;
+}
+
+.bag-toast__name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f0e8d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bag-toast__detail {
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #a1a1aa;
+}
+
+@keyframes bag-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

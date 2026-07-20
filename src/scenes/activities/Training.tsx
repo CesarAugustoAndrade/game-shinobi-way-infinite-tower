@@ -406,6 +406,16 @@ const TrainButton: React.FC<TrainButtonProps> = ({
    Main Training Component
    =========================================== */
 
+/** T-048: local result before parent applies training and leaves */
+interface TrainingResultView {
+  stat: PrimaryStat;
+  intensity: TrainingIntensity;
+  gain: number;
+  cost: { hp: number; chakra: number };
+  before: number;
+  after: number;
+}
+
 const Training: React.FC<TrainingProps> = ({
   training,
   player,
@@ -416,6 +426,7 @@ const Training: React.FC<TrainingProps> = ({
 }) => {
   const [selectedStat, setSelectedStat] = useState<PrimaryStat | null>(null);
   const [selectedIntensity, setSelectedIntensity] = useState<TrainingIntensity | null>(null);
+  const [result, setResult] = useState<TrainingResultView | null>(null);
 
   const canAfford = useCallback((hp: number, chakra: number): boolean => {
     return player.currentHp > hp && player.currentChakra >= chakra;
@@ -445,11 +456,29 @@ const Training: React.FC<TrainingProps> = ({
     setSelectedIntensity(intensity);
   }, []);
 
+  // T-048: show result panel first; parent apply + leave on continue
   const handleTrain = useCallback(() => {
-    if (selectedStat && selectedIntensity) {
-      onTrain(selectedStat, selectedIntensity);
-    }
-  }, [selectedStat, selectedIntensity, onTrain]);
+    if (!selectedStat || !selectedIntensity || !selectedOption) return;
+    const { cost, gain } = selectedOption.intensities[selectedIntensity];
+    if (!canAfford(cost.hp, cost.chakra)) return;
+    const before = getStatValue(selectedStat);
+    setResult({
+      stat: selectedStat,
+      intensity: selectedIntensity,
+      gain,
+      cost,
+      before,
+      after: before + gain,
+    });
+  }, [selectedStat, selectedIntensity, selectedOption, canAfford, getStatValue]);
+
+  const handleResultContinue = useCallback(() => {
+    if (!result) return;
+    // Clear local result first so double Enter/click cannot re-apply training
+    const { stat, intensity } = result;
+    setResult(null);
+    onTrain(stat, intensity);
+  }, [result, onTrain]);
 
   const canTrain = useMemo(() => {
     if (!selectedOption || !selectedIntensity) return false;
@@ -498,15 +527,22 @@ const Training: React.FC<TrainingProps> = ({
       }
     }
 
-    // Enter to train
-    if (e.key === 'Enter' && selectedStat && selectedIntensity && canTrain) {
+    // T-048: Enter on result → apply & leave; else train
+    if (e.key === 'Enter') {
       e.preventDefault();
-      handleTrain();
+      if (result) {
+        handleResultContinue();
+        return;
+      }
+      if (selectedStat && selectedIntensity && canTrain) {
+        handleTrain();
+      }
     }
 
-    // Escape to skip or deselect
+    // Escape to skip or deselect (blocked on result — must continue)
     if (e.key === 'Escape') {
       e.preventDefault();
+      if (result) return;
       if (selectedStat) {
         setSelectedStat(null);
         setSelectedIntensity(null);
@@ -514,12 +550,48 @@ const Training: React.FC<TrainingProps> = ({
         onSkip();
       }
     }
-  }, [training.options, selectedStat, selectedOption, selectedIntensity, canTrain, canAfford, handleStatSelect, handleIntensitySelect, handleTrain, onSkip]);
+  }, [training.options, selectedStat, selectedOption, selectedIntensity, canTrain, canAfford, handleStatSelect, handleIntensitySelect, handleTrain, handleResultContinue, result, onSkip]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  // T-048: completion reveal before parent unmounts Training
+  if (result) {
+    const intensityLabel =
+      result.intensity.charAt(0).toUpperCase() + result.intensity.slice(1);
+    return (
+      <SceneBackdrop background={background}>
+        <div className="training training--result">
+          <div className="training__result" role="status">
+            <h2 className="training__result-title">Training Complete</h2>
+            <p className="training__result-intensity">{intensityLabel} session</p>
+            <div className="training__result-stat">
+              <span className="training__result-stat-name">{result.stat}</span>
+              <span className="training__result-stat-delta">
+                {result.before} → <strong>{result.after}</strong>
+                <span className="training__result-gain"> (+{result.gain})</span>
+              </span>
+            </div>
+            <div className="training__result-cost">
+              <span>Paid {result.cost.hp} HP</span>
+              <span>·</span>
+              <span>{result.cost.chakra} CP</span>
+            </div>
+            <button
+              type="button"
+              className="training__result-continue"
+              onClick={handleResultContinue}
+            >
+              Continue
+              <span className="sw-shortcut">Enter</span>
+            </button>
+          </div>
+        </div>
+      </SceneBackdrop>
+    );
+  }
 
   return (
     <SceneBackdrop background={background}>

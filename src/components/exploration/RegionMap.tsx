@@ -76,6 +76,7 @@ const RegionMap: React.FC<RegionMapProps> = ({
     : 0;
 
   const selectedCard = selectedIndex !== null ? drawnCards[selectedIndex] : null;
+  const selectedDisplay = selectedCard ? getCardDisplayInfo(selectedCard) : null;
 
   return (
     <div className={`region-map ${getArcModifier()}`}>
@@ -99,6 +100,30 @@ const RegionMap: React.FC<RegionMapProps> = ({
             <p className="region-map__theme">
               {region.theme}
             </p>
+            {/* T-069/T-074: lootTheme identity (element, ryo, equipment focus) */}
+            {region.lootTheme?.primaryElement && (
+              <p className="region-map__affinity" aria-label="Region elemental affinity">
+                Affinity:{' '}
+                <span className="region-map__affinity-el">
+                  {region.lootTheme.primaryElement}
+                </span>
+                {region.lootTheme.goldMultiplier !== 1 && (
+                  <span className="region-map__affinity-gold">
+                    {' '}· Ryo ×{region.lootTheme.goldMultiplier}
+                  </span>
+                )}
+              </p>
+            )}
+            {region.lootTheme?.equipmentFocus && region.lootTheme.equipmentFocus.length > 0 && (
+              <p className="region-map__focus" aria-label="Region loot focus stats">
+                Focus:{' '}
+                <span className="region-map__focus-stats">
+                  {region.lootTheme.equipmentFocus
+                    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                    .join(' · ')}
+                </span>
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -141,15 +166,26 @@ const RegionMap: React.FC<RegionMapProps> = ({
           </button>
         </div>
 
-        {/* Selected card preview info */}
-        {selectedCard && (
+        {/* Selected card preview info — T-047: authored description when intel allows */}
+        {selectedCard && selectedDisplay && (
           <div className="region-map__preview">
             <p className="region-map__preview-text">
               {selectedCard.isRevisit
                 ? 'Revisiting this location (reduced rewards)'
-                : `Ready to explore ${getCardDisplayInfo(selectedCard).name}`
+                : `Ready to explore ${selectedDisplay.name}`
               }
             </p>
+            {selectedDisplay.description && (
+              <p className="region-map__preview-desc">{selectedDisplay.description}</p>
+            )}
+            {selectedDisplay.atmosphereLine && (
+              <p className="region-map__preview-atmosphere">{selectedDisplay.atmosphereLine}</p>
+            )}
+            {selectedDisplay.terrainEffectLines && selectedDisplay.terrainEffectLines.length > 0 && (
+              <p className="region-map__preview-terrain">
+                Terrain: {selectedDisplay.terrainEffectLines.join(' · ')}
+              </p>
+            )}
           </div>
         )}
       </div>

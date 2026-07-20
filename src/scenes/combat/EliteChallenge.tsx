@@ -3,6 +3,8 @@ import { Enemy, Item, Player, CharacterStats, Rarity } from '../../game/types';
 import { Shield, Zap, Swords, Wind } from 'lucide-react';
 import { getEscapeChanceDescription } from '../../game/systems/EliteChallengeSystem';
 import { getEnemyFullStats } from '../../game/systems/StatSystem';
+import { getEnemyArt, resolveItemArt } from '../../game/constants/artRegistry';
+import ArtIcon from '../../components/shared/ArtIcon';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './EliteChallenge.css';
 
@@ -49,6 +51,17 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
 }) => {
   const escapeInfo = getEscapeChanceDescription(playerStats);
   const enemyStats = getEnemyFullStats(enemy);
+  // T-036: Imagine registry art (enemy portrait + artifact tile)
+  const enemyArt = getEnemyArt({
+    name: enemy.name,
+    archetype: enemy.archetype,
+    isBoss: false,
+  });
+  // Prefer combat sprite when present; cascade still falls back to emoji
+  const enemyDisplayArt = enemy.image
+    ? { ...enemyArt, src: enemy.image, label: enemy.name }
+    : { ...enemyArt, label: enemy.name };
+  const artifactArt = artifact ? resolveItemArt(artifact) : null;
 
   // Keyboard shortcuts: F for Fight, E for Escape
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -101,12 +114,17 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
         )}
       </div>
 
-      {/* Enemy Info */}
+      {/* Enemy Info — T-036 Imagine portrait */}
       <div className="elite-challenge__enemy">
         <div className="elite-challenge__enemy-header">
-          <div>
-            <h3 className="elite-challenge__enemy-name">{enemy.name}</h3>
-            <p className="elite-challenge__enemy-type">{enemy.tier} Guardian</p>
+          <div className="elite-challenge__enemy-identity">
+            <div className="elite-challenge__enemy-portrait" aria-hidden={!enemyDisplayArt.src}>
+              <ArtIcon art={enemyDisplayArt} size="xl" className="elite-challenge__enemy-art" />
+            </div>
+            <div>
+              <h3 className="elite-challenge__enemy-name">{enemy.name}</h3>
+              <p className="elite-challenge__enemy-type">{enemy.tier} Guardian</p>
+            </div>
           </div>
           <div className="elite-challenge__enemy-element-wrapper">
             <div className="elite-challenge__enemy-element-label">Element</div>
@@ -131,17 +149,19 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
         </div>
       </div>
 
-      {/* Artifact Preview - Only shown when artifact exists */}
-      {artifact && (
+      {/* Artifact Preview — T-036 Imagine tile */}
+      {artifact && artifactArt && (
         <div className="elite-challenge__artifact">
           <div className="elite-challenge__artifact-header">
             <Zap size={16} className="elite-challenge__artifact-icon" />
             <span className="elite-challenge__artifact-label">Guarded Artifact</span>
           </div>
           <div className="elite-challenge__artifact-main">
+            <div className="elite-challenge__artifact-tile">
+              <ArtIcon art={artifactArt} size="lg" className="elite-challenge__artifact-art" />
+            </div>
             <div>
               <h4 className={`elite-challenge__artifact-name ${getRarityClass(artifact.rarity)}`}>
-                {artifact.icon && <span className="elite-challenge__artifact-emoji">{artifact.icon}</span>}
                 {artifact.name}
               </h4>
               <p className="elite-challenge__artifact-rarity">{artifact.rarity}</p>

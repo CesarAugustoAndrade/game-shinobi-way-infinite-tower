@@ -1,8 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Item, Skill, Rarity, SkillTier, DamageType } from '../../game/types';
+import { Item, Skill, Rarity, SkillTier, DamageType, RegionLootTheme } from '../../game/types';
 import { Scroll, MapPin, Coins, Sparkles, Award } from 'lucide-react';
 import { formatStatName, getStatColor, formatScalingStat, getEffectColor, getEffectIcon, formatEffectDescription } from '../../game/utils/tooltipFormatters';
 import { resolveItemArt } from '../../game/constants/artRegistry';
+import {
+  itemMatchesEquipmentFocus,
+  isFocusStat,
+} from '../../game/utils/itemFocusMatch';
 import ArtIcon from '../../components/shared/ArtIcon';
 import './treasure.css';
 
@@ -21,6 +25,10 @@ interface TreasureHuntRewardProps {
   getDamageTypeColor: (dt: DamageType) => string;
   /** Biome background image — replaces the solid-black backdrop. */
   background?: string;
+  /**
+   * T-094: region lootTheme already biases hunt items (T-072); show Focus cues.
+   */
+  lootTheme?: RegionLootTheme | null;
 }
 
 const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
@@ -29,6 +37,7 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
   getRarityColor,
   getDamageTypeColor,
   background,
+  lootTheme = null,
 }) => {
   const [showContent, setShowContent] = useState(false);
   const [bgError, setBgError] = useState(false);
@@ -40,17 +49,25 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Keyboard handler
+  const [claimed, setClaimed] = useState(false);
+
+  const handleClaimOnce = useCallback(() => {
+    if (claimed) return;
+    setClaimed(true);
+    onClaim();
+  }, [claimed, onClaim]);
+
+  // Keyboard handler — one claim only
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
-        onClaim();
+        handleClaimOnce();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClaim]);
+  }, [handleClaimOnce]);
 
   // Memoized particles for performance
   const particles = useMemo(() =>
@@ -77,7 +94,9 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
   };
 
   // Render item reward card — the item IS the asset; details in scoped tooltip
-  const renderItemCard = (item: Item, index: number) => (
+  const renderItemCard = (item: Item, index: number) => {
+    const isFocusItem = itemMatchesEquipmentFocus(item, lootTheme?.equipmentFocus);
+    return (
     <div
       key={item.id}
       className={`treasure-reward__card item-tile ${item.passive ? 'treasure-reward__card--artifact' : ''}`}
@@ -89,6 +108,7 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
         <div className={`item-tooltip__name ${getRarityColor(item.rarity)}`}>{item.name}</div>
         <div className="item-tooltip__type">
           {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
+          {isFocusItem && <span className="treasure-tooltip__focus"> · Focus</span>}
         </div>
         {item.description && !item.passive && (
           <div className="item-tooltip__desc">{item.description}</div>
@@ -98,8 +118,16 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
         )}
         <div className="item-tooltip__section">
           {Object.entries(item.stats).map(([key, val]) => (
-            <div key={key} className="item-tooltip__row">
-              <span className="item-tooltip__label">{formatStatName(key)}</span>
+            <div
+              key={key}
+              className={`item-tooltip__row ${isFocusStat(key, lootTheme?.equipmentFocus) ? 'item-tooltip__row--focus' : ''}`}
+            >
+              <span className="item-tooltip__label">
+                {formatStatName(key)}
+                {isFocusStat(key, lootTheme?.equipmentFocus) && (
+                  <span className="item-tooltip__focus-mark"> ★</span>
+                )}
+              </span>
               <span className="item-tooltip__value">+{val}</span>
             </div>
           ))}
@@ -118,6 +146,12 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
           <Sparkles className="w-6 h-6" />
         </div>
       )}
+      {/* T-094: region Focus match (hunt rewards already biased T-072) */}
+      {isFocusItem && (
+        <span className="treasure-card__focus-badge" title="Matches region Focus stats">
+          Focus
+        </span>
+      )}
 
       <div className="treasure-reward__card-content">
         {/* The item IS the asset — big visual, PNG-ready slot */}
@@ -132,7 +166,8 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   // Render skill scroll card — details in scoped tooltip
   const renderSkillCard = (skill: Skill, index: number) => (
@@ -235,6 +270,29 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
           <p className="treasure-modal__subtitle">
             You've assembled all {reward.piecesCollected} map pieces
           </p>
+          {/* T-094: hunt items already bias via lootTheme — surface identity */}
+          {lootTheme && (
+            <div className="treasure-modal__theme" aria-label="Region loot theme">
+              {lootTheme.primaryElement && (
+                <span className="treasure-modal__theme-chip treasure-modal__theme-chip--affinity">
+                  Affinity {lootTheme.primaryElement}
+                </span>
+              )}
+              {lootTheme.equipmentFocus?.length > 0 && (
+                <span className="treasure-modal__theme-chip treasure-modal__theme-chip--focus">
+                  Focus{' '}
+                  {lootTheme.equipmentFocus
+                    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                    .join(' · ')}
+                </span>
+              )}
+              {lootTheme.goldMultiplier !== 1 && (
+                <span className="treasure-modal__theme-chip treasure-modal__theme-chip--gold">
+                  Ryo ×{lootTheme.goldMultiplier}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Map pieces display */}
@@ -287,7 +345,8 @@ const TreasureHuntRewardScene: React.FC<TreasureHuntRewardProps> = ({
           <div className="treasure-reward__actions">
             <button
               type="button"
-              onClick={onClaim}
+              onClick={handleClaimOnce}
+              disabled={claimed}
               className="treasure-btn treasure-btn--gold treasure-btn--claim"
             >
               <span className="treasure-btn__label">Claim Rewards</span>

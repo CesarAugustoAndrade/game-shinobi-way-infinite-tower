@@ -1,5 +1,9 @@
 import React, { useEffect } from 'react';
-import { Swords, Sparkles, Coins, TrendingUp } from 'lucide-react';
+import { Swords, Sparkles, Coins, TrendingUp, Package } from 'lucide-react';
+import type { Item } from '../../game/types';
+import { resolveItemArt } from '../../game/constants/artRegistry';
+import ArtIcon from '../shared/ArtIcon';
+import { getRarityTextBorderColor } from '../../utils/colorHelpers';
 import './RewardModal.css';
 
 interface RewardModalProps {
@@ -10,6 +14,18 @@ interface RewardModalProps {
     newLevel: number;
     statGains: Record<string, number>;
   };
+  /** T-035: preview of items that will open in LOOT (or empty). */
+  lootPreviews?: Item[];
+  /** When true, Continue leads to loot claim (copy only). */
+  continuesToLoot?: boolean;
+  /** T-087: combat intel gain (effective / fog-scaled). */
+  intelGain?: number;
+  /** Raw intel before fog when different from effective. */
+  baseIntelGain?: number;
+  /** Fog note when visibility reduced the gain. */
+  fogNote?: string;
+  /** T-089: wealth / region Ryo × note under gold. */
+  ryoNote?: string;
   onClose: () => void;
 }
 
@@ -29,8 +45,15 @@ const RewardModal: React.FC<RewardModalProps> = ({
   expGain,
   ryoGain,
   levelUp,
+  lootPreviews = [],
+  continuesToLoot = false,
+  intelGain,
+  baseIntelGain,
+  fogNote,
+  ryoNote,
   onClose,
 }) => {
+  const previewItems = lootPreviews.slice(0, 6);
   // Keyboard shortcut: SPACE/ENTER to continue
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -76,8 +99,32 @@ const RewardModal: React.FC<RewardModalProps> = ({
                 <span className="reward-modal__reward-label-text--ryo">Gold</span>
               </div>
               <p className="reward-modal__reward-amount--ryo">+{ryoGain}</p>
+              {ryoNote && (
+                <p className="reward-modal__reward-note">{ryoNote}</p>
+              )}
             </div>
           </div>
+
+          {/* T-087: combat intel (fog-honest when reduced) */}
+          {typeof intelGain === 'number' && intelGain > 0 && (
+            <div className="reward-modal__intel">
+              <div className="reward-modal__intel-row">
+                <span className="reward-modal__intel-label">Intel</span>
+                {typeof baseIntelGain === 'number' && baseIntelGain !== intelGain ? (
+                  <span className="reward-modal__intel-value">
+                    <span className="reward-modal__intel-base">+{baseIntelGain}%</span>
+                    <span className="reward-modal__intel-arrow">→</span>
+                    <span>+{intelGain}%</span>
+                  </span>
+                ) : (
+                  <span className="reward-modal__intel-value">+{intelGain}%</span>
+                )}
+              </div>
+              {fogNote && (
+                <p className="reward-modal__intel-fog">{fogNote}</p>
+              )}
+            </div>
+          )}
 
           {/* Level Up Section */}
           {levelUp && (
@@ -110,6 +157,32 @@ const RewardModal: React.FC<RewardModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* T-035: loot preview (components / artifacts before LOOT scene) */}
+          {previewItems.length > 0 && (
+            <div className="reward-modal__loot-preview">
+              <div className="reward-modal__loot-preview-header">
+                <Package size={16} className="reward-modal__loot-preview-icon" />
+                <span>Spoils Found</span>
+              </div>
+              <div className="reward-modal__loot-grid">
+                {previewItems.map((item) => (
+                  <div key={item.id} className="reward-modal__loot-tile" title={item.name}>
+                    <ArtIcon art={resolveItemArt(item)} size="md" className="reward-modal__loot-art" />
+                    <span
+                      className="reward-modal__loot-name"
+                      style={{ color: getRarityTextBorderColor(item.rarity) }}
+                    >
+                      {item.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {continuesToLoot && (
+                <p className="reward-modal__loot-hint">Claim on the next screen</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Continue Button */}
@@ -119,7 +192,7 @@ const RewardModal: React.FC<RewardModalProps> = ({
             onClick={onClose}
             className="reward-modal__continue-btn"
           >
-            Continue
+            {continuesToLoot ? 'Claim Loot' : 'Continue'}
           </button>
         </div>
       </div>

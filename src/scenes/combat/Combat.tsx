@@ -111,6 +111,8 @@ interface CombatProps {
   locationTerrainMods?: import('../../game/systems/LocationTerrainSystem').LocationTerrainMods | null;
   /** Damage-preview: room terrain element amplification */
   roomTerrain?: import('../../game/types').TerrainDefinition | null;
+  /** T-103: active room combat condition labels (Ambush, Sanctuary, …) */
+  roomConditionNames?: string[] | null;
 }
 
 const Combat = forwardRef<CombatRef, CombatProps>(({
@@ -140,6 +142,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   skipFirstSkillCost = false,
   locationTerrainMods = null,
   roomTerrain = null,
+  roomConditionNames = null,
 }, ref) => {
   // Floating text state
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextItem[]>([]);
@@ -555,6 +558,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     }
     // T-071/T-079: location + room terrain lines (App merges; cap for clutter)
     const terrainLines = (locationTerrainLines ?? []).slice(0, 4);
+    // T-103: room combat modifier identity (Ambush / Sanctuary / Forest / …)
+    const conditionNames = (roomConditionNames ?? []).slice(0, 3);
     return {
       approachName: def?.name ?? String(approachResult.approach),
       success: approachResult.success,
@@ -562,6 +567,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       drawBias: postureProfile.drawBias,
       effects,
       terrainLines,
+      conditionNames,
       description: approachResult.description,
     };
   })();
@@ -587,6 +593,11 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           {openBanner.effects.length > 0 && (
             <div className="combat-open-banner__effects">
               {openBanner.effects.join(' · ')}
+            </div>
+          )}
+          {openBanner.conditionNames.length > 0 && (
+            <div className="combat-open-banner__condition">
+              Room: {openBanner.conditionNames.join(' · ')}
             </div>
           )}
           {openBanner.terrainLines.length > 0 && (

@@ -10,11 +10,12 @@
 import { describe, it, expect } from 'vitest';
 import { EVENTS } from '../../index';
 import { SKILLS } from '../../skills';
-import { GameEvent, EventChoice } from '../../../types';
+import { Clan, GameEvent, EventChoice } from '../../../types';
 import {
   resolveEventChoice,
   getAvailableChoices,
   isEventAvailableForPlayer,
+  checkRequirements,
 } from '../../../systems/EventSystem';
 import { calculateDerivedStats } from '../../../systems/StatSystem';
 import { createMockPlayer, BASE_STATS } from '../../../systems/__tests__/testFixtures';
@@ -42,6 +43,47 @@ describe('event content — global invariants', () => {
   it('has no duplicate event ids', () => {
     const ids = EVENTS.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // T-041: clan identity must appear in story content (engine already supported requiredClan)
+  it('authors at least 3 choices gated by requiredClan across multiple arcs', () => {
+    const clanChoices: { eventId: string; label: string; clan: Clan }[] = [];
+    for (const event of EVENTS) {
+      for (const choice of event.choices) {
+        if (choice.requirements?.requiredClan) {
+          clanChoices.push({
+            eventId: event.id,
+            label: choice.label,
+            clan: choice.requirements.requiredClan,
+          });
+        }
+      }
+    }
+    expect(clanChoices.length).toBeGreaterThanOrEqual(3);
+    const clans = new Set(clanChoices.map((c) => c.clan));
+    expect(clans.size).toBeGreaterThanOrEqual(2);
+    const arcs = new Set(
+      clanChoices.flatMap((c) => {
+        const ev = findEvent(c.eventId);
+        return ev.allowedArcs ?? [];
+      }),
+    );
+    expect(arcs.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('requiredClan choices pass for matching clan and fail for others', () => {
+    const uchihaChoice = choiceByLabel(findEvent('mist_ambush_cache'), 'Predict Patrols with Sharingan');
+    const uchiha = createMockPlayer({ clan: Clan.UCHIHA });
+    const hyuga = createMockPlayer({ clan: Clan.HYUGA });
+    expect(checkRequirements(uchiha, uchihaChoice.requirements, playerStats)).toBe(true);
+    expect(checkRequirements(hyuga, uchihaChoice.requirements, playerStats)).toBe(false);
+
+    const availableUchiha = getAvailableChoices(findEvent('mist_ambush_cache'), uchiha);
+    const availableHyuga = getAvailableChoices(findEvent('mist_ambush_cache'), hyuga);
+    expect(availableUchiha.some((c) => c.label === uchihaChoice.label)).toBe(true);
+    // Disabled choices may still be listed — ensure resolve fails for wrong clan
+    const resolveWrong = resolveEventChoice(hyuga, uchihaChoice, playerStats);
+    expect(resolveWrong.success).toBe(false);
   });
 
   it('every outcome carries logMessage + logType and weights sum to 100 per choice', () => {

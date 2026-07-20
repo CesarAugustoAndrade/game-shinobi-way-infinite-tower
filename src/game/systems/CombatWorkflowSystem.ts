@@ -94,6 +94,13 @@ export function createCombatState(
   terrain?: TerrainDefinition,
   /** T-063: location terrain effect mods */
   locationTerrainMods?: import('./LocationTerrainSystem').LocationTerrainMods | null,
+  /** T-103: residual room combat modifier combat fields */
+  roomCombatExtras?: {
+    roomCombatEvasion?: number;
+    fallDamageOnMiss?: number;
+    roomConditionNames?: string[];
+    enemyFirstHitMultiplier?: number;
+  } | null,
 ): CombatState {
   return {
     isFirstTurn: true,
@@ -106,6 +113,10 @@ export function createCombatState(
     skipFirstSkillCost: false,
     artifactGutsUsed: false,
     locationTerrainMods: locationTerrainMods ?? null,
+    roomCombatEvasion: roomCombatExtras?.roomCombatEvasion ?? 0,
+    fallDamageOnMiss: roomCombatExtras?.fallDamageOnMiss ?? 0,
+    roomConditionNames: roomCombatExtras?.roomConditionNames ?? [],
+    enemyFirstHitMultiplier: roomCombatExtras?.enemyFirstHitMultiplier ?? 1,
     // Deckbuilder/AP economy (T-004) — safe defaults; not consumed by the
     // combat flow yet. Initialized for real when the deck/hand system lands.
     currentAp: 0,

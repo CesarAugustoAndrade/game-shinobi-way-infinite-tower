@@ -7,7 +7,7 @@
  * choose how to engage enemies. Different approaches offer unique advantages
  * and disadvantages based on success/failure.
  *
- * ## APPROACH TYPES (5 Options)
+ * ## APPROACH TYPES (6 Options)
  *
  * | Approach          | Primary Stats          | Risk/Reward        |
  * |-------------------|------------------------|-------------------|
@@ -15,7 +15,8 @@
  * | STEALTH_AMBUSH    | Speed, Dexterity       | First hit bonus    |
  * | GENJUTSU_SETUP    | Intelligence, Calmness | Debuff enemy       |
  * | ENVIRONMENTAL_TRAP| Accuracy, Intelligence | HP reduction       |
- * | SHADOW_BYPASS     | Speed, Dexterity       | Skip combat        |
+ * | IRON_GUARD        | Willpower              | Pre-fight shield   |
+ * | SHADOW_BYPASS     | Speed                  | Skip combat        |
  *
  * ## SUCCESS CHANCE CALCULATION
  *
@@ -138,10 +139,24 @@ export function executeApproach(
   const roll = d100();
   const success = roll <= successChance;
 
-  // Get the appropriate effects based on success/failure
-  const effects = success ? def.successEffects : (def.failureEffects || def.successEffects);
+  // Success vs failure effect block (Frontal has no failure path — always succeeds at 100%)
+  const effects = success
+    ? def.successEffects
+    : (def.failureEffects ?? {
+        // Safe fallback: no free success bonuses if failureEffects omitted
+        initiativeBonus: 0,
+        guaranteedFirst: false,
+        firstHitMultiplier: 1.0,
+        playerBuffs: [],
+        enemyDebuffs: [],
+        skipCombat: false,
+        enemyHpReduction: 0,
+        chakraCost: def.successEffects.chakraCost ?? 0,
+        hpCost: def.successEffects.hpCost ?? 0,
+        xpMultiplier: 1.0,
+      });
 
-  // Convert effect definitions to Buff objects
+  // Apply buffs/debuffs from the chosen path (failure penalties use playerBuffs as debuffs/curses)
   const playerBuffs = convertEffectsToBuffs(effects.playerBuffs || [], true);
   const enemyDebuffs = convertEffectsToBuffs(effects.enemyDebuffs || [], false);
 
@@ -156,11 +171,12 @@ export function executeApproach(
 
     skipCombat: success && (effects.skipCombat ?? false),
     guaranteedFirst: success && (effects.guaranteedFirst ?? false),
+    // May be negative on failure (enemy seizes initiative)
     initiativeBonus: effects.initiativeBonus ?? 0,
     firstHitMultiplier: success ? (effects.firstHitMultiplier ?? 1.0) : 1.0,
     enemyHpReduction: success ? (effects.enemyHpReduction ?? 0) : 0,
-    playerBuffs: success ? playerBuffs : [],
-    enemyDebuffs: success ? enemyDebuffs : [],
+    playerBuffs,
+    enemyDebuffs,
 
     chakraCost: effects.chakraCost ?? 0,
     hpCost: effects.hpCost ?? 0,
@@ -216,11 +232,15 @@ function getBuffName(type: EffectType, isPlayerBuff: boolean): string {
     case EffectType.STUN:
       return 'Stunned';
     case EffectType.CONFUSION:
-      return 'Confused';
+      return isPlayerBuff ? 'Mental Fog' : 'Confused';
+    case EffectType.SHIELD:
+      return 'Chakra Guard';
+    case EffectType.CURSE:
+      return 'Exposed';
     case EffectType.BUFF:
       return isPlayerBuff ? 'Enhanced' : 'Weakened';
     case EffectType.DEBUFF:
-      return 'Weakened';
+      return isPlayerBuff ? 'Off-Balance' : 'Weakened';
     default:
       return isPlayerBuff ? 'Boosted' : 'Hindered';
   }
@@ -279,6 +299,18 @@ function generateApproachDescription(
         `${enemyName} notices the trap and sidesteps it easily.`,
         `Your trap fails to trigger. ${enemyName} remains unharmed.`,
         `The environment refuses to cooperate. Your trap misfires.`,
+      ],
+    },
+    [ApproachType.IRON_GUARD]: {
+      success: [
+        `You harden your chakra into iron-like armor before facing ${enemyName}.`,
+        `A shield of will forms around you as you meet ${enemyName}'s gaze.`,
+        `Steadfast and ready, you brace against ${enemyName}'s opening blow.`,
+      ],
+      failure: [
+        `Your guard wavers. ${enemyName} presses in before the armor solidifies.`,
+        `The chakra shell cracks under pressure. You fight without its protection.`,
+        `${enemyName} disrupts your stance — Iron Guard fails to hold.`,
       ],
     },
     [ApproachType.SHADOW_BYPASS]: {

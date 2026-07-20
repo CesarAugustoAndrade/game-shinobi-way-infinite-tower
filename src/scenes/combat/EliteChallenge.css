@@ -83,6 +83,61 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--sw-space-3);
+  gap: var(--sw-space-3);
+}
+
+/* T-036: guardian portrait + prize tile */
+.elite-challenge__enemy-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-3);
+  min-width: 0;
+}
+
+.elite-challenge__enemy-portrait {
+  flex-shrink: 0;
+  width: 4.5rem;
+  height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  overflow: hidden;
+}
+
+.elite-challenge__enemy-art {
+  width: 4rem !important;
+  height: 4rem !important;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.elite-challenge__artifact-main {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--sw-space-3);
+}
+
+.elite-challenge__artifact-tile {
+  flex-shrink: 0;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(88, 28, 135, 0.25);
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+}
+
+.elite-challenge__artifact-art {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 .elite-challenge__enemy-name {
@@ -168,20 +223,10 @@
   letter-spacing: var(--sw-tracking-wide);
 }
 
-.elite-challenge__artifact-main {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .elite-challenge__artifact-name {
   font-weight: 700;
   display: flex;
   align-items: center;
-}
-
-.elite-challenge__artifact-emoji {
-  margin-right: var(--sw-space-2);
 }
 
 .elite-challenge__artifact-rarity {

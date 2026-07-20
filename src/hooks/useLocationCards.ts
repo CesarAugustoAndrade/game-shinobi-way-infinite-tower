@@ -387,11 +387,20 @@ export function useLocationCards(
   }, [region, locationDeck, locationFloor, player, executeLocationComplete]);
 
   const confirmLocationComplete = useCallback(() => {
-    const opts = pendingCompleteOptions;
-    setLocationCompleteResult(null);
-    setPendingCompleteOptions(undefined);
-    executeLocationComplete(opts);
-  }, [pendingCompleteOptions, executeLocationComplete]);
+    // Consume panel first — blocks double Continue (double leave / boss callbacks)
+    const box: { opts?: CompleteLocationOptions; had: boolean } = { had: false };
+    setLocationCompleteResult(prev => {
+      if (!prev) return null;
+      box.had = true;
+      return null;
+    });
+    setPendingCompleteOptions(prev => {
+      box.opts = prev;
+      return undefined;
+    });
+    if (!box.had) return;
+    executeLocationComplete(box.opts);
+  }, [executeLocationComplete]);
 
   /**
    * Leave the current location and return to region map (only if floor complete).

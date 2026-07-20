@@ -899,18 +899,17 @@ export function resolveBattle(
     artifactGutsUsed: false
   };
 
-  // Turn order via shared determineTurnOrder (initiativeBonus / guaranteedFirst from data)
-  // Live STEALTH/GENJUTSU both have guaranteedFirst: false — only initiativeBonus applies.
+  // Turn order via shared determineTurnOrder (initiativeBonus may be negative on failure)
   const whoFirst = determineTurnOrder(playerStats, enemyStats, {
     isFirstTurn: true,
     playerGoesFirst: approachSucceeded && (approachEffects?.guaranteedFirst ?? false),
-    playerInitiativeBonus: approachSucceeded ? (approachEffects?.initiativeBonus ?? 0) : 0,
+    playerInitiativeBonus: approachEffects?.initiativeBonus ?? 0,
     terrain: terrainDef,
   });
   const playerGoesFirst = whoFirst === 'player';
 
-  // Apply approach buffs/debuffs/HP cut from live APPROACH_DEFINITIONS (not hard-coded)
-  if (approachSucceeded && approachEffects) {
+  // Apply approach buffs/debuffs (success advantages OR failure penalties) + HP cut on success
+  if (approachEffects) {
     const sourceName = approachDef?.name ?? 'Approach';
     for (const eff of approachEffects.enemyDebuffs ?? []) {
       if (Math.random() > (eff.chance ?? 1)) continue;
@@ -944,9 +943,15 @@ export function resolveBattle(
         source: sourceName,
       });
     }
-    const hpReduction = approachEffects.enemyHpReduction ?? 0;
-    if (hpReduction > 0) {
-      ctx.enemy.currentHp = Math.floor(ctx.enemy.currentHp * (1 - hpReduction));
+    if (approachSucceeded) {
+      const hpReduction = approachEffects.enemyHpReduction ?? 0;
+      if (hpReduction > 0) {
+        ctx.enemy.currentHp = Math.floor(ctx.enemy.currentHp * (1 - hpReduction));
+      }
+    }
+    // Failure HP cost (trap backfire, etc.)
+    if (!approachSucceeded && (approachEffects.hpCost ?? 0) > 0) {
+      ctx.player.currentHp = Math.max(1, ctx.player.currentHp - (approachEffects.hpCost ?? 0));
     }
   }
 

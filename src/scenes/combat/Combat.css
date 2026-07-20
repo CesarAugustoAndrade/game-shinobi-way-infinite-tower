@@ -61,6 +61,7 @@
   --cb-panel-pad: var(--sw-space-3);
   --cb-panel-gap: var(--sw-space-2);
 
+  position: relative; /* T-054: anchor open banner */
   width: 100%;
   display: grid;
   grid-template-rows: 1fr auto;
@@ -80,6 +81,25 @@
   position: relative;
   min-height: var(--cb-stage-min);
   overflow: hidden;
+}
+
+/* Mini combat log — recent lines overlaid bottom-left of the stage (A-010) */
+.combat__mini-log {
+  position: absolute;
+  left: var(--sw-space-3, 0.75rem);
+  bottom: var(--sw-space-3, 0.75rem);
+  z-index: 25;
+  width: min(22rem, 48%);
+  max-width: 100%;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .combat__mini-log {
+    width: min(16rem, 55%);
+    left: var(--sw-space-2, 0.5rem);
+    bottom: var(--sw-space-2, 0.5rem);
+  }
 }
 
 /* ============================================================
@@ -540,6 +560,17 @@
   flex-shrink: 0;
 }
 
+/* T-075: movement_penalty reduced this fight's AP budget */
+.combat__ap-terrain {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #7dd3fc;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
 /* Keyboard whisper — replaces the old hints row. Cards carry their
    own Z/X/C/V badges; this only reminds SPACE/TAB. Desktop only. */
 .combat__whisper {
@@ -763,6 +794,26 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: var(--sw-space-2);
+}
+
+/* T-038: skill Imagine tile in hand tooltip */
+.combat-tooltip__header-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-2);
+  min-width: 0;
+}
+
+.combat-tooltip__skill-art {
+  flex-shrink: 0;
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border: 2px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  background: rgba(0, 0, 0, 0.35);
 }
 
 .combat-tooltip__title {
@@ -1155,4 +1206,120 @@
 
 .combat-tooltip__attack-method {
   color: var(--sw-text-tertiary);
+}
+
+/* T-054: combat open banner (approach + posture) */
+.combat-open-banner {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  min-width: 16rem;
+  max-width: min(28rem, 92vw);
+  padding: 10px 14px;
+  background: rgba(12, 12, 18, 0.92);
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  text-align: center;
+  cursor: pointer;
+  animation: combat-open-in 0.25s ease-out;
+}
+
+.combat-open-banner--success {
+  border-color: #4ade80;
+  box-shadow: 3px 3px 0 #14532d;
+}
+
+.combat-open-banner--fail {
+  border-color: #f87171;
+  box-shadow: 3px 3px 0 #7f1d1d;
+}
+
+.combat-open-banner__row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.combat-open-banner__approach {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #f0e8d8;
+}
+
+.combat-open-banner__outcome {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border: 2px solid #000;
+}
+
+.combat-open-banner__outcome--ok {
+  color: #86efac;
+  background: rgba(22, 163, 74, 0.35);
+}
+
+.combat-open-banner__outcome--bad {
+  color: #fca5a5;
+  background: rgba(185, 28, 28, 0.4);
+}
+
+.combat-open-banner__posture {
+  font-size: 11px;
+  color: #e9d5ff;
+  margin-bottom: 2px;
+}
+
+.combat-open-banner__bias {
+  color: var(--sw-text-muted, #888);
+  font-weight: 400;
+}
+
+.combat-open-banner__effects {
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #fcd34d;
+  margin-top: 4px;
+}
+
+/* T-103: room combat condition (Ambush, Sanctuary, …) */
+.combat-open-banner__condition {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #fbbf24;
+  margin-top: 4px;
+  max-width: 22rem;
+  line-height: 1.35;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* T-071: location terrain mods active this fight */
+.combat-open-banner__terrain {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #7dd3fc;
+  margin-top: 4px;
+  max-width: 22rem;
+  line-height: 1.35;
+}
+
+.combat-open-banner__hint {
+  margin: 6px 0 0;
+  font-size: 8px;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@keyframes combat-open-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }

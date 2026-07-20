@@ -61,7 +61,7 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Mud Wall',
     tier: SkillTier.BASIC,
     description: 'Spits mud that hardens into a barricade. Creates a Shield.',
-    actionType: ActionType.SIDE,  // Defensive utility - use before MAIN
+    actionType: ActionType.SIDE,  // Light support (1 AP)
     chakraCost: 15,
     hpCost: 0,
     cooldown: 4,
@@ -80,8 +80,8 @@ export const SKILLS: Record<string, Skill> = {
     id: 'phoenix_flower',
     name: 'Phoenix Flower',
     tier: SkillTier.BASIC,
-    description: 'Volleys of small fireballs. Chance to burn. (SIDE action exception - deals damage)',
-    actionType: ActionType.SIDE,  // Exception: SIDE action that deals damage
+    description: 'Volleys of small fireballs. Chance to burn.',
+    actionType: ActionType.SIDE,  // Light offensive card (1 AP)
     chakraCost: 20,
     hpCost: 0,
     cooldown: 2,
@@ -108,7 +108,7 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Body Replacement',
     tier: SkillTier.BASIC,
     description: 'Switch places with a log. The log absorbs damage while you reposition.',
-    actionType: ActionType.SIDE,  // Defensive setup
+    actionType: ActionType.SIDE,  // Light defensive card (1 AP)
     chakraCost: 10,
     hpCost: 0,
     cooldown: 4,
@@ -130,7 +130,7 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Clone Technique',
     tier: SkillTier.BASIC,
     description: 'Creates illusory copies to distract the enemy. Slight Evasion boost.',
-    actionType: ActionType.SIDE,  // Buff setup
+    actionType: ActionType.SIDE,  // Light buff card (1 AP)
     chakraCost: 5,
     hpCost: 0,
     cooldown: 3,
@@ -900,7 +900,7 @@ export const SKILLS: Record<string, Skill> = {
     id: 'iron_body',
     name: 'Iron Body',
     tier: SkillTier.BASIC,
-    description: '+5% Physical Defense.',
+    description: '+5% Defense (all types).',
     actionType: ActionType.PASSIVE,
     chakraCost: 0,
     hpCost: 0,
@@ -1002,7 +1002,8 @@ export const SKILLS: Record<string, Skill> = {
     element: ElementType.FIRE,
     requirements: { clan: Clan.UCHIHA },
     passiveEffect: {
-      damageBonus: 0.15
+      damageBonus: 0.15,
+      damageBonusElement: ElementType.FIRE
     }
   },
 
@@ -1086,7 +1087,7 @@ export const SKILLS: Record<string, Skill> = {
     name: '8 Trigrams Rotation',
     tier: SkillTier.HIDDEN,
     description: 'Expels chakra while spinning to repel attacks. Reflects damage.',
-    actionType: ActionType.SIDE,  // Defensive SIDE action
+    actionType: ActionType.SIDE,  // Light defensive card (1 AP)
     stanceShift: Posture.DEFENSIVE,  // the spinning guard locks you into a defensive stance
     chakraCost: 25,
     hpCost: 0,

@@ -225,17 +225,17 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
                 <div className="game-guide__effectiveness-card game-guide__effectiveness-card--super">
                   <div className="game-guide__effectiveness-title">Super Effective</div>
                   <ul className="game-guide__effectiveness-list">
-                    <li>Deals <strong>1.5x Base Damage</strong></li>
-                    <li>Grants <strong>+20% Critical Chance</strong></li>
-                    <li>Ignores <strong>50% of Percent Defense</strong></li>
+                    <li>Deals <strong>1.2× Base Damage</strong></li>
+                    <li>Grants <strong>+10% Critical Chance</strong></li>
+                    <li>Full defense still applies (no armor ignore)</li>
                   </ul>
                 </div>
                 <div className="game-guide__effectiveness-card game-guide__effectiveness-card--resist">
                   <div className="game-guide__effectiveness-title">Resisted</div>
                   <ul className="game-guide__effectiveness-list">
-                    <li>Deals <strong>0.5x Base Damage</strong></li>
+                    <li>Deals <strong>0.8× Base Damage</strong></li>
                     <li>Standard Critical Chance</li>
-                    <li>Full Defense Calculation</li>
+                    <li>Physical &amp; Mental attacks are always neutral</li>
                   </ul>
                 </div>
               </div>
@@ -260,24 +260,53 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
           {/* --- COMBAT TAB --- */}
           {activeTab === 'COMBAT' && (
             <div className="game-guide__section game-guide__section-space">
+              {/* Deck / Hand / AP */}
               <section className="game-guide__combat-section">
-                <h3 className="game-guide__combat-title">Damage Formula</h3>
-                <div className="game-guide__formula-box">
-                  Final = (Base × Mult) - Flat_Def × (1 - %_Def)
-                </div>
-                <div className="game-guide__formula-desc">
-                  <p><span>1. Flat Defense:</span> Directly subtracts from incoming damage. Great against multi-hit weak attacks.</p>
-                  <p><span>2. Percent Defense:</span> Reduces remaining damage by a percentage (capped at 75%). Great against heavy hits.</p>
-                  <p><span className="game-guide__formula-desc--true-damage">3. True Damage:</span> Ignores ALL defense.</p>
+                <h3 className="game-guide__combat-title">
+                  {HELP_TEXT.COMBAT_MECHANICS.DECK_ECONOMY.title}
+                </h3>
+                <p className="game-guide__approaches-intro">
+                  {HELP_TEXT.COMBAT_MECHANICS.DECK_ECONOMY.overview}
+                </p>
+                <div className="game-guide__approaches-grid">
+                  {HELP_TEXT.COMBAT_MECHANICS.DECK_ECONOMY.points.map((point, idx) => (
+                    <div key={idx} className="game-guide__approach-card game-guide__approach-card--default">
+                      <div className="game-guide__approach-name game-guide__approach-name--default">{point.label}</div>
+                      <div className="game-guide__approach-desc">{point.desc}</div>
+                    </div>
+                  ))}
                 </div>
               </section>
 
-              {/* Approaches */}
+              {/* Postures (in-combat stance) */}
               <section className="game-guide__combat-section game-guide__combat-section--small">
                 <h3 className="game-guide__combat-title">
-                  <Target size={18} /> Combat Approaches
+                  <Shield size={18} /> Combat Posture
                 </h3>
-                <p className="game-guide__approaches-intro">Choose your approach before combat begins to set your tactical stance:</p>
+                <p className="game-guide__approaches-intro">
+                  Switch posture during your turn (costs 1 AP). Some skills shift posture for free. Posture biases card draws and lightly scales damage dealt/taken.
+                </p>
+                <div className="game-guide__approaches-grid">
+                  {HELP_TEXT.COMBAT_MECHANICS.POSTURES.map((posture, idx) => {
+                    const classes = getApproachClasses(posture.color);
+                    return (
+                      <div key={idx} className={`game-guide__approach-card ${classes.card}`}>
+                        <div className={`game-guide__approach-name ${classes.name}`}>{posture.type}</div>
+                        <div className="game-guide__approach-desc">{posture.desc}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Pre-fight Approaches */}
+              <section className="game-guide__combat-section game-guide__combat-section--small">
+                <h3 className="game-guide__combat-title">
+                  <Target size={18} /> Pre-Fight Approaches
+                </h3>
+                <p className="game-guide__approaches-intro">
+                  Choose how you engage before combat starts. Requirements and success chance depend on your stats and terrain — not the same as in-combat posture.
+                </p>
                 <div className="game-guide__approaches-grid">
                   {HELP_TEXT.COMBAT_MECHANICS.APPROACHES.map((approach, idx) => {
                     const classes = getApproachClasses(approach.color);
@@ -291,12 +320,27 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
                 </div>
               </section>
 
-              {/* Terrain */}
+              <section className="game-guide__combat-section">
+                <h3 className="game-guide__combat-title">Damage Formula</h3>
+                <div className="game-guide__formula-box">
+                  Final = (Base × Mult) - Flat_Def × (1 - %_Def)
+                </div>
+                <div className="game-guide__formula-desc">
+                  <p><span>1. Flat Defense:</span> Directly subtracts from incoming damage. Great against multi-hit weak attacks.</p>
+                  <p><span>2. Percent Defense:</span> Reduces remaining damage by a percentage (capped at 75%). Great against heavy hits.</p>
+                  <p><span className="game-guide__formula-desc--true-damage">3. True Damage:</span> Ignores ALL defense.</p>
+                </div>
+              </section>
+
+              {/* Terrain — T-076: location terrainEffects (live systems), not fluff biomes */}
               <section className="game-guide__combat-section game-guide__combat-section--small">
                 <h3 className="game-guide__combat-title">
-                  <TreePine size={18} /> Terrain Effects
+                  <TreePine size={18} /> Location Terrain Effects
                 </h3>
-                <p className="game-guide__approaches-intro">Different terrains provide unique combat modifiers:</p>
+                <p className="game-guide__approaches-intro">
+                  Each location lists active effects on the map header and combat open banner.
+                  Room terrain (forest, water, etc.) still tweaks stealth/init/element amp on top.
+                </p>
                 <div className="game-guide__terrain-grid">
                   {HELP_TEXT.COMBAT_MECHANICS.TERRAIN.map((terrain, idx) => (
                     <div key={idx} className="game-guide__terrain-card">
@@ -467,6 +511,24 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
                         <span className="game-guide__hierarchy-arrow">→</span>
                       )}
                     </React.Fragment>
+                  ))}
+                </div>
+              </section>
+
+              {/* T-076: Region lootTheme identity (Affinity / Focus / Ryo) */}
+              <section className="game-guide__hierarchy-section">
+                <h3 className="game-guide__hierarchy-title">
+                  <Sparkles size={20} /> Region Identity
+                </h3>
+                <p className="game-guide__activities-intro">
+                  Shown on the region map. These bias enemies, shops, and component drops.
+                </p>
+                <div className="game-guide__hierarchy-flow">
+                  {HELP_TEXT.EXPLORATION.REGION_IDENTITY.map((item, idx) => (
+                    <div key={idx} className="game-guide__hierarchy-item">
+                      <div className="game-guide__hierarchy-term">{item.term}</div>
+                      <div className="game-guide__hierarchy-desc">{item.desc}</div>
+                    </div>
                   ))}
                 </div>
               </section>

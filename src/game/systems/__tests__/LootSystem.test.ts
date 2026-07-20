@@ -17,6 +17,8 @@ import {
   parseLootTableKind,
   applyLootThemeGoldMultiplier,
   equipmentFocusWeightMultipliers,
+  upgradeComponent,
+  getCraftCombination,
 } from '../LootSystem';
 import { ComponentId, ElementType, EquipmentSlot, MAX_BAG_SLOTS, Rarity } from '../../types';
 import { createMockPlayer, createMockComponent, createMockArtifact } from './testFixtures';
@@ -89,6 +91,75 @@ describe('generateRandomArtifact', () => {
     expect(artifact.rarity).toBe(Rarity.RARE);
     expect(artifact.passive).toBeDefined();
     expect(artifact.recipe).toBeDefined();
+  });
+});
+
+describe('upgradeComponent (2× Broken → Common)', () => {
+  it('upgrades two equal Broken components into one Common', () => {
+    const a = createMockComponent(ComponentId.CHAKRA_PILL, { chakra: 5 });
+    a.rarity = Rarity.BROKEN;
+    a.name = 'Broken Chakra Pill';
+    const b = createMockComponent(ComponentId.CHAKRA_PILL, { chakra: 6 });
+    b.rarity = Rarity.BROKEN;
+    b.name = 'Broken Chakra Pill';
+
+    const result = upgradeComponent(a, b, 1);
+
+    expect(result.success).toBe(true);
+    expect(result.item).toBeDefined();
+    expect(result.item!.rarity).toBe(Rarity.COMMON);
+    expect(result.item!.isComponent).toBe(true);
+    expect(result.item!.componentId).toBe(ComponentId.CHAKRA_PILL);
+    expect(result.item!.stats.chakra).toBe(11);
+    expect(result.cost).toBeGreaterThan(0);
+  });
+
+  it('rejects Broken components of different types', () => {
+    const a = createMockComponent(ComponentId.CHAKRA_PILL, { chakra: 5 });
+    a.rarity = Rarity.BROKEN;
+    const b = createMockComponent(ComponentId.NINJA_STEEL, { strength: 5 });
+    b.rarity = Rarity.BROKEN;
+
+    const result = upgradeComponent(a, b, 1);
+
+    expect(result.success).toBe(false);
+    expect(result.reason).toMatch(/same type/i);
+  });
+});
+
+describe('getCraftCombination', () => {
+  it('matches two equal Broken components for upgrade', () => {
+    const a = createMockComponent(ComponentId.CHAKRA_PILL, { chakra: 5 });
+    a.rarity = Rarity.BROKEN;
+    const b = createMockComponent(ComponentId.CHAKRA_PILL, { chakra: 5 });
+    b.rarity = Rarity.BROKEN;
+
+    const combo = getCraftCombination(a, b);
+
+    expect(combo).not.toBeNull();
+    expect(combo!.mode).toBe('upgrade_broken');
+    expect(combo!.previewName).toBe('Chakra Pill');
+  });
+
+  it('rejects two different Broken components (no cross-type upgrade)', () => {
+    const a = createMockComponent(ComponentId.CHAKRA_PILL, { chakra: 5 });
+    a.rarity = Rarity.BROKEN;
+    const b = createMockComponent(ComponentId.SPIRIT_TAG, { spirit: 5 });
+    b.rarity = Rarity.BROKEN;
+
+    expect(getCraftCombination(a, b)).toBeNull();
+  });
+
+  it('matches two Common components with a recipe for synthesize', () => {
+    const a = createMockComponent(ComponentId.CHAKRA_PILL, { chakra: 10 });
+    a.rarity = Rarity.COMMON;
+    const b = createMockComponent(ComponentId.CHAKRA_PILL, { chakra: 10 });
+    b.rarity = Rarity.COMMON;
+
+    const combo = getCraftCombination(a, b);
+
+    expect(combo).not.toBeNull();
+    expect(combo!.mode).toBe('synthesize');
   });
 });
 

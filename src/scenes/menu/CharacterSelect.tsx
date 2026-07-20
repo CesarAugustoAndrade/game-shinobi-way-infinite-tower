@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { Clan, PrimaryAttributes } from '../../game/types';
 import { CLAN_STATS, CLAN_START_LOADOUT, getClanStartingSkills, getClanArt } from '../../game/constants';
+import { getSkillArt } from '../../game/constants/artRegistry';
 import ArtIcon from '../../components/shared/ArtIcon';
 import Tooltip from '../../components/shared/Tooltip';
 import './CharacterSelect.css';
@@ -98,8 +99,21 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
                   <span className="clan-card__index">{index + 1}</span>
                   {clan}
                 </h3>
+                {/* T-045: signature jutsu Imagine chips + name label */}
                 <div className="clan-card__skill" title={`${startingSkills.length} starting jutsu`}>
-                  {loadoutLabel}
+                  <div className="clan-card__skill-arts" aria-hidden={signatureSkills.length === 0}>
+                    {signatureSkills.map((skill) => (
+                      <span key={skill.id} className="clan-card__skill-chip" title={skill.name}>
+                        <ArtIcon
+                          art={getSkillArt(skill)}
+                          size="sm"
+                          className="clan-card__skill-art"
+                          title={skill.name}
+                        />
+                      </span>
+                    ))}
+                  </div>
+                  <span className="clan-card__skill-names">{loadoutLabel}</span>
                 </div>
               </div>
 
@@ -114,7 +128,14 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
                       {loadout.main.length > 0 && (
                         <div className="clan-tooltip__loadout-row">
                           <span className="clan-tooltip__loadout-label">Main</span>
-                          <span>{loadout.main.map(s => s.name).join(', ')}</span>
+                          <span className="clan-tooltip__loadout-skills">
+                            {loadout.main.map((s) => (
+                              <span key={s.id} className="clan-tooltip__loadout-skill">
+                                <ArtIcon art={getSkillArt(s)} size="xs" title={s.name} />
+                                {s.name}
+                              </span>
+                            ))}
+                          </span>
                         </div>
                       )}
                       {loadout.side.length > 0 && (

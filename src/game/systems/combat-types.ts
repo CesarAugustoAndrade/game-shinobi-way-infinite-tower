@@ -40,6 +40,23 @@ export interface CombatState {
    * Stacks with room TerrainDefinition amplification.
    */
   locationTerrainMods: LocationTerrainMods | null;
+  /**
+   * T-103: evasion from room combat modifiers (e.g. FOREST cover).
+   * Stacks with location evasion + TerrainDefinition.evasionModifier.
+   */
+  roomCombatEvasion: number;
+  /**
+   * T-103: fraction of max HP on player miss (CLIFF).
+   */
+  fallDamageOnMiss: number;
+  /**
+   * T-103: human labels for open banner / UI (Ambush, Sanctuary, …).
+   */
+  roomConditionNames: string[];
+  /**
+   * T-105: enemy first-turn damage mult from room AMBUSH (default 1).
+   */
+  enemyFirstHitMultiplier: number;
 
   // ──────────────────────────────────────────────────────────────────────────
   // DECKBUILDER / AP ECONOMY (T-004)

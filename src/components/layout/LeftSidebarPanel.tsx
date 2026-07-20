@@ -32,11 +32,13 @@ const LeftSidebarPanel: React.FC<LeftSidebarPanelProps> = ({
         regionName={regionName}
         storyArcLabel={arcLabel}
         backgroundImage={locationBg}
+        lootTheme={region?.lootTheme}
       />
 
       <PrimaryStatsPanel
         player={player}
         effectivePrimary={playerStats.effectivePrimary}
+        equipmentFocus={region?.lootTheme?.equipmentFocus}
       />
 
       <DerivedStatsPanel

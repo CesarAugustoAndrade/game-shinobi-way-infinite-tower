@@ -428,6 +428,92 @@
   border-bottom-color: var(--sw-text-muted);
 }
 
+/* T-051: learn/upgrade/replace result before leave */
+.scroll-discovery--result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  padding: var(--sw-space-6);
+}
+
+.scroll-result {
+  max-width: 22rem;
+  width: 100%;
+  padding: var(--sw-space-5);
+  background: var(--sw-bg-secondary, #12121a);
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0 #000;
+  text-align: center;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+}
+
+.scroll-result__art {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--sw-space-3);
+}
+
+.scroll-result__art img,
+.scroll-result__art span {
+  width: 4rem !important;
+  height: 4rem !important;
+  image-rendering: pixelated;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.scroll-result__title {
+  margin: 0 0 var(--sw-space-2);
+  font-size: var(--sw-text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c4b5fd;
+}
+
+.scroll-result__name {
+  margin: 0 0 var(--sw-space-2);
+  font-size: var(--sw-text-lg);
+  color: #e9d5ff;
+  text-transform: uppercase;
+}
+
+.scroll-result__detail {
+  margin: 0 0 var(--sw-space-2);
+  font-size: 12px;
+  color: var(--sw-text-secondary, #ccc);
+}
+
+.scroll-result__chakra {
+  margin: 0 0 var(--sw-space-4);
+  font-size: 11px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #60a5fa;
+}
+
+.scroll-result__continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: var(--sw-space-3);
+  background: rgba(88, 28, 135, 0.4);
+  border: 2px solid #a855f7;
+  box-shadow: 2px 2px 0 #000;
+  color: #e9d5ff;
+  font-family: inherit;
+  font-size: var(--sw-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.scroll-result__continue:hover {
+  background: rgba(88, 28, 135, 0.6);
+}
+
 /* ===========================================
    Tooltip Styles
    =========================================== */

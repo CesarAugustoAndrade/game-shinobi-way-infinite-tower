@@ -157,17 +157,31 @@
   border-bottom: 1px solid var(--sw-frame-soft);
 }
 
-.game-over__level {
+.game-over__summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sw-space-3) var(--sw-space-4);
+  width: 100%;
+}
+
+.game-over__stat {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: var(--sw-space-2);
+  gap: var(--sw-space-1);
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-sm);
   color: var(--sw-text-tertiary);
 }
 
-.game-over__level-value {
+.game-over__stat-label {
+  font-size: var(--sw-text-2xs);
+  letter-spacing: var(--sw-tracking-wider);
+  text-transform: uppercase;
+  color: var(--sw-text-muted);
+}
+
+.game-over__stat-value {
   font-family: var(--sw-font-mono);
   font-weight: 700;
   color: var(--sw-text-secondary);
@@ -176,6 +190,40 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    RETRY BUTTON — pixel-arcade hard shadow + pixel-lift/sink
    ───────────────────────────────────────────────────────────────────────────── */
+
+/* T-044: story-run chips on death */
+.game-over__story {
+  margin-top: var(--sw-space-4);
+  width: 100%;
+  text-align: center;
+}
+
+.game-over__story-title {
+  margin: 0 0 var(--sw-space-2);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sw-text-muted, #888);
+}
+
+.game-over__story-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.game-over__story-chip {
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #e9d5ff;
+  background: rgba(88, 28, 135, 0.45);
+  border: 2px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  padding: 2px 6px;
+}
 
 .game-over__retry {
   display: flex;

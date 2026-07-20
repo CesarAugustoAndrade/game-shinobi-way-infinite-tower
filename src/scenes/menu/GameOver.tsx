@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { Skull } from 'lucide-react';
-import { Clan } from '../../game/types';
+import { Clan, Player } from '../../game/types';
+import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import './GameOver.css';
 
@@ -14,6 +15,8 @@ interface GameOverProps {
   locationsCleared?: number;
   /** T-027: Infinite Ascent height (regions cleared in tower mode) */
   towerHeight?: number;
+  /** T-044: optional full player for story-run chips */
+  player?: Player | null;
   onRetry: () => void;
   /** Biome background where the player fell — shown very darkened behind the death screen. */
   background?: string;
@@ -28,9 +31,11 @@ const GameOver: React.FC<GameOverProps> = ({
   ryo,
   locationsCleared,
   towerHeight,
+  player,
   onRetry,
   background,
 }) => {
+  const storyLabels = player ? getEventFlagRunModifiers(player).activeLabels : [];
   // Keyboard shortcut
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -114,6 +119,20 @@ const GameOver: React.FC<GameOverProps> = ({
                   <span className="game-over__stat-value">{ryo}</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* T-044: story-run bonuses earned before death */}
+          {storyLabels.length > 0 && (
+            <div className="game-over__story" aria-label="Story bonuses this run">
+              <p className="game-over__story-title">Story bonuses this run</p>
+              <div className="game-over__story-chips">
+                {storyLabels.map((label) => (
+                  <span key={label} className="game-over__story-chip">
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>

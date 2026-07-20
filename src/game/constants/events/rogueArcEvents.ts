@@ -1,4 +1,4 @@
-import { GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
+import { Clan, GameEvent, PrimaryStat, Rarity, RiskLevel } from '../../types';
 
 export const ROGUE_ARC_EVENTS: GameEvent[] = [
   {
@@ -63,6 +63,39 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
                 name: 'Sound Ninja Scout',
               },
               logMessage: 'A scout spots you!',
+              logType: 'danger',
+            },
+          },
+        ],
+      },
+      // T-041: Uzumaki exclusive — sealing bloodline disrupts the ritual
+      {
+        label: 'Uzumaki Sealing Disrupt',
+        description: 'CLAN - Adamantine chains interrupt the seal work',
+        riskLevel: RiskLevel.MEDIUM,
+        requirements: { requiredClan: Clan.UZUMAKI },
+        outcomes: [
+          {
+            weight: 90,
+            effects: {
+              exp: 120,
+              ryo: 250,
+              logMessage:
+                'Your sealing chains shatter the Sound formation. The captive flees; the Sound Four scatter.',
+              logType: 'loot',
+            },
+          },
+          {
+            weight: 10,
+            effects: {
+              hpChange: { percent: -20 },
+              triggerCombat: {
+                floor: 0,
+                difficulty: 18,
+                archetype: 'CASTER',
+                name: 'Sound Sealer',
+              },
+              logMessage: 'One sealer breaks free and lunges!',
               logType: 'danger',
             },
           },

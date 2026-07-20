@@ -58,8 +58,10 @@ export function artKey(category: ArtCategory, id: string): string {
 
 /**
  * Asset path helper. T-028 migrates categories to Imagine `.jpg`.
- * Default remains `.svg` only for categories not yet converted (artifacts/skills/…);
- * Lot A (clans/activities/components) passes `'jpg'` explicitly.
+ * Converted: clans, activities, components (Lot A), artifacts (Lot B),
+ * all locations (Lot D — Waves+Exams; Retrieval/War already jpg).
+ * All icon categories migrated to Imagine raster (T-028 complete).
+ * Skills/enemies/events via manifests; others via iconPath(..., 'jpg').
  */
 function iconPath(folder: string, id: string, ext: 'svg' | 'png' | 'jpg' = 'svg'): string {
   return `/assets/icons/${folder}/${id}.${ext}`;
@@ -137,39 +139,39 @@ const ARTIFACT_META: Array<{ name: string; emoji: string }> = [
 const ARTIFACTS: Record<string, ArtEntry> = Object.fromEntries(
   ARTIFACT_META.map(({ name, emoji }) => {
     const id = artSlug(name);
-    return [id, entry(emoji, name, iconPath('artifacts', id))];
+    return [id, entry(emoji, name, iconPath('artifacts', id, 'jpg'))];
   }),
 );
 
 const LOCATIONS: Record<string, ArtEntry> = {
-  // Land of Waves (T-019)
-  the_docks: entry('⚓', 'The Docks', iconPath('locations', 'the_docks')),
-  misty_beach: entry('🌫️', 'Misty Beach', iconPath('locations', 'misty_beach')),
-  coastal_forest: entry('🌲', 'Coastal Forest', iconPath('locations', 'coastal_forest')),
-  smugglers_cave: entry('🕳️', "Smuggler's Cave", iconPath('locations', 'smugglers_cave')),
-  fishing_village: entry('🏘️', 'Fishing Village', iconPath('locations', 'fishing_village')),
-  riverside_camp: entry('🔥', 'Riverside Camp', iconPath('locations', 'riverside_camp')),
-  sunken_ship: entry('🚢', 'Sunken Ship', iconPath('locations', 'sunken_ship')),
-  bridge_construction: entry('🌉', 'Bridge Construction', iconPath('locations', 'bridge_construction')),
-  bandit_outpost: entry('⚔️', 'Bandit Outpost', iconPath('locations', 'bandit_outpost')),
-  abandoned_manor: entry('🏚️', 'Abandoned Manor', iconPath('locations', 'abandoned_manor')),
-  hidden_cove: entry('🏝️', 'Hidden Cove', iconPath('locations', 'hidden_cove')),
-  drowned_shrine: entry('🏛️', 'Drowned Shrine', iconPath('locations', 'drowned_shrine')),
-  gatos_compound: entry('👹', "Gato's Compound", iconPath('locations', 'gatos_compound')),
-  // Chunin Exams / Forest of Death (T-024)
-  exam_gates: entry('🚪', 'Exam Gates', iconPath('locations', 'exam_gates')),
-  forest_edge: entry('🌲', 'Forest Edge', iconPath('locations', 'forest_edge')),
-  thicket_paths: entry('🌿', 'Thicket Paths', iconPath('locations', 'thicket_paths')),
-  muddy_ford: entry('🌊', 'Muddy Ford', iconPath('locations', 'muddy_ford')),
-  scroll_cache: entry('📜', 'Scroll Cache', iconPath('locations', 'scroll_cache')),
-  rival_checkpoint: entry('⚔️', 'Rival Checkpoint', iconPath('locations', 'rival_checkpoint')),
-  sound_hideout: entry('🔊', 'Sound Hideout', iconPath('locations', 'sound_hideout')),
-  tower_approach: entry('🗼', 'Tower Approach', iconPath('locations', 'tower_approach')),
-  serpent_thicket: entry('🐍', 'Serpent Thicket', iconPath('locations', 'serpent_thicket')),
-  orochimaru_arena: entry('🏟️', "Orochimaru's Arena", iconPath('locations', 'orochimaru_arena')),
-  hidden_heaven_scroll: entry('✨', 'Hidden Heaven Scroll', iconPath('locations', 'hidden_heaven_scroll')),
-  insect_colony: entry('🪲', 'Insect Colony', iconPath('locations', 'insect_colony')),
-  snake_den: entry('🐍', 'Snake Den', iconPath('locations', 'snake_den')),
+  // Land of Waves (T-019) — Imagine Lot D
+  the_docks: entry('⚓', 'The Docks', iconPath('locations', 'the_docks', 'jpg')),
+  misty_beach: entry('🌫️', 'Misty Beach', iconPath('locations', 'misty_beach', 'jpg')),
+  coastal_forest: entry('🌲', 'Coastal Forest', iconPath('locations', 'coastal_forest', 'jpg')),
+  smugglers_cave: entry('🕳️', "Smuggler's Cave", iconPath('locations', 'smugglers_cave', 'jpg')),
+  fishing_village: entry('🏘️', 'Fishing Village', iconPath('locations', 'fishing_village', 'jpg')),
+  riverside_camp: entry('🔥', 'Riverside Camp', iconPath('locations', 'riverside_camp', 'jpg')),
+  sunken_ship: entry('🚢', 'Sunken Ship', iconPath('locations', 'sunken_ship', 'jpg')),
+  bridge_construction: entry('🌉', 'Bridge Construction', iconPath('locations', 'bridge_construction', 'jpg')),
+  bandit_outpost: entry('⚔️', 'Bandit Outpost', iconPath('locations', 'bandit_outpost', 'jpg')),
+  abandoned_manor: entry('🏚️', 'Abandoned Manor', iconPath('locations', 'abandoned_manor', 'jpg')),
+  hidden_cove: entry('🏝️', 'Hidden Cove', iconPath('locations', 'hidden_cove', 'jpg')),
+  drowned_shrine: entry('🏛️', 'Drowned Shrine', iconPath('locations', 'drowned_shrine', 'jpg')),
+  gatos_compound: entry('👹', "Gato's Compound", iconPath('locations', 'gatos_compound', 'jpg')),
+  // Chunin Exams / Forest of Death (T-024) — Imagine Lot D
+  exam_gates: entry('🚪', 'Exam Gates', iconPath('locations', 'exam_gates', 'jpg')),
+  forest_edge: entry('🌲', 'Forest Edge', iconPath('locations', 'forest_edge', 'jpg')),
+  thicket_paths: entry('🌿', 'Thicket Paths', iconPath('locations', 'thicket_paths', 'jpg')),
+  muddy_ford: entry('🌊', 'Muddy Ford', iconPath('locations', 'muddy_ford', 'jpg')),
+  scroll_cache: entry('📜', 'Scroll Cache', iconPath('locations', 'scroll_cache', 'jpg')),
+  rival_checkpoint: entry('⚔️', 'Rival Checkpoint', iconPath('locations', 'rival_checkpoint', 'jpg')),
+  sound_hideout: entry('🔊', 'Sound Hideout', iconPath('locations', 'sound_hideout', 'jpg')),
+  tower_approach: entry('🗼', 'Tower Approach', iconPath('locations', 'tower_approach', 'jpg')),
+  serpent_thicket: entry('🐍', 'Serpent Thicket', iconPath('locations', 'serpent_thicket', 'jpg')),
+  orochimaru_arena: entry('🏟️', "Orochimaru's Arena", iconPath('locations', 'orochimaru_arena', 'jpg')),
+  hidden_heaven_scroll: entry('✨', 'Hidden Heaven Scroll', iconPath('locations', 'hidden_heaven_scroll', 'jpg')),
+  insect_colony: entry('🪲', 'Insect Colony', iconPath('locations', 'insect_colony', 'jpg')),
+  snake_den: entry('🐍', 'Snake Den', iconPath('locations', 'snake_den', 'jpg')),
   // Sasuke Retrieval / Valley of the End (T-025) — Imagine raster (no SVG)
   leaf_gate: entry('🚪', 'Leaf Gate', iconPath('locations', 'leaf_gate', 'jpg')),
   river_road: entry('🌊', 'River Road', iconPath('locations', 'river_road', 'jpg')),

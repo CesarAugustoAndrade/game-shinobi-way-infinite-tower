@@ -85,6 +85,7 @@ describe('openingPostureForApproach (T-039)', () => {
   it('maps genjutsu and trap success to DEFENSIVE', () => {
     expect(openingPostureForApproach(ApproachType.GENJUTSU_SETUP, true)).toBe(Posture.DEFENSIVE);
     expect(openingPostureForApproach(ApproachType.ENVIRONMENTAL_TRAP, true)).toBe(Posture.DEFENSIVE);
+    expect(openingPostureForApproach(ApproachType.IRON_GUARD, true)).toBe(Posture.DEFENSIVE);
   });
 
   it('maps frontal success and any failure to BALANCED', () => {

@@ -1,37 +1,65 @@
 import React, { useEffect, useRef } from 'react';
 import { LogEntry } from '../../game/types';
+import './GameLog.css';
 
 interface GameLogProps {
   logs: LogEntry[];
+  /** When set, only the most recent N lines are shown (mini combat log). */
+  maxLines?: number;
+  /** Compact overlay styling for the combat stage. */
+  compact?: boolean;
 }
 
-const GameLog: React.FC<GameLogProps> = ({ logs }) => {
+const GameLog: React.FC<GameLogProps> = ({ logs, maxLines, compact = false }) => {
   const endRef = useRef<HTMLDivElement>(null);
+  const visibleLogs = maxLines != null ? logs.slice(-maxLines) : logs;
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+    if (!compact) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs, compact]);
 
   const getTypeClass = (type: string) => {
     switch (type) {
-      case 'combat': return 'text-yellow-400';
-      case 'danger': return 'text-red-400 font-bold';
-      case 'gain': return 'text-green-400';
-      case 'loot': return 'text-purple-400';
-      default: return 'text-gray-300';
+      case 'combat':
+        return 'game-log__line--combat';
+      case 'danger':
+        return 'game-log__line--danger';
+      case 'gain':
+        return 'game-log__line--gain';
+      case 'loot':
+        return 'game-log__line--loot';
+      default:
+        return 'game-log__line--info';
     }
   };
 
+  const rootClass = compact ? 'game-log game-log--compact' : 'game-log';
+
   return (
-    <div className="h-48 md:h-64 bg-black/80 border border-gray-700 rounded-md p-4 overflow-y-auto font-mono text-sm shadow-inner">
-      {logs.length === 0 && <span className="text-gray-600 italic">Adventure awaits...</span>}
-      {logs.map((log) => (
-        <div key={log.id} className={`mb-1 border-b border-white/5 pb-1 last:border-0 ${getTypeClass(log.type)}`}>
-          <span className="opacity-50 text-xs mr-2">[{log.id}]</span>
+    <div
+      className={rootClass}
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
+      aria-label="Combat log"
+    >
+      {visibleLogs.length === 0 && (
+        <span className="game-log__empty">Adventure awaits...</span>
+      )}
+      {visibleLogs.map((log) => (
+        <div
+          key={log.id}
+          className={`game-log__line ${getTypeClass(log.type)}`}
+        >
+          {!compact && (
+            <span className="game-log__id">[{log.id}]</span>
+          )}
           {log.text}
         </div>
       ))}
-      <div ref={endRef} />
+      {!compact && <div ref={endRef} />}
     </div>
   );
 };

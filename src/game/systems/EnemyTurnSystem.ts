@@ -438,10 +438,11 @@ export function executeEnemyAction(
   updatedEnemy.intendedSkillName = undefined;
   updatedEnemy.intentReason = undefined;
 
-  // T-066/T-077: location evasion_bonus + room terrain.evasionModifier
+  // T-066/T-077/T-103: location evasion + TerrainDefinition + room combat FOREST cover
   const locEvasion = combatState?.locationTerrainMods?.evasionBonus ?? 0;
   const roomEvasion = getTerrainEvasionBonus(combatState?.terrain ?? null);
-  const totalEvasionBonus = locEvasion + roomEvasion;
+  const roomModEvasion = combatState?.roomCombatEvasion ?? 0;
+  const totalEvasionBonus = locEvasion + roomEvasion + roomModEvasion;
   const defenderDerived =
     totalEvasionBonus !== 0
       ? {
@@ -466,8 +467,20 @@ export function executeEnemyAction(
   } else if (damageResult.isEvaded) {
     logs.push(`${enemy.name} uses ${selectedSkill.name} but you EVADE!`);
   } else {
+    // T-105: room AMBUSH enemy first-strike mult on first combat turn
+    let ambushMult = 1;
+    if (
+      combatState?.isFirstTurn
+      && (combatState.enemyFirstHitMultiplier ?? 1) > 1
+    ) {
+      ambushMult = combatState.enemyFirstHitMultiplier;
+    }
     // Apply enemy damage multiplier from launch properties
     let modifiedDamage = Math.floor(damageResult.finalDamage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
+    if (ambushMult > 1) {
+      modifiedDamage = Math.floor(modifiedDamage * ambushMult);
+      logs.push(`Ambush strike! (×${ambushMult.toFixed(2)})`);
+    }
 
     // T-064: location enemy_attack_bonus (fraction) from terrainEffects
     const atkBonus = combatState?.locationTerrainMods?.enemyAttackBonus ?? 0;

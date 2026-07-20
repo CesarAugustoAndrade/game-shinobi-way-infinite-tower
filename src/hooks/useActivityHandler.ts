@@ -38,13 +38,15 @@ export interface ActivitySceneSetters {
   // Treasure system
   setCurrentTreasure: React.Dispatch<React.SetStateAction<TreasureActivity | null>>;
   setCurrentTreasureHunt: React.Dispatch<React.SetStateAction<TreasureHunt | null>>;
-  /** T-049: intel gathering result panel */
+  /** T-049/T-086: intel gathering result panel */
   setIntelResult?: React.Dispatch<
     React.SetStateAction<{
       flavorText: string;
       intelGain: number;
       intelBefore: number;
       intelAfter: number;
+      baseIntelGain?: number;
+      fogNote?: string | null;
     } | null>
   >;
   /** T-050: rest heal result panel */
@@ -328,10 +330,8 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
           const intelBefore = currentIntel;
           // T-067: location visibility_penalty scales intel gain
           const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
-          const effectiveGain = applyVisibilityToIntelGain(
-            infoActivity.intelGain,
-            locMods,
-          );
+          const baseGain = infoActivity.intelGain;
+          const effectiveGain = applyVisibilityToIntelGain(baseGain, locMods);
           const intelAfter = Math.min(100, intelBefore + effectiveGain);
           logActivityStart(currentRoom.id, 'infoGathering', { intelGain: effectiveGain });
           setCurrentIntel(intelAfter);
@@ -340,12 +340,18 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
           const floorAfterInfo = completeActivity(updatedFloor, currentRoom.id, 'infoGathering');
           setFloor(floorAfterInfo);
           logActivityComplete(currentRoom.id, 'infoGathering');
-          // T-049: visual payoff before next room action
+          // T-049/T-086: visual payoff; show fog honesty when gain was reduced
+          const fogReduced = effectiveGain !== baseGain;
+          const fogPct = Math.round((locMods.visibilityPenalty || 0) * 100);
           setIntelResult?.({
             flavorText: infoActivity.flavorText,
             intelGain: effectiveGain,
             intelBefore,
             intelAfter,
+            baseIntelGain: fogReduced ? baseGain : undefined,
+            fogNote: fogReduced
+              ? `Fog reduced intel (visibility ${fogPct > 0 ? '+' : ''}${fogPct}%)`
+              : null,
           });
         }
         break;

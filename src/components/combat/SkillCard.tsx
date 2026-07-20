@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Skill, DamageType, ActionType } from '../../game/types';
 import { getSkillArt } from '../../game/constants/artRegistry';
 import './SkillCard.css';
@@ -33,9 +33,12 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   const isToggle = actionType === ActionType.TOGGLE;
   const isActive = skill.isActive || false;
 
-  // Art registry (T-020): every skill has a dedicated tile / painted card. No external hotlink.
+  // Art registry (T-020/T-028/T-029): Imagine tile with emoji cascade on load error.
   const skillArt = getSkillArt(skill);
   const bgImage = skillArt.src ?? skill.image;
+  const [bgFailed, setBgFailed] = useState(false);
+  const showBgImg = Boolean(bgImage) && !bgFailed;
+  const bgEmoji = skillArt.emoji || skill.icon || '🌀';
 
   // Build class names
   const getCardClasses = () => {
@@ -107,16 +110,20 @@ export const SkillCard: React.FC<SkillCardProps> = ({
         <div className="skill-card__shortcut">{shortcutKey}</div>
       )}
 
-      {/* Background Image Layer — registry art (T-020); hide on error, never external hotlink */}
-      {bgImage && (
+      {/* Background art — Imagine src, emoji if missing/404 (T-029) */}
+      {showBgImg ? (
         <img
           src={bgImage}
           alt=""
           aria-hidden="true"
           className="skill-card__bg"
           style={{ imageRendering: 'pixelated' }}
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          onError={() => setBgFailed(true)}
         />
+      ) : (
+        <span className="skill-card__bg skill-card__bg--emoji" aria-hidden="true">
+          {bgEmoji}
+        </span>
       )}
 
       {/* Gradient Overlay */}

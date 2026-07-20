@@ -51,6 +51,19 @@ const STAT_LABELS: Record<string, string> = {
 /** Render a signed integer with an explicit leading sign. */
 const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
+/** Optional fog-honest intel display (T-086). */
+export interface BuildOutcomeChangesOptions {
+  /**
+   * Intel actually applied on close (after visibility_penalty).
+   * When set, replaces the raw effects.intelGain chip.
+   */
+  effectiveIntelGain?: number;
+  /** Raw intel before fog (authored or EVENT_DEFAULT). */
+  baseIntelGain?: number;
+  /** When true, append fog note on intel chip if base ≠ effective. */
+  fogReduced?: boolean;
+}
+
 /**
  * Build the ordered list of changes for an event outcome. Returns an empty
  * array when nothing measurable happened — the caller renders a "no change"
@@ -60,6 +73,7 @@ export function buildOutcomeChanges(
   before: Player,
   after: Player,
   outcome: EventOutcome,
+  options?: BuildOutcomeChangesOptions,
 ): OutcomeChange[] {
   const changes: OutcomeChange[] = [];
   const { effects } = outcome;
@@ -87,13 +101,25 @@ export function buildOutcomeChanges(
     changes.push({ key: 'exp', icon: '▲', label: 'XP', value: signed(effects.exp), tone: effects.exp > 0 ? 'up' : 'down' });
   }
 
-  if (effects.intelGain && effects.intelGain !== 0) {
+  // T-086: prefer fog-scaled intel (matches setCurrentIntel on outcome close)
+  const effectiveIntel =
+    typeof options?.effectiveIntelGain === 'number'
+      ? options.effectiveIntelGain
+      : effects.intelGain;
+  if (typeof effectiveIntel === 'number' && effectiveIntel !== 0) {
+    const base = options?.baseIntelGain;
+    const fog =
+      options?.fogReduced
+      && typeof base === 'number'
+      && base !== effectiveIntel;
     changes.push({
       key: 'intel',
       icon: '🔮',
       label: 'Intel',
-      value: `${signed(effects.intelGain)}%`,
-      tone: effects.intelGain > 0 ? 'up' : 'down',
+      value: fog
+        ? `${signed(base)}%→${signed(effectiveIntel)}% · fog`
+        : `${signed(effectiveIntel)}%`,
+      tone: effectiveIntel > 0 ? 'up' : 'down',
     });
   }
 

@@ -134,8 +134,25 @@
   transition: opacity var(--sw-transition-base);
 }
 
+/* T-029: emoji cascade when Imagine tile missing/404 */
+.skill-card__bg--emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  line-height: 1;
+  opacity: 0.45;
+  object-fit: unset;
+  pointer-events: none;
+  user-select: none;
+}
+
 .skill-card:hover:not(.skill-card--disabled):not(.skill-card--passive) .skill-card__bg {
   opacity: 0.9;
+}
+
+.skill-card:hover:not(.skill-card--disabled):not(.skill-card--passive) .skill-card__bg--emoji {
+  opacity: 0.6;
 }
 
 /* Gradient Overlay */
@@ -227,6 +244,11 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
+}
+
+.skill-card__action-badge--main {
+  background: rgba(127, 29, 29, 0.8);
+  color: #fca5a5;
 }
 
 .skill-card__action-badge--side {

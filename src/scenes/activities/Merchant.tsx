@@ -7,6 +7,7 @@ import {
   SLOT_MAPPING,
   TreasureQuality,
   MAX_MERCHANT_SLOTS,
+  RegionLootTheme,
 } from '../../game/types';
 import {
   Coins,
@@ -23,6 +24,10 @@ import { calculateMerchantRerollCost } from '../../game/systems/ScalingSystem';
 import { resolveItemArt } from '../../game/constants/artRegistry';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import ArtIcon from '../../components/shared/ArtIcon';
+import {
+  itemMatchesEquipmentFocus,
+  isFocusStat,
+} from '../../game/utils/itemFocusMatch';
 import './Merchant.css';
 
 interface MerchantProps {
@@ -31,7 +36,8 @@ interface MerchantProps {
   player: Player | null;
   dangerLevel: number;
   baseDifficulty: number;
-  onBuyItem: (item: Item) => void;
+  /** T-055: return paid price on success, null on fail */
+  onBuyItem: (item: Item) => number | null | void;
   onLeave: () => void;
   onReroll: () => void;
   onBuySlot: () => void;
@@ -39,6 +45,16 @@ interface MerchantProps {
   isProcessing?: boolean;
   /** Biome background image — fills the scene like CinematicViewscreen. */
   background?: string;
+  /**
+   * T-090: region lootTheme already biases stock (T-070); show Focus/Affinity/Ryo.
+   */
+  lootTheme?: RegionLootTheme | null;
+}
+
+/** T-055: short purchase success toast */
+interface PurchaseToast {
+  item: Item;
+  price: number;
 }
 
 /* ===========================================
@@ -197,6 +213,8 @@ interface ItemCardProps {
   discountPercent: number;
   onSelect: () => void;
   onBuy: () => void;
+  /** T-091: region equipmentFocus for badge */
+  equipmentFocus?: string[] | null;
 }
 
 const ItemCard: React.FC<ItemCardProps> = ({
@@ -209,9 +227,11 @@ const ItemCard: React.FC<ItemCardProps> = ({
   discountPercent,
   onSelect,
   onBuy,
+  equipmentFocus = null,
 }) => {
   const rarityClass = getRarityClass(item.rarity);
   const rarityLabel = getRarityLabel(item.rarity);
+  const isFocusItem = itemMatchesEquipmentFocus(item, equipmentFocus);
 
   const handleClick = useCallback(() => {
     onSelect();
@@ -248,8 +268,16 @@ const ItemCard: React.FC<ItemCardProps> = ({
           {Object.entries(statComparisons)
             .filter(([, data]) => data.value !== 0 || data.delta !== 0)
             .map(([key, data]) => (
-              <div key={key} className="item-tooltip__row">
-                <span className="item-tooltip__label">{formatStatName(key)}</span>
+              <div
+                key={key}
+                className={`item-tooltip__row ${isFocusStat(key, equipmentFocus) ? 'item-tooltip__row--focus' : ''}`}
+              >
+                <span className="item-tooltip__label">
+                  {formatStatName(key)}
+                  {isFocusStat(key, equipmentFocus) && (
+                    <span className="item-tooltip__focus-mark"> ★</span>
+                  )}
+                </span>
                 <div className="item-tooltip__values">
                   <span className="item-tooltip__value">+{data.value}</span>
                   {data.delta !== 0 && !data.isNew && (
@@ -280,12 +308,19 @@ const ItemCard: React.FC<ItemCardProps> = ({
           <span className={`item-card__rarity-tag item-card__rarity-tag--${rarityClass}`}>
             {rarityLabel}
           </span>
-          <span className="item-card__afford-indicator">
-            {affordable ? (
-              <CheckCircle size={14} className="text-green-500" />
-            ) : (
-              <AlertTriangle size={14} className="text-red-500" />
+          <span className="item-card__header-right">
+            {isFocusItem && (
+              <span className="item-card__focus-badge" title="Matches region Focus stats">
+                Focus
+              </span>
             )}
+            <span className="item-card__afford-indicator">
+              {affordable ? (
+                <CheckCircle size={14} className="text-green-500" />
+              ) : (
+                <AlertTriangle size={14} className="text-red-500" />
+              )}
+            </span>
           </span>
         </div>
 
@@ -349,6 +384,8 @@ interface PreviewPanelProps {
   onConfirm: () => void;
   onCancel: () => void;
   isProcessing: boolean;
+  /** T-091 */
+  equipmentFocus?: string[] | null;
 }
 
 const PreviewPanel: React.FC<PreviewPanelProps> = ({
@@ -361,9 +398,11 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
   onConfirm,
   onCancel,
   isProcessing,
+  equipmentFocus = null,
 }) => {
   const rarityClass = getRarityClass(item.rarity);
   const rarityLabel = getRarityLabel(item.rarity);
+  const isFocusItem = itemMatchesEquipmentFocus(item, equipmentFocus);
 
   return (
     <div className="preview-panel">
@@ -372,6 +411,11 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
         <div className="preview-panel__label">Item Preview</div>
         <div className={`preview-panel__rarity item-card__name--${rarityClass}`}>
           {rarityLabel}
+          {isFocusItem && (
+            <span className="preview-panel__focus-badge" title="Matches region Focus">
+              Focus
+            </span>
+          )}
         </div>
         <h2 className={`preview-panel__name item-card__name--${rarityClass}`}>
           {item.name}
@@ -390,8 +434,16 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
         {Object.entries(statComparisons)
           .filter(([, data]) => data.value !== 0 || data.delta !== 0)
           .map(([key, data]) => (
-            <div key={key} className="preview-panel__stat">
-              <span className="preview-panel__stat-name">{formatStatName(key)}</span>
+            <div
+              key={key}
+              className={`preview-panel__stat ${isFocusStat(key, equipmentFocus) ? 'preview-panel__stat--focus' : ''}`}
+            >
+              <span className="preview-panel__stat-name">
+                {formatStatName(key)}
+                {isFocusStat(key, equipmentFocus) && (
+                  <span className="preview-panel__focus-mark" title="Region Focus stat"> ★</span>
+                )}
+              </span>
               <div className="preview-panel__stat-values">
                 <span className="preview-panel__stat-value">+{data.value}</span>
                 {data.delta !== 0 && !data.isNew && (
@@ -479,8 +531,11 @@ const Merchant: React.FC<MerchantProps> = ({
   onUpgradeQuality,
   isProcessing = false,
   background,
+  lootTheme = null,
 }) => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  // T-055: brief purchase success toast
+  const [purchaseToast, setPurchaseToast] = useState<PurchaseToast | null>(null);
 
   const rerollCost = calculateMerchantRerollCost(
     dangerLevel,
@@ -562,27 +617,54 @@ const Merchant: React.FC<MerchantProps> = ({
     setSelectedItemId((prev) => (prev === itemId ? null : itemId));
   }, []);
 
+  const showPurchaseToast = useCallback((item: Item, price: number) => {
+    setPurchaseToast({ item, price });
+  }, []);
+
+  const tryBuy = useCallback(
+    (item: Item) => {
+      const paid = onBuyItem(item);
+      if (typeof paid === 'number' && paid >= 0) {
+        showPurchaseToast(item, paid);
+        setSelectedItemId(null);
+      }
+    },
+    [onBuyItem, showPurchaseToast],
+  );
+
   const handleConfirmPurchase = useCallback(() => {
     if (selectedItem) {
-      onBuyItem(selectedItem);
-      setSelectedItemId(null);
+      tryBuy(selectedItem);
     }
-  }, [selectedItem, onBuyItem]);
+  }, [selectedItem, tryBuy]);
 
   const handleCancel = useCallback(() => {
     setSelectedItemId(null);
   }, []);
 
-  // ESC to close mobile bottom-sheet
+  // Auto-dismiss purchase toast
+  useEffect(() => {
+    if (!purchaseToast) return;
+    const t = setTimeout(() => setPurchaseToast(null), 2200);
+    return () => clearTimeout(t);
+  }, [purchaseToast]);
+
+  // ESC: dismiss toast, else close selection
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedItemId) {
-        setSelectedItemId(null);
+      if (e.key === 'Escape') {
+        if (purchaseToast) {
+          setPurchaseToast(null);
+          return;
+        }
+        if (selectedItemId) {
+          setSelectedItemId(null);
+        }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [selectedItemId]);
+  }, [selectedItemId, purchaseToast]);
 
   if (!player) {
     return null;
@@ -622,6 +704,33 @@ const Merchant: React.FC<MerchantProps> = ({
           <p className="merchant__npc-quote">
             "From the far corners of the shinobi world, I bring only the finest."
           </p>
+          {/* T-090: stock already biases toward region lootTheme — surface it */}
+          {lootTheme && (
+            <div
+              className="merchant__theme"
+              aria-label="Region shop bias"
+              title="This shop's stock leans toward the region theme"
+            >
+              {lootTheme.primaryElement && (
+                <span className="merchant__theme-chip merchant__theme-chip--affinity">
+                  Affinity {lootTheme.primaryElement}
+                </span>
+              )}
+              {lootTheme.equipmentFocus?.length > 0 && (
+                <span className="merchant__theme-chip merchant__theme-chip--focus">
+                  Focus{' '}
+                  {lootTheme.equipmentFocus
+                    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                    .join(' · ')}
+                </span>
+              )}
+              {lootTheme.goldMultiplier !== 1 && (
+                <span className="merchant__theme-chip merchant__theme-chip--gold">
+                  Ryo ×{lootTheme.goldMultiplier}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -715,7 +824,8 @@ const Merchant: React.FC<MerchantProps> = ({
                 isDimmed={selectedItemId !== null && selectedItemId !== item.id}
                 discountPercent={discountPercent}
                 onSelect={() => handleSelect(item.id)}
-                onBuy={() => onBuyItem(item)}
+                onBuy={() => tryBuy(item)}
+                equipmentFocus={lootTheme?.equipmentFocus}
               />
             ))}
           </div>
@@ -732,6 +842,7 @@ const Merchant: React.FC<MerchantProps> = ({
               onConfirm={handleConfirmPurchase}
               onCancel={handleCancel}
               isProcessing={isProcessing}
+              equipmentFocus={lootTheme?.equipmentFocus}
             />
           )}
         </div>
@@ -747,6 +858,30 @@ const Merchant: React.FC<MerchantProps> = ({
           Leave the Merchant's Cart
         </button>
       </div>
+
+      {/* T-055: purchase success toast */}
+      {purchaseToast && (
+        <div
+          className="merchant-toast"
+          role="status"
+          onClick={() => setPurchaseToast(null)}
+        >
+          <div className="merchant-toast__panel">
+            <ArtIcon
+              art={resolveItemArt(purchaseToast.item)}
+              size="md"
+              className="merchant-toast__art"
+              title={purchaseToast.item.name}
+            />
+            <div className="merchant-toast__copy">
+              <span className="merchant-toast__label">Purchased</span>
+              <span className="merchant-toast__name">{purchaseToast.item.name}</span>
+              <span className="merchant-toast__price">−{purchaseToast.price} Ryō · bag</span>
+            </div>
+            <CheckCircle size={18} className="merchant-toast__ok" aria-hidden />
+          </div>
+        </div>
+      )}
     </div>
     </SceneBackdrop>
   );

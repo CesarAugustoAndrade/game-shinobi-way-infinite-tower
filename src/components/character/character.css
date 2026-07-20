@@ -219,6 +219,31 @@
   color: var(--sw-text-muted);
 }
 
+/* T-037: story-run flag chips (eventFlags → combat/loot mods) */
+.player-hud__run-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sw-space-1);
+  flex-shrink: 1;
+  max-width: 14rem;
+}
+
+.player-hud__run-flag {
+  font-size: 8px;
+  font-family: var(--sw-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #e9d5ff;
+  background: rgba(88, 28, 135, 0.45);
+  border: 2px solid #000;
+  box-shadow: 1px 1px 0 #000;
+  padding: 1px 4px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
 /* ===========================================
    COMPACT VARIANT (T-014 combat deck command bar)
    Dense single strip: small avatar + name/Lv + thin HP/CP bars
@@ -314,6 +339,15 @@
 /* Buff chips: tighter */
 .player-hud--compact .player-hud__buff {
   padding: var(--sw-space-0-5) var(--sw-space-1);
+}
+
+.player-hud--compact .player-hud__run-flags {
+  max-width: 10rem;
+}
+
+.player-hud--compact .player-hud__run-flag {
+  font-size: 7px;
+  padding: 0 3px;
 }
 
 /* Narrow screens: name/Lv above bars (two tight lines) */
@@ -493,16 +527,16 @@
   gap: var(--sw-space-1);
 }
 
-.primary-stats__category-title--spirit {
-  color: rgba(107, 33, 168, 0.9);
+.primary-stats__category-title--body {
+  color: rgba(154, 52, 18, 0.9);
 }
 
 .primary-stats__category-title--mind {
   color: rgba(8, 145, 178, 0.9);
 }
 
-.primary-stats__category-title--body {
-  color: rgba(154, 52, 18, 0.9);
+.primary-stats__category-title--technique {
+  color: rgba(107, 33, 168, 0.9);
 }
 
 .primary-stats__list {
@@ -540,6 +574,17 @@
 
 .primary-stats__stat:hover .primary-stats__stat-icon {
   color: var(--sw-text-secondary);
+}
+
+/* T-101: region Focus primary stats */
+.primary-stats__stat--focus {
+  outline: 1px solid rgba(109, 40, 217, 0.55);
+  background: rgba(109, 40, 217, 0.12);
+}
+
+.primary-stats__focus-mark {
+  color: #c4b5fd;
+  font-size: 0.85em;
 }
 
 .primary-stats__stat-label {

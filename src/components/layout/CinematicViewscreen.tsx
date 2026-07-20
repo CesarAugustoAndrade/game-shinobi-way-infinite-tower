@@ -52,6 +52,8 @@ interface CinematicViewscreenProps {
    * Built in Combat.tsx with enemy name, stats, status effects, and HP bar.
    */
   floatingPanel?: React.ReactNode;
+  /** Brief hit-flash juice on the enemy sprite when damage lands. */
+  hitFlash?: boolean;
 }
 
 /**
@@ -89,6 +91,7 @@ export const CinematicViewscreen: React.FC<CinematicViewscreenProps> = ({
   foregroundImage,
   chakraAuraColor,
   floatingPanel,
+  hitFlash = false,
 }) => {
   const [bgError, setBgError] = useState(false);
   const [midError, setMidError] = useState(false);
@@ -147,7 +150,7 @@ export const CinematicViewscreen: React.FC<CinematicViewscreenProps> = ({
         <img
           src={enemyCutout}
           alt="Enemy"
-          className="cinematic__enemy-sprite cinematic__enemy-sprite--cutout"
+          className={`cinematic__enemy-sprite cinematic__enemy-sprite--cutout${hitFlash ? ' cinematic__enemy-sprite--hit' : ''}`}
           style={cutoutStyle}
           onError={() => setCutoutError(true)}
         />
@@ -158,7 +161,7 @@ export const CinematicViewscreen: React.FC<CinematicViewscreenProps> = ({
         <img
           src={enemyImage}
           alt="Enemy"
-          className="cinematic__enemy-sprite cinematic__enemy-sprite--portrait"
+          className={`cinematic__enemy-sprite cinematic__enemy-sprite--portrait${hitFlash ? ' cinematic__enemy-sprite--hit' : ''}`}
         />
       )}
 

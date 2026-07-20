@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Item, Skill, Player, SkillTier, Rarity, EquipmentSlot, DamageType, MAX_BAG_SLOTS, SLOT_MAPPING } from '../../game/types';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { Item, Skill, Player, SkillTier, Rarity, EquipmentSlot, DamageType, MAX_BAG_SLOTS, SLOT_MAPPING, RegionLootTheme } from '../../game/types';
 import { Scroll, Package } from 'lucide-react';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import {
@@ -14,6 +14,10 @@ import {
 import { getRecipesUsingComponent } from '../../game/constants/synthesis';
 import { resolveItemArt, getSkillArt } from '../../game/constants/artRegistry';
 import { getSellPrice } from '../../game/systems/LootSystem';
+import {
+  itemMatchesEquipmentFocus,
+  isFocusStat,
+} from '../../game/utils/itemFocusMatch';
 import { BALANCE } from '../../game/config';
 import ArtIcon from '../../components/shared/ArtIcon';
 import './Loot.css';
@@ -33,6 +37,10 @@ interface LootProps {
   isProcessing?: boolean;
   /** Biome background image — fills the scene like CinematicViewscreen. */
   background?: string;
+  /**
+   * T-093: region lootTheme already biases combat drops; show Focus cues.
+   */
+  lootTheme?: RegionLootTheme | null;
 }
 
 // Helper to get rarity name class
@@ -71,21 +79,55 @@ const Loot: React.FC<LootProps> = ({
   getDamageTypeColor,
   isProcessing = false,
   background,
+  lootTheme = null,
 }) => {
-  // Keyboard shortcut: SPACE/ENTER to leave all
+  // T-052: confirm before abandoning unclaimed spoils
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const remainingCount = useMemo(
+    () => droppedItems.length + (droppedSkill ? 1 : 0),
+    [droppedItems.length, droppedSkill],
+  );
+
+  const requestLeave = useCallback(() => {
+    if (isProcessing) return;
+    if (remainingCount > 0) {
+      setConfirmLeave(true);
+      return;
+    }
+    onLeaveAll();
+  }, [isProcessing, remainingCount, onLeaveAll]);
+
+  const confirmLeaveAll = useCallback(() => {
+    setConfirmLeave(false);
+    onLeaveAll();
+  }, [onLeaveAll]);
+
+  // Keyboard: SPACE/ENTER leave (or confirm); Esc cancels confirm
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'Enter') {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-        if (isProcessing) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (isProcessing) return;
+
+      if (e.key === 'Escape' && confirmLeave) {
         e.preventDefault();
-        onLeaveAll();
+        setConfirmLeave(false);
+        return;
+      }
+
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        if (confirmLeave) {
+          confirmLeaveAll();
+        } else {
+          requestLeave();
+        }
+        return;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onLeaveAll, isProcessing]);
+  }, [isProcessing, confirmLeave, confirmLeaveAll, requestLeave]);
 
   // Check if bag has space
   const bagHasSpace = player ? player.bag.some(s => s === null) : false;
@@ -97,14 +139,45 @@ const Loot: React.FC<LootProps> = ({
       {/* Victory header — dramatic scene presence */}
       <div className="loot__victory-header">
         <h2 className="loot__victory-title">VICTORY</h2>
-        <p className="loot__victory-subtitle">Spoils of War — Choose one reward</p>
+        <p className="loot__victory-subtitle">
+          Spoils of War — Claim each reward{remainingCount > 1 ? ` (${remainingCount} left)` : ''}
+        </p>
+        {/* T-093: drops already bias via lootTheme — surface region identity */}
+        {lootTheme && (
+          <div className="loot__theme" aria-label="Region loot theme">
+            {lootTheme.primaryElement && (
+              <span className="loot__theme-chip loot__theme-chip--affinity">
+                Affinity {lootTheme.primaryElement}
+              </span>
+            )}
+            {lootTheme.equipmentFocus?.length > 0 && (
+              <span className="loot__theme-chip loot__theme-chip--focus">
+                Focus{' '}
+                {lootTheme.equipmentFocus
+                  .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                  .join(' · ')}
+              </span>
+            )}
+            {lootTheme.goldMultiplier !== 1 && (
+              <span className="loot__theme-chip loot__theme-chip--gold">
+                Ryo ×{lootTheme.goldMultiplier}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Keyboard Hints */}
       <div className="loot__hints">
         <span className="loot__hint">
-          <span className="sw-shortcut">Space</span> or <span className="sw-shortcut">Enter</span> Leave All
+          <span className="sw-shortcut">Space</span> or <span className="sw-shortcut">Enter</span> Leave
+          {remainingCount > 0 ? ' (confirm if unclaimed)' : ''}
         </span>
+        {remainingCount > 0 && (
+          <span className="loot__remaining-badge" title="Unclaimed spoils">
+            {remainingCount} unclaimed
+          </span>
+        )}
       </div>
 
       <div className="loot__grid">
@@ -133,6 +206,8 @@ const Loot: React.FC<LootProps> = ({
             });
           }
 
+          const isFocusItem = itemMatchesEquipmentFocus(item, lootTheme?.equipmentFocus);
+
           return (
             <div
               key={item.id}
@@ -144,6 +219,7 @@ const Loot: React.FC<LootProps> = ({
                 <div className={`item-tooltip__name ${getRarityClass(item.rarity)}`}>{item.name}</div>
                 <div className="item-tooltip__type">
                   {item.rarity} {item.isComponent ? 'Component' : (item.type || 'Artifact')}
+                  {isFocusItem && <span className="loot-tooltip__focus"> · Focus</span>}
                 </div>
                 {item.description && !item.passive && (
                   <div className="item-tooltip__desc">{item.description}</div>
@@ -156,8 +232,16 @@ const Loot: React.FC<LootProps> = ({
                 {Object.keys(statComparisons).length > 0 && (
                   <div className="item-tooltip__section">
                     {Object.entries(statComparisons).map(([key, data]) => (
-                      <div key={key} className="item-tooltip__row">
-                        <span className="item-tooltip__label">{formatStatName(key)}</span>
+                      <div
+                        key={key}
+                        className={`item-tooltip__row ${isFocusStat(key, lootTheme?.equipmentFocus) ? 'item-tooltip__row--focus' : ''}`}
+                      >
+                        <span className="item-tooltip__label">
+                          {formatStatName(key)}
+                          {isFocusStat(key, lootTheme?.equipmentFocus) && (
+                            <span className="item-tooltip__focus-mark"> ★</span>
+                          )}
+                        </span>
                         <div className="item-tooltip__values">
                           <span className="item-tooltip__value">+{data.value}</span>
                           {equippedItem && data.delta !== 0 && (
@@ -194,7 +278,14 @@ const Loot: React.FC<LootProps> = ({
               </div>
 
               <div className="loot-card__header">
-                <h3 className={`loot-card__name ${getRarityClass(item.rarity)}`}>{item.name}</h3>
+                <div className="loot-card__title-row">
+                  <h3 className={`loot-card__name ${getRarityClass(item.rarity)}`}>{item.name}</h3>
+                  {isFocusItem && (
+                    <span className="loot-card__focus-badge" title="Matches region Focus stats">
+                      Focus
+                    </span>
+                  )}
+                </div>
                 <p className="loot-card__type">
                   {item.isComponent ? 'Component' : (item.type || 'Artifact')} - {item.rarity}
                 </p>
@@ -359,10 +450,43 @@ const Loot: React.FC<LootProps> = ({
       </div>
 
       <div className="loot__footer">
-        <button type="button" onClick={onLeaveAll} className="loot__leave-btn">
+        <button type="button" onClick={requestLeave} className="loot__leave-btn">
           Leave All
         </button>
       </div>
+
+      {/* T-052: confirm abandoning unclaimed spoils */}
+      {confirmLeave && (
+        <div className="loot-confirm" role="dialog" aria-modal="true" aria-label="Confirm leave loot">
+          <div className="loot-confirm__panel">
+            <h3 className="loot-confirm__title">Leave unclaimed spoils?</h3>
+            <p className="loot-confirm__body">
+              You still have <strong>{remainingCount}</strong> unclaimed
+              {remainingCount === 1 ? ' spoil' : ' spoils'}
+              {droppedSkill ? ` (includes skill: ${droppedSkill.name})` : ''}.
+              Leave now and they are lost.
+            </p>
+            <div className="loot-confirm__actions">
+              <button
+                type="button"
+                className="loot-confirm__btn loot-confirm__btn--cancel"
+                onClick={() => setConfirmLeave(false)}
+              >
+                Cancel
+                <span className="sw-shortcut">Esc</span>
+              </button>
+              <button
+                type="button"
+                className="loot-confirm__btn loot-confirm__btn--leave"
+                onClick={confirmLeaveAll}
+              >
+                Leave anyway
+                <span className="sw-shortcut">Enter</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </SceneBackdrop>
   );

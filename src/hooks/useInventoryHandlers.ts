@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import {
-  Player, Item, EquipmentSlot, Rarity, LogEntry, MAX_BAG_SLOTS
+  Player, Item, Skill, EquipmentSlot, Rarity, LogEntry, MAX_BAG_SLOTS
 } from '../game/types';
 import {
   equipItem as equipItemFn,
@@ -11,7 +11,8 @@ import {
   synthesize,
   disassemble,
   upgradeComponent,
-  upgradeArtifact
+  upgradeArtifact,
+  getCraftCombination,
 } from '../game/systems/LootSystem';
 import { dangerToFloor } from '../game/systems/ScalingSystem';
 
@@ -52,12 +53,16 @@ export interface InventoryState {
   currentBaseDifficulty: number;
   difficulty: number;
   isProcessingLoot: boolean;
+  /** LOOT screen drops — used so equip/sell/store don't leave until all claimed */
+  droppedItems: Item[];
+  droppedSkill: Skill | null;
 }
 
 export interface InventorySetters {
   setPlayer: React.Dispatch<React.SetStateAction<Player | null>>;
   setIsProcessingLoot: React.Dispatch<React.SetStateAction<boolean>>;
   setSelectedComponent: React.Dispatch<React.SetStateAction<Item | null>>;
+  setDroppedItems: React.Dispatch<React.SetStateAction<Item[]>>;
 }
 
 export interface InventoryDeps {
@@ -70,12 +75,33 @@ export function useInventoryHandlers(
   setters: InventorySetters,
   deps: InventoryDeps
 ) {
-  const { player, currentDangerLevel, currentBaseDifficulty, isProcessingLoot } = state;
-  const { setPlayer, setIsProcessingLoot, setSelectedComponent } = setters;
+  const {
+    player,
+    currentDangerLevel,
+    currentBaseDifficulty,
+    isProcessingLoot,
+    droppedItems,
+    droppedSkill,
+  } = state;
+  const { setPlayer, setIsProcessingLoot, setSelectedComponent, setDroppedItems } = setters;
   const { addLog, returnToMap } = deps;
+
+  /** After claiming one loot drop: remove it; leave LOOT only when nothing remains. */
+  const finishLootItemClaim = useCallback((itemId: string) => {
+    const remaining = droppedItems.filter(i => i.id !== itemId);
+    setDroppedItems(remaining);
+    setIsProcessingLoot(false);
+    if (remaining.length === 0 && !droppedSkill) {
+      returnToMap();
+    }
+  }, [droppedItems, droppedSkill, setDroppedItems, setIsProcessingLoot, returnToMap]);
 
   const equipItem = useCallback((item: Item) => {
     if (!player || isProcessingLoot) return;
+
+    // Only claim once (item must still be in the loot pile)
+    if (!droppedItems.some(i => i.id === item.id)) return;
+
     setIsProcessingLoot(true);
 
     const result = equipItemFn(player, item);
@@ -91,29 +117,28 @@ export function useInventoryHandlers(
     } else {
       addLog(`Equipped ${item.name}.`, 'loot');
     }
-    setTimeout(() => {
-      setIsProcessingLoot(false);
-      returnToMap();
-    }, 100);
-  }, [player, isProcessingLoot, setPlayer, addLog, returnToMap, setIsProcessingLoot]);
+    setTimeout(() => finishLootItemClaim(item.id), 100);
+  }, [player, isProcessingLoot, droppedItems, setPlayer, addLog, setIsProcessingLoot, finishLootItemClaim]);
 
   const sellItem = useCallback((item: Item) => {
     if (!player || isProcessingLoot) return;
+    if (!droppedItems.some(i => i.id === item.id)) return;
+
     setIsProcessingLoot(true);
+    const price = getSellPrice(item);
     setPlayer(prev => {
       if (!prev) return null;
-      return sellItemFn(prev, item);
+      // Loot sell: grant ryo only (item is not in bag yet)
+      return { ...prev, ryo: prev.ryo + price };
     });
-    addLog(`Sold ${item.name} for ${getSellPrice(item)} Ryō.`, 'loot');
-    setTimeout(() => {
-      setIsProcessingLoot(false);
-      returnToMap();
-    }, 100);
-  }, [player, isProcessingLoot, setPlayer, addLog, returnToMap, setIsProcessingLoot]);
+    addLog(`Sold ${item.name} for ${price} Ryō.`, 'loot');
+    setTimeout(() => finishLootItemClaim(item.id), 100);
+  }, [player, isProcessingLoot, droppedItems, setPlayer, addLog, setIsProcessingLoot, finishLootItemClaim]);
 
   // Store item in bag instead of equipping
   const storeToBag = useCallback((item: Item) => {
     if (!player || isProcessingLoot) return;
+    if (!droppedItems.some(i => i.id === item.id)) return;
 
     const result = addToBag(player, item);
     if (!result) {
@@ -124,11 +149,8 @@ export function useInventoryHandlers(
     setIsProcessingLoot(true);
     setPlayer(result);
     addLog(`Stored ${item.name} in bag.`, 'loot');
-    setTimeout(() => {
-      setIsProcessingLoot(false);
-      returnToMap();
-    }, 100);
-  }, [player, isProcessingLoot, setPlayer, addLog, returnToMap, setIsProcessingLoot]);
+    setTimeout(() => finishLootItemClaim(item.id), 100);
+  }, [player, isProcessingLoot, droppedItems, setPlayer, addLog, setIsProcessingLoot, finishLootItemClaim]);
 
   /**
    * Sell component from bag.
@@ -208,32 +230,41 @@ export function useInventoryHandlers(
    * Smart craft handler - determines which operation based on item rarities.
    * T-032: returns the crafted Item on success so UI can show a reveal panel.
    * Verifies both materials still in bag; places product or aborts without charging.
+   *
+   * Craft ladder:
+   * - 2× Broken (same component) → Common component
+   * - 2× Common (recipe) → Rare artifact
+   * - 2× Rare artifact (same recipe) → Epic artifact
    */
   const handleSynthesize = useCallback((compA: Item, compB: Item): Item | null => {
     if (!player) return null;
 
-    const bothBroken = compA.rarity === Rarity.BROKEN && compB.rarity === Rarity.BROKEN;
-    const bothCommon = compA.rarity === Rarity.COMMON && compB.rarity === Rarity.COMMON;
-    const bothRareArtifacts = compA.rarity === Rarity.RARE && compB.rarity === Rarity.RARE
-                              && !compA.isComponent && !compB.isComponent;
+    const combo = getCraftCombination(compA, compB);
+    if (!combo) {
+      if (
+        compA.isComponent &&
+        compB.isComponent &&
+        compA.rarity === Rarity.BROKEN &&
+        compB.rarity === Rarity.BROKEN &&
+        compA.componentId !== compB.componentId
+      ) {
+        addLog('Broken components must match (e.g. two Broken Chakra Pills).', 'danger');
+      } else {
+        addLog('These items cannot be combined.', 'danger');
+      }
+      return null;
+    }
 
-    let result;
-    let actionName = '';
     const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
-
-    if (bothBroken && compA.isComponent && compB.isComponent) {
+    let result;
+    if (combo.mode === 'upgrade_broken') {
       result = upgradeComponent(compA, compB, effectiveFloor);
-      actionName = 'Upgraded';
-    } else if (bothRareArtifacts) {
+    } else if (combo.mode === 'upgrade_artifact') {
       result = upgradeArtifact(compA, compB, effectiveFloor);
-      actionName = 'Forged';
-    } else if (bothCommon && compA.isComponent && compB.isComponent) {
-      result = synthesize(compA, compB, effectiveFloor);
-      actionName = 'Synthesized';
     } else {
       result = synthesize(compA, compB, effectiveFloor);
-      actionName = 'Synthesized';
     }
+    const actionName = combo.actionName;
 
     if (!result.success || !result.item) {
       addLog(result.reason || 'These items cannot be combined.', 'danger');
@@ -474,7 +505,11 @@ export function useInventoryHandlers(
     }
     if (outBox.o !== 'ok') return;
     setSelectedComponent(item);
-    addLog(`Select another component to synthesize with ${item.name}.`, 'info');
+    if (item.rarity === Rarity.BROKEN) {
+      addLog(`Select a matching Broken component to upgrade ${item.name}.`, 'info');
+    } else {
+      addLog(`Select another component to synthesize with ${item.name}.`, 'info');
+    }
   }, [setPlayer, addLog, setSelectedComponent]);
 
   /**

@@ -10,7 +10,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { useGame } from '../../contexts/GameContext';
-import { Item, EquipmentSlot, DragData, Rarity, TreasureHunt } from '../../game/types';
+import { Item, EquipmentSlot, DragData, Rarity, TreasureHunt, RegionLootTheme } from '../../game/types';
 import EquipmentPanel from '../inventory/EquipmentPanel';
 import Bag from '../inventory/Bag';
 import ArtIcon from '../shared/ArtIcon';
@@ -37,6 +37,10 @@ export interface RightSidebarPanelProps {
   onSwapEquipment?: (fromSlot: EquipmentSlot, toSlot: EquipmentSlot) => void;
   // Treasure hunt tracking
   treasureHunt?: TreasureHunt | null;
+  /**
+   * T-096: region lootTheme for bag Focus honesty (equip between loot peaks).
+   */
+  lootTheme?: RegionLootTheme | null;
 }
 
 // Get drag preview class based on rarity
@@ -74,6 +78,7 @@ const RightSidebarPanel: React.FC<RightSidebarPanelProps> = ({
   onDragEquipToBag,
   onSwapEquipment,
   treasureHunt,
+  lootTheme = null,
 }) => {
   const { player } = useGame();
   const [activeDrag, setActiveDrag] = useState<DragData | null>(null);
@@ -147,6 +152,7 @@ const RightSidebarPanel: React.FC<RightSidebarPanelProps> = ({
           onDisassemble={onDisassembleEquipped}
           onStartSynthesis={onStartSynthesisEquipped}
           isDragging={!!activeDrag}
+          lootTheme={lootTheme}
         />
 
         {/* Bag - only show when handlers are available */}
@@ -159,6 +165,7 @@ const RightSidebarPanel: React.FC<RightSidebarPanelProps> = ({
             onSynthesize={onSynthesize}
             onEquipFromBag={onEquipFromBag}
             isDragging={!!activeDrag}
+            lootTheme={lootTheme}
           />
         )}
 

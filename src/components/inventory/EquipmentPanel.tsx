@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Item, EquipmentSlot, Rarity, DragData } from '../../game/types';
+import { Item, EquipmentSlot, Rarity, DragData, RegionLootTheme } from '../../game/types';
 import { getSellPrice } from '../../game/systems/LootSystem';
 import { resolveItemArt } from '../../game/constants/artRegistry';
+import {
+  itemMatchesEquipmentFocus,
+  isFocusStat,
+} from '../../game/utils/itemFocusMatch';
 import Tooltip from '../shared/Tooltip';
 import ArtIcon from '../shared/ArtIcon';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
@@ -12,11 +16,25 @@ import './inventory.css';
 
 interface EquipmentPanelProps {
   equipment: Record<EquipmentSlot, Item | null>;
-  onSellEquipped?: (slot: EquipmentSlot, item: Item) => void;
-  onUnequip?: (slot: EquipmentSlot, item: Item) => void;
-  onDisassemble?: (slot: EquipmentSlot, item: Item) => void;
+  /** T-062: may return sell price for toast */
+  onSellEquipped?: (slot: EquipmentSlot, item: Item) => number | null | void;
+  /** T-067: may return success boolean for toast */
+  onUnequip?: (slot: EquipmentSlot, item: Item) => boolean | void;
+  /** T-069: may return recovered component for toast */
+  onDisassemble?: (slot: EquipmentSlot, item: Item) => Item | null | void;
   onStartSynthesis?: (slot: EquipmentSlot, item: Item) => void;
   isDragging?: boolean;
+  /**
+   * T-097: region lootTheme for Focus honesty on worn loadout (bag already T-096).
+   */
+  lootTheme?: RegionLootTheme | null;
+}
+
+/** T-062/T-067/T-069: short equipment action toast */
+interface EquipActionToast {
+  kind: 'sell' | 'unequip' | 'disassemble';
+  item: Item;
+  detail: string;
 }
 
 const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
@@ -26,10 +44,27 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
   onDisassemble,
   onStartSynthesis,
   isDragging: globalDragging = false,
+  lootTheme = null,
 }) => {
   const [activeMenu, setActiveMenu] = useState<EquipmentSlot | null>(null);
+  const [actionToast, setActionToast] = useState<EquipActionToast | null>(null);
 
   const getRarityColor = getRarityTextColorWithEffects;
+  const equipmentFocus = lootTheme?.equipmentFocus ?? null;
+
+  useEffect(() => {
+    if (!actionToast) return;
+    const t = setTimeout(() => setActionToast(null), 2200);
+    return () => clearTimeout(t);
+  }, [actionToast]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && actionToast) setActionToast(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [actionToast]);
 
   const SLOT_NAMES: Record<EquipmentSlot, string> = {
     [EquipmentSlot.SLOT_1]: 'Primary (+50%)',
@@ -46,18 +81,31 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
   };
 
   const handleSell = (slot: EquipmentSlot, item: Item) => {
-    onSellEquipped?.(slot, item);
+    const sold = onSellEquipped?.(slot, item);
     setActiveMenu(null);
+    if (typeof sold === 'number' && sold >= 0) {
+      setActionToast({ kind: 'sell', item, detail: `+${sold} Ryō` });
+    }
   };
 
   const handleUnequip = (slot: EquipmentSlot, item: Item) => {
-    onUnequip?.(slot, item);
+    const ok = onUnequip?.(slot, item);
     setActiveMenu(null);
+    if (ok === true) {
+      setActionToast({ kind: 'unequip', item, detail: 'Moved to bag' });
+    }
   };
 
   const handleDisassemble = (slot: EquipmentSlot, item: Item) => {
-    onDisassemble?.(slot, item);
+    const component = onDisassemble?.(slot, item);
     setActiveMenu(null);
+    if (component && typeof component === 'object' && 'name' in component) {
+      setActionToast({
+        kind: 'disassemble',
+        item,
+        detail: `→ ${component.name}`,
+      });
+    }
   };
 
   const handleStartSynthesis = (slot: EquipmentSlot, item: Item) => {
@@ -71,6 +119,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
     const sellValue = item ? getSellPrice(item) : 0;
     const canUnequip = !!item;
     const canDisassemble = item && !item.isComponent && item.recipe;
+    const isFocusItem = item ? itemMatchesEquipmentFocus(item, equipmentFocus) : false;
 
     const { setNodeRef: setDropRef, isOver } = useDroppable({
       id: `equip-${slot}`,
@@ -123,7 +172,14 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 
     const tooltipContent = item ? (
       <div className="equipment-panel__tooltip">
-        <div className={`equipment-panel__tooltip-name ${getRarityColor(item.rarity)}`}>{item.name}</div>
+        <div className={`equipment-panel__tooltip-name ${getRarityColor(item.rarity)}`}>
+          {item.name}
+          {isFocusItem && (
+            <span className="equipment-panel__tooltip-focus" title="Matches region Focus">
+              {' '}· Focus
+            </span>
+          )}
+        </div>
         <div className="equipment-panel__tooltip-type">
           {item.rarity} {item.isComponent ? 'Component' : (item.type || 'Artifact')}
         </div>
@@ -137,8 +193,16 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
         )}
         <div className="equipment-panel__tooltip-stats">
           {Object.entries(item.stats).map(([key, val]) => (
-            <div key={key} className="equipment-panel__tooltip-stat">
-              <span>{formatStatName(key)}</span>
+            <div
+              key={key}
+              className={`equipment-panel__tooltip-stat ${isFocusStat(key, equipmentFocus) ? 'equipment-panel__tooltip-stat--focus' : ''}`}
+            >
+              <span>
+                {formatStatName(key)}
+                {isFocusStat(key, equipmentFocus) && (
+                  <span className="equipment-panel__tooltip-focus-mark"> ★</span>
+                )}
+              </span>
               <span className="equipment-panel__tooltip-stat-value">+{val}</span>
             </div>
           ))}
@@ -169,8 +233,15 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
                 {SLOT_NAMES[slot]}
               </span>
               {item && (
-                <span className={`equipment-panel__slot-rarity ${getRarityColor(item.rarity)}`}>
-                  {item.rarity}
+                <span className="equipment-panel__slot-meta">
+                  {isFocusItem && (
+                    <span className="equipment-panel__slot-focus" title="Matches region Focus">
+                      F
+                    </span>
+                  )}
+                  <span className={`equipment-panel__slot-rarity ${getRarityColor(item.rarity)}`}>
+                    {item.rarity}
+                  </span>
                 </span>
               )}
             </div>
@@ -248,6 +319,39 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
       {renderEquip(EquipmentSlot.SLOT_2)}
       {renderEquip(EquipmentSlot.SLOT_3)}
       {renderEquip(EquipmentSlot.SLOT_4)}
+
+      {/* T-062/T-067: sell / unequip toast (parity with bag) */}
+      {actionToast && (
+        <div
+          className={`bag-toast bag-toast--${
+            actionToast.kind === 'sell'
+              ? 'sell'
+              : actionToast.kind === 'disassemble'
+                ? 'sell'
+                : 'equip'
+          }`}
+          role="status"
+          onClick={() => setActionToast(null)}
+        >
+          <ArtIcon
+            art={resolveItemArt(actionToast.item)}
+            size="md"
+            className="bag-toast__art"
+            title={actionToast.item.name}
+          />
+          <div className="bag-toast__copy">
+            <span className="bag-toast__label">
+              {actionToast.kind === 'sell'
+                ? 'Sold'
+                : actionToast.kind === 'disassemble'
+                  ? 'Disassembled'
+                  : 'Unequipped'}
+            </span>
+            <span className="bag-toast__name">{actionToast.item.name}</span>
+            <span className="bag-toast__detail">{actionToast.detail}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

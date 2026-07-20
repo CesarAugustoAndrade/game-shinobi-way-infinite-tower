@@ -667,7 +667,7 @@
 ## T-028 · Todo el arte del juego con /imagine (CERO SVG)
 - id: T-028
 - section: presentation
-- status: active
+- status: passed
 - initialScore: 35
 - targetScore: 90
 - lensFocus: [PRESENTACION, ARQUITECTURA]
@@ -715,3 +715,1892 @@
     - scripts/generate-exams-location-icons.mjs
     - scripts/generate-icon-set.mjs
 
+---
+
+## T-029 · Combate sin fallback SVG + cascade de arte
+- id: T-029
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, ARQUITECTURA]
+- origen: discovery post T-028 — Combat.tsx cae a archetype_*.svg (borrados); SkillCard oculta img en error sin emoji.
+- description: >
+    Tras T-028 (CERO SVG), el stage de combate aún usa un fallback hardcodeado a
+    `/assets/icons/enemies/archetype_*.svg` cuando `enemy.image` falta — 404 y escena rota.
+    SkillCard usa registry jpg pero `onError` solo hide del img (carta vacía).
+    ## DoD
+    1) Combat.tsx resuelve retrato con `getEnemyArt` / `resolveEnemyImageSrc` (jpg Imagine); cero paths `.svg`.
+    2) Grep `src/**/*.{ts,tsx}` no contiene referencias a assets de juego `.svg` (salvo comentarios).
+    3) SkillCard: si falla la imagen, muestra emoji del art registry (cascade src→emoji) sin tarjeta en blanco.
+    4) `npx tsc`, `npm test`, `npm run build`.
+    Fuera de alcance: secrets discovery, clan traits, synthesis modal, RewardModal loot preview.
+- entryPoints:
+    - src/scenes/combat/Combat.tsx
+    - src/components/combat/SkillCard.tsx
+    - src/game/constants/artRegistry.ts
+    - src/components/shared/ArtIcon.tsx
+
+---
+
+## T-030 · Secret locations se descubren de verdad
+- id: T-030
+- section: exploration
+- status: passed
+- initialScore: 40
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery — secrets con weight 0 forever; unlockCondition / discoveredSecretIds nunca se escriben.
+- description: >
+    Las locations secretas (isSecret + unlockCondition) nunca pasan isDiscovered=true,
+    así que drawLocationCards las deja en weight 0 y el jugador nunca las ve en el mapa.
+    ## DoD
+    1) API pura en RegionSystem: descubrir secretos desde eventFlags (requirement string)
+       y desde paths SECRET al completar una location origen.
+    2) Al volver al region map / dibujar cartas, region se sincroniza con player.eventFlags.
+    3) Al completar una location con secretPaths, se marcan targets secretos como discovered.
+    4) ≥1 evento Waves escribe un setFlags que desbloquea un secreto (narrativa).
+    5) Tests unitarios: flags → weight > 0; complete location con secret path → discovered.
+    6) tsc + test + build.
+    Fuera de alcance: nuevo UI de “?” en mapa, rebalance de loot secret, más regiones de contenido.
+- entryPoints:
+    - src/game/systems/RegionSystem.ts
+    - src/hooks/useLocationCards.ts
+    - src/hooks/useActivityHandlers.ts
+    - src/game/constants/events/wavesArcEvents.ts
+    - src/game/systems/__tests__/RegionSystem.test.ts
+
+---
+
+## T-031 · Clan trait artifacts afectan combate de verdad
+- id: T-031
+- section: combat
+- status: passed
+- initialScore: 45
+- targetScore: 90
+- lensFocus: [SISTEMA, BALANCE]
+- origen: discovery CONNECT — getClanTraitPassives existe y 0 callers; craft fantasy is fluff.
+- description: >
+    Artefactos Sharingan Implant / Byakugan Awakening / Shadow Mastery / Uzumaki Vitality
+    solo dan bonusStats. getClanTraitPassives lista traits pero no se usa en el pipeline de daño.
+    ## DoD
+    1) getClanTraitCombatModifiers (puro) con efectos por trait:
+       UCHIHA +crit chance/damage; HYUGA drain chakra on hit; NARA reduce enemy speed/evasion;
+       UZUMAKI heal % max HP at combat start (on top of stats).
+    2) Cableado en PlayerTurnSystem + CombatSimulationService (daño/hit).
+    3) processPassivesOnCombatStart logs + UZUMAKI heal; processPassivesOnHit HYUGA drain.
+    4) Tests unitarios por trait + equip path.
+    5) tsc, test, build.
+    Fuera de alcance: synthesis UI reveal, nuevos recipes, balance global re-sim.
+- entryPoints:
+    - src/game/systems/EquipmentPassiveSystem.ts
+    - src/game/systems/PlayerTurnSystem.ts
+    - src/game/systems/CombatSimulationService.ts
+    - src/game/systems/__tests__/EquipmentPassiveSystem.test.ts
+    - src/game/constants/synthesis.ts
+
+---
+
+## T-032 · Synthesis craft reveal (arte + equip)
+- id: T-032
+- section: presentation
+- status: passed
+- initialScore: 50
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — craft TFT solo escribe log; el momento “lo forjaste” muere.
+- description: >
+    Tras sintetizar, el jugador solo ve un log line. Falta revelar el artefacto (Imagine art),
+    coste, passive blurb y CTA Equip si hay slot libre.
+    ## DoD
+    1) handleSynthesize devuelve el Item creado (o null) en éxito.
+    2) Bag muestra panel bag__craft-result: ArtIcon, nombre, rarity, passive/description, cost paid.
+    3) Botones: Equip (si onEquipFromBag) y Dismiss.
+    4) Fallos siguen solo en log (sin panel falso).
+    5) tsc, test, build.
+    Fuera de alcance: nueva escena modal global, drag-drop craft, balance de costes.
+- entryPoints:
+    - src/hooks/useInventoryHandlers.ts
+    - src/components/inventory/Bag.tsx
+    - src/components/inventory/inventory.css
+    - src/components/layout/RightSidebarPanel.tsx
+    - src/game/constants/artRegistry.ts
+
+---
+
+## T-033 · Location tiedStoryEvents alimentan el event pool
+- id: T-033
+- section: exploration
+- status: passed
+- initialScore: 45
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — tiedStoryEvents en region data nunca se usan al generar rooms.
+- description: >
+    Locations declaran tiedStoryEvents (p.ej. forest_death_trap, rival_team_encounter) pero
+    generateEventActivity solo filtra por arco + flags. Los lugares se sienten genéricos.
+    ## DoD
+    1) FloorGenerationConfig + BranchingFloor llevan preferredEventIds (desde location.tiedStoryEvents).
+    2) generateEventActivity prioriza eventos preferidos elegibles; si ninguno, pool de arco.
+    3) locationToBranchingFloor pasa tiedStoryEvents; children generation los reutiliza.
+    4) Test: preferred id eligible → always that event when only one preferred; gated flag blocks it.
+    5) tsc, test, build.
+    Fuera de alcance: reescribir todos los atmosphereEvents, UI de “story hook”, nuevos eventos.
+- entryPoints:
+    - src/game/systems/LocationSystem.ts
+    - src/game/systems/RegionSystem.ts
+    - src/game/systems/EventSystem.ts
+    - src/game/types.ts
+    - src/game/systems/__tests__/LocationSystem.test.ts
+    - src/game/constants/regions/
+
+---
+
+## T-034 · Event flags dan poder real (daño + ryo)
+- id: T-034
+- section: combat
+- status: passed
+- initialScore: 48
+- targetScore: 90
+- lensFocus: [SISTEMA, BALANCE]
+- origen: discovery CONNECT — eventFlags solo gatean historia; no afectan combate/loot.
+- description: >
+    Las elecciones de eventos escriben flags (envoy_freed, subject_harvested, sunken_ship_discovered…)
+    pero el run no cambia mecánicamente. El jugador no siente consecuencias de poder.
+    ## DoD
+    1) API pura getEventFlagRunModifiers(player): damageBonus + ryoMultiplier desde flags existentes.
+    2) Flags cableadas (mínimo):
+       - envoy_freed → +10% ryo
+       - envoy_debt_settled → +5% damage
+       - subject_harvested → +8% damage
+       - subject_freed → +5% ryo
+       - sunken_ship_discovered | hidden_cove_discovered → +5% ryo
+    3) damageBonus sumado en PlayerTurnSystem + CombatSimulationService.
+    4) ryoMultiplier en recompensa de combate (useCombatVictory).
+    5) Tests unitarios de modifiers; tsc/test/build.
+    Fuera de alcance: nuevos eventos, UI de “buffs activos”, enemy HP scaling.
+- entryPoints:
+    - src/game/systems/EventSystem.ts
+    - src/game/systems/PlayerTurnSystem.ts
+    - src/game/systems/CombatSimulationService.ts
+    - src/hooks/useCombatVictory.ts
+    - src/game/systems/__tests__/EventSystem.test.ts
+
+---
+
+## T-035 · RewardModal preview de loot (CONNECT victoria→drops)
+- id: T-035
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — victoria solo muestra XP/Ryo; drops ya existen pero el modal los ignora.
+- description: >
+    Tras ganar, RewardModal solo muestra XP/Ryo/level-up. Los componentes y artefactos
+    se revelan en LOOT después, así la recompensa se siente vacía.
+    ## DoD
+    1) combatReward incluye lootPreviews (items).
+    2) RewardModal lista previews con ArtIcon + rarity + name.
+    3) Footer "Claim Loot" si hay drops, si no "Continue".
+    4) Flujo LOOT / returnToMap sin cambios de balance.
+    5) tsc, test, build.
+    Fuera de alcance: rediseño total del modal, animaciones pesadas.
+- entryPoints:
+    - src/components/modals/RewardModal.tsx
+    - src/components/modals/RewardModal.css
+    - src/hooks/useCombatVictory.ts
+    - src/App.tsx
+
+---
+
+## T-036 · EliteChallenge con arte Imagine (enemigo + premio)
+- id: T-036
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION]
+- origen: discovery CONNECT — elite peak moment usa emoji/Shield; registry Imagine no aparece.
+- description: >
+    La pantalla de elite challenge no muestra retrato del guardian ni tile del artefacto
+    (solo emoji artifact.icon). Tras T-028 el arte existe en registry.
+    ## DoD
+    1) Enemy panel: ArtIcon/getEnemyArt (image o archetype jpg).
+    2) Artifact prize: resolveItemArt + ArtIcon (no solo emoji).
+    3) CSS para portrait/tile legibles estilo pixel-arcade.
+    4) tsc, test, build.
+    Fuera de alcance: rebalance escape chance, nuevas mecánicas elite.
+- entryPoints:
+    - src/scenes/combat/EliteChallenge.tsx
+    - src/scenes/combat/EliteChallenge.css
+    - src/game/constants/artRegistry.ts
+    - src/components/shared/ArtIcon.tsx
+
+---
+
+## T-037 · HUD muestra buffs de event flags (T-034 visible)
+- id: T-037
+- section: presentation
+- status: passed
+- initialScore: 60
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — T-034 da daño/ryo pero el jugador no ve por qué.
+- description: >
+    getEventFlagRunModifiers aplica daño/ryo, pero no hay feedback en UI de combate.
+    Sin chips legibles el trade-off de eventos se siente invisible.
+    ## DoD
+    1) activeLabels de getEventFlagRunModifiers son strings legibles (no keys crudas).
+    2) PlayerHUD muestra chips de run-flags cuando hay mods activos (también compact combat).
+    3) CSS chips pixel-arcade, no rompe layout compact.
+    4) tsc, test, build.
+    Fuera de alcance: tooltip de todas las flags del juego, nueva escena.
+- entryPoints:
+    - src/game/systems/EventSystem.ts
+    - src/components/character/PlayerHUD.tsx
+    - src/components/character/character.css
+    - src/scenes/combat/Combat.tsx
+
+---
+
+## T-038 · Hand tooltip: arte Imagine + preview de daño real
+- id: T-038
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — tooltips de mano sin tile Imagine; preview ignora clan traits y event flags.
+- description: >
+    Hand tooltips son texto-only y el damage preview no aplica T-031/T-034, así el trade-off
+    de cartas no es legible (VISION: decisión con trade-off legible).
+    ## DoD
+    1) Tooltip header muestra getSkillArt via ArtIcon.
+    2) calculateDamage en Hand usa applyClanTraitToDamageContext + getEventFlagRunModifiers.damageBonus.
+    3) CSS para icono de tooltip (pixelated).
+    4) tsc, test, build.
+    Fuera de alcance: reescribir SkillCard tooltips fuera de Hand, nuevas mecánicas.
+- entryPoints:
+    - src/components/combat/Hand.tsx
+    - src/components/combat/Hand.css
+    - src/game/constants/artRegistry.ts
+    - src/game/systems/EquipmentPassiveSystem.ts
+    - src/game/systems/EventSystem.ts
+
+
+---
+
+## T-039 · Approach define opening posture (mapa completo + UI)
+- id: T-039
+- section: combat
+- status: passed
+- initialScore: 56
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — solo Silent Strike → Aggressive; resto abre Balanced sin UI.
+- description: >
+    La entrada al combate solo mapea Stealth success → Aggressive. Genjutsu/trap/frontal
+    no tienen identidad de stance; ApproachSelector no menciona posture.
+    ## DoD
+    1) Pure openingPostureForApproach(approach, success) en PostureSystem.
+    2) useCombat startCombat usa el helper (log de ambush conservado).
+    3) ApproachSelector cards + confirm muestran opening stance on success.
+    4) Tests del mapa approach→posture.
+    5) tsc, test, build.
+    Fuera de alcance: nuevas approaches, rebalance firstHit/AP.
+- entryPoints:
+    - src/game/systems/PostureSystem.ts
+    - src/hooks/useCombat.ts
+    - src/components/combat/ApproachSelector.tsx
+    - src/components/combat/ApproachSelector.css
+    - src/game/systems/__tests__/postureSystem.test.ts
+
+---
+
+## T-040 · ExplorationHUD chips de event flags
+- id: T-040
+- section: presentation
+- status: passed
+- initialScore: 62
+- targetScore: 90
+- lensFocus: [PRESENTACION]
+- origen: discovery CONNECT — T-037 chips solo en PlayerHUD de combate; explore no muestra poder de historia.
+- description: >
+    En exploracion el HUD (T-022) no muestra getEventFlagRunModifiers. El jugador ve
+    bonos de eventos en combate pero no en mapa/region.
+    ## DoD
+    1) ExplorationHUD muestra chips legibles cuando activeLabels.length > 0.
+    2) Mismos labels que T-037 (getEventFlagRunModifiers).
+    3) CSS compacto que no rompa strip (scroll o wrap controlado).
+    4) tsc, test, build.
+    Fuera de alcance: tooltips detallados, nuevos flags.
+- entryPoints:
+    - src/components/layout/ExplorationHUD.tsx
+    - src/components/layout/ExplorationHUD.css
+    - src/game/systems/EventSystem.ts
+
+---
+
+## T-041 · Event choices gated by requiredClan (clan identity)
+- id: T-041
+- section: events
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — requiredClan engine exists, 0 content uses it.
+- description: >
+    Clan pick shapes stats/skills but story treats every clan the same.
+    requiredClan is already validated in EventSystem and Event.tsx.
+    ## DoD
+    1) ≥3 choices across ≥2 arcs use requirements.requiredClan with unique rewards/text.
+    2) Matching clan can choose; others disabled with clan reason.
+    3) No new API — reuse existing requiredClan.
+    4) Content test asserts ≥3 requiredClan choices.
+    5) tsc, test, build.
+    Fuera de alcance: nuevos clans, rebalance global.
+- entryPoints:
+    - src/game/constants/events/wavesArcEvents.ts
+    - src/game/constants/events/examsArcEvents.ts
+    - src/game/constants/events/rogueArcEvents.ts
+    - src/game/constants/events/__tests__/eventContent.test.ts
+
+---
+
+## T-042 · Character sheet story bonuses + Yamanaka clan choice
+- id: T-042
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — sheet sin chips T-034; Yamanaka sin requiredClan post T-041.
+- description: >
+    CharacterSheetOverlay muestra buffs de combate pero no bonos de eventFlags.
+    Ademas Yamanaka no tiene choice exclusiva (Uchiha/Hyuga/Lee/Uzumaki si).
+    ## DoD
+    1) Character sheet seccion Story Bonuses con activeLabels de getEventFlagRunModifiers.
+    2) ≥1 choice requiredClan YAMANAKA en un evento (texto/reward unicos).
+    3) CSS legible en overlay.
+    4) tsc, test, build.
+    Fuera de alcance: reescribir ficha completa, mas clans.
+- entryPoints:
+    - src/components/layout/CharacterSheetOverlay.tsx
+    - src/components/layout/exploreOverlays.css
+    - src/game/constants/events/
+    - src/game/systems/EventSystem.ts
+
+---
+
+## T-043 · Interlude boons con arte Imagine + story summary
+- id: T-043
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — interlude 1-of-3 es texto puro; boons item/skill ya tienen registry art.
+- description: >
+    Tras boss, el interludio elige boon sin tiles Imagine. Los boons item/skill tienen
+    art en registry; stat puede usar icono legible. Tambien falta resumen de story bonuses.
+    ## DoD
+    1) Boon cards muestran ArtIcon para item (resolveItemArt) y skill (getSkillArt).
+    2) Stat boons muestran icono/emoji de stat legible.
+    3) Opcional: chips story flags del run si hay activeLabels.
+    4) CSS pixel-arcade en cards.
+    5) tsc, test, build.
+    Fuera de alcance: rebalance boons, nuevos kinds.
+- entryPoints:
+    - src/scenes/menu/Interlude.tsx
+    - src/scenes/menu/Interlude.css
+    - src/game/systems/CampaignSystem.ts
+    - src/game/constants/artRegistry.ts
+
+---
+
+## T-044 · GameOver + Victory story-run chips
+- id: T-044
+- section: presentation
+- status: passed
+- initialScore: 60
+- targetScore: 90
+- lensFocus: [PRESENTACION]
+- origen: discovery CONNECT — end screens sin eventFlags; cadena T-037..043 incompleta.
+- description: >
+    GameOver y Victory muestran stats numericas pero no story bonuses del run.
+    ## DoD
+    1) GameOver muestra chips activeLabels cuando hay flags.
+    2) Victory muestra los mismos chips.
+    3) Source getEventFlagRunModifiers only; pass player/labels from App.
+    4) CSS pixel chips.
+    5) tsc, test, build.
+    Fuera de alcance: atmosphereEvents, rebalance.
+- entryPoints:
+    - src/scenes/menu/GameOver.tsx
+    - src/scenes/menu/GameOver.css
+    - src/scenes/menu/Victory.tsx
+    - src/scenes/menu/Victory.css
+    - src/App.tsx
+
+---
+
+## T-045 · CharacterSelect starting jutsu Imagine chips
+- id: T-045
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION]
+- origen: discovery CONNECT — clan cards text-only for loadout; getSkillArt exists (T-028/038).
+- description: >
+    Character select shows signature skill names as plain text. Imagine skill tiles
+    already exist for combat/hand/interlude.
+    ## DoD
+    1) Clan cards show 1-2 signature skill ArtIcon chips (main loadout, skip basic_atk).
+    2) Tooltip loadout rows keep names; optional small art next to main skills.
+    3) CSS pixel frames; keyboard 1-5 unchanged.
+    4) tsc, test, build.
+    Fuera de alcance: nuevos clans, balance loadout.
+- entryPoints:
+    - src/scenes/menu/CharacterSelect.tsx
+    - src/scenes/menu/CharacterSelect.css
+    - src/game/constants/artRegistry.ts
+
+---
+
+## T-046 · atmosphereEvents flavor al entrar location
+- id: T-046
+- section: exploration
+- status: passed
+- initialScore: 50
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — atmosphereEvents se copian a Location pero nunca se leen.
+- description: >
+    Cada location declara atmosphereEvents (ids flavor snake_case) que no afectan el juego.
+    No son event ids reales; usar como ambient flavor sin inventar catalogo de eventos.
+    ## DoD
+    1) Helper puro humanizeAtmosphereEventId + pickAtmosphereFlavor(location, rng).
+    2) Al entrar location (handleEnterSelectedLocation) log de flavor si hay atmosphereEvents.
+    3) LocationMap muestra una linea de atmosphere cuando hay selected location.
+    4) Test unitario del humanize/pick.
+    5) tsc, test, build.
+    Fuera de alcance: mapear ids a GameEvent reales, nuevos events.
+- entryPoints:
+    - src/game/systems/RegionSystem.ts
+    - src/hooks/useLocationCards.ts
+    - src/components/exploration/LocationMap.tsx
+    - src/game/systems/__tests__/RegionSystem.test.ts
+
+---
+
+## T-047 · RegionMap preview muestra location.description
+- id: T-047
+- section: exploration
+- status: passed
+- initialScore: 52
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — description autorada en cada location, UI de seleccion no la lee.
+- description: >
+    Tras T-046 atmosphere entra al log/mapa interno; en RegionMap al elegir card solo
+    aparece Ready to explore {name}. location.description queda muerta.
+    ## DoD
+    1) CardDisplayInfo.description: null en NONE; texto en PARTIAL/FULL.
+    2) RegionMap selected preview muestra description (+ atmosphere humanize en FULL opcional).
+    3) No leak en mystery cards.
+    4) Test intel gate; tsc test build.
+    Fuera de alcance: reescribir descriptions, spawn/loot.
+- entryPoints:
+    - src/game/types.ts
+    - src/game/systems/RegionSystem.ts
+    - src/components/exploration/RegionMap.tsx
+    - src/components/exploration/exploration.css
+    - src/game/systems/__tests__/RegionSystem.test.ts
+
+---
+
+## T-048 · Training result panel (payoff before leave)
+- id: T-048
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — train aplica y sale al mapa; peak solo en addLog.
+- description: >
+    Tras confirmar training el handler muta stats y desmonta la escena. El jugador no
+    ve before/after ni coste pagado en un panel (a diferencia de RewardModal/synthesis).
+    ## DoD
+    1) Result panel en Training: stat before→after, intensity, cost HP/CK, gain.
+    2) Continue aplica via onTrain existente y vuelve al mapa.
+    3) Skip sin panel.
+    4) CSS pixel-arcade.
+    5) tsc, test, build.
+    Fuera de alcance: rebalance gains, multi-session training.
+- entryPoints:
+    - src/scenes/activities/Training.tsx
+    - src/scenes/activities/Training.css
+    - src/hooks/useActivityHandlers.ts
+
+---
+
+## T-049 · InfoGathering intel result panel
+- id: T-049
+- section: exploration
+- status: passed
+- initialScore: 52
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — intel gathering only logs; peak meta payoff invisible.
+- description: >
+    infoGathering applies +intel and flavor via addLog only. Same gap as T-048 training.
+    ## DoD
+    1) Modal/panel shows flavorText, +intelGain%, before→after intel (capped 100).
+    2) Continue dismisses; activity completes once; optional ArtIcon activity tile.
+    3) tsc, test, build.
+    Fuera de alcance: rest panel, intel formula rebalance.
+- entryPoints:
+    - src/hooks/useActivityHandler.ts
+    - src/App.tsx
+    - src/components/modals/
+
+---
+
+## T-050 · Rest activity result panel
+- id: T-050
+- section: exploration
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION]
+- origen: discovery CONNECT — rest heals then log only; mirror T-049 intel panel.
+- description: >
+    Rest applies HP/CK heal and completes activity with addLog only. Peak invisible.
+    ## DoD
+    1) RestResultModal: +HP/+CK, before→after, heal %, rest ArtIcon.
+    2) Wire useActivityHandler + App mount; dismiss Enter/Space/Esc.
+    3) Activity completes once; log kept.
+    4) tsc, test, build.
+    Fuera de alcance: rebalance heal, GameGuide.
+- entryPoints:
+    - src/hooks/useActivityHandler.ts
+    - src/App.tsx
+    - src/components/modals/RestResultModal.tsx
+
+---
+
+## T-051 · ScrollDiscovery learn result panel
+- id: T-051
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — learn/upgrade/replace solo addLog y sale al mapa.
+- description: >
+    Tras aprender un scroll la escena se desmonta; payoff invisible.
+    ## DoD
+    1) Result beat: skill ArtIcon, mode learned/upgraded/replaced, chakra cost.
+    2) Continue applies via onLearnScroll once then leave.
+    3) Skip unchanged.
+    4) CSS pixel; tsc test build.
+    Fuera de alcance: balance skills, loot juice.
+- entryPoints:
+    - src/scenes/rewards/ScrollDiscovery.tsx
+    - src/scenes/rewards/ScrollDiscovery.css
+    - src/hooks/useActivityHandlers.ts
+
+---
+
+## T-052 · Loot leave confirm (unclaimed spoils)
+- id: T-052
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — Leave All / Space abandona drops sin intent explícito.
+- description: >
+    En LOOT, Space/Enter/Leave All sale al mapa y descarta items/skills no reclamados
+    sin confirmacion. Misma familia de payoff-clarity que T-048..051.
+    ## DoD
+    1) Si quedan droppedItems o droppedSkill, leave pide confirm (count + Cancel/Leave).
+    2) Si no queda nada, leave inmediato.
+    3) Footer badge de remaining count.
+    4) CSS pixel; tsc test build.
+    Fuera de alcance: auto-loot, balance drops, cambiar equip-one-leaves-map.
+- entryPoints:
+    - src/scenes/rewards/Loot.tsx
+    - src/scenes/rewards/Loot.css
+
+---
+
+## T-053 · TreasureChoice claim result panel
+- id: T-053
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — pick treasure va al mapa sin beat (solo log).
+- description: >
+    handleTreasureSelectItem mete en bag y sale; no hay panel de claim.
+    ## DoD
+    1) Tras pick con espacio en bag: panel item ArtIcon, name/rarity, ryo bonus.
+    2) Continue aplica onSelectItem una vez y sale.
+    3) Bag-full / hunt / guardian sin cambios.
+    4) CSS pixel; tsc test build.
+    Fuera de alcance: rebalance loot, multi-pick.
+- entryPoints:
+    - src/scenes/rewards/TreasureChoice.tsx
+    - src/scenes/rewards/treasure.css
+    - src/hooks/useTreasureHandlers.ts
+
+---
+
+## T-054 · Combat opening banner (approach + posture)
+- id: T-054
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — approachResult existe pero no se ve en combate (solo logs).
+- description: >
+    Tras T-039 posture abre con approach; el resultado del approach no se muestra en UI de combate.
+    ## DoD
+    1) Banner primer turno: approach name, success/fail, opening posture + draw bias, key effects.
+    2) Auto-dismiss timeout o al jugar carta/pass.
+    3) Pixel CSS; tsc test build.
+    Fuera de alcance: rebalance approach, new approaches.
+- entryPoints:
+    - src/scenes/combat/Combat.tsx
+    - src/scenes/combat/Combat.css
+    - src/App.tsx
+    - src/hooks/useCombat.ts
+
+---
+
+## T-055 · Merchant purchase result juice
+- id: T-055
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — buy solo addLog; shop stay abierto sin peak visual.
+- description: >
+    buyItem actualiza bag/ryo y loguea. No hay toast/panel de compra exitosa.
+    ## DoD
+    1) buyItem returns boolean; success shows toast: ArtIcon, name, -price, bag note.
+    2) Fail paths keep logs only (no false toast).
+    3) Stay in merchant; auto-dismiss ~2s or Esc/click.
+    4) CSS pixel; tsc test build.
+    Fuera de alcance: rebalance prices, sell panel.
+- entryPoints:
+    - src/hooks/useActivityHandlers.ts
+    - src/scenes/activities/Merchant.tsx
+    - src/scenes/activities/Merchant.css
+    - src/App.tsx
+
+---
+
+## T-056 · Wire location.enemyPool into room spawns
+- id: T-056
+- section: combat
+- status: passed
+- initialScore: 48
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — enemyPool muerto; getEnemyArt poolId listo.
+- description: >
+    Locations autoran enemyPool pero generateEnemy usa prefijos genericos de arco.
+    ## DoD
+    1) generateEnemy accepts optional enemyPool; NORMAL/ELITE pick pool id for name + poolId art.
+    2) humanizeEnemyPoolId; empty pool keeps legacy prefix+job.
+    3) LocationSystem combat/elite pass floor.enemyPool from location.
+    4) FloorGenerationConfig + BranchingFloor.enemyPool from locationToBranchingFloor.
+    5) Tests; tsc test build.
+    Fuera de alcance: boss kits, new stats catalogs.
+- entryPoints:
+    - src/game/systems/EnemySystem.ts
+    - src/game/systems/LocationSystem.ts
+    - src/game/systems/RegionSystem.ts
+    - src/game/types.ts
+    - src/game/systems/__tests__/EnemySystem.test.ts
+
+---
+
+## T-057 · Event/treasure/guardian spawns use enemyPool
+- id: T-057
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT residual — T-056 room combat only; event/treasure/exit guardian omit pool.
+- description: >
+    generateEnemy ya acepta enemyPool. Event triggerCombat, treasure guardian y exit
+    guardian siguen sin pasarlo.
+    ## DoD
+    1) Event combat passes locationFloor/branchingFloor enemyPool.
+    2) Treasure guardian + generateGuardian pass pool; named overrides still win.
+    3) Empty pool legacy.
+    4) tsc test build.
+    Fuera de alcance: boss kits, bag toast.
+- entryPoints:
+    - src/hooks/useActivityHandlers.ts
+    - src/hooks/useTreasureHandlers.ts
+    - src/game/systems/LocationSystem.ts
+
+---
+
+## T-058 · Bag equip/sell toast (mirror T-055)
+- id: T-058
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION]
+- origen: discovery CONNECT — bag equip/sell solo addLog; T-055 pattern ready.
+- description: >
+    equipFromBag y sellComponent mutan y loguean sin peak visual.
+    ## DoD
+    1) Equip success toast: ArtIcon, name, equip note (swap if replaced).
+    2) Sell success toast: art, name, +ryo.
+    3) Fail log-only; auto-dismiss ~2s / Esc / click.
+    4) CSS pixel; tsc test build.
+    Fuera de alcance: lootTable, leave location.
+- entryPoints:
+    - src/hooks/useInventoryHandlers.ts
+    - src/components/inventory/Bag.tsx
+    - src/components/inventory/inventory.css
+
+---
+
+## T-059 · Wire location.lootTable into combat/treasure drops
+- id: T-059
+- section: exploration
+- status: passed
+- initialScore: 48
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT — lootTable muerto; drops usan pesos globales.
+- description: >
+    Locations autoran lootTable (settlement/wilderness/boss/secret) pero generateLoot
+    ignora el id. Bias de pesos por sufijo de tabla.
+    ## DoD
+    1) parseLootTableKind + weight multipliers by kind.
+    2) generateLoot/broken/common honor lootTable?; unknown → global.
+    3) Combat victory passes currentLocation.lootTable; treasure gens if cheap.
+    4) Unit tests; tsc test build.
+    Fuera de alcance: full per-id catalogs, leave location panel.
+- entryPoints:
+    - src/game/systems/LootSystem.ts
+    - src/hooks/useCombatVictory.ts
+    - src/game/systems/LocationSystem.ts
+    - src/game/systems/__tests__/LootSystem.test.ts
+
+---
+
+## T-060 · Location complete result panel
+- id: T-060
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — leave/complete location salta a REGION_MAP con solo log.
+- description: >
+    Completar location es peak de progresion; solo addLog y salto a cartas.
+    ## DoD
+    1) Panel: nombre location, danger, rooms, locationsCleared after, region progress, secret unlocks.
+    2) Continue ejecuta completeLocationAndReturnToRegion una vez.
+    3) Revisit sin double count copy.
+    4) CSS pixel; Enter/Space; tsc test build.
+    Fuera de alcance: lootTheme, terrainEffects, new rewards.
+- entryPoints:
+    - src/hooks/useLocationCards.ts
+    - src/hooks/useExploration.ts
+    - src/App.tsx
+    - src/components/modals/LocationCompleteModal.tsx
+
+---
+
+## T-061 · Wire region.lootTheme into ryo + component drops
+- id: T-061
+- section: exploration
+- status: passed
+- initialScore: 50
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT — lootTheme en 4 regiones, copiado, nunca leido (post T-059).
+- description: >
+    goldMultiplier y equipmentFocus no afectan ryo ni drops. primaryElement documentado
+    en bias leve de flavor via focus.
+    ## DoD
+    1) goldMultiplier multiplies combat ryo after wealth/flags.
+    2) equipmentFocus boosts matching component primaryStat weights (stack T-059).
+    3) Call sites pass region.lootTheme; missing → 1.0 / global.
+    4) Unit tests; tsc test build.
+    Fuera de alcance: terrainEffects, equipment toast.
+- entryPoints:
+    - src/game/systems/LootSystem.ts
+    - src/hooks/useCombatVictory.ts
+    - src/game/systems/__tests__/LootSystem.test.ts
+
+---
+
+## T-062 · Equipment sell toast (mirror T-058 bag)
+- id: T-062
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION]
+- origen: discovery CONNECT residual — bag sell tiene toast; equipped sell solo addLog.
+- description: >
+    sellEquipped muta y loguea sin peak visual. T-058 cubrio bag.
+    ## DoD
+    1) sellEquipped returns price | null.
+    2) EquipmentPanel toast: ArtIcon, name, +ryo; auto-dismiss.
+    3) Fail log-only; tsc test build.
+    Fuera de alcance: terrainEffects, unequip toast.
+- entryPoints:
+    - src/hooks/useInventoryHandlers.ts
+    - src/components/inventory/EquipmentPanel.tsx
+    - src/components/inventory/inventory.css
+
+---
+
+## T-063 · Wire location.terrainEffects (S-slice)
+- id: T-063
+- section: combat
+- status: passed
+- initialScore: 48
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — terrainEffects muertos; 13 types autorados.
+- description: >
+    Location.terrainEffects nunca se leen. S-slice: stealth + element/mental damage
+    + enemy defense. Defer hazards/ambush/attack.
+    ## DoD
+    1) Pure getLocationTerrainMods + skillLocationDamageMult + tests.
+    2) stealth_bonus → approach success (frac*100 + room stealth).
+    3) water/fire/mental damage on player outgoing; enemy_defense_bonus reduces it.
+    4) CombatState.locationTerrainMods from current location.
+    5) Optional FULL intel line for terrain effects on cards.
+    6) tsc test build.
+    Fuera de alcance: poison/fall hazards, ambush_chance, enemy_attack, full sim parity.
+- entryPoints:
+    - src/game/systems/LocationTerrainSystem.ts
+    - src/game/systems/ApproachSystem.ts
+    - src/game/systems/PlayerTurnSystem.ts
+    - src/game/systems/combat-types.ts
+    - src/App.tsx
+    - src/hooks/useCombat.ts
+
+---
+
+## T-064 · terrainEffects residual: enemy attack + ambush
+- id: T-064
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT residual T-063 — enemy_attack_bonus y ambush_chance stubbed only.
+- description: >
+    LocationTerrainMods already sums enemyAttackBonus and ambushChance but unused.
+    ## DoD
+    1) enemy_attack_bonus multiplies enemy→player damage in EnemyTurnSystem.
+    2) ambush_chance increases room elite combat roll (base 0.3 + value, cap ~0.7).
+    3) Thread terrainEffects on BranchingFloor from location for room gen.
+    4) Tests; tsc test build.
+    Fuera de alcance: hazards, sim full parity.
+- entryPoints:
+    - src/game/systems/EnemyTurnSystem.ts
+    - src/game/systems/LocationSystem.ts
+    - src/game/systems/RegionSystem.ts
+    - src/game/types.ts
+    - src/game/systems/__tests__/LocationTerrainSystem.test.ts
+
+---
+
+## T-065 · ApproachSelector shows location stealth_bonus
+- id: T-065
+- section: presentation
+- status: passed
+- initialScore: 60
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-063 — executeApproach stacks loc stealth; UI does not.
+- description: >
+    Preview de % de approach miente vs roll real (solo room stealth).
+    ## DoD
+    1) Success % = room stealth + location stealth pts (same as executeApproach).
+    2) Terrain UI shows combined stealth when loc bonus != 0.
+    3) Pass locationStealthBonusPts from App currentLocation.
+    4) tsc test build.
+    Fuera de alcance: hazards residuales, unequip toast.
+- entryPoints:
+    - src/components/combat/ApproachSelector.tsx
+    - src/App.tsx
+    - src/game/systems/ApproachSystem.ts
+
+---
+
+## T-066 · Location terrain hazards + evasion
+- id: T-066
+- section: combat
+- status: passed
+- initialScore: 52
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT residual terrain — poison/fall/chakra_drain/evasion unused.
+- description: >
+    LocationTerrainMods no suma hazards ni evasion. Room hazards existen; location no.
+    ## DoD
+    1) Sum poison_hazard, fall_hazard, chakra_drain, evasion_bonus in mods.
+    2) End of enemy turn: location hazards on player (HP % / chakra %).
+    3) evasion_bonus adds to player evade vs enemy attacks.
+    4) Tests; tsc test build.
+    Fuera de alcance: movement/visibility exploration, sim full parity.
+- entryPoints:
+    - src/game/systems/LocationTerrainSystem.ts
+    - src/game/systems/EnemyTurnSystem.ts
+    - src/game/systems/__tests__/LocationTerrainSystem.test.ts
+
+---
+
+## T-067 · Unequip toast + movement/visibility terrain
+- id: T-067
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — unequip log-only; movement/visibility terrain still dead.
+- description: >
+    1) unequipToBag toast like sell/equip.
+    2) Sum movement_penalty + visibility_penalty; combat maxAp reduced by movement;
+       intel gains reduced by |visibility_penalty| when negative.
+    ## DoD
+    1) Unequip toast ArtIcon + Moved to bag.
+    2) Mods sum movement/visibility; AP + intel wire.
+    3) Labels FULL intel; tests; tsc build.
+    Fuera de alcance: full exploration path costs.
+- entryPoints:
+    - src/hooks/useInventoryHandlers.ts
+    - src/components/inventory/EquipmentPanel.tsx
+    - src/game/systems/LocationTerrainSystem.ts
+    - src/hooks/useCombat.ts
+    - src/hooks/useCombatVictory.ts
+    - src/hooks/useActivityHandler.ts
+
+---
+
+## T-068 · Event intel visibility + lootTheme primaryElement
+- id: T-068
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT residual T-067/T-061 — event intel ignores fog; primaryElement never used.
+- description: >
+    1) Event terminal intelGain scaled by applyVisibilityToIntelGain.
+    2) generateEnemy biases element toward region lootTheme.primaryElement (~50%).
+    ## DoD
+    1) handleEventOutcomeClose uses visibility-scaled intel.
+    2) generateEnemy optional preferredElement / lootTheme primary.
+    3) Pass region primaryElement from combat gen paths when cheap.
+    4) Tests; tsc build.
+    Fuera de alcance: disassemble toast, sim parity.
+- entryPoints:
+    - src/hooks/useActivityHandlers.ts
+    - src/game/systems/EnemySystem.ts
+    - src/game/systems/LocationSystem.ts
+    - src/game/systems/__tests__/EnemySystem.test.ts
+
+---
+
+## T-069 · Disassemble toast + region element theme chip
+- id: T-069
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-068 — disassemble log-only; primaryElement now affects enemies but UI silent.
+- description: >
+    1) Disassemble equipped returns component; toast shows result.
+    2) RegionMap header shows lootTheme primaryElement chip.
+    ## DoD
+    1) handleDisassembleEquipped returns component | null.
+    2) EquipmentPanel toast Disassembled → component name.
+    3) RegionMap shows Affinity: {element} when lootTheme set.
+    4) tsc test build.
+- entryPoints:
+    - src/hooks/useInventoryHandlers.ts
+    - src/components/inventory/EquipmentPanel.tsx
+    - src/components/exploration/RegionMap.tsx
+    - src/components/exploration/exploration.css
+
+---
+
+## T-070 · Merchant lootTheme + auto-combat location terrain
+- id: T-070
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT — merchant ignores lootTheme; simulateGameCombat ignores locationTerrainMods.
+- description: >
+    Manual combat has terrain mods + lootTheme; auto combat and merchant stock lag.
+    ## DoD
+    1) generateMerchantItem call sites pass lootTable + lootTheme.
+    2) simulateGameCombat optional locationTerrainMods; apply dmg/defense/attack/evasion/hazards lightly.
+    3) Auto-combat callers pass currentLocation terrain mods.
+    4) tsc test build.
+    Fuera de alcance: full sim deckbuilder AP parity.
+- entryPoints:
+    - src/game/systems/LocationSystem.ts
+    - src/hooks/useActivityHandlers.ts
+    - src/game/systems/CombatSimulationService.ts
+    - src/hooks/useCombatVictory.ts
+
+---
+
+## T-071 · Treasure lootTheme + combat open terrain lines
+- id: T-071
+- section: exploration
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — treasure drops miss lootTheme; open banner ignores location terrain.
+- description: >
+    Merchant has lootTheme (T-070); treasure/exit loot still only lootTable.
+    Combat open banner shows approach but not location terrain effects already active.
+    ## DoD
+    1) generateTreasureActivity + exit treasure pass lootTheme.
+    2) Combat open banner lists 1-3 location terrain effect labels when present.
+    3) tsc test build.
+    Fuera de alcance: full sim AP deck.
+- entryPoints:
+    - src/game/systems/LocationSystem.ts
+    - src/scenes/combat/Combat.tsx
+    - src/App.tsx
+
+---
+
+## T-072 · Hunt reward lootTheme + sim evasion
+- id: T-072
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT residual T-070/071 — hunt rewards miss lootTheme; auto-combat misses evasion.
+- description: >
+    getTreasureHuntReward generates components without lootTable/theme.
+    simulateGameCombat does not apply location evasion_bonus on enemy attacks.
+    ## DoD
+    1) getTreasureHuntReward accepts lootTable + lootTheme and passes to generateComponentByQuality.
+    2) Callers pass location/region loot context.
+    3) Sim enemy attacks use evasion_bonus like EnemyTurnSystem.
+    4) tsc test build.
+- entryPoints:
+    - src/game/systems/LocationSystem.ts
+    - src/hooks/useTreasureHandlers.ts
+    - src/hooks/useCombatVictory.ts
+    - src/game/systems/CombatSimulationService.ts
+
+---
+
+## T-073 · Event/hunt generateEnemy preferredElement parity
+- id: T-073
+- section: combat
+- status: passed
+- initialScore: 60
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT residual T-068 — room combat has preferredElement; event/guardian omit it.
+- description: >
+    Pass region.lootTheme.primaryElement into event combat and treasure guardian generateEnemy.
+    Optionally generateGuardian in LocationSystem.
+    ## DoD
+    1) Event triggerCombat + treasure guardian pass preferredElement.
+    2) Exit guardian uses preferredElement when available.
+    3) tsc test build.
+- entryPoints:
+    - src/hooks/useActivityHandlers.ts
+    - src/hooks/useTreasureHandlers.ts
+    - src/game/systems/LocationSystem.ts
+
+---
+
+## T-074 · Region equipmentFocus + LocationMap terrain strip
+- id: T-074
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — equipmentFocus wired in drops (T-061) but silent on map; terrain active in location only on cards/combat open.
+- description: >
+    1) RegionMap shows Focus: Speed · Dexterity · Spirit from lootTheme.equipmentFocus.
+    2) LocationMap header shows active terrain effect lines from floor.terrainEffects.
+    ## DoD
+    1) Focus chip humanized; no-op if empty.
+    2) LocationMap terrain strip when effects present.
+    3) CSS pixel; tsc test build.
+- entryPoints:
+    - src/components/exploration/RegionMap.tsx
+    - src/components/exploration/LocationMap.tsx
+    - src/components/exploration/exploration.css
+
+---
+
+## T-075 · Combat AP terrain note + location-complete affinity
+- id: T-075
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — movement_penalty reduces maxAp but AP HUD is silent; location complete omits region/location identity.
+- description: >
+    1) Combat AP bar notes terrain AP cut when maxAp < natural budget.
+    2) Location complete panel shows optional terrain summary + region affinity if available.
+    ## DoD
+    1) Pass baseMaxAp or reduced flag to Combat; show 'Terrain AP −N' under pips.
+    2) LocationCompleteResult optional terrainLines + affinityLabel.
+    3) tsc test build.
+- entryPoints:
+    - src/scenes/combat/Combat.tsx
+    - src/hooks/useCombat.ts
+    - src/App.tsx
+    - src/components/modals/LocationCompleteModal.tsx
+    - src/hooks/useLocationCards.ts
+
+---
+
+## T-076 · GameGuide honesty: terrain + region lootTheme
+- id: T-076
+- section: presentation
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT — handbook terrain fluff; live systems T-063..075.
+- description: >
+    Rewrite HELP_TEXT terrain/exploration to match LocationTerrainSystem and region lootTheme
+    (Affinity, Focus, Ryo). Optional note room vs location terrain layers.
+    ## DoD
+    1) TERRAIN cards list real location effects with short effects.
+    2) EXPLORATION or combat section mentions region Affinity/Focus/Ryo bias.
+    3) tsc test build; no formula change.
+- entryPoints:
+    - src/game/constants/helpText.ts
+    - src/scenes/menu/GameGuide.tsx
+
+---
+
+## T-077 · Room terrain evasion + dead elite helpers cleanup
+- id: T-077
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA]
+- origen: discovery CONNECT — getTerrainEvasionBonus never called; location evasion wired.
+- description: >
+    Stack room terrain.evasionModifier into defender evasion in manual + auto combat.
+    Delete unused generateLocationElite / generateRegionBoss.
+    ## DoD
+    1) EnemyTurn + PlayerTurn + sim stack room evasion with location evasion (cap 0.75).
+    2) Remove dead RegionSystem elite/boss helpers.
+    3) tsc test build.
+- entryPoints:
+    - src/game/systems/EnemyTurnSystem.ts
+    - src/game/systems/PlayerTurnSystem.ts
+    - src/game/systems/CombatSimulationService.ts
+    - src/game/systems/RegionSystem.ts
+
+---
+
+## T-078 · ApproachSelector room evasion + element amplify
+- id: T-078
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-065/T-077 — combat uses evasion/element; approach strip hides them.
+- description: >
+    Terrain Effects strip shows Evasion (room + optional loc) and element amplify.
+    Keep stealth/initiative/hazard. No formula change.
+    ## DoD
+    1) Non-zero evasionModifier / location evasion shown.
+    2) elementAmplify shown when set.
+    3) App passes locationEvasionBonus if needed.
+    4) tsc test build.
+- entryPoints:
+    - src/components/combat/ApproachSelector.tsx
+    - src/App.tsx
+
+---
+
+## T-079 · Combat open banner room evasion + element amp
+- id: T-079
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-078 — approach strip shows room mods; open banner only location.
+- description: >
+    Merge room terrain lines (evasion, element amp, initiative, hazard) into combat open banner.
+    Cap labels; keep location lines. Display only.
+    ## DoD
+    1) formatRoomTerrainEffectLines helper.
+    2) App merges room + location into Combat open banner (max 4).
+    3) tsc test build.
+- entryPoints:
+    - src/game/systems/LocationTerrainSystem.ts
+    - src/scenes/combat/Combat.tsx
+    - src/App.tsx
+
+---
+
+## T-080 · Room visibilityRange on LocationMap foresight
+- id: T-080
+- section: exploration
+- status: passed
+- initialScore: 52
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — visibilityRange authored on every room terrain, never read.
+- description: >
+    When current room terrain visibilityRange is 1, fog/hide grandchild row.
+    Range 2+ keeps current full foresight. Header Sight chip optional.
+    Generation unchanged (display-only).
+    ## DoD
+    1) Helper getRoomVisibilityRange(terrain).
+    2) LocationMap hides or fogs grandchildren when range <= 1.
+    3) Sight N chip in header.
+    4) tsc test build.
+    Fuera de alcance: hiddenRoomBonus, movementCost.
+- entryPoints:
+    - src/game/systems/LocationTerrainSystem.ts
+    - src/components/exploration/LocationMap.tsx
+    - src/components/exploration/exploration.css
+
+---
+
+## T-081 · Room hiddenRoomBonus into exit discovery
+- id: T-081
+- section: exploration
+- status: passed
+- initialScore: 52
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — hiddenRoomBonus authored, never read; exit roll is live hook.
+- description: >
+    Parent room terrain hiddenRoomBonus adjusts exit probability when generating children.
+    LocationMap Secrets chip when non-zero.
+    ## DoD
+    1) getRoomHiddenRoomBonus helper (bonus/100 fraction, clamp).
+    2) shouldBeExitRoom uses parent room terrain bonus.
+    3) Sight-style Secrets chip on LocationMap.
+    4) tests tsc build.
+    Fuera de alcance: movementCost.
+- entryPoints:
+    - src/game/systems/LocationTerrainSystem.ts
+    - src/game/systems/LocationSystem.ts
+    - src/components/exploration/LocationMap.tsx
+
+---
+
+## T-082 · Room movementCost into combat AP + Pace chip
+- id: T-082
+- section: combat
+- status: passed
+- initialScore: 52
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — last dead room TerrainEffects exploration field after T-080/081.
+- description: >
+    movementCost multiplies combat AP budget (max 1 floor). LocationMap Pace chip.
+    Stack after base, with location movement_penalty. No enter gates.
+    ## DoD
+    1) getRoomMovementCost + applyRoomMovementCostToMaxAp.
+    2) useCombat open + upkeep apply room cost from combatState.terrain.
+    3) LocationMap Pace chip when cost != 1.
+    4) tests tsc build.
+- entryPoints:
+    - src/game/systems/LocationTerrainSystem.ts
+    - src/hooks/useCombat.ts
+    - src/components/exploration/LocationMap.tsx
+
+---
+
+## T-083 · Pace honesty: room movementCost in UI + guide
+- id: T-083
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-082 — movementCost affects AP but approach/banner/guide lag LocationMap Pace chip.
+- description: >
+    Surface room movementCost in formatRoomTerrainEffectLines, ApproachSelector,
+    combat open banner (via formatter), and GameGuide exploration/combat copy.
+    ## DoD
+    1) formatRoomTerrainEffectLines includes Pace ×N when cost != 1.
+    2) ApproachSelector shows Pace line.
+    3) helpText mentions Sight/Secrets/Pace room terrain.
+    4) tsc test build.
+- entryPoints:
+    - src/game/systems/LocationTerrainSystem.ts
+    - src/components/combat/ApproachSelector.tsx
+    - src/game/constants/helpText.ts
+    - src/scenes/menu/GameGuide.tsx
+
+---
+
+## T-084 · Selected room panel: terrain Pace/Sight/Secrets
+- id: T-084
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-080..083 — header shows current room foresight; selected room panel ignores its own terrain.
+- description: >
+    Selected room detail shows terrain name + non-default Pace/Sight/Secrets/combat chips
+    from TERRAIN_DEFINITIONS[room.terrain]. Display only.
+    ## DoD
+    1) Selected panel lists terrain name and key mods.
+    2) CSS pixel consistent with map chips.
+    3) tsc test build.
+- entryPoints:
+    - src/components/exploration/LocationMap.tsx
+    - src/components/exploration/exploration.css
+
+---
+
+## T-085 · RoomCard terrain micro-hints
+- id: T-085
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-084 — selected panel honest after click; cards still blind.
+- description: >
+    RoomCard shows terrain name + non-default Sight/Secrets/Pace chips for path scan.
+    ## DoD
+    1) Terrain short name on card.
+    2) Chips when Sight != 2, Secrets != 0, Pace != 1.
+    3) CSS pixel; tsc test build.
+- entryPoints:
+    - src/components/exploration/RoomCard.tsx
+    - src/components/exploration/exploration.css
+
+---
+
+## T-086 · Intel result modal: visibility fog honesty
+- id: T-086
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-067 — intel gain scaled by fog; modal only shows effective number.
+- description: >
+    When visibility_penalty reduces intel, IntelResultModal shows base vs effective and a Fog note.
+    ## DoD
+    1) IntelResultData optional baseIntelGain + fogNote.
+    2) useActivityHandler passes base and effective.
+    3) Modal copy when reduced.
+    4) tsc test build.
+- entryPoints:
+    - src/components/modals/IntelResultModal.tsx
+    - src/hooks/useActivityHandler.ts
+    - src/App.tsx
+
+---
+
+## T-087 · RewardModal combat intel + fog honesty
+- id: T-087
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-067/086 — combat grants fog intel silently.
+- description: >
+    Victory RewardModal shows intel gain; base→effective when fog reduces.
+    addLog on victory for intel.
+    ## DoD
+    1) combatReward includes intel fields.
+    2) RewardModal intel row + fog note.
+    3) Victory log includes intel.
+    4) tsc test build.
+- entryPoints:
+    - src/hooks/useCombatVictory.ts
+    - src/components/modals/RewardModal.tsx
+    - src/App.tsx
+
+---
+
+## T-088 · Event choice preview fog-honest intel
+- id: T-088
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-086 — result modal fog-honest; choice preview still raw.
+- description: >
+    Pass visibilityPenalty into Event; formatOutcomeText shows effective intel and fog note.
+    ## DoD
+    1) Event props: visibilityPenalty or locationTerrainEffects.
+    2) Preview intel line fog-scaled.
+    3) tsc test build.
+- entryPoints:
+    - src/scenes/activities/Event.tsx
+    - src/App.tsx
+
+---
+
+## T-089 · RewardModal ryo: region gold multiplier honesty
+- id: T-089
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-061 — RegionMap shows Ryo ×N; victory UI silent on gold mult.
+- description: >
+    Victory RewardModal + log note when goldMultiplier != 1 (and wealth note already).
+    ## DoD
+    1) combatReward.ryoNote optional string.
+    2) RewardModal shows note under gold.
+    3) addLog includes region ryo when mult != 1.
+    4) tsc test build.
+- entryPoints:
+    - src/hooks/useCombatVictory.ts
+    - src/components/modals/RewardModal.tsx
+    - src/App.tsx
+
+---
+
+## T-090 · Merchant lootTheme Focus honesty
+- id: T-090
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-070/074 — stock biased by Focus; merchant UI silent.
+- description: >
+    Pass region.lootTheme into Merchant; show Affinity / Focus / Ryo × when present.
+    ## DoD
+    1) Merchant props lootTheme optional.
+    2) Header chips for Affinity, Focus stats, Ryo ×N.
+    3) tsc test build.
+- entryPoints:
+    - src/scenes/activities/Merchant.tsx
+    - src/scenes/activities/Merchant.css
+    - src/App.tsx
+
+---
+
+## T-091 · Merchant item Focus match cue
+- id: T-091
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-090 — header Focus abstract; per-item cue missing.
+- description: >
+    Items with stats matching lootTheme.equipmentFocus show Focus badge; matching stats highlighted in preview.
+    ## DoD
+    1) Focus badge on ItemCard when match.
+    2) PreviewPanel marks matching stats.
+    3) tsc test build.
+- entryPoints:
+    - src/scenes/activities/Merchant.tsx
+    - src/scenes/activities/Merchant.css
+
+---
+
+## T-092 · TreasureChoice lootTheme Focus honesty
+- id: T-092
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-071/091 — treasure drops biased by Focus; UI silent.
+- description: >
+    Pass lootTheme; show Affinity/Focus chips; Focus badge on matching choice cards.
+    ## DoD
+    1) lootTheme prop + App wire.
+    2) Header chips + Focus badge on revealed cards.
+    3) Tooltip ★ on matching stats.
+    4) tsc test build.
+- entryPoints:
+    - src/scenes/rewards/TreasureChoice.tsx
+    - src/scenes/rewards/treasure.css
+    - src/App.tsx
+
+---
+
+## T-093 · Loot scene Focus honesty (combat drops)
+- id: T-093
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-061/091/092 — combat loot biased by Focus; Loot UI silent.
+- description: >
+    Pass lootTheme; Affinity/Focus chips; Focus badge + tooltip ★ on matching drops.
+    ## DoD
+    1) lootTheme prop + App wire.
+    2) Header chips.
+    3) Focus badge on matching items.
+    4) tsc test build.
+- entryPoints:
+    - src/scenes/rewards/Loot.tsx
+    - src/scenes/rewards/Loot.css
+    - src/App.tsx
+
+---
+
+## T-094 · TreasureHuntReward lootTheme Focus honesty
+- id: T-094
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-072/093 — hunt rewards biased; UI silent.
+- description: >
+    Pass lootTheme; Affinity/Focus chips; Focus badge + tooltip ★ on matching items.
+    ## DoD
+    1) lootTheme prop + App wire.
+    2) Header chips.
+    3) Focus on matching reward cards.
+    4) tsc test build.
+- entryPoints:
+    - src/scenes/rewards/TreasureHuntReward.tsx
+    - src/scenes/rewards/treasure.css
+    - src/App.tsx
+
+---
+
+## T-095 · Interlude next-region Focus honesty
+- id: T-095
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-090–094 — Focus honest on loot peaks; interlude blind to next region theme.
+- description: >
+    Pass nextLootTheme into Interlude; chips Affinity/Focus/Ryo under continue; Focus badge on matching boons.
+    ## DoD
+    1) App wires next region lootTheme into interludeMeta.
+    2) Interlude shows theme chips for next region.
+    3) Item/stat boons matching Focus marked.
+    4) tsc test build.
+- entryPoints:
+    - src/scenes/menu/Interlude.tsx
+    - src/scenes/menu/Interlude.css
+    - src/App.tsx
+
+---
+
+## T-096 · Bag Focus honesty (equip residual)
+- id: T-096
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-090–095 — Focus honest on loot peaks; bag equip path silent.
+- description: >
+    Pass lootTheme into Bag; Focus chip + badge on matching bag items; tooltip ★.
+    ## DoD
+    1) App/RightSidebar/InventoryOverlay pass lootTheme.
+    2) Bag header Focus chip; matching items badge + tooltip.
+    3) tsc test build.
+- entryPoints:
+    - src/components/inventory/Bag.tsx
+    - src/components/layout/RightSidebarPanel.tsx
+    - src/App.tsx
+
+---
+
+## T-097 · EquipmentPanel Focus honesty (equipped residual)
+- id: T-097
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-096 — bag shows Focus; worn slots silent.
+- description: >
+    Pass lootTheme into EquipmentPanel; F badge + tooltip ★ on matching equipped items.
+    ## DoD
+    1) lootTheme prop; RightSidebar wires it.
+    2) Matching equipped: F + tooltip Focus cues.
+    3) tsc test build.
+- entryPoints:
+    - src/components/inventory/EquipmentPanel.tsx
+    - src/components/inventory/inventory.css
+    - src/components/layout/RightSidebarPanel.tsx
+
+---
+
+## T-098 · Craft result Focus honesty
+- id: T-098
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-096/097 — craft reveal lacks Focus at equip decision.
+- description: >
+    Crafted panel shows Focus badge + stats with ★ when product matches region Focus.
+    ## DoD
+    1) Focus mark on craft reveal when match.
+    2) Product stats listed with Focus ★.
+    3) tsc test build.
+- entryPoints:
+    - src/components/inventory/Bag.tsx
+    - src/components/inventory/inventory.css
+
+---
+
+## T-099 · LocationPanel region theme honesty
+- id: T-099
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-074/090–098 — Focus honest on peaks/inventory; left LocationPanel only shows region name.
+- description: >
+    LocationPanel shows Affinity / Focus / Ryo × from region.lootTheme (persistent explore chrome).
+    ## DoD
+    1) lootTheme prop optional.
+    2) Chips under region name when present.
+    3) LeftSidebar passes region.lootTheme.
+    4) tsc test build.
+- entryPoints:
+    - src/components/exploration/LocationPanel.tsx
+    - src/components/layout/LeftSidebarPanel.tsx
+    - src/components/exploration/exploration.css
+
+---
+
+## T-100 · ExplorationHUD region theme honesty
+- id: T-100
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-099 — LocationPanel has theme; cinematic HUD (sidebars hidden) does not.
+- description: >
+    ExplorationHUD shows Affinity / Focus / Ryo × from region.lootTheme.
+    ## DoD
+    1) Optional lootTheme prop.
+    2) Compact chips next to story flags or ryo.
+    3) App passes region?.lootTheme.
+    4) tsc test build.
+- entryPoints:
+    - src/components/layout/ExplorationHUD.tsx
+    - src/components/layout/ExplorationHUD.css
+    - src/App.tsx
+
+---
+
+## T-101 · Character sheet region theme + Focus stats
+- id: T-101
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-099/100 — HUD/LocationPanel have theme; C sheet only story flags.
+- description: >
+    CharacterSheetOverlay shows Affinity/Focus/Ryo; PrimaryStatsPanel marks Focus stats with ★.
+    ## DoD
+    1) lootTheme prop on CharacterSheet + App wire.
+    2) Region theme chips section.
+    3) PrimaryStats Focus highlight via isFocusStat.
+    4) tsc test build.
+- entryPoints:
+    - src/components/layout/CharacterSheetOverlay.tsx
+    - src/components/character/PrimaryStatsPanel.tsx
+    - src/App.tsx
+
+---
+
+## T-102 · Wire room CombatActivity.modifiers into combat
+- id: T-102
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT — room types roll CombatModifierType; COMBAT_MODIFIER_EFFECTS authored but never applied.
+- description: >
+    Pure helper merges room modifiers into approach CombatModifiers (init, first-hit, sanctuary heal).
+    startCombat applies; log active room modifier names.
+    ## DoD
+    1) applyRoomCombatModifiers helper using COMBAT_MODIFIER_EFFECTS.
+    2) startCombat accepts roomModifiers and merges.
+    3) Call sites pass combat.modifiers / elite modifiers.
+    4) Log active modifier name when not NONE.
+    5) tsc test build.
+    Fuera: full env poison/fall systems if not trivial.
+- entryPoints:
+    - src/game/systems/LocationSystem.ts or new helper
+    - src/hooks/useCombat.ts
+    - src/App.tsx / useActivityHandlers approach select
+
+---
+
+## T-103 · Room combat mods residual: evasion + fall + open UI
+- id: T-103
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT residual T-102 — init/heal/poison wired; FOREST evasion, CLIFF fall, open banner still thin.
+- description: >
+    Apply playerEffects.evasionModifier from room combat mods into dodge stack.
+    On player miss apply fallDamageOnMiss HP if set.
+    Surface active room condition names on combat open banner.
+    ## DoD
+    1) RoomCombatModifierSystem returns evasionBonus + fallDamageOnMiss.
+    2) CombatState stores roomCombatEvasion + fallOnMiss + roomConditionNames.
+    3) EnemyTurn/PlayerTurn stack roomCombatEvasion.
+    4) Miss path applies cliff fall damage.
+    5) Combat open banner shows room conditions.
+    6) tsc test build.
+- entryPoints:
+    - src/game/systems/RoomCombatModifierSystem.ts
+    - src/game/systems/combat-types.ts
+    - src/hooks/useCombat.ts
+    - src/game/systems/EnemyTurnSystem.ts
+    - src/game/systems/PlayerTurnSystem.ts
+    - src/scenes/combat/Combat.tsx
+
+---
+
+## T-104 · ApproachSelector room combat condition honesty
+- id: T-104
+- section: presentation
+- status: passed
+- initialScore: 58
+- targetScore: 90
+- lensFocus: [PRESENTACION, SISTEMA]
+- origen: discovery CONNECT residual T-102/103 — combat applies room conditions; approach strip silent.
+- description: >
+    Pass room combat modifiers to ApproachSelector; show Room: Ambush · Forest names + short description.
+    Optional selected-room panel chip.
+    ## DoD
+    1) ApproachSelector props roomConditionNames or modifiers.
+    2) Terrain strip shows room combat conditions when non-NONE.
+    3) App passes combat.modifiers labels via COMBAT_MODIFIER_EFFECTS.
+    4) tsc test build.
+- entryPoints:
+    - src/components/combat/ApproachSelector.tsx
+    - src/App.tsx
+    - src/components/exploration/LocationMap.tsx (optional)
+
+---
+
+## T-105 · Enemy ambush first-hit + map room condition chip
+- id: T-105
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT residual T-102/103 — AMBUSH authoring has enemy first-hit 1.25 unused; map path silent on combat condition.
+- description: >
+    Apply enemyEffects.damageMultiplierFirstTurn on first enemy hit.
+    LocationMap selected panel shows Room condition chips from combat.modifiers.
+    ## DoD
+    1) CombatState.enemyFirstHitMultiplier from room mods.
+    2) EnemyTurnSystem applies on first turn attack.
+    3) LocationMap selected shows condition names.
+    4) tsc test build.
+- entryPoints:
+    - src/game/systems/RoomCombatModifierSystem.ts
+    - src/game/systems/combat-types.ts
+    - src/hooks/useCombat.ts
+    - src/game/systems/EnemyTurnSystem.ts
+    - src/components/exploration/LocationMap.tsx
+
+---
+
+## T-106 · Auto-combat room modifiers + RoomCard Fight chip
+- id: T-106
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT residual T-102–105 — manual combat has room mods; auto/sim does not; cards lack Fight chip.
+- description: >
+    simulateGameCombat applies room combat modifiers (init, first-hit, sanctuary, enemy ambush, evasion).
+    RoomCard shows Fight condition chip when combat.modifiers non-NONE.
+    ## DoD
+    1) sim accepts roomModifiers; merge via applyRoomCombatModifiers.
+    2) enemyFirstHit in sim on first enemy hit.
+    3) Call sites pass combat.modifiers.
+    4) RoomCard Fight chip.
+    5) tsc test build.
+- entryPoints:
+    - src/game/systems/CombatSimulationService.ts
+    - src/hooks/useCombatVictory.ts
+    - src/hooks/useActivityHandlers.ts
+    - src/components/exploration/RoomCard.tsx
+
+---
+
+## T-107 · Treasure guardian sim room mods + GameGuide room conditions
+- id: T-107
+- section: combat
+- status: passed
+- initialScore: 55
+- targetScore: 90
+- lensFocus: [SISTEMA, PRESENTACION]
+- origen: discovery CONNECT residual T-106 — auto combat has room mods; treasure guardian sim and handbook lag.
+- description: >
+    Pass locationTerrainMods + combat.modifiers into treasure guardian simulateGameCombat.
+    Document room combat conditions (Ambush, Prepared, Sanctuary, Corrupted, Forest, Cliff, Swamp) in helpText.
+    ## DoD
+    1) useTreasureHandlers sim parity.
+    2) helpText TERRAIN or new ROOM_CONDITIONS cards.
+    3) tsc test build.
+- entryPoints:
+    - src/hooks/useTreasureHandlers.ts
+    - src/game/constants/helpText.ts

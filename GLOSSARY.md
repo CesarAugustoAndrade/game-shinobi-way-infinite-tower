@@ -69,14 +69,18 @@ This document defines the canonical terms used throughout the SHINOBI WAY codeba
 | **Damage Property** | Normal/Piercing/ArmorBreak/True | `DamageProperty` |
 | **Attack Method** | Melee/Ranged/Auto | `AttackMethod` |
 
-### Action Type System
+### Action Type System (AP Economy)
 
-| Term | Definition | Usage |
-|------|------------|-------|
-| **MAIN** | Primary action, ends turn | Attacks, main jutsu |
-| **TOGGLE** | Activate once, pay upkeep each turn | Sharingan, Byakugan |
-| **SIDE** | Free action before Main (max 2/turn) | Buffs, positioning |
-| **PASSIVE** | Always active, no action required | Clan traits |
+Combat spends **Action Points (AP)** per card; the turn ends when AP is exhausted
+(or the player ends turn). Action types set the default AP cost and card role —
+they do **not** force end-of-turn or free actions.
+
+| Term | Definition | Default AP | Usage |
+|------|------------|------------|-------|
+| **MAIN** | Heavy techniques / primary attacks | 2 | Attacks, main jutsu |
+| **TOGGLE** | Stance skills; pay AP to activate, upkeep each turn | 2 | Sharingan, Byakugan |
+| **SIDE** | Light support / setup cards | 1 | Buffs, positioning |
+| **PASSIVE** | Always active, never played as a card | 0 | Clan traits |
 
 ## Treasure & Synthesis System
 

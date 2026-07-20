@@ -5,6 +5,7 @@ import {
   TreasureType,
   Player,
   Rarity,
+  RegionLootTheme,
 } from '../../game/types';
 import {
   Lock,
@@ -23,6 +24,11 @@ import { PendingBagFullItem } from '../../hooks/useTreasureHandlers';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import { getSellPrice } from '../../game/systems/LootSystem';
 import { resolveItemArt } from '../../game/constants/artRegistry';
+import {
+  itemMatchesEquipmentFocus,
+  isFocusStat,
+} from '../../game/utils/itemFocusMatch';
+import { LaunchProperties } from '../../config/featureFlags';
 import ArtIcon from '../../components/shared/ArtIcon';
 import './treasure.css';
 
@@ -43,6 +49,20 @@ interface TreasureChoiceProps {
   getRarityColor: (rarity: Rarity) => string;
   /** Biome background image — replaces the solid-black backdrop. */
   background?: string;
+  /**
+   * T-092: region lootTheme already biases treasure drops (T-071); show Focus cues.
+   */
+  lootTheme?: RegionLootTheme | null;
+  /** True while dice result modal is open — blocks another roll/fight. */
+  diceRollPending?: boolean;
+}
+
+/** T-053: claim beat before parent bags item and returns to map */
+interface TreasureClaimResult {
+  index: number;
+  item: import('../../game/types').Item;
+  isArtifact: boolean;
+  ryoBonus: number;
 }
 
 const TreasureChoice: React.FC<TreasureChoiceProps> = ({
@@ -61,9 +81,50 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   onBagFullLeave,
   getRarityColor,
   background,
+  lootTheme = null,
+  diceRollPending = false,
 }) => {
   const [bgError, setBgError] = useState(false);
+  const [claimResult, setClaimResult] = useState<TreasureClaimResult | null>(null);
   const canAffordReveal = player.currentChakra >= treasure.revealCost;
+  const bagHasSpace = player.bag.some((slot) => slot === null);
+
+  // Dice odds from launch config (same values the roll uses)
+  const diceOdds = LaunchProperties.TREASURE_DICE_ODDS;
+  const diceOddsTotal = Math.max(1, diceOdds.trap + diceOdds.nothing + diceOdds.piece);
+  const piecePct = Math.round((diceOdds.piece / diceOddsTotal) * 100);
+  const nothingPct = Math.round((diceOdds.nothing / diceOddsTotal) * 100);
+  const trapPct = Math.round((diceOdds.trap / diceOddsTotal) * 100);
+
+  // One path only: fight or a single dice roll
+  const canTakeMapPieceAction =
+    treasure.mapPieceAvailable && !diceRollPending && !pendingBagFullItem;
+
+  // T-053: if bag has space, show claim panel first; bag-full still goes to parent immediately
+  const requestSelectItem = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= treasure.choices.length) return;
+      if (!bagHasSpace) {
+        onSelectItem(index);
+        return;
+      }
+      const choice = treasure.choices[index];
+      setClaimResult({
+        index,
+        item: choice.item,
+        isArtifact: Boolean(choice.isArtifact),
+        ryoBonus: treasure.ryoBonus,
+      });
+    },
+    [treasure.choices, treasure.ryoBonus, bagHasSpace, onSelectItem],
+  );
+
+  const confirmClaim = useCallback(() => {
+    if (!claimResult) return;
+    const idx = claimResult.index;
+    setClaimResult(null);
+    onSelectItem(idx);
+  }, [claimResult, onSelectItem]);
 
   // If hunt was declined, treat all treasures as locked chests
   const effectiveType = huntDeclined ? TreasureType.LOCKED_CHEST : treasure.type;
@@ -92,11 +153,20 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
         return;
       }
 
+      // T-053: claim panel takes priority for continue
+      if (claimResult) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          confirmClaim();
+        }
+        return;
+      }
+
       // Number keys for quick select (1-4)
       if (e.key >= '1' && e.key <= '4') {
         const idx = parseInt(e.key) - 1;
         if (treasure.isRevealed && idx < treasure.choices.length) {
-          onSelectItem(idx);
+          requestSelectItem(idx);
         }
       }
 
@@ -111,28 +181,28 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
       if (e.code === 'Space' && !treasure.isRevealed && isLockedChest) {
         e.preventDefault();
         const randomIdx = Math.floor(Math.random() * treasure.choices.length);
-        onSelectItem(randomIdx);
+        requestSelectItem(randomIdx);
       }
 
-      // F for Fight Guardian (treasure hunter)
-      if ((e.key === 'f' || e.key === 'F') && isTreasureHunter && treasure.mapPieceAvailable) {
+      // F for Fight Guardian (treasure hunter) — only if opportunity still open
+      if ((e.key === 'f' || e.key === 'F') && isTreasureHunter && canTakeMapPieceAction) {
         onFightGuardian();
       }
 
-      // D for Dice Roll (treasure hunter)
-      if ((e.key === 'd' || e.key === 'D') && isTreasureHunter && treasure.mapPieceAvailable) {
+      // D for Dice Roll (treasure hunter) — one roll only
+      if ((e.key === 'd' || e.key === 'D') && isTreasureHunter && canTakeMapPieceAction) {
         onRollDice();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [treasure, canAffordReveal, onReveal, onSelectItem, onFightGuardian, onRollDice, isLockedChest, isTreasureHunter, showHuntPrompt, onStartHunt, onDeclineHunt, pendingBagFullItem, onBagFullSell, onBagFullLeave]);
+  }, [treasure, canAffordReveal, onReveal, requestSelectItem, confirmClaim, claimResult, onFightGuardian, onRollDice, isLockedChest, isTreasureHunter, showHuntPrompt, onStartHunt, onDeclineHunt, pendingBagFullItem, onBagFullSell, onBagFullLeave, canTakeMapPieceAction]);
 
   const handlePickRandom = useCallback(() => {
     const randomIdx = Math.floor(Math.random() * treasure.choices.length);
-    onSelectItem(randomIdx);
-  }, [treasure.choices.length, onSelectItem]);
+    requestSelectItem(randomIdx);
+  }, [treasure.choices.length, requestSelectItem]);
 
   // Render a single treasure card
   const renderTreasureCard = (index: number) => {
@@ -147,7 +217,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
           key={index}
           type="button"
           className="treasure-card treasure-card--hidden"
-          onClick={() => onSelectItem(index)}
+          onClick={() => requestSelectItem(index)}
         >
           <div className="treasure-card__frame" />
           <div className="treasure-card__corner treasure-card__corner--tl" />
@@ -167,26 +237,36 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
     }
 
     // Revealed card — the item IS the asset; details live in the scoped tooltip
+    const isFocusItem = itemMatchesEquipmentFocus(item, lootTheme?.equipmentFocus);
     return (
       <button
         key={index}
         type="button"
         className="treasure-card treasure-card--revealed item-tile"
-        onClick={() => onSelectItem(index)}
+        onClick={() => requestSelectItem(index)}
       >
         {/* Detail tooltip — hover / keyboard focus / touch tap (focus) */}
         <div className="item-tile__tooltip" role="tooltip">
           <div className={`item-tooltip__name ${getRarityColor(item.rarity)}`}>{item.name}</div>
           <div className="item-tooltip__type">
             {item.rarity} {item.isComponent ? 'Component' : 'Artifact'}
+            {isFocusItem && <span className="treasure-tooltip__focus"> · Focus</span>}
           </div>
           {item.description && (
             <div className="item-tooltip__desc">{item.description}</div>
           )}
           <div className="item-tooltip__section">
             {Object.entries(item.stats).map(([key, val]) => (
-              <div key={key} className="item-tooltip__row">
-                <span className="item-tooltip__label">{formatStatName(key)}</span>
+              <div
+                key={key}
+                className={`item-tooltip__row ${isFocusStat(key, lootTheme?.equipmentFocus) ? 'item-tooltip__row--focus' : ''}`}
+              >
+                <span className="item-tooltip__label">
+                  {formatStatName(key)}
+                  {isFocusStat(key, lootTheme?.equipmentFocus) && (
+                    <span className="item-tooltip__focus-mark"> ★</span>
+                  )}
+                </span>
                 <span className="item-tooltip__value">+{val}</span>
               </div>
             ))}
@@ -204,6 +284,12 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
           <div className="treasure-card__artifact-badge">
             <Sparkles className="w-6 h-6" />
           </div>
+        )}
+        {/* T-092: region Focus match (drops already biased T-071) */}
+        {isFocusItem && (
+          <span className="treasure-card__focus-badge" title="Matches region Focus stats">
+            Focus
+          </span>
         )}
 
         <div className="treasure-card__content">
@@ -354,6 +440,24 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
               : 'Collect map pieces to unlock the grand treasure'
             }
           </p>
+          {/* T-092: drops already bias to region lootTheme — surface identity */}
+          {lootTheme && (
+            <div className="treasure-modal__theme" aria-label="Region loot theme">
+              {lootTheme.primaryElement && (
+                <span className="treasure-modal__theme-chip treasure-modal__theme-chip--affinity">
+                  Affinity {lootTheme.primaryElement}
+                </span>
+              )}
+              {lootTheme.equipmentFocus?.length > 0 && (
+                <span className="treasure-modal__theme-chip treasure-modal__theme-chip--focus">
+                  Focus{' '}
+                  {lootTheme.equipmentFocus
+                    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                    .join(' · ')}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="treasure-modal__body">
@@ -412,11 +516,14 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
             </>
           )}
 
-          {/* Treasure Hunter: Guardian vs Dice Choice */}
-          {isTreasureHunter && treasure.mapPieceAvailable && (
+          {/* Treasure Hunter: Guardian vs Dice Choice (one action per room) */}
+          {isTreasureHunter && canTakeMapPieceAction && (
             <div className="guardian-choice">
               <div className="guardian-choice__header">
                 <h3 className="guardian-choice__title">Choose Your Path</h3>
+                <p className="guardian-choice__subtitle">
+                  One chance only — fight for a sure piece, or roll the dice
+                </p>
               </div>
 
               <div className="guardian-choice__split">
@@ -438,7 +545,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                   <span className="guardian-choice__key-hint">[F] key</span>
                 </button>
 
-                {/* Roll Dice Option */}
+                {/* Roll Dice Option — odds match LaunchProperties.TREASURE_DICE_ODDS */}
                 <button
                   type="button"
                   className="guardian-choice__option guardian-choice__option--dice"
@@ -450,25 +557,29 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                   <span className="guardian-choice__option-title">Roll the Dice</span>
                   <div className="guardian-choice__odds">
                     <span className="guardian-choice__odds-item guardian-choice__odds-item--success">
-                      30% map piece
+                      {piecePct}% map piece
                     </span>
                     <span className="guardian-choice__odds-item guardian-choice__odds-item--neutral">
-                      40% nothing
+                      {nothingPct}% nothing
                     </span>
                     <span className="guardian-choice__odds-item guardian-choice__odds-item--danger">
-                      30% trap damage
+                      {trapPct}% trap damage
                     </span>
                   </div>
-                  <span className="guardian-choice__key-hint">[D] key</span>
+                  <span className="guardian-choice__key-hint">[D] key · once</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* No map piece available */}
-          {isTreasureHunter && !treasure.mapPieceAvailable && (
+          {/* Opportunity spent (after roll) or none in room */}
+          {isTreasureHunter && !canTakeMapPieceAction && (
             <div className="text-center text-zinc-500 text-sm py-8">
-              No map piece available in this room.
+              {diceRollPending
+                ? 'Dice result pending…'
+                : treasure.mapPieceAvailable
+                  ? 'Resolve bag full first…'
+                  : 'Map piece chance already used in this room.'}
             </div>
           )}
 
@@ -531,6 +642,35 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                   <span className="treasure-btn__label">Leave</span>
                   <span className="treasure-btn__hint">Abandon item</span>
                   <span className="treasure-btn__key">[L]</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* T-053: claim beat before bag + return to map */}
+          {claimResult && (
+            <div className="treasure-claim" role="dialog" aria-modal="true" aria-label="Treasure claimed">
+              <div className="treasure-claim__panel">
+                <div className="treasure-claim__art">
+                  <ArtIcon art={resolveItemArt(claimResult.item)} size="xl" title={claimResult.item.name} />
+                </div>
+                <h3 className="treasure-claim__title">
+                  {claimResult.isArtifact ? 'Artifact Claimed' : 'Treasure Claimed'}
+                </h3>
+                <p className={`treasure-claim__name ${getRarityColor(claimResult.item.rarity)}`}>
+                  {claimResult.item.name}
+                </p>
+                <p className="treasure-claim__rarity">{claimResult.item.rarity}</p>
+                {claimResult.ryoBonus > 0 && (
+                  <p className="treasure-claim__ryo">+{claimResult.ryoBonus} Ryō found nearby</p>
+                )}
+                <button
+                  type="button"
+                  className="treasure-claim__continue"
+                  onClick={confirmClaim}
+                >
+                  Continue
+                  <span className="treasure-btn__key">[Enter]</span>
                 </button>
               </div>
             </div>

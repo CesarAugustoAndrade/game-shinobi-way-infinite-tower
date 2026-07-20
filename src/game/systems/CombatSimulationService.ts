@@ -18,6 +18,7 @@ import {
   TerrainType,
   TerrainDefinition,
   PrimaryAttributes,
+  CombatModifierType,
 } from '../types';
 import {
   calculateDamage,
@@ -64,6 +65,8 @@ import {
   skillLocationDamageMult,
   type LocationTerrainMods,
 } from './LocationTerrainSystem';
+import { applyRoomCombatModifiers } from './RoomCombatModifierSystem';
+import type { CombatModifiers } from './ApproachSystem';
 
 /**
  * Result of an auto-simulated combat
@@ -91,6 +94,10 @@ interface SimulationContext {
   /** Opening ambush / FREE_FIRST window — cleared after first player skill */
   isFirstTurn: boolean;
   firstHitMultiplier: number;
+  /** T-106: room AMBUSH enemy first-hit mult */
+  enemyFirstHitMultiplier: number;
+  /** T-106: room combat FOREST cover evasion */
+  roomCombatEvasion: number;
   /** FREE_FIRST_SKILL artifact passive */
   skipFirstSkillCost: boolean;
   metrics: {
@@ -261,9 +268,9 @@ function executeAttack(
           }
         : clanCtx.defenderDerived;
   } else {
-    // T-072/T-077: location + room evasion raise player dodge vs enemy attacks
+    // T-072/T-077/T-106: location + terrain + room combat FOREST cover
     const locEvasion = ctx.locationTerrainMods?.evasionBonus ?? 0;
-    const totalEvasion = locEvasion + roomEvasion;
+    const totalEvasion = locEvasion + roomEvasion + (ctx.roomCombatEvasion ?? 0);
     if (totalEvasion !== 0) {
       defDerived = {
         ...defenderStats.derived,
@@ -339,6 +346,10 @@ function executeAttack(
   // Opening ambush first-hit mult (STEALTH_AMBUSH success → 2.0× from APPROACH_DEFINITIONS)
   if (isPlayer && ctx.isFirstTurn && ctx.firstHitMultiplier > 1.0) {
     damage = Math.floor(damage * ctx.firstHitMultiplier);
+  }
+  // T-106: room AMBUSH enemy first-strike
+  if (!isPlayer && ctx.isFirstTurn && ctx.enemyFirstHitMultiplier > 1.0) {
+    damage = Math.floor(damage * ctx.enemyFirstHitMultiplier);
   }
 
   // Apply execute threshold for player
@@ -581,13 +592,15 @@ export function simulateGameCombat(
   terrain?: TerrainType,
   /** T-070: location terrain effects for auto-combat parity */
   locationTerrainMods?: LocationTerrainMods | null,
+  /** T-106: room combat activity modifiers (AMBUSH / SANCTUARY / …) */
+  roomCombatModifiers?: CombatModifierType[] | null,
 ): CombatSimulationResult {
   // Get full stats
   const playerFullStats = getPlayerFullStats(player);
   const enemyFullStats = getEnemyFullStats(enemy);
 
   // Clone player and enemy for mutable simulation state
-  const clonedPlayer = {
+  let clonedPlayer = {
     ...player,
     skills: player.skills.map(s => ({ ...s, currentCooldown: 0 })),
     activeBuffs: [...player.activeBuffs]
@@ -627,22 +640,49 @@ export function simulateGameCombat(
     ? (approachSucceeded ? approachDef.successEffects : (approachDef.failureEffects ?? approachDef.successEffects))
     : null;
 
-  const firstHitMult =
+  let firstHitMult =
     approachSucceeded && approachEffects
       ? (approachEffects.firstHitMultiplier ?? 1.0)
       : 1.0;
 
-  // Turn order via shared determineTurnOrder (initiativeBonus / guaranteedFirst from data)
+  // T-106: room combat modifiers parity with manual startCombat
+  const approachMods: CombatModifiers = {
+    playerGoesFirst: approachSucceeded && (approachEffects?.guaranteedFirst ?? false),
+    playerInitiativeBonus: approachEffects?.initiativeBonus ?? 0,
+    firstHitMultiplier: firstHitMult,
+    playerBuffs: [],
+    enemyDebuffs: [],
+    xpMultiplier: 1,
+  };
+  const roomApplied = applyRoomCombatModifiers(
+    roomCombatModifiers,
+    approachMods,
+    clonedPlayer,
+    playerFullStats.derived.maxHp,
+  );
+  clonedPlayer = roomApplied.player;
+  firstHitMult = roomApplied.modifiers.firstHitMultiplier;
+  const enemyFirstHitMult = roomApplied.enemyFirstHitMultiplier;
+  const roomCombatEvasion = roomApplied.playerEvasionBonus;
+  // Merge room-mod buffs (e.g. Corrupted poison) onto player
+  if (roomApplied.modifiers.playerBuffs.length > 0) {
+    clonedPlayer = {
+      ...clonedPlayer,
+      activeBuffs: [...clonedPlayer.activeBuffs, ...roomApplied.modifiers.playerBuffs],
+    };
+  }
+
+  // Turn order (failure can apply negative initiativeBonus)
   const whoFirst = determineTurnOrder(playerFullStats, enemyFullStats, {
     isFirstTurn: true,
-    playerGoesFirst: approachSucceeded && (approachEffects?.guaranteedFirst ?? false),
-    playerInitiativeBonus: approachSucceeded ? (approachEffects?.initiativeBonus ?? 0) : 0,
+    playerGoesFirst: roomApplied.modifiers.playerGoesFirst,
+    playerInitiativeBonus: roomApplied.modifiers.playerInitiativeBonus,
     terrain: terrainDef,
   });
   const playerGoesFirst = whoFirst === 'player';
 
-  // Apply approach buffs/debuffs/HP cut from live APPROACH_DEFINITIONS (not hard-coded)
-  if (approachSucceeded && approachEffects) {
+  // Apply approach buffs/debuffs on success OR failure penalties
+  if (approachEffects) {
     const sourceName = approachDef?.name ?? 'Approach';
     for (const eff of approachEffects.enemyDebuffs ?? []) {
       if (Math.random() > (eff.chance ?? 1)) continue;
@@ -676,7 +716,10 @@ export function simulateGameCombat(
         source: sourceName,
       });
     }
-    const hpReduction = approachEffects.enemyHpReduction ?? 0;
+    if (!approachSucceeded && (approachEffects.hpCost ?? 0) > 0) {
+      clonedPlayer.currentHp = Math.max(1, clonedPlayer.currentHp - (approachEffects.hpCost ?? 0));
+    }
+    const hpReduction = approachSucceeded ? (approachEffects.enemyHpReduction ?? 0) : 0;
     if (hpReduction > 0) {
       clonedEnemy.currentHp = Math.floor(clonedEnemy.currentHp * (1 - hpReduction));
     }
@@ -693,6 +736,8 @@ export function simulateGameCombat(
     turn: 0,
     isFirstTurn: true,
     firstHitMultiplier: firstHitMult,
+    enemyFirstHitMultiplier: enemyFirstHitMult,
+    roomCombatEvasion,
     skipFirstSkillCost,
     metrics: {
       damageDealt: 0,

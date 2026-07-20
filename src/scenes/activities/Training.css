@@ -626,6 +626,99 @@
   box-shadow: none;
 }
 
+/* T-048: training completion result before leave */
+.training--result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: var(--sw-space-6);
+}
+
+.training__result {
+  max-width: 22rem;
+  width: 100%;
+  padding: var(--sw-space-5);
+  background: var(--sw-bg-secondary, #12121a);
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0 #000;
+  text-align: center;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+}
+
+.training__result-title {
+  margin: 0 0 var(--sw-space-2);
+  font-size: var(--sw-text-lg);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #e8b84a;
+}
+
+.training__result-intensity {
+  margin: 0 0 var(--sw-space-4);
+  font-size: var(--sw-text-xs);
+  color: var(--sw-text-muted, #888);
+  text-transform: uppercase;
+}
+
+.training__result-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--sw-space-3);
+  padding: var(--sw-space-3);
+  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid #000;
+}
+
+.training__result-stat-name {
+  font-size: var(--sw-text-sm);
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+.training__result-stat-delta {
+  font-size: var(--sw-text-base);
+  color: var(--sw-text-primary, #f0e8d8);
+}
+
+.training__result-gain {
+  color: #4ade80;
+  font-weight: 700;
+}
+
+.training__result-cost {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: var(--sw-space-4);
+  font-size: 11px;
+  color: var(--sw-text-tertiary, #aaa);
+  font-family: var(--sw-font-mono, monospace);
+}
+
+.training__result-continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: var(--sw-space-3) var(--sw-space-4);
+  background: rgba(180, 83, 9, 0.3);
+  border: 2px solid #e8b84a;
+  box-shadow: 2px 2px 0 #000;
+  color: #e8b84a;
+  font-family: inherit;
+  font-size: var(--sw-text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.training__result-continue:hover {
+  background: rgba(180, 83, 9, 0.5);
+}
+
 /* ===========================================
    Animations
    =========================================== */

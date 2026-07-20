@@ -3,6 +3,10 @@
  *
  * Configure game features, debug options, and runtime behavior.
  * These can be toggled during development or for testing.
+ *
+ * Dead / unused flags were purged in A-012. Only flags and properties
+ * with real callers remain. Helpers `isFeatureEnabled` / `getProperty`
+ * are the preferred access path for new code.
  */
 
 export const FeatureFlags = {
@@ -10,20 +14,14 @@ export const FeatureFlags = {
   // Debug & Development
   // ─────────────────────────────────────────────────────────────
 
-  /** Enable debug overlay with game state info */
-  DEBUG_OVERLAY: false,
-
-  /** Log combat calculations to console */
+  /** Log combat calculations to console (`combatDebug.ts`) */
   DEBUG_COMBAT_LOG: false,
 
-  /** Log state transitions */
-  DEBUG_STATE_TRANSITIONS: true,
+  /** Log exploration/state transitions (`explorationDebug.ts`). Off by default on mainline. */
+  DEBUG_STATE_TRANSITIONS: false,
 
-  /** Skip character selection (use default clan) */
+  /** Skip character selection (use DEFAULT_CLAN) */
   SKIP_CHAR_SELECT: false,
-
-  /** Start with boosted stats for testing */
-  DEBUG_BOOSTED_STATS: false,
 
   // ─────────────────────────────────────────────────────────────
   // Gameplay Features
@@ -44,7 +42,10 @@ export const FeatureFlags = {
   /** Enable training rooms in exploration */
   ENABLE_TRAINING: true,
 
-  /** Enable manual/interactive combat. When false, combat is auto-simulated */
+  /**
+   * Enable manual/interactive combat. When false, combat is auto-simulated
+   * (batch resolution — not the same as the in-combat "Auto" pass timer).
+   */
   ENABLE_MANUAL_COMBAT: true,
 
   // ─────────────────────────────────────────────────────────────
@@ -54,32 +55,12 @@ export const FeatureFlags = {
   /** Show floating damage numbers in combat */
   SHOW_FLOATING_TEXT: true,
 
-  /** Enable combat animations */
-  ENABLE_COMBAT_ANIMATIONS: true,
-
   /** Show tooltips on hover */
   ENABLE_TOOLTIPS: true,
 
   /** Enable CRT overlay on the combat stage (scanline curvature + vignette depth).
    *  Default ON for the pixel-arcade aesthetic; set false to disable for screenshots/testing. */
   ENABLE_CRT_OVERLAY: true,
-
-  // ─────────────────────────────────────────────────────────────
-  // Experimental Features
-  // ─────────────────────────────────────────────────────────────
-
-  /** Enable experimental combat UI (Pattern A) */
-  EXPERIMENTAL_COMBAT_UI: false,
-
-  /** Enable new loot preview system */
-  EXPERIMENTAL_LOOT_PREVIEW: false,
-
-  // ─────────────────────────────────────────────────────────────
-  // Development Mode
-  // ─────────────────────────────────────────────────────────────
-
-  /** Enable development-only features (ImageTest, etc.) */
-  DEV_MODE: process.env.NODE_ENV !== 'production',
 } as const;
 
 export const LaunchProperties = {
@@ -89,9 +70,6 @@ export const LaunchProperties = {
 
   /** Starting gold amount */
   STARTING_RYO: 100,
-
-  /** Starting HP percentage (0-1) */
-  STARTING_HP_PERCENT: 1.0,
 
   /** Default clan for SKIP_CHAR_SELECT (matches Clan enum value) */
   DEFAULT_CLAN: 'Uchiha' as const,
@@ -126,9 +104,6 @@ export const LaunchProperties = {
   // ─────────────────────────────────────────────────────────────
   // System Limits
   // ─────────────────────────────────────────────────────────────
-
-  /** Maximum activities per room (0 = unlimited) */
-  MAX_ACTIVITIES_PER_ROOM: 3,
 
   /** Maximum bag capacity */
   MAX_BAG_SIZE: 12,
@@ -194,11 +169,18 @@ export const LaunchProperties = {
 export type FeatureFlagKey = keyof typeof FeatureFlags;
 export type LaunchPropertyKey = keyof typeof LaunchProperties;
 
-// Helper functions
+/**
+ * Type-safe feature flag check. Prefer this over direct FeatureFlags access
+ * when the flag key is dynamic or when writing new call sites.
+ */
 export function isFeatureEnabled(flag: FeatureFlagKey): boolean {
   return FeatureFlags[flag];
 }
 
+/**
+ * Type-safe launch property getter. Prefer this over direct LaunchProperties
+ * access when the key is dynamic or when writing new call sites.
+ */
 export function getProperty<K extends LaunchPropertyKey>(
   key: K
 ): (typeof LaunchProperties)[K] {

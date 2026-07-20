@@ -1,4 +1,5 @@
 import React from 'react';
+import type { RegionLootTheme } from '../../game/types';
 import './exploration.css';
 
 interface LocationPanelProps {
@@ -7,6 +8,11 @@ interface LocationPanelProps {
   regionName: string;
   storyArcLabel: string;
   backgroundImage?: string;
+  /**
+   * T-099: region lootTheme for persistent Affinity/Focus/Ryo chrome
+   * (same language as RegionMap / loot peaks).
+   */
+  lootTheme?: RegionLootTheme | null;
 }
 
 const LocationPanel: React.FC<LocationPanelProps> = ({
@@ -15,6 +21,7 @@ const LocationPanel: React.FC<LocationPanelProps> = ({
   regionName,
   storyArcLabel,
   backgroundImage,
+  lootTheme = null,
 }) => {
   // Get danger modifier class based on level
   const getDangerModifier = (level: number): string => {
@@ -51,6 +58,29 @@ const LocationPanel: React.FC<LocationPanelProps> = ({
         <div className="location-panel__region">
           {regionName}
         </div>
+        {/* T-099: persistent region theme (loot/enemy bias already live) */}
+        {lootTheme && (
+          <div className="location-panel__theme" aria-label="Region theme">
+            {lootTheme.primaryElement && (
+              <span className="location-panel__theme-chip location-panel__theme-chip--affinity">
+                {lootTheme.primaryElement}
+              </span>
+            )}
+            {lootTheme.equipmentFocus?.length > 0 && (
+              <span className="location-panel__theme-chip location-panel__theme-chip--focus">
+                Focus{' '}
+                {lootTheme.equipmentFocus
+                  .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                  .join(' · ')}
+              </span>
+            )}
+            {lootTheme.goldMultiplier !== 1 && (
+              <span className="location-panel__theme-chip location-panel__theme-chip--gold">
+                Ryo ×{lootTheme.goldMultiplier}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
