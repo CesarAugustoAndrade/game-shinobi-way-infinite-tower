@@ -22,58 +22,9 @@ This skill guides implementation of the Split-Panel Combat UI, transforming the 
 └───────────────────────────────┴───────────────────┘
 ```
 
-## Component Hierarchy
+## Component Hierarchy & File Structure
 
-```
-Combat.tsx (scene orchestrator)
-├── CombatLayout.tsx (CSS Grid container)
-│   ├── PhaseHeader.tsx (top status bar)
-│   │   ├── TurnIndicator
-│   │   ├── PhasePipeline
-│   │   ├── SideActionCounter
-│   │   └── ApproachModifier
-│   │
-│   ├── ConfrontationZone.tsx (battle area)
-│   │   ├── CharacterPanel.tsx (player variant)
-│   │   │   ├── CharacterSprite
-│   │   │   ├── IdentityBar
-│   │   │   ├── ResourceBars (HP/CP)
-│   │   │   └── BuffBar
-│   │   │
-│   │   ├── VSDivider.tsx (center emblem)
-│   │   │
-│   │   └── CharacterPanel.tsx (enemy variant)
-│   │       ├── CharacterSprite
-│   │       ├── IdentityBar (name, tier, element)
-│   │       ├── HealthBar
-│   │       ├── DefenseStats
-│   │       └── BuffBar
-│   │
-│   └── ActionDock.tsx (skill bar)
-│       ├── QuickActionsSection
-│       │   ├── QuickActionCard (SIDE skills)
-│       │   └── QuickActionCard (TOGGLE skills)
-│       ├── MainActionsSection
-│       │   └── MainActionCard (MAIN skills)
-│       └── ControlButtons (Auto, End Turn)
-│
-└── FloatingTextLayer (z-50, unchanged)
-```
-
-## File Structure
-
-```
-src/components/combat/
-├── index.ts                  # Barrel exports
-├── CombatLayout.tsx          # Grid container
-├── PhaseHeader.tsx           # Top status bar
-├── ConfrontationZone.tsx     # Player vs Enemy area
-├── CharacterPanel.tsx        # Reusable character display
-├── VSDivider.tsx             # Center VS emblem
-├── ActionDock.tsx            # Bottom skill bar
-├── QuickActionCard.tsx       # Compact SIDE/TOGGLE card
-└── MainActionCard.tsx        # Large MAIN skill card
-```
+→ See `references/architecture.md` for the full component tree and the `src/components/combat/` file layout.
 
 ## Implementation Workflow
 
@@ -101,29 +52,7 @@ Based on selection, load the appropriate reference:
 
 ### Step 3: Generate Component Code
 
-Follow the component template pattern:
-
-```typescript
-import React from 'react';
-import { cn } from '@/lib/utils'; // if using cn utility
-
-interface ComponentNameProps {
-  // Props from component-interfaces.md
-}
-
-export const ComponentName: React.FC<ComponentNameProps> = ({
-  // destructured props
-}) => {
-  return (
-    <div className={cn(
-      // Base styles from styling-tokens.md
-      // Conditional styles
-    )}>
-      {/* Component content */}
-    </div>
-  );
-};
-```
+Follow the component template pattern → copy from `templates/component-template.tsx`.
 
 ### Step 4: Wire to Combat.tsx
 
@@ -136,64 +65,11 @@ After component creation:
 
 ## Quick Implementation Commands
 
-### Create All Files (Scaffolding)
-
-```bash
-# Create directory
-mkdir -p src/components/combat
-
-# Create all component files
-touch src/components/combat/{index,CombatLayout,PhaseHeader,ConfrontationZone,CharacterPanel,VSDivider,ActionDock,QuickActionCard,MainActionCard}.tsx
-```
-
-### Barrel Export Template
-
-```typescript
-// src/components/combat/index.ts
-export { CombatLayout } from './CombatLayout';
-export { PhaseHeader } from './PhaseHeader';
-export { ConfrontationZone } from './ConfrontationZone';
-export { CharacterPanel } from './CharacterPanel';
-export { VSDivider } from './VSDivider';
-export { ActionDock } from './ActionDock';
-export { QuickActionCard } from './QuickActionCard';
-export { MainActionCard } from './MainActionCard';
-```
+→ See `templates/scaffolding.md` for the `mkdir`/`touch` scaffolding commands and the barrel export template.
 
 ## Props Mapping from Existing Code
 
-### From App.tsx → Combat.tsx (unchanged)
-
-```typescript
-player: Player
-enemy: Enemy
-turnState: 'PLAYER' | 'ENEMY_TURN'
-turnPhase: TurnPhaseState
-combatState: CombatState
-onUseSkill: (skill: Skill) => void
-onPassTurn: () => void
-onToggleAutoCombat: () => void
-autoCombatEnabled: boolean
-```
-
-### Combat.tsx → New Components
-
-```typescript
-// PhaseHeader
-turnState, turnPhase, combatState.approach
-
-// ConfrontationZone
-player, enemy, playerStats, enemyStats
-
-// CharacterPanel (player)
-character: player, stats: playerStats, variant: 'player'
-
-// CharacterPanel (enemy)
-character: enemy, stats: enemyStats, variant: 'enemy'
-
-// ActionDock
-skills: player.skills, turnPhase, onUseSkill, onPassTurn
-```
+→ See `references/props-mapping.md` for App.tsx→Combat.tsx props and the Combat.tsx→new-component prop wiring.
 
 ## Migration Strategy
 
@@ -236,13 +112,4 @@ Generate TypeScript React components with:
 
 ## Existing Code References
 
-When implementing, reference these existing files:
-
-| New Component | Reference From |
-|---------------|----------------|
-| CharacterPanel (player) | `src/components/PlayerHUD.tsx` |
-| CharacterPanel (enemy) | `src/scenes/Combat.tsx` lines 113-305 |
-| ActionDock | `src/scenes/Combat.tsx` lines 308-607 |
-| QuickActionCard | `src/components/SkillCard.tsx` |
-| MainActionCard | `src/components/SkillCard.tsx` |
-| PhaseHeader | `src/scenes/Combat.tsx` lines 311-328 |
+→ See `references/props-mapping.md` (Existing Code References table) for which existing file to extract each new component from.

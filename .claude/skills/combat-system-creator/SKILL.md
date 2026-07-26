@@ -26,42 +26,7 @@ Player Action → CombatCalculationSystem (pure math) → CombatWorkflowSystem (
 
 ## Quick Reference
 
-### Damage Pipeline (5 Steps)
-
-```
-1. Hit Check    → MELEE: Speed vs Speed | RANGED: Accuracy vs Speed | AUTO: Always hits
-2. Base Damage  → ScalingStat × damageMult
-3. Element      → Super: 1.5× (+10% crit) | Resist: 0.5× | Neutral: 1.0×
-4. Critical     → 8% + (DEX × 0.5) + bonuses, max 75%, multiplier 1.75×
-5. Defense      → Flat (max 60% reduction) then % (soft cap 75%)
-```
-
-### Mitigation Pipeline (Priority Order)
-
-```
-1. INVULNERABILITY → Blocks ALL damage (return 0)
-2. REFLECTION      → Calculate reflected damage (before curse)
-3. CURSE           → Amplify: damage × (1 + curseValue)
-4. SHIELD          → Absorb damage before HP
-5. GUTS            → Survive at 1 HP if roll succeeds
-```
-
-### Defense Formulas
-
-| Type | Flat | Percent (Soft Cap) |
-|------|------|-------------------|
-| Physical | `STR × 0.3` | `STR / (STR + 200)` |
-| Elemental | `SPI × 0.3` | `SPI / (SPI + 200)` |
-| Mental | `CAL × 0.25` | `CAL / (CAL + 150)` |
-
-### Damage Properties
-
-| Property | Flat Def | % Def |
-|----------|----------|-------|
-| NORMAL | ✅ (max 60%) | ✅ |
-| PIERCING | ❌ | ✅ |
-| ARMOR_BREAK | ✅ | ❌ |
-| TRUE | ❌ | ❌ |
+→ See `references/quick-reference.md` for the damage pipeline (5 steps), mitigation pipeline (priority order), defense formulas, and damage-property tables — open when writing damage/mitigation math.
 
 ## Workflow: Adding New Mechanics
 
@@ -120,162 +85,15 @@ function applyNewMechanic(
 
 ## Creating New Status Effects
 
-### Effect Types Available
-
-```typescript
-// Damage Over Time
-DOT, BLEED, BURN, POISON
-
-// Crowd Control
-STUN, CONFUSION, SILENCE
-
-// Defensive
-SHIELD, INVULNERABILITY, REFLECTION
-
-// Stat Modifiers
-BUFF, DEBUFF, CURSE
-
-// Recovery
-HEAL, REGEN, CHAKRA_DRAIN
-```
-
-### Effect Interface
-
-```typescript
-interface SkillEffect {
-  type: EffectType;
-  value: number;           // Damage/heal amount or multiplier
-  duration: number;        // Turns (-1 = permanent)
-  chance: number;          // 0.0-1.0 application chance
-  targetStat?: PrimaryStat; // For BUFF/DEBUFF
-  damageType?: DamageType;  // For DoTs
-  damageProperty?: DamageProperty;
-}
-```
-
-### DoT Damage Formula
-
-```typescript
-// DoTs get 50% defense mitigation
-dotDamage = max(1, baseDamage - (flatDef × 0.5) - (damage × percentDef × 0.5))
-```
+→ See `references/status-effects.md` for available effect types, the `SkillEffect` interface, and the DoT damage formula — open when adding a status effect.
 
 ## Creating New Combat Phases
 
-### Existing Turn Phases
-
-**Player Turn:**
-1. TURN_START → Reset flags
-2. UPKEEP → Toggle costs, passive regen
-3. MAIN_ACTION → Skill execution
-4. DEATH_CHECK → Victory/defeat
-5. TURN_END → Mark turn complete
-
-**Enemy Turn:**
-1. DOT_ENEMY → Process enemy DoTs
-2. DOT_PLAYER → Process player DoTs (through shield)
-3. DEATH_CHECK_DOT → Check DoT kills
-4. ENEMY_ACTION → AI skill selection + execution
-5. DEATH_CHECK_ATTACK → Check combat kills
-6. RESOURCE_RECOVERY → Cooldowns, chakra regen
-7. TERRAIN_HAZARDS → Environmental damage
-8. FINAL_DEATH_CHECK → Hazard kills
-
-### Adding New Phase
-
-```typescript
-// 1. Add to CombatPhase enum
-enum CombatPhase {
-  // ... existing
-  NEW_PHASE,
-}
-
-// 2. Create calculation function
-function calculateNewPhaseEffects(state: CombatWorkflowState): NewPhaseResult;
-
-// 3. Create workflow handler
-function processNewPhase(state: CombatWorkflowState): CombatWorkflowState;
-
-// 4. Insert into turn flow in processEnemyTurn or executePlayerAction
-```
+→ See `references/combat-phases.md` for the existing player/enemy turn phase order and the 4-step "add a new phase" recipe — open when adding or reordering turn phases.
 
 ## Output Templates
 
-### New Calculation Function
-
-```typescript
-/**
- * [Description of what this calculates]
- * @param attackerStats - Attacker's derived stats
- * @param defenderStats - Defender's derived stats
- * @param skill - The skill being used
- * @returns [ResultType] with all calculation details
- */
-export function calculateX(
-  attackerStats: DerivedStats,
-  defenderStats: DerivedStats,
-  skill: Skill
-): XResult {
-  const result: XResult = {
-    // Initialize result object
-  };
-
-  // Pure calculations here
-  // NO state mutation
-  // Use Math.random() for rolls
-
-  return result;
-}
-```
-
-### New Workflow Function
-
-```typescript
-/**
- * [Description of what state changes this applies]
- * @param state - Current combat state
- * @param result - Calculation result to apply
- * @returns New combat state with changes applied
- */
-export function applyX(
-  state: CombatWorkflowState,
-  result: XResult
-): CombatWorkflowState {
-  // Create new state object (immutable)
-  const newState = { ...state };
-
-  // Apply result values to state
-  // Add combat logs
-  // Check for combat end conditions
-
-  return newState;
-}
-```
-
-### New Effect Implementation
-
-```typescript
-// In constants/index.ts - Add to SKILLS
-NEW_SKILL: {
-  id: 'new_skill',
-  name: 'New Skill Name',
-  // ... other properties
-  effects: [{
-    type: EffectType.NEW_EFFECT,
-    value: 10,
-    duration: 3,
-    chance: 0.8,
-    damageType: DamageType.PHYSICAL,
-    damageProperty: DamageProperty.NORMAL
-  }]
-}
-
-// In CombatSystem.ts - Handle in applyMitigation or processDoT
-if (buff.effect.type === EffectType.NEW_EFFECT) {
-  // Calculate effect
-  // Apply to appropriate target
-}
-```
+→ See `templates/output-templates.md` for copy-paste boilerplate: new calculation function, new workflow function, and new effect implementation — open when scaffolding the actual code.
 
 ## Reference Files
 
@@ -284,22 +102,4 @@ if (buff.effect.type === EffectType.NEW_EFFECT) {
 
 ## Balance Constants
 
-### Resource Pools
-- HP: `50 + (WIL × 12)`
-- Chakra: `30 + (CHA × 8)`
-- HP Regen: `maxHP × 0.02 × (WIL / 20)`
-- Chakra Regen: `INT × 2`
-
-### Combat Constants
-- Base Hit: 92%
-- Hit Range: 30-98%
-- Base Crit: 8%
-- Crit Cap: 75%
-- Crit Mult: 1.75×
-- Flat Def Cap: 60% of damage
-- % Def Cap: 75%
-
-### Survival
-- Guts: `WIL / (WIL + 200)`
-- Status Resist: `CAL / (CAL + 80)`
-- Evasion: `SPD / (SPD + 250)`
+→ See `references/balance-constants.md` for resource-pool formulas, combat constants (hit/crit/def caps), and survival formulas (guts, status resist, evasion) — open when balancing numbers.

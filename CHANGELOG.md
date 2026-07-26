@@ -4,6 +4,11 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Changed (token / context optimization)
+
+- **`CLAUDE.md` slimmed 49 → 28 lines**: removed the manual "Available Skills" list (auto-injected by the harness and stale) and "Quick Commands" (duplicated `package.json`); collapsed the System Layer blurbs to one line; moved stat/combat formulas to `docs/FORMULAS.md`. Loaded every turn → per-turn context saving.
+- **Progressive-disclosure split of 4 project skills** (`combat-system-creator` 305→105, `jutsu-creator` 296→160, `art-style-creator` 292→138, `combat-ui-pattern-a` 248→115): moved copy-paste templates, boilerplate and lookup tables out of each `SKILL.md` into `references/` and `templates/` files, leaving the workflow + one-line pointers inline. Frontmatter byte-identical; behavior preserved. Loaded only when a skill triggers.
+
 ### Fixed (Sealed Vault blank body)
 
 - **TreasureChoice invisible content (P0)** (`TreasureChoice.tsx` / `treasure.css`): `.treasure-scene__body` defaults to `opacity: 0` and only becomes visible with `--visible`. Reward scene set that class; vault/chest never did — players saw title "Sealed Vault" with empty body. Entrance fade now applies `treasure-scene__body--visible`.
