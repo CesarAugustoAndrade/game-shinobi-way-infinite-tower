@@ -84,11 +84,12 @@ import { SKILLS } from '../constants';
 import { COMPONENT_DEFINITIONS, COMPONENT_DROP_WEIGHTS } from '../constants/components';
 import { findRecipe, SYNTHESIS_RECIPES } from '../constants/synthesis';
 import { DIFFICULTY, CRAFTING_COSTS, BALANCE, LOOT_BALANCE } from '../config';
-import { generateId as rngGenerateId, pick, weightedPick, random, chance } from '../utils/rng';
+import { generateUniqueId, pick, weightedPick, random, chance } from '../utils/rng';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
 
 /** Generates a random 7-character ID for item tracking */
-const generateId = () => rngGenerateId();
+/** Timestamp + entropy — short Math.random ids were collidable under burst loot. */
+const generateId = () => generateUniqueId('item');
 
 /**
  * Cap stats to maximum of 2, keeping the highest values
@@ -107,7 +108,12 @@ const capStatsToTwo = (stats: ItemStatBonus): ItemStatBonus => {
   return Object.fromEntries(topTwo) as ItemStatBonus;
 };
 
-export const generateSkillLoot = (enemyTier: string, currentFloor: number): Skill | null => {
+export const generateSkillLoot = (
+  enemyTier: string,
+  currentFloor: number,
+  /** T-114: optional region theme (same bias as generateSkillForFloor) */
+  lootTheme?: import('../types').RegionLootTheme | null,
+): Skill | null => {
   // Tier mapping: BASIC → ADVANCED → HIDDEN → FORBIDDEN → KINJUTSU
   let possibleTiers: SkillTier[] = [SkillTier.BASIC];
   if (enemyTier === 'Chunin') possibleTiers = [SkillTier.BASIC, SkillTier.ADVANCED];
@@ -117,14 +123,34 @@ export const generateSkillLoot = (enemyTier: string, currentFloor: number): Skil
 
   const candidates = Object.values(SKILLS).filter(s => possibleTiers.includes(s.tier));
   if (candidates.length === 0) return SKILLS.SHURIKEN;
-  return pick(candidates) ?? SKILLS.SHURIKEN;
+  if (!lootTheme) return pick(candidates) ?? SKILLS.SHURIKEN;
+
+  const focus = new Set(
+    (lootTheme.equipmentFocus ?? []).map((s) => s.toLowerCase()),
+  );
+  const preferred = lootTheme.primaryElement;
+  return (
+    weightedPick(candidates, (skill) => {
+      let w = 1;
+      if (preferred && skill.element === preferred) w *= 1.85;
+      const scale = String(skill.scalingStat).toLowerCase();
+      if (focus.size > 0 && focus.has(scale)) w *= 1.6;
+      return w;
+    }) ?? SKILLS.SHURIKEN
+  );
 };
 
 /**
  * Generate a skill for scroll discovery based on floor depth
  * Higher floors have better chances for higher tier skills
+ *
+ * T-113: optional lootTheme biases element (Affinity) and scalingStat (Focus)
+ * without changing tier gates — same identity as merchant/treasure component bias.
  */
-export const generateSkillForFloor = (floor: number): Skill => {
+export const generateSkillForFloor = (
+  floor: number,
+  lootTheme?: import('../types').RegionLootTheme | null,
+): Skill => {
   // Tier mapping: BASIC → ADVANCED → HIDDEN → FORBIDDEN → KINJUTSU
   let possibleTiers: SkillTier[];
 
@@ -142,7 +168,22 @@ export const generateSkillForFloor = (floor: number): Skill => {
 
   const candidates = Object.values(SKILLS).filter(s => possibleTiers.includes(s.tier));
   if (candidates.length === 0) return SKILLS.SHURIKEN;
-  return pick(candidates) ?? SKILLS.SHURIKEN;
+  if (!lootTheme) return pick(candidates) ?? SKILLS.SHURIKEN;
+
+  const focus = new Set(
+    (lootTheme.equipmentFocus ?? []).map((s) => s.toLowerCase()),
+  );
+  const preferred = lootTheme.primaryElement;
+  const picked = weightedPick(candidates, (skill) => {
+    let w = 1;
+    // Affinity: matching skill element (e.g. Waves → Water)
+    if (preferred && skill.element === preferred) w *= 1.85;
+    // Focus: scaling stat in region equipmentFocus (e.g. Speed)
+    const scale = String(skill.scalingStat).toLowerCase();
+    if (focus.size > 0 && focus.has(scale)) w *= 1.6;
+    return w;
+  });
+  return picked ?? SKILLS.SHURIKEN;
 };
 
 /**
@@ -180,6 +221,22 @@ export const equipItem = (player: Player, item: Item, targetSlot?: EquipmentSlot
       slot => player.equipment[slot] === null
     );
     slotToUse = emptySlot || EquipmentSlot.SLOT_1;
+  }
+
+  // Same instance must never occupy multiple equipment slots (loot re-claim / race guard).
+  const alreadySlot = (Object.values(EquipmentSlot) as EquipmentSlot[]).find(
+    slot => player.equipment[slot]?.id === item.id
+  );
+  if (alreadySlot) {
+    if (alreadySlot === slotToUse) {
+      // Idempotent re-equip of the same piece into its current slot
+      return { player, success: true };
+    }
+    return {
+      player,
+      success: false,
+      reason: 'Item is already equipped in another slot.',
+    };
   }
 
   const existingItem = player.equipment[slotToUse];

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   GameState, Player, BranchingRoom, BranchingFloor, CharacterStats, Region
 } from '../game/types';
@@ -30,6 +30,11 @@ export interface RoomNavigationDeps {
     setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>,
     exploreState: GameState
   ) => void;
+  /**
+   * Cancel pending multi-activity chain (returnToMap setTimeout). Manual Enter Room
+   * during the ~100ms window must not race with executeRoomActivity on a stale floor.
+   */
+  cancelActivityChain?: () => void;
 }
 
 /**
@@ -59,12 +64,26 @@ export function useRoomNavigation(
     setSelectedBranchingRoom,
   } = state;
 
-  const { player, playerStats, executeRoomActivity } = deps;
+  const { player, playerStats, executeRoomActivity, cancelActivityChain } = deps;
+
+  /**
+   * Sync mutex — double Enter Room / click / Space used to run executeRoomActivity
+   * twice on a stale floor (double rest heal, double intel, re-open approach).
+   * Short window only; re-select or timeout re-arms so next path is never stuck.
+   */
+  const roomEnterLockRef = useRef(false);
+  const armRoomEnter = () => {
+    roomEnterLockRef.current = true;
+    window.setTimeout(() => {
+      roomEnterLockRef.current = false;
+    }, 250);
+  };
 
   /**
    * Select a room in location exploration mode
    */
   const handleLocationRoomSelect = useCallback((room: BranchingRoom) => {
+    roomEnterLockRef.current = false;
     logRoomSelect(room.id, room.name);
     setSelectedBranchingRoom(room);
   }, [setSelectedBranchingRoom]);
@@ -74,20 +93,29 @@ export function useRoomNavigation(
    */
   const handleLocationRoomEnter = useCallback((room: BranchingRoom) => {
     if (!locationFloor || !region || !player || !playerStats) return;
+    if (roomEnterLockRef.current) return;
+    armRoomEnter();
+    // Drop pending multi-activity chain so we do not double-open merchant/rest/approach
+    // after the player already stepped (stale floor snapshot from returnToMap).
+    cancelActivityChain?.();
 
     const updatedFloor = moveToRoom(locationFloor, room.id, player);
     setLocationFloor(updatedFloor);
 
     const currentRoom = updatedFloor.rooms.find(r => r.id === room.id);
-    if (!currentRoom) return;
+    if (!currentRoom) {
+      roomEnterLockRef.current = false;
+      return;
+    }
 
     executeRoomActivity(currentRoom, updatedFloor, setLocationFloor, GameState.LOCATION_EXPLORE);
-  }, [locationFloor, region, player, playerStats, setLocationFloor, executeRoomActivity]);
+  }, [locationFloor, region, player, playerStats, setLocationFloor, executeRoomActivity, cancelActivityChain]);
 
   /**
    * Select a room in legacy branching exploration mode
    */
   const handleBranchingRoomSelect = useCallback((room: BranchingRoom) => {
+    roomEnterLockRef.current = false;
     logRoomSelect(room.id, room.name);
     setSelectedBranchingRoom(room);
   }, [setSelectedBranchingRoom]);
@@ -97,19 +125,25 @@ export function useRoomNavigation(
    */
   const handleBranchingRoomEnter = useCallback((room: BranchingRoom) => {
     if (!branchingFloor || !player || !playerStats) return;
+    if (roomEnterLockRef.current) return;
+    armRoomEnter();
+    cancelActivityChain?.();
 
     const updatedFloor = moveToRoom(branchingFloor, room.id);
     setBranchingFloor(updatedFloor);
 
     const currentRoom = updatedFloor.rooms.find(r => r.id === room.id);
-    if (!currentRoom) return;
+    if (!currentRoom) {
+      roomEnterLockRef.current = false;
+      return;
+    }
 
     // Legacy branching path: never soft-lock on EXPLORE (no UI).
     const exploreState = region?.currentLocationId
       ? GameState.LOCATION_EXPLORE
       : GameState.REGION_MAP;
     executeRoomActivity(currentRoom, updatedFloor, setBranchingFloor, exploreState);
-  }, [branchingFloor, region, player, playerStats, setBranchingFloor, executeRoomActivity]);
+  }, [branchingFloor, region, player, playerStats, setBranchingFloor, executeRoomActivity, cancelActivityChain]);
 
   return {
     handleLocationRoomSelect,

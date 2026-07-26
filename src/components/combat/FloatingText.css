@@ -1,0 +1,189 @@
+/**
+ * Floating combat text — seinen-sublime feedback
+ * Bone / rust / fog vocabulary; hard void shadow for CRT stage readability.
+ */
+
+@import '../../styles/design-system/index.css';
+
+.floating-text {
+  position: fixed;
+  pointer-events: none;
+  /* Above combat chrome (hand ~10–20) but below modal portals */
+  z-index: 80;
+  transform: translate(-50%, -50%);
+  font-family: var(--sw-font-display, 'Silkscreen', system-ui, sans-serif);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  /* Hard CRT silhouette so floats stay readable over painted cutouts / bright stage */
+  text-shadow:
+    2px 2px 0 var(--sw-void, #050608),
+    -1px -1px 0 rgba(5, 6, 8, 0.85),
+    1px -1px 0 rgba(5, 6, 8, 0.55),
+    -1px 1px 0 rgba(5, 6, 8, 0.55),
+    0 0 10px rgba(5, 6, 8, 0.55);
+  animation: floating-text-rise 1.2s ease-out forwards;
+  white-space: nowrap;
+  /* Prefer crisp pixel numerals over soft browser AA blur */
+  -webkit-font-smoothing: none;
+}
+
+.floating-text--damage {
+  font-size: 1.25rem;
+  color: var(--sw-rust-light, #c47a52);
+}
+
+.floating-text--crit {
+  font-size: 1.85rem;
+  color: var(--sw-bone, #e8e4dc);
+  text-shadow:
+    2px 2px 0 var(--sw-void, #050608),
+    0 0 12px var(--sw-rust-glow, rgba(166, 93, 63, 0.55)),
+    0 0 4px var(--sw-rust, #a65d3f);
+  animation: floating-text-crit 1.2s ease-out forwards;
+}
+
+.floating-text--heal {
+  font-size: 1.2rem;
+  color: #7aab8a;
+  /* WAVE9: extra silhouette on misty stages */
+  text-shadow:
+    2px 2px 0 var(--sw-void, #050608),
+    0 0 8px rgba(74, 120, 90, 0.45);
+}
+
+.floating-text--miss {
+  font-size: 1rem;
+  font-style: italic;
+  font-weight: 700;
+  color: var(--sw-fog, #8a9199);
+  animation: floating-text-fade 1s ease-out forwards;
+}
+
+.floating-text--block {
+  font-size: 1.05rem;
+  color: #8aa8c0;
+  text-shadow:
+    2px 2px 0 var(--sw-void, #050608),
+    0 0 8px rgba(90, 130, 160, 0.4);
+}
+
+.floating-text--status {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #9b8ab8;
+  /* DoT / tick — slightly softer rise so it does not compete with hit numbers */
+  animation: floating-text-rise 1.35s ease-out forwards;
+  opacity: 0.95;
+}
+
+.floating-text--chakra {
+  font-size: 1.1rem;
+  color: #6a9bc4;
+}
+
+/* ── Damage-type recolors (A7b — never hide type behind flat red) ── */
+.floating-text--dtype-physical {
+  color: #fb923c;
+}
+.floating-text--dtype-elemental {
+  color: #c4b5fd;
+}
+.floating-text--dtype-mental {
+  color: #d8b4fe;
+}
+.floating-text--dtype-true {
+  color: #fef08a;
+  text-shadow:
+    2px 2px 0 var(--sw-void, #050608),
+    0 0 10px rgba(250, 204, 21, 0.5);
+}
+
+.floating-text--crit.floating-text--dtype-physical {
+  color: #fdba74;
+}
+.floating-text--crit.floating-text--dtype-elemental {
+  color: #ddd6fe;
+}
+.floating-text--crit.floating-text--dtype-mental {
+  color: #f3e8ff;
+}
+.floating-text--crit.floating-text--dtype-true {
+  color: #fef9c3;
+}
+
+/* Element glow accents (subtle — CRT stage still owns telegraph/AP) */
+.floating-text--el-fire {
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));
+}
+.floating-text--el-water {
+  filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.5));
+}
+.floating-text--el-lightning {
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, 0.5));
+}
+.floating-text--el-earth {
+  filter: drop-shadow(0 0 4px rgba(217, 119, 6, 0.5));
+}
+.floating-text--el-wind {
+  filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.5));
+}
+.floating-text--el-mental {
+  filter: drop-shadow(0 0 4px rgba(192, 132, 252, 0.5));
+}
+.floating-text--el-physical {
+  filter: drop-shadow(0 0 3px rgba(251, 146, 60, 0.35));
+}
+
+@keyframes floating-text-rise {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -40%);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -110%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -140%);
+  }
+}
+
+@keyframes floating-text-crit {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -30%) scale(0.85);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -55%) scale(1.12);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -120%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -155%) scale(0.96);
+  }
+}
+
+@keyframes floating-text-fade {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -40%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -70%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-text,
+  .floating-text--crit,
+  .floating-text--miss {
+    animation: floating-text-fade 0.9s ease-out forwards;
+  }
+}

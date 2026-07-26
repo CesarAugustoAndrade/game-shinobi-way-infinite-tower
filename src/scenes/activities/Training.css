@@ -34,21 +34,23 @@
 .training__dojo-frame {
   width: 96px;
   height: 96px;
-  border: 2px solid var(--sw-category-body);
+  border: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
   border-radius: var(--sw-radius-sm);
-  background: var(--sw-glass-bg-dark);
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(154, 52, 18, 0.16) 0%, transparent 70%),
+    linear-gradient(160deg, rgba(18, 20, 28, 0.95) 0%, var(--sw-void, #050608) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow:
     var(--sw-pix-shadow-lg),
-    0 0 24px rgba(249, 115, 22, 0.18),
+    0 0 20px var(--sw-rust-glow, rgba(166, 93, 63, 0.22)),
     inset 0 0 12px rgba(0, 0, 0, 0.5);
 }
 
 .training__dojo-icon {
-  color: var(--sw-category-body-light);
-  filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.4));
+  color: var(--sw-rust-light, #c47a52);
+  filter: drop-shadow(0 0 8px var(--sw-rust-glow, rgba(166, 93, 63, 0.35)));
 }
 
 .training__dojo-nameplate {
@@ -62,15 +64,69 @@
   font-size: var(--sw-text-sm);
   letter-spacing: var(--sw-tracking-ultra);
   text-transform: uppercase;
-  color: var(--sw-category-body-light);
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .training__dojo-quote {
   font-size: var(--sw-text-sm);
-  color: var(--sw-text-muted);
+  color: var(--sw-fog, #8a9199);
   font-style: italic;
   max-width: 28rem;
   text-align: center;
+}
+
+/* T-112: region Focus for training choices */
+.training__focus-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: var(--sw-space-3);
+}
+
+.training__focus-label {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sw-fog, #8a9199);
+}
+
+.training__focus-chip {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border: 2px solid #6d28d9;
+  box-shadow: 2px 2px 0 #000;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.25);
+}
+
+.stat-card--focus {
+  outline: 1px solid rgba(109, 40, 217, 0.55);
+  box-shadow: 0 0 0 1px rgba(109, 40, 217, 0.2);
+}
+
+.stat-card__focus-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 8px;
+  font-family: var(--sw-font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border: 1px solid #6d28d9;
+  color: #c4b5fd;
+  background: rgba(109, 40, 217, 0.3);
+  vertical-align: middle;
+}
+
+.stat-card__focus-mark {
+  color: #c4b5fd;
 }
 
 /* ===========================================
@@ -155,7 +211,8 @@
   top: 0;
   height: 100%;
   background: rgba(0, 0, 0, 0.5);
-  border-left: 2px solid var(--sw-accent-tertiary);
+  /* Rust instrument heat — not party gold #fbbf24 */
+  border-left: 2px solid var(--sw-rust-light, #c47a52);
   animation: previewPulse 1.5s ease-in-out infinite;
 }
 
@@ -176,7 +233,7 @@
 }
 
 .resource-panel__preview {
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .resource-panel__cost {
@@ -463,9 +520,9 @@
   letter-spacing: var(--sw-tracking-wide);
 }
 
-.intensity-option__label--light   { color: #4ade80; }
-.intensity-option__label--medium  { color: var(--sw-accent-tertiary); }
-.intensity-option__label--intense { color: #f87171; }
+.intensity-option__label--light   { color: var(--sw-risk-safe-light, #22c55e); }
+.intensity-option__label--medium  { color: var(--sw-rust-light, #c47a52); }
+.intensity-option__label--intense { color: var(--sw-risk-high-light, #dc2626); }
 
 .intensity-option__gain {
   font-family: var(--sw-font-mono);
@@ -596,13 +653,13 @@
 }
 
 .training__skip-button {
-  color: var(--sw-text-muted);
+  color: var(--sw-fog, #8a9199);
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-xs);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-widest);
   background: transparent;
-  border: 2px solid var(--sw-frame-soft);
+  border: 2px solid var(--sw-metal, #2d3d4a);
   border-radius: var(--sw-radius-xs);
   cursor: pointer;
   padding: var(--sw-space-2) var(--sw-space-4);
@@ -615,8 +672,8 @@
 }
 
 .training__skip-button:hover {
-  color: var(--sw-text-tertiary);
-  border-color: var(--sw-frame);
+  color: var(--sw-bone-dim, #b8b4a8);
+  border-color: var(--sw-rust, #a65d3f);
   transform: translate(-1px, -1px);
   box-shadow: var(--sw-pix-shadow);
 }
@@ -626,7 +683,12 @@
   box-shadow: none;
 }
 
-/* T-048: training completion result before leave */
+.training__skip-button:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+}
+
+/* T-048: training completion — void chassis (parity Rest / Reward) */
 .training--result {
   display: flex;
   align-items: center;
@@ -639,11 +701,13 @@
   max-width: 22rem;
   width: 100%;
   padding: var(--sw-space-5);
-  background: var(--sw-bg-secondary, #12121a);
-  border: 3px solid #000;
-  box-shadow: 4px 4px 0 #000;
+  background: linear-gradient(180deg, var(--sw-abyss, #1a2633) 0%, var(--sw-void, #050608) 100%);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-top: 3px solid var(--sw-rust, #a65d3f);
+  box-shadow: 6px 6px 0 var(--sw-void, #050608);
   text-align: center;
   font-family: var(--sw-font-display, Silkscreen, monospace);
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .training__result-title {
@@ -651,13 +715,14 @@
   font-size: var(--sw-text-lg);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #e8b84a;
+  /* Bone instrument — not party gold */
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .training__result-intensity {
   margin: 0 0 var(--sw-space-4);
   font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted, #888);
+  color: var(--sw-fog, #8a9199);
   text-transform: uppercase;
 }
 
@@ -667,23 +732,23 @@
   gap: 6px;
   margin-bottom: var(--sw-space-3);
   padding: var(--sw-space-3);
-  background: rgba(0, 0, 0, 0.35);
-  border: 2px solid #000;
+  background: rgba(5, 6, 8, 0.55);
+  border: 2px solid var(--sw-metal, #2d3d4a);
 }
 
 .training__result-stat-name {
   font-size: var(--sw-text-sm);
   text-transform: uppercase;
-  color: #c4b5fd;
+  color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .training__result-stat-delta {
   font-size: var(--sw-text-base);
-  color: var(--sw-text-primary, #f0e8d8);
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .training__result-gain {
-  color: #4ade80;
+  color: var(--sw-rust-light, #c47a52);
   font-weight: 700;
 }
 
@@ -693,7 +758,7 @@
   gap: 8px;
   margin-bottom: var(--sw-space-4);
   font-size: 11px;
-  color: var(--sw-text-tertiary, #aaa);
+  color: var(--sw-fog, #8a9199);
   font-family: var(--sw-font-mono, monospace);
 }
 
@@ -704,10 +769,10 @@
   gap: 10px;
   width: 100%;
   padding: var(--sw-space-3) var(--sw-space-4);
-  background: rgba(180, 83, 9, 0.3);
-  border: 2px solid #e8b84a;
-  box-shadow: 2px 2px 0 #000;
-  color: #e8b84a;
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.22));
+  border: 2px solid var(--sw-rust, #a65d3f);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  color: var(--sw-bone, #e8e4dc);
   font-family: inherit;
   font-size: var(--sw-text-sm);
   font-weight: 700;
@@ -716,7 +781,14 @@
 }
 
 .training__result-continue:hover {
-  background: rgba(180, 83, 9, 0.5);
+  background: rgba(166, 93, 63, 0.4);
+  border-color: var(--sw-rust-light, #c47a52);
+}
+
+.training__result-continue:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4dc);
 }
 
 /* ===========================================

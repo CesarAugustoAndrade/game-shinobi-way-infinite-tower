@@ -6,7 +6,7 @@ import {
   CharacterStats,
 } from '../../game/types';
 import RoomCard from './RoomCard';
-import { getCurrentRoom, getChildRooms } from '../../game/systems/LocationSystem';
+import { getCurrentRoom, getChildRooms, isFloorComplete } from '../../game/systems/LocationSystem';
 import { ACTIVITY_FULL_NAMES } from '../../game/constants/activityLabels';
 import {
   formatLocationTerrainEffectLines,
@@ -18,6 +18,7 @@ import {
 import { TERRAIN_DEFINITIONS } from '../../game/constants/terrain';
 import { COMBAT_MODIFIER_EFFECTS } from '../../game/constants/roomTypes';
 import { CombatModifierType } from '../../game/types';
+import { resolveLaminaPaths } from '../../utils/colorHelpers';
 import './exploration.css';
 
 interface LocationMapProps {
@@ -27,6 +28,13 @@ interface LocationMapProps {
   currentIntel: number;
   onRoomSelect: (room: BranchingRoom) => void;
   onRoomEnter: (room: BranchingRoom) => void;
+  /**
+   * A4 wave7: escape hatch when exit room is already cleared.
+   * Auto-complete usually stages LocationCompleteModal; this recovers soft-stuck maps.
+   */
+  onLeaveLocation?: () => void;
+  /** R1-009: authored location name (title); biome stays as subtitle */
+  locationName?: string;
 }
 
 const LocationMap: React.FC<LocationMapProps> = ({
@@ -34,6 +42,8 @@ const LocationMap: React.FC<LocationMapProps> = ({
   currentIntel,
   onRoomSelect,
   onRoomEnter,
+  onLeaveLocation,
+  locationName,
 }) => {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
@@ -44,6 +54,20 @@ const LocationMap: React.FC<LocationMapProps> = ({
     () => currentRoom ? getChildRooms(branchingFloor, currentRoom.id) : [],
     [branchingFloor, currentRoom]
   );
+  // Exit room cleared → location meta path available (stuck recovery + honest coach)
+  const floorComplete = useMemo(
+    () => isFloorComplete(branchingFloor),
+    [branchingFloor],
+  );
+
+  // First entry / after advancing: auto-select current room so Enter Room is visible
+  useEffect(() => {
+    if (!currentRoom) return;
+    setSelectedRoomId(currentRoom.id);
+    onRoomSelect(currentRoom);
+    // Only re-run when player position changes — do not override manual path picks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: currentRoom.id only
+  }, [currentRoom?.id]);
 
   // Get selected room
   const selectedRoom = useMemo(
@@ -99,9 +123,12 @@ const LocationMap: React.FC<LocationMapProps> = ({
     () => formatRoomTerrainEffectLines(selectedTerrainDef).slice(0, 3),
     [selectedTerrainDef],
   );
-  // T-105: room combat condition (Ambush / Sanctuary / …) before enter
+  // T-105/T-108: combat or elite room condition before enter
   const selectedCombatConditions = useMemo(() => {
-    const mods = selectedRoom?.activities.combat?.modifiers ?? [];
+    const mods =
+      selectedRoom?.activities.combat?.modifiers
+      ?? selectedRoom?.activities.eliteChallenge?.modifiers
+      ?? [];
     return mods
       .filter((m) => m !== CombatModifierType.NONE)
       .map((m) => COMBAT_MODIFIER_EFFECTS[m]?.name)
@@ -121,18 +148,31 @@ const LocationMap: React.FC<LocationMapProps> = ({
     }
   }, [selectedRoom, onRoomEnter]);
 
-  // Keyboard shortcuts: SPACE/ENTER to enter room, 1/2 to select child nodes
+  // Keyboard: SPACE/ENTER enter room; 1/2 (and numpad) select child paths
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
+      // Space/Enter hold re-fires keydown — same-tick double enter double-heals rest /
+      // double-grants intel / re-opens approach on a stale floor snapshot.
+      if (e.repeat) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.target as HTMLElement | null)?.isContentEditable) return;
+      // Leave Enter/Space to bag / character / reward / approach / complete modals
+      // (some result panels lack role=dialog — keep class fallbacks)
+      if (
+        document.querySelector(
+          '[role="dialog"][aria-modal="true"], .reward-modal, .event-result, .loc-complete, .dice-modal, .intel-result, .rest-result, .explore-overlay, .approach-modal, .confirm-modal',
+        )
+      ) {
+        return;
+      }
 
-      // Number keys 1-2 to select child rooms (fixed 2 children per room)
-      if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) {
+      const digitMap: Record<string, number> = {
+        Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3,
+        Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3,
+      };
+      if (e.code in digitMap) {
         e.preventDefault();
-        const indexMap: Record<string, number> = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 };
-        const index = indexMap[e.code];
-        const childRoom = childRooms[index];
+        const childRoom = childRooms[digitMap[e.code]];
         if (childRoom) {
           setSelectedRoomId(childRoom.id);
           onRoomSelect(childRoom);
@@ -140,35 +180,58 @@ const LocationMap: React.FC<LocationMapProps> = ({
         return;
       }
 
-      // Only handle Space and Enter for entering rooms
       if (e.code !== 'Space' && e.code !== 'Enter') return;
 
       e.preventDefault();
+      e.stopPropagation();
 
-      // If a room is already selected and accessible, enter it
-      // This works for both child rooms AND the current/parent room
+      // Open room selected → enter immediately
       if (selectedRoom && selectedRoom.isAccessible && !selectedRoom.isCleared) {
-        handleEnterRoom();
-        return;
-      }
-
-      // If current room is selected but not fully cleared, enter it
-      // (currentRoom may be accessible but have remaining activities)
-      if (selectedRoom && currentRoom && selectedRoom.id === currentRoom.id && !selectedRoom.isCleared) {
         onRoomEnter(selectedRoom);
         return;
       }
 
-      // Otherwise, select the current/parent room if it has remaining activities
+      // Spent / locked selection: mark first open path (or enter if already marked)
+      const nextPath = childRooms.find((r) => r.isAccessible && !r.isCleared);
+      if (nextPath) {
+        if (selectedRoomId === nextPath.id) {
+          onRoomEnter(nextPath);
+        } else {
+          setSelectedRoomId(nextPath.id);
+          onRoomSelect(nextPath);
+        }
+        return;
+      }
+
+      // Current still has work
       if (currentRoom && !currentRoom.isCleared) {
-        setSelectedRoomId(currentRoom.id);
-        onRoomSelect(currentRoom);
+        if (selectedRoomId === currentRoom.id) {
+          onRoomEnter(currentRoom);
+        } else {
+          setSelectedRoomId(currentRoom.id);
+          onRoomSelect(currentRoom);
+        }
+        return;
+      }
+
+      // A4 wave7: exit cleared, no open paths — leave instead of soft-stuck no-op
+      if (floorComplete && onLeaveLocation) {
+        onLeaveLocation();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedRoom, currentRoom, childRooms, handleEnterRoom, onRoomEnter, onRoomSelect]);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [
+    selectedRoom,
+    selectedRoomId,
+    currentRoom,
+    childRooms,
+    floorComplete,
+    onRoomEnter,
+    onRoomSelect,
+    onLeaveLocation,
+  ]);
 
   // Get arc-based modifier
   const getArcModifier = (): string => {
@@ -189,23 +252,115 @@ const LocationMap: React.FC<LocationMapProps> = ({
     return 'location-map__action-btn location-map__action-btn--locked';
   };
 
+  // A4: location-as-transform — biome location_*.png first, map exploring fallback.
+  // Always include void underplate + map plate so the panel never reads empty.
+  const locationStageBg = useMemo(() => {
+    const mapFallback = 'url(/assets/background_map_exploring.png)';
+    const scrim =
+      'linear-gradient(180deg, rgba(5,6,8,0.58) 0%, rgba(5,6,8,0.22) 40%, rgba(5,6,8,0.78) 100%)';
+    if (!branchingFloor.biome) {
+      return {
+        backgroundColor: '#050608',
+        backgroundImage: [scrim, mapFallback].join(', '),
+      };
+    }
+    const { background } = resolveLaminaPaths(branchingFloor.biome);
+    return {
+      backgroundColor: '#050608',
+      backgroundImage: [scrim, `url(${background})`, mapFallback].join(', '),
+    };
+  }, [branchingFloor.biome]);
+
+  const dangerLevel = branchingFloor.dangerLevel;
+
+  // StS first-run clarity: one next meaningful action from map state.
+  const nextActionCoach = useMemo(() => {
+    // A4 wave7: never claim Guardian still lives once exit is cleared
+    if (floorComplete) {
+      return 'Location cleared. Space / Enter — return to the ops table (veiled routes may surface).';
+    }
+    if (!selectedRoom) {
+      return 'You stand in the glow. Press Enter Room — or branch above (1–2).';
+    }
+    if (selectedRoom.isExit && selectedRoom.isAccessible && !selectedRoom.isCleared) {
+      return 'Guardian ahead — Enter Room to finish this location.';
+    }
+    if (selectedRoom.isAccessible && !selectedRoom.isCleared) {
+      if (currentRoom && selectedRoom.id === currentRoom.id) {
+        return 'Enter Room to film the next beat (Space / Enter).';
+      }
+      return `Path set: ${selectedRoom.name}. Space / Enter to step forward.`;
+    }
+    if (selectedRoom.isCleared) {
+      if (childRooms.some((r) => r.isAccessible && !r.isCleared)) {
+        return 'This node is spent. Space / Enter marks the next path (or press 1–2).';
+      }
+      if (currentRoom?.isExit && !currentRoom.isCleared) {
+        return 'Floor exit — defeat the Guardian to clear this location.';
+      }
+      return 'Room cleared. Wait for the next path to open.';
+    }
+    if (!selectedRoom.isAccessible) {
+      return 'That path is sealed — Space / Enter snaps to a reachable room (or 1–2).';
+    }
+    return 'Mark a room, then Enter.';
+  }, [selectedRoom, currentRoom, childRooms, floorComplete]);
+
   return (
     <div
       className={`location-map ${getArcModifier()}`}
       style={{
-        backgroundImage: 'url(/assets/background_map_exploring.png)',
+        ...locationStageBg,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
       }}
     >
+      {/* Visor chrome — CRT scanlines + vignette (pointer-events none) */}
+      <div className="location-map__scanlines" aria-hidden="true" />
+      <div className="location-map__vignette" aria-hidden="true" />
+
       {/* Header */}
       <div className="location-map__header">
         <div className="location-map__header-content">
           <div>
-            <h2 className="location-map__title">
-              {branchingFloor.biome}
-            </h2>
+            <div className="location-map__title-row">
+              <h2 className="location-map__title">
+                {locationName || branchingFloor.biome}
+              </h2>
+              {dangerLevel != null && (
+                <span
+                  className={`location-map__danger location-map__danger--d${dangerLevel}`}
+                  aria-label={`Danger level ${dangerLevel}`}
+                >
+                  D{dangerLevel}
+                </span>
+              )}
+              {branchingFloor.isRevisit && (
+                <span
+                  className="location-map__scar"
+                  title="Revisit — reduced rewards"
+                  aria-label="Revisit scar: reduced rewards"
+                >
+                  Scar
+                </span>
+              )}
+              {branchingFloor.isSecret && (
+                <span
+                  className="location-map__veiled"
+                  title="Unmarked path — not on the official route"
+                  aria-label="Veiled route"
+                >
+                  Veiled
+                </span>
+              )}
+            </div>
+            {/* R1-009: show biome under the real place name when both exist */}
+            {locationName && branchingFloor.biome && locationName !== branchingFloor.biome && (
+              <p className="location-map__biome" aria-label="Biome">
+                {branchingFloor.biome}
+              </p>
+            )}
             {/* T-046: ambient flavor from location atmosphereEvents */}
             {branchingFloor.atmosphereFlavor && (
               <p className="location-map__atmosphere">{branchingFloor.atmosphereFlavor}</p>
@@ -250,7 +405,7 @@ const LocationMap: React.FC<LocationMapProps> = ({
             </p>
             {/* Intel Bar */}
             <div className="location-map__intel">
-              <span className="location-map__intel-icon">🔮</span>
+              <span className="location-map__intel-icon" aria-hidden="true">IN</span>
               <div className="location-map__intel-bar">
                 <div
                   className="location-map__intel-fill"
@@ -260,18 +415,25 @@ const LocationMap: React.FC<LocationMapProps> = ({
               <span className="location-map__intel-value">{currentIntel}%</span>
             </div>
             <p className="location-map__hint">
-              {branchingFloor.exitRoomId
-                ? '🚪 Exit discovered - Find and defeat the Guardian'
-                : 'Keep exploring to find the Exit'}
+              {floorComplete
+                ? 'Exit cleared — return to the ops table when ready'
+                : branchingFloor.exitRoomId
+                  ? 'Exit discovered — find and defeat the Guardian'
+                  : 'Film the path — enter rooms to reveal the Exit'}
             </p>
+            {branchingFloor.isRevisit && (
+              <p className="location-map__scar-note" role="status">
+                Scar active — loot thinner on this ground
+              </p>
+            )}
           </div>
         </div>
       </div>
 
       {/* Map Area - RELATIVE VIEW: Current at bottom, children middle, grandchildren top */}
       <div className="location-map__area">
-        {/* Room Cards Container */}
-        <div className="location-map__rooms">
+        {/* Mission diamond: path choices ahead, not a spreadsheet */}
+        <div className="location-map__rooms location-map__rooms--diamond">
           {/* Grandchildren — T-080: fogged when current room visibilityRange < 2 */}
           <div className="location-map__row">
             {childRooms.map((child) => {
@@ -295,7 +457,7 @@ const LocationMap: React.FC<LocationMapProps> = ({
                   ) : (
                     <div
                       className="location-map__fog"
-                      title="Low visibility — advance to scout further"
+                      title="Fogged intel — advance to scout (threat unreadable, not empty)"
                       aria-label="Path ahead obscured by terrain"
                     >
                       ???
@@ -316,22 +478,44 @@ const LocationMap: React.FC<LocationMapProps> = ({
                 onClick={() => handleRoomClick(room)}
               />
             ))}
-            {childRooms.length === 0 && currentRoom?.isExit && (
+            {childRooms.length === 0 && currentRoom?.isExit && !currentRoom.isCleared && (
               <div className="location-map__exit-message">
-                ⚔️ Floor Exit - Defeat the Guardian ⚔️
+                Floor exit — defeat the Guardian to clear this location
+              </div>
+            )}
+            {childRooms.length === 0 && currentRoom?.isExit && currentRoom.isCleared && (
+              <div className="location-map__exit-message location-map__exit-message--clear">
+                Guardian fallen — location clear
+              </div>
+            )}
+            {childRooms.length === 0 && !currentRoom?.isExit && (
+              <div
+                className="location-map__void-plate"
+                title="No branch visible — void underplate holds the frame"
+                aria-hidden="true"
+              >
+                <span className="location-map__void-plate-mark">···</span>
               </div>
             )}
           </div>
 
           {/* Current Room - Bottom (1 room) - You are here */}
           <div className="location-map__row">
-            {currentRoom && (
+            {currentRoom ? (
               <RoomCard
                 key={currentRoom.id}
                 room={currentRoom}
                 isSelected={selectedRoomId === currentRoom.id}
                 onClick={() => handleRoomClick(currentRoom)}
               />
+            ) : (
+              <div
+                className="location-map__void-plate location-map__void-plate--here"
+                title="Position resolving"
+                aria-hidden="true"
+              >
+                <span className="location-map__void-plate-mark">?</span>
+              </div>
             )}
           </div>
         </div>
@@ -423,6 +607,14 @@ const LocationMap: React.FC<LocationMapProps> = ({
                     {ACTIVITY_FULL_NAMES.treasure}
                   </span>
                 )}
+                {selectedRoom.activities.infoGathering && !selectedRoom.activities.infoGathering.completed && (
+                  <span className="location-map__activity-tag location-map__activity-tag--intel">
+                    {ACTIVITY_FULL_NAMES.infoGathering}
+                    {selectedRoom.activities.infoGathering.intelGain > 0
+                      ? ` (+${selectedRoom.activities.infoGathering.intelGain}%)`
+                      : ''}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -433,24 +625,72 @@ const LocationMap: React.FC<LocationMapProps> = ({
                   type="button"
                   onClick={handleEnterRoom}
                   className={getActionButtonClass()}
+                  aria-label={`Enter ${selectedRoom.name}`}
                 >
-                  Enter
+                  {selectedRoom.isExit ? 'Enter Guardian' : 'Enter Room'}
                 </button>
               )}
-              {selectedRoom.isCleared && (
+              {selectedRoom.isCleared && !floorComplete && (
                 <span className={getActionButtonClass()}>
                   Cleared
                 </span>
               )}
-              {!selectedRoom.isAccessible && !selectedRoom.isCleared && (
+              {floorComplete && onLeaveLocation && (
+                <button
+                  type="button"
+                  onClick={onLeaveLocation}
+                  className="location-map__action-btn location-map__action-btn--leave"
+                  aria-label="Return to region map — location cleared"
+                >
+                  Return to Region
+                  <span className="sw-shortcut">Enter</span>
+                </button>
+              )}
+              {/* Once exit is clear, never claim a side path is the blocker */}
+              {!floorComplete && !selectedRoom.isAccessible && !selectedRoom.isCleared && (
                 <span className={getActionButtonClass()}>
-                  Locked
+                  Locked — pick a path above
                 </span>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Leave recovery when selection panel missing (no selected room) */}
+      {floorComplete && onLeaveLocation && !selectedRoom && (
+        <div className="location-map__selected-actions location-map__selected-actions--leave-only">
+          <button
+            type="button"
+            onClick={onLeaveLocation}
+            className="location-map__action-btn location-map__action-btn--leave"
+            aria-label="Return to region map — location cleared"
+          >
+            Return to Region
+            <span className="sw-shortcut">Enter</span>
+          </button>
+        </div>
+      )}
+
+      {/* Always-on next-action coach (StS clarity) */}
+      <div className="location-map__coach" role="status">
+        <p className="location-map__coach-text">{nextActionCoach}</p>
+      </div>
+
+      {/* Keyboard strip */}
+      <div className="location-map__instructions">
+        {floorComplete ? (
+          <>
+            <span className="location-map__key">Space</span> / <span className="location-map__key">Enter</span> return to region
+          </>
+        ) : (
+          <>
+            <span className="location-map__key">1–2</span> choose path
+            <span className="location-map__sep">♦</span>
+            <span className="location-map__key">Space</span> / <span className="location-map__key">Enter</span> enter room
+          </>
+        )}
+      </div>
     </div>
   );
 };

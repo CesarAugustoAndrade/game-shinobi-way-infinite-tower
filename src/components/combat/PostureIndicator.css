@@ -17,7 +17,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
-  color: var(--sw-text-muted);
+  color: var(--sw-fog, #8a9199);
 }
 
 .posture-indicator__options {
@@ -32,27 +32,27 @@
   align-items: center;
   gap: var(--sw-space-1-5);
   padding: var(--sw-space-1) var(--sw-space-2);
-  border: 2px solid var(--sw-frame-soft);
+  border: 2px solid var(--sw-metal, #2d3d4a);
   border-radius: var(--sw-radius-sm);
-  background: var(--sw-bg-tertiary);
-  color: var(--sw-text-muted);
+  background: rgba(5, 6, 8, 0.55);
+  color: var(--sw-fog, #8a9199);
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
   cursor: pointer;
-  box-shadow: var(--sw-pix-shadow-sm);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
     color var(--sw-transition-base), border-color var(--sw-transition-base),
     background var(--sw-transition-base);
 }
 
 .posture-indicator__btn:hover:not(:disabled):not(.posture-indicator__btn--active) {
-  color: var(--sw-text-secondary);
-  border-color: var(--sw-frame);
+  color: var(--sw-bone, #e8e4dc);
+  border-color: var(--sw-fog, #8a9199);
   transform: translate(-1px, -1px);
-  box-shadow: var(--sw-pix-shadow);
+  box-shadow: 3px 3px 0 var(--sw-void, #050608);
 }
 
 .posture-indicator__btn:active:not(:disabled) {
@@ -60,12 +60,12 @@
   box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
-/* Active stance: solid gold fill with dark glyphs reads unmistakably "on". */
+/* Active stance: rust heat fill — sole warm signal of the combat chrome. */
 .posture-indicator__btn--active {
-  color: var(--sw-on-accent);
-  background: var(--sw-accent-tertiary);
-  border-color: var(--sw-accent-primary);
-  box-shadow: var(--sw-pix-shadow-sm);
+  color: var(--sw-bone, #e8e4dc);
+  background: var(--sw-rust, #a65d3f);
+  border-color: var(--sw-rust-light, #c47a52);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608), 0 0 8px var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
 }
 
 .posture-indicator__btn:disabled {
@@ -109,7 +109,7 @@
   }
 
   /* Visually hidden, accessible label (icon-only buttons on mobile).
-     Active stance stays legible via the gold fill + tooltip. */
+     Active stance stays legible via the rust fill + tooltip. */
   .posture-indicator__label {
     position: absolute;
     width: 1px;

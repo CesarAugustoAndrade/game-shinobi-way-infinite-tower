@@ -1,5 +1,17 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Item, Skill, Player, SkillTier, Rarity, EquipmentSlot, DamageType, MAX_BAG_SLOTS, SLOT_MAPPING, RegionLootTheme } from '../../game/types';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import {
+  Item,
+  Skill,
+  Player,
+  SkillTier,
+  Rarity,
+  EquipmentSlot,
+  DamageType,
+  MAX_BAG_SLOTS,
+  SLOT_MAPPING,
+  RegionLootTheme,
+  ComponentId,
+} from '../../game/types';
 import { Scroll, Package } from 'lucide-react';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import {
@@ -12,7 +24,13 @@ import {
   formatEffectDescription,
 } from '../../game/utils/tooltipFormatters';
 import { getRecipesUsingComponent } from '../../game/constants/synthesis';
-import { resolveItemArt, getSkillArt } from '../../game/constants/artRegistry';
+import { COMPONENT_DEFINITIONS } from '../../game/constants/components';
+import {
+  resolveItemArt,
+  getSkillArt,
+  getArtifactArt,
+  getComponentArt,
+} from '../../game/constants/artRegistry';
 import { getSellPrice } from '../../game/systems/LootSystem';
 import {
   itemMatchesEquipmentFocus,
@@ -20,7 +38,11 @@ import {
 } from '../../game/utils/itemFocusMatch';
 import { BALANCE } from '../../game/config';
 import ArtIcon from '../../components/shared/ArtIcon';
+import { alignItemTileTooltip } from '../../utils/itemTileTooltip';
 import './Loot.css';
+
+/** Max synthesis recipe names shown in component tooltip (TFT readability). */
+const SYNTH_TOOLTIP_PREVIEW = 4;
 
 interface LootProps {
   droppedItems: Item[];
@@ -46,6 +68,7 @@ interface LootProps {
 // Helper to get rarity name class
 const getRarityClass = (rarity: Rarity): string => {
   switch (rarity) {
+    case Rarity.BROKEN:    return 'loot-card__name--broken';
     case Rarity.RARE:      return 'loot-card__name--rare';
     case Rarity.EPIC:      return 'loot-card__name--epic';
     case Rarity.LEGENDARY: return 'loot-card__name--legendary';
@@ -83,28 +106,39 @@ const Loot: React.FC<LootProps> = ({
 }) => {
   // T-052: confirm before abandoning unclaimed spoils
   const [confirmLeave, setConfirmLeave] = useState(false);
+  /**
+   * Sync mutex — isProcessing alone lags; double Enter / Leave them behind
+   * can call returnToMap twice (re-chain activity / double floor-complete).
+   * Ref resets on remount when LOOT opens again.
+   */
+  const leaveLockRef = useRef(false);
   const remainingCount = useMemo(
     () => droppedItems.length + (droppedSkill ? 1 : 0),
     [droppedItems.length, droppedSkill],
   );
 
   const requestLeave = useCallback(() => {
-    if (isProcessing) return;
+    if (isProcessing || leaveLockRef.current) return;
     if (remainingCount > 0) {
       setConfirmLeave(true);
       return;
     }
+    leaveLockRef.current = true;
     onLeaveAll();
   }, [isProcessing, remainingCount, onLeaveAll]);
 
   const confirmLeaveAll = useCallback(() => {
+    // Gate again — sell/equip may have started while confirm dialog was open
+    if (isProcessing || leaveLockRef.current) return;
+    leaveLockRef.current = true;
     setConfirmLeave(false);
     onLeaveAll();
-  }, [onLeaveAll]);
+  }, [isProcessing, onLeaveAll]);
 
   // Keyboard: SPACE/ENTER leave (or confirm); Esc cancels confirm
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (isProcessing) return;
 
@@ -140,7 +174,9 @@ const Loot: React.FC<LootProps> = ({
       <div className="loot__victory-header">
         <h2 className="loot__victory-title">VICTORY</h2>
         <p className="loot__victory-subtitle">
-          Spoils of War — Claim each reward{remainingCount > 1 ? ` (${remainingCount} left)` : ''}
+          {remainingCount === 0
+            ? 'The field is quiet — only dust and victory remain'
+            : `Take each spoil${remainingCount > 1 ? ` (${remainingCount} left)` : ''}`}
         </p>
         {/* T-093: drops already bias via lootTheme — surface region identity */}
         {lootTheme && (
@@ -170,17 +206,26 @@ const Loot: React.FC<LootProps> = ({
       {/* Keyboard Hints */}
       <div className="loot__hints">
         <span className="loot__hint">
-          <span className="sw-shortcut">Space</span> or <span className="sw-shortcut">Enter</span> Leave
+          <span className="sw-shortcut">Space</span> or <span className="sw-shortcut">Enter</span>{' '}
+          {remainingCount === 0 ? 'Step onward' : 'Leave the spoils'}
           {remainingCount > 0 ? ' (confirm if unclaimed)' : ''}
         </span>
         {remainingCount > 0 && (
-          <span className="loot__remaining-badge" title="Unclaimed spoils">
+          <span className="loot__remaining-badge" title="Spoils still on the field">
             {remainingCount} unclaimed
           </span>
         )}
       </div>
 
       <div className="loot__grid">
+        {remainingCount === 0 && (
+          <div className="loot__empty" role="status">
+            <p className="loot__empty-title">Nothing left to take</p>
+            <p className="loot__empty-body">
+              The mist reclaims what you left behind. Step onward when the silence settles.
+            </p>
+          </div>
+        )}
         {droppedItems.map(item => {
           // Calculate stat comparison with currently equipped item
           const targetSlot = item.type ? SLOT_MAPPING[item.type] : EquipmentSlot.SLOT_1;
@@ -213,6 +258,8 @@ const Loot: React.FC<LootProps> = ({
               key={item.id}
               className={`loot-card item-tile ${item.isComponent ? 'loot-card--component' : ''} ${getCardRarityClass(item.rarity)}`}
               tabIndex={0}
+              onMouseEnter={(e) => alignItemTileTooltip(e.currentTarget)}
+              onFocus={(e) => alignItemTileTooltip(e.currentTarget)}
             >
               {/* Detail tooltip — hover / keyboard focus / touch tap (focus) */}
               <div className="item-tile__tooltip" role="tooltip">
@@ -258,12 +305,45 @@ const Loot: React.FC<LootProps> = ({
                   </div>
                 )}
 
-                {/* Component synthesis hint */}
-                {item.isComponent && item.componentId && (
-                  <div className="item-tooltip__synth">
-                    Can be combined into {getRecipesUsingComponent(item.componentId).length} artifacts
-                  </div>
-                )}
+                {/* TFT/StS synthesis — result identity first, partner need second */}
+                {item.isComponent && item.componentId && (() => {
+                  const recipes = getRecipesUsingComponent(item.componentId);
+                  const preview = recipes.slice(0, SYNTH_TOOLTIP_PREVIEW);
+                  const rest = recipes.length - preview.length;
+                  const selfId = item.componentId as ComponentId;
+                  return (
+                    <div className="item-tooltip__synth">
+                      <div className="item-tooltip__synth-title">
+                        Forge → {recipes.length} artifact{recipes.length === 1 ? '' : 's'}
+                      </div>
+                      <ul className="item-tooltip__synth-list">
+                        {preview.map((r) => {
+                          const partnerId =
+                            r.recipe[0] === selfId ? r.recipe[1] : r.recipe[0];
+                          const partnerName =
+                            COMPONENT_DEFINITIONS[partnerId]?.name ?? partnerId;
+                          return (
+                            <li key={r.name} className="item-tooltip__synth-item">
+                              <ArtIcon art={getArtifactArt(r.name)} size="xs" title={r.name} />
+                              <span className="item-tooltip__synth-result">{r.name}</span>
+                              <span className="item-tooltip__synth-partner" title={partnerName}>
+                                +
+                                <ArtIcon
+                                  art={getComponentArt(partnerId)}
+                                  size="xs"
+                                  title={partnerName}
+                                />
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {rest > 0 && (
+                        <div className="item-tooltip__synth-more">+{rest} more on bag synthesize</div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="item-tooltip__section">
                   <div className="item-tooltip__sell">
@@ -272,9 +352,9 @@ const Loot: React.FC<LootProps> = ({
                 </div>
               </div>
 
-              {/* The item IS the asset — big visual, PNG-ready slot */}
+              {/* The item IS the asset — fills the void plate */}
               <div className="item-tile__visual" aria-hidden="true">
-                <ArtIcon art={resolveItemArt(item)} size="lg" />
+                <ArtIcon art={resolveItemArt(item)} size="fill" title={item.name} />
               </div>
 
               <div className="loot-card__header">
@@ -290,6 +370,25 @@ const Loot: React.FC<LootProps> = ({
                   {item.isComponent ? 'Component' : (item.type || 'Artifact')} - {item.rarity}
                 </p>
               </div>
+
+              {/* Micro chips only — full stats live in tooltip depth */}
+              {Object.keys(statComparisons).length > 0 && (
+                <div className="item-tile__stat-chips" aria-hidden="true">
+                  {Object.entries(statComparisons)
+                    .filter(([, d]) => d.value !== 0)
+                    .slice(0, 3)
+                    .map(([key, data]) => (
+                      <span
+                        key={key}
+                        className={`item-tile__stat-chip ${
+                          isFocusStat(key, lootTheme?.equipmentFocus) ? 'item-tile__stat-chip--focus' : ''
+                        }`}
+                      >
+                        {formatStatName(key)} +{data.value}
+                      </span>
+                    ))}
+                </div>
+              )}
 
               {/* Action buttons */}
               <div className={`loot-card__actions ${onStoreToBag ? 'loot-card__actions--three' : 'loot-card__actions--two'}`}>
@@ -327,83 +426,98 @@ const Loot: React.FC<LootProps> = ({
         })}
 
         {droppedSkill && playerStats && (
-          <div className="loot-card loot-card--skill">
-            <div className="loot-card__header">
-              <h3 className={`loot-card__name ${droppedSkill.tier === SkillTier.FORBIDDEN ? 'loot-card__name--forbidden' : 'loot-card__name--rare'}`}>
+          <div
+            className="loot-card loot-card--skill item-tile"
+            tabIndex={0}
+            onMouseEnter={(e) => alignItemTileTooltip(e.currentTarget)}
+            onFocus={(e) => alignItemTileTooltip(e.currentTarget)}
+          >
+            {/* Full skill depth on hover / focus — card stays icon-first */}
+            <div className="item-tile__tooltip" role="tooltip">
+              <div className={`item-tooltip__name ${droppedSkill.tier === SkillTier.FORBIDDEN ? 'loot-card__name--forbidden' : 'loot-card__name--rare'}`}>
                 {droppedSkill.name}
-              </h3>
-              <p className="loot-card__type">Secret Scroll - {droppedSkill.tier}</p>
-            </div>
-
-            <div className="item-tile__visual" aria-hidden="true">
-              <ArtIcon art={getSkillArt(droppedSkill)} size="xl" title={droppedSkill.name} />
-            </div>
-
-            <div className="loot-card__skill-header">
-              <Scroll className="loot-card__skill-icon" size={28} />
-              <p className="loot-card__skill-description">{droppedSkill.description}</p>
-            </div>
-
-            <div className="loot-card__skill-stats">
-              <div className="loot-card__skill-stat">
-                <span className="loot-card__skill-stat-label">Chakra Cost</span>
-                <span className="loot-card__skill-stat-value--chakra">{droppedSkill.chakraCost}</span>
               </div>
-              <div className="loot-card__skill-stat">
-                <span className="loot-card__skill-stat-label">Damage Type</span>
-                <span className={getDamageTypeColor(droppedSkill.damageType)}>{droppedSkill.damageType}</span>
+              <div className="item-tooltip__type">Secret Scroll · {droppedSkill.tier}</div>
+              {droppedSkill.description && (
+                <div className="item-tooltip__desc">{droppedSkill.description}</div>
+              )}
+              <div className="item-tooltip__section">
+                <div className="item-tooltip__row">
+                  <span className="item-tooltip__label">Chakra</span>
+                  <span className="item-tooltip__value item-tooltip__value--chakra">{droppedSkill.chakraCost}</span>
+                </div>
+                <div className="item-tooltip__row">
+                  <span className="item-tooltip__label">Damage</span>
+                  <span className={getDamageTypeColor(droppedSkill.damageType)}>{droppedSkill.damageType}</span>
+                </div>
+                <div className="item-tooltip__row">
+                  <span className="item-tooltip__label">Property</span>
+                  <span className="item-tooltip__value">{droppedSkill.damageProperty}</span>
+                </div>
+                <div className="item-tooltip__row">
+                  <span className="item-tooltip__label">Scales</span>
+                  <span className={getStatColor(droppedSkill.scalingStat)}>{formatScalingStat(droppedSkill.scalingStat)}</span>
+                </div>
+                <div className="item-tooltip__row">
+                  <span className="item-tooltip__label">Element</span>
+                  <span className={getElementColor(droppedSkill.element)}>{droppedSkill.element}</span>
+                </div>
+                {droppedSkill.requirements?.intelligence && (
+                  <div className="item-tooltip__row">
+                    <span className="item-tooltip__label">Requires INT</span>
+                    <span className={playerStats.effectivePrimary.intelligence >= droppedSkill.requirements.intelligence ? 'loot-card__skill-stat-value--requirement-met' : 'loot-card__skill-stat-value--requirement-not-met'}>
+                      {droppedSkill.requirements.intelligence}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="loot-card__skill-stat">
-                <span className="loot-card__skill-stat-label">Property</span>
-                <span>{droppedSkill.damageProperty}</span>
-              </div>
-              <div className="loot-card__skill-stat">
-                <span className="loot-card__skill-stat-label">Scales with</span>
-                <span className={getStatColor(droppedSkill.scalingStat)}>{formatScalingStat(droppedSkill.scalingStat)}</span>
-              </div>
-              <div className="loot-card__skill-stat">
-                <span className="loot-card__skill-stat-label">Element</span>
-                <span className={getElementColor(droppedSkill.element)}>{droppedSkill.element}</span>
-              </div>
-              {droppedSkill.requirements?.intelligence && (
-                <div className="loot-card__skill-stat">
-                  <span className="loot-card__skill-stat-label loot-card__skill-stat-label--int">Requires INT</span>
-                  <span className={playerStats.effectivePrimary.intelligence >= droppedSkill.requirements.intelligence ? 'loot-card__skill-stat-value--requirement-met' : 'loot-card__skill-stat-value--requirement-not-met'}>
-                    {droppedSkill.requirements.intelligence}
-                  </span>
+              {droppedSkill.effects && droppedSkill.effects.length > 0 && (
+                <div className="item-tooltip__section">
+                  <div className="item-tooltip__effects-title">Effects</div>
+                  {droppedSkill.effects.map((effect, idx) => (
+                    <div key={idx} className="item-tooltip__effect">
+                      <span className={getEffectColor(effect.type)}>{getEffectIcon(effect.type)}</span>
+                      <span>{formatEffectDescription(effect)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(droppedSkill.critBonus || droppedSkill.penetration || droppedSkill.isToggle) && (
+                <div className="item-tooltip__section">
+                  {droppedSkill.critBonus && (
+                    <div className="loot-card__bonus--crit">+{droppedSkill.critBonus}% Crit</div>
+                  )}
+                  {droppedSkill.penetration && (
+                    <div className="loot-card__bonus--pen">{Math.round(droppedSkill.penetration * 100)}% Pen</div>
+                  )}
+                  {droppedSkill.isToggle && (
+                    <div className="loot-card__bonus--toggle">Toggle · {droppedSkill.upkeepCost} CP/turn</div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Effects Section */}
-            {droppedSkill.effects && droppedSkill.effects.length > 0 && (
-              <div className="loot-card__effects">
-                <div className="loot-card__effects-title">Applies Effects</div>
-                <div className="loot-card__effects-list">
-                  {droppedSkill.effects.map((effect, idx) => (
-                    <div key={idx} className="loot-card__effect">
-                      <span className={getEffectColor(effect.type)}>{getEffectIcon(effect.type)}</span>
-                      <span className="loot-card__effect-text">{formatEffectDescription(effect)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="item-tile__visual item-tile__visual--hero" aria-hidden="true">
+              <ArtIcon art={getSkillArt(droppedSkill)} size="fill" title={droppedSkill.name} />
+            </div>
 
-            {/* Bonus Stats */}
-            {(droppedSkill.critBonus || droppedSkill.penetration || droppedSkill.isToggle) && (
-              <div className="loot-card__bonuses">
-                {droppedSkill.critBonus && (
-                  <div className="loot-card__bonus--crit">+{droppedSkill.critBonus}% Crit Chance</div>
-                )}
-                {droppedSkill.penetration && (
-                  <div className="loot-card__bonus--pen">{Math.round(droppedSkill.penetration * 100)}% Defense Penetration</div>
-                )}
-                {droppedSkill.isToggle && (
-                  <div className="loot-card__bonus--toggle">Toggle Skill - {droppedSkill.upkeepCost} CP/turn upkeep</div>
-                )}
+            <div className="loot-card__header">
+              <div className="loot-card__title-row">
+                <h3 className={`loot-card__name ${droppedSkill.tier === SkillTier.FORBIDDEN ? 'loot-card__name--forbidden' : 'loot-card__name--rare'}`}>
+                  {droppedSkill.name}
+                </h3>
               </div>
-            )}
+              <p className="loot-card__type">
+                <Scroll size={10} className="loot-card__type-icon" aria-hidden />
+                Secret Scroll · {droppedSkill.tier}
+              </p>
+            </div>
+
+            <div className="item-tile__stat-chips" aria-hidden="true">
+              <span className="item-tile__stat-chip">CP {droppedSkill.chakraCost}</span>
+              <span className="item-tile__stat-chip">{droppedSkill.element}</span>
+              <span className="item-tile__stat-chip">{formatScalingStat(droppedSkill.scalingStat)}</span>
+            </div>
 
             <div className="loot-card__skill-actions">
               {player && player.skills.some(s => s.id === droppedSkill.id) ? (
@@ -451,20 +565,21 @@ const Loot: React.FC<LootProps> = ({
 
       <div className="loot__footer">
         <button type="button" onClick={requestLeave} className="loot__leave-btn">
-          Leave All
+          {remainingCount === 0 ? 'Step onward' : 'Leave the spoils'}
+          <span className="sw-shortcut">Enter</span>
         </button>
       </div>
 
       {/* T-052: confirm abandoning unclaimed spoils */}
       {confirmLeave && (
-        <div className="loot-confirm" role="dialog" aria-modal="true" aria-label="Confirm leave loot">
+        <div className="loot-confirm" role="dialog" aria-modal="true" aria-label="Confirm leave spoils">
           <div className="loot-confirm__panel">
             <h3 className="loot-confirm__title">Leave unclaimed spoils?</h3>
             <p className="loot-confirm__body">
               You still have <strong>{remainingCount}</strong> unclaimed
               {remainingCount === 1 ? ' spoil' : ' spoils'}
               {droppedSkill ? ` (includes skill: ${droppedSkill.name})` : ''}.
-              Leave now and they are lost.
+              Walk away and the mist keeps them.
             </p>
             <div className="loot-confirm__actions">
               <button
@@ -472,15 +587,16 @@ const Loot: React.FC<LootProps> = ({
                 className="loot-confirm__btn loot-confirm__btn--cancel"
                 onClick={() => setConfirmLeave(false)}
               >
-                Cancel
+                Keep taking
                 <span className="sw-shortcut">Esc</span>
               </button>
               <button
                 type="button"
                 className="loot-confirm__btn loot-confirm__btn--leave"
                 onClick={confirmLeaveAll}
+                disabled={isProcessing}
               >
-                Leave anyway
+                Leave them behind
                 <span className="sw-shortcut">Enter</span>
               </button>
             </div>

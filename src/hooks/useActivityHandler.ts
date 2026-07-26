@@ -4,7 +4,7 @@ import {
   Location, Item, GameEvent, Skill, Enemy, LogEntry,
   TrainingActivity, ScrollDiscoveryActivity, TreasureActivity, TreasureHunt, TreasureType
 } from '../game/types';
-import { getCurrentActivity, completeActivity } from '../game/systems/LocationSystem';
+import { getCurrentActivity, completeActivity, clearRoomIfSpent } from '../game/systems/LocationSystem';
 import { getMerchantDiscount, applyWealthToRyo } from '../game/systems/ScalingSystem';
 import {
   logRoomEnter, logActivityStart, logActivityComplete,
@@ -152,6 +152,17 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
     if (!activity) {
       logExplorationCheckpoint('Room already cleared', { roomId: currentRoom.id });
       addLog(`You enter ${currentRoom.name}. Nothing remains here.`, 'info');
+      // Soft-lock recovery: empty / fully-spent room still !isCleared never unlocks
+      // children (event/elite gen dropout, residue). Force-clear + unlock paths.
+      if (!currentRoom.isCleared) {
+        const recovered = clearRoomIfSpent(updatedFloor, currentRoom.id);
+        if (recovered !== updatedFloor) {
+          setFloor(recovered);
+          logExplorationCheckpoint('clearRoomIfSpent recovered sealed branch', {
+            roomId: currentRoom.id,
+          });
+        }
+      }
       return;
     }
 
@@ -202,6 +213,8 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
           logStateChange(exploreState.toString(), 'EVENT', 'event activity');
           // Fresh event from a room — not reached via a chain.
           setCameFromChain(false);
+          // Keep room identity for outcome close → completeActivity (must not rely only on currentRoomId)
+          setSelectedBranchingRoom(currentRoom);
           setActiveEvent(currentRoom.activities.event.definition);
           setGameState(GameState.EVENT);
         }

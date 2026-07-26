@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Swords, Sparkles, Coins, TrendingUp, Package } from 'lucide-react';
 import type { Item } from '../../game/types';
 import { resolveItemArt } from '../../game/constants/artRegistry';
 import ArtIcon from '../shared/ArtIcon';
 import { getRarityTextBorderColor } from '../../utils/colorHelpers';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './RewardModal.css';
 
 interface RewardModalProps {
@@ -54,23 +55,32 @@ const RewardModal: React.FC<RewardModalProps> = ({
   onClose,
 }) => {
   const previewItems = lootPreviews.slice(0, 6);
-  // Keyboard shortcut: SPACE/ENTER to continue
+  const rootRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(rootRef);
+
+  // Keyboard: SPACE / ENTER / Escape continue (Escape parity Rest/Intel)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'Enter') {
+      if (e.repeat) return;
+      if (e.code === 'Space' || e.code === 'Enter' || e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
         onClose();
       }
     };
 
-    // Use capture phase to intercept before other handlers
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose]);
 
   return (
-    <div className="reward-modal">
+    <div
+      ref={rootRef}
+      className="reward-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Combat victory rewards"
+    >
       <div className="reward-modal__container">
         {/* Header */}
         <div className="reward-modal__header">
@@ -131,7 +141,7 @@ const RewardModal: React.FC<RewardModalProps> = ({
             <div className="reward-modal__level-up">
               <div className="reward-modal__level-up-header">
                 <Sparkles className="reward-modal__level-up-icon" size={20} />
-                <span className="reward-modal__level-up-title">Level Up!</span>
+                <span className="reward-modal__level-up-title">Level Up</span>
                 <Sparkles className="reward-modal__level-up-icon" size={20} />
               </div>
 
@@ -169,10 +179,7 @@ const RewardModal: React.FC<RewardModalProps> = ({
                 {previewItems.map((item) => (
                   <div key={item.id} className="reward-modal__loot-tile" title={item.name}>
                     <ArtIcon art={resolveItemArt(item)} size="md" className="reward-modal__loot-art" />
-                    <span
-                      className="reward-modal__loot-name"
-                      style={{ color: getRarityTextBorderColor(item.rarity) }}
-                    >
+                    <span className={`reward-modal__loot-name ${getRarityTextBorderColor(item.rarity)}`}>
                       {item.name}
                     </span>
                   </div>
@@ -191,8 +198,11 @@ const RewardModal: React.FC<RewardModalProps> = ({
             type="button"
             onClick={onClose}
             className="reward-modal__continue-btn"
+            autoFocus
           >
             {continuesToLoot ? 'Claim Loot' : 'Continue'}
+            <span className="sw-shortcut">Enter</span>
+            <span className="sw-shortcut">Space</span>
           </button>
         </div>
       </div>

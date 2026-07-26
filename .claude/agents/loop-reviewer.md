@@ -51,6 +51,12 @@ Read-only only: `npx tsc --noEmit`, `npm test` / `npx vitest run`, `npm run buil
 `npm run lint:css`, `npm run simulate:quick`, `npm run simulate:progression:quick`,
 `git diff` / `git status`, `cat`/`grep` of `simulation-output/`. No writes, no commits, no installs.
 
+## Token Efficiency Rules (Optimización de Contexto)
+
+- **Lectura quirúrgica:** Revisa únicamente los diffs y líneas modificadas necesarias para la evaluación de la lente asignada.
+- **Reutilización de evidencia:** Reutiliza las salidas de gates previamente ejecutadas por el Lead en lugar de relanzar comandos pesados.
+- **Respuestas sintéticas:** Devuelve únicamente el bloque de salida estandarizado `quality-scoring`, sin explicaciones conversacionales adicionales.
+
 ## How you report back
 
 Return **only** the `quality-scoring` output block for your lens — nothing else:

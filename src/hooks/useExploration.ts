@@ -1,9 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   GameState, Player, BranchingRoom, BranchingFloor, CharacterStats,
   Location, Item, Enemy, LogEntry,
 } from '../game/types';
-import { getCurrentActivity, getCurrentRoom, isFloorComplete } from '../game/systems/LocationSystem';
+import {
+  getCurrentActivity,
+  getCurrentRoom,
+  isFloorComplete,
+  clearRoomIfSpent,
+} from '../game/systems/LocationSystem';
 import { logRoomExit, logStateChange, logSyncWarning } from '../game/utils/explorationDebug';
 import { CombatExplorationState } from './useCombatExplorationState';
 import { useActivityHandler, ActivitySceneSetters } from './useActivityHandler';
@@ -67,6 +72,8 @@ export interface UseExplorationReturn {
   /** T-060: location complete panel */
   locationCompleteResult: import('../components/modals/LocationCompleteModal').LocationCompleteResult | null;
   confirmLocationComplete: () => void;
+  /** Cancel multi-activity chain + drop complete panel (new run / death retry). */
+  resetExplorationUi: () => void;
 }
 
 /**
@@ -126,6 +133,30 @@ export function useExploration(
 
   const { setDroppedItems, setDroppedSkill } = activitySetters;
 
+  /**
+   * Prevents double-scheduled multi-activity chain (returnToMap ×2 → two setTimeouts
+   * open merchant+event etc. on a stale floor). Cleared when the chain fires.
+   * Shared with returnToMapActivityComplete; manual Enter Room cancels pending chain.
+   */
+  const activityChainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelActivityChain = useCallback(() => {
+    if (activityChainTimerRef.current != null) {
+      clearTimeout(activityChainTimerRef.current);
+      activityChainTimerRef.current = null;
+    }
+  }, []);
+
+  // Drop pending chain if exploration unmounts mid-timer (region leave / hard reset).
+  useEffect(() => {
+    return () => {
+      if (activityChainTimerRef.current != null) {
+        clearTimeout(activityChainTimerRef.current);
+        activityChainTimerRef.current = null;
+      }
+    };
+  }, []);
+
   // ============================================================================
   // COMPOSE SPECIALIZED HOOKS
   // ============================================================================
@@ -148,14 +179,16 @@ export function useExploration(
   });
 
   // Location cards - card selection and location navigation
+  // (enter/leave should cancel any pending multi-activity chain from prior site)
   const {
     handleCardSelect,
-    handleEnterSelectedLocation,
+    handleEnterSelectedLocation: enterSelectedLocationInner,
     handlePathChoice,
-    handleLeaveLocation,
+    handleLeaveLocation: leaveLocationInner,
     completeLocationAndReturnToRegion,
     locationCompleteResult,
     confirmLocationComplete,
+    clearLocationCompleteUi,
   } = useLocationCards(
     {
       region,
@@ -179,6 +212,16 @@ export function useExploration(
     { addLog, setGameState, onRegionBossDefeated }
   );
 
+  const handleEnterSelectedLocation = useCallback(() => {
+    cancelActivityChain();
+    enterSelectedLocationInner();
+  }, [cancelActivityChain, enterSelectedLocationInner]);
+
+  const handleLeaveLocation = useCallback(() => {
+    cancelActivityChain();
+    leaveLocationInner();
+  }, [cancelActivityChain, leaveLocationInner]);
+
   // Room navigation - room select/enter handlers
   const {
     handleLocationRoomSelect,
@@ -194,7 +237,7 @@ export function useExploration(
       setLocationFloor,
       setSelectedBranchingRoom,
     },
-    { player, playerStats, executeRoomActivity }
+    { player, playerStats, executeRoomActivity, cancelActivityChain }
   );
 
   // ============================================================================
@@ -208,6 +251,9 @@ export function useExploration(
    * (mark + deck + intel draw + locationsCleared++).
    */
   const returnToMap = useCallback(() => {
+    // A second returnToMap while a chain is already queued would double-fire executeRoomActivity
+    if (activityChainTimerRef.current != null) return;
+
     logRoomExit(selectedBranchingRoom?.id || 'unknown', 'returnToMap');
     setDroppedItems([]);
     setDroppedSkill(null);
@@ -215,23 +261,45 @@ export function useExploration(
 
     // If in location mode, check for activity chaining
     if (region && locationFloor && region.currentLocationId) {
-      const currentRoom = getCurrentRoom(locationFloor);
+      // Recover empty/spent rooms that never got isCleared (branch seal soft-lock)
+      let floor = locationFloor;
+      const spentRoom = getCurrentRoom(floor);
+      if (spentRoom && !spentRoom.isCleared && !getCurrentActivity(spentRoom)) {
+        floor = clearRoomIfSpent(floor, spentRoom.id);
+        if (floor !== locationFloor) {
+          setLocationFloor(floor);
+          logSyncWarning('returnToMap: clearRoomIfSpent recovered sealed branch', {
+            roomId: spentRoom.id,
+          });
+        }
+      }
+
+      const currentRoom = getCurrentRoom(floor);
       if (currentRoom) {
         const nextActivity = getCurrentActivity(currentRoom);
         if (nextActivity) {
-          // Auto-trigger next activity in room without incrementing roomsVisited
+          // Auto-trigger next activity in room without incrementing roomsVisited.
+          // Must leave LOOT/MERCHANT/activity gameState immediately — prior path left
+          // gameState as LOOT for ~100ms so empty LOOT shell stayed mounted while the
+          // chain timer ran (blank leave-only pile / approach under LOOT UI).
           setSelectedBranchingRoom(null);
+          setGameState(GameState.LOCATION_EXPLORE);
           logStateChange(gameState.toString(), 'LOCATION_EXPLORE', 'returnToMap - chain activity');
-          setTimeout(() => executeRoomActivity(currentRoom, locationFloor, setLocationFloor, GameState.LOCATION_EXPLORE), 100);
+          activityChainTimerRef.current = setTimeout(() => {
+            activityChainTimerRef.current = null;
+            executeRoomActivity(currentRoom, floor, setLocationFloor, GameState.LOCATION_EXPLORE);
+          }, 100);
           return;
         }
       }
 
       // Location completed → full meta path (cards, deck, locationsCleared)
-      if (isFloorComplete(locationFloor)) {
+      if (isFloorComplete(floor)) {
         setSelectedBranchingRoom(null);
-        logStateChange(gameState.toString(), 'REGION_MAP', 'returnToMap - location complete');
-        completeLocationAndReturnToRegion({ floor: locationFloor, intel: currentIntel });
+        // Leave LOOT/activity shell so LocationCompleteModal is not over an empty LOOT UI
+        setGameState(GameState.LOCATION_EXPLORE);
+        logStateChange(gameState.toString(), 'LOCATION_EXPLORE', 'returnToMap - location complete (panel)');
+        completeLocationAndReturnToRegion({ floor, intel: currentIntel });
         return;
       }
 
@@ -256,9 +324,11 @@ export function useExploration(
   ]);
 
   /**
-   * Return to map after an activity that was already completed.
-   * Skips activity checking since caller guarantees the activity is done.
-   * Use this instead of returnToMap when you've already called completeActivity().
+   * Return to map after an activity that was already completed via completeActivity().
+   * Prefer updatedFloor so completion / multi-activity chain is not stale.
+   * Still chains remaining activities on the current room (parity returnToMap) —
+   * merchant/training/event/treasure leave used to dump the player on the map while
+   * treasure/infoGather still waited in the same room (must re-Enter; children stayed sealed).
    *
    * @param updatedFloor - Optional updated floor for completion check (stale-safe).
    * @param options - Optional intel override for the completion redraw path.
@@ -267,6 +337,9 @@ export function useExploration(
     updatedFloor?: BranchingFloor,
     options?: CompleteLocationOptions
   ) => {
+    // Shared mutex with returnToMap — do not double-queue multi-activity chain
+    if (activityChainTimerRef.current != null) return;
+
     logRoomExit(selectedBranchingRoom?.id || 'unknown', 'returnToMapActivityComplete');
     setDroppedItems([]);
     setDroppedSkill(null);
@@ -275,12 +348,60 @@ export function useExploration(
 
     // Use updatedFloor if provided (for sync check after completeActivity),
     // otherwise fall back to locationFloor from state
-    const floorToCheck = updatedFloor ?? locationFloor;
+    let floorToCheck = updatedFloor ?? locationFloor;
 
-    // Skip activity checking - caller guarantees activity is complete
+    // Recover empty/spent rooms that never got isCleared (branch seal soft-lock)
+    if (floorToCheck) {
+      const spentRoom = getCurrentRoom(floorToCheck);
+      if (spentRoom && !spentRoom.isCleared && !getCurrentActivity(spentRoom)) {
+        const recovered = clearRoomIfSpent(floorToCheck, spentRoom.id);
+        if (recovered !== floorToCheck) {
+          floorToCheck = recovered;
+          setLocationFloor(recovered);
+          logSyncWarning('returnToMapActivityComplete: clearRoomIfSpent recovered sealed branch', {
+            roomId: spentRoom.id,
+          });
+        }
+      }
+    }
+
     if (region && floorToCheck && region.currentLocationId) {
+      // Multi-activity rooms (1–3 acts): after merchant/event/training/treasure complete,
+      // open the next pending activity on this room (same path as combat loot → returnToMap).
+      const currentRoom = getCurrentRoom(floorToCheck);
+      if (currentRoom) {
+        const nextActivity = getCurrentActivity(currentRoom);
+        if (nextActivity) {
+          // Leave MERCHANT/TRAINING/EVENT shell before chain (blank activity under modal)
+          setGameState(GameState.LOCATION_EXPLORE);
+          logStateChange(
+            gameState.toString(),
+            'LOCATION_EXPLORE',
+            'returnToMapActivityComplete - chain activity',
+          );
+          const floorForChain = floorToCheck;
+          activityChainTimerRef.current = setTimeout(() => {
+            activityChainTimerRef.current = null;
+            executeRoomActivity(
+              currentRoom,
+              floorForChain,
+              setLocationFloor,
+              GameState.LOCATION_EXPLORE,
+            );
+          }, 100);
+          return;
+        }
+      }
+
       if (isFloorComplete(floorToCheck)) {
-        logStateChange(gameState.toString(), 'REGION_MAP', 'returnToMapActivityComplete - floor complete');
+        // Leave MERCHANT/TRAINING/EVENT/TREASURE shell before complete panel
+        // (same bug class as returnToMap LOOT leave — activity UI stayed mounted).
+        setGameState(GameState.LOCATION_EXPLORE);
+        logStateChange(
+          gameState.toString(),
+          'LOCATION_EXPLORE',
+          'returnToMapActivityComplete - floor complete (panel)',
+        );
         completeLocationAndReturnToRegion({
           floor: floorToCheck,
           intel: options?.intel ?? currentIntel,
@@ -312,8 +433,13 @@ export function useExploration(
   }, [
     selectedBranchingRoom, gameState, region, locationFloor, currentIntel,
     setDroppedItems, setDroppedSkill, setEnemy, setSelectedBranchingRoom, setGameState,
-    completeLocationAndReturnToRegion,
+    executeRoomActivity, setLocationFloor, completeLocationAndReturnToRegion,
   ]);
+
+  const resetExplorationUi = useCallback(() => {
+    cancelActivityChain();
+    clearLocationCompleteUi();
+  }, [cancelActivityChain, clearLocationCompleteUi]);
 
   // ============================================================================
   // PUBLIC API
@@ -335,5 +461,6 @@ export function useExploration(
     returnToMapActivityComplete,
     locationCompleteResult,
     confirmLocationComplete,
+    resetExplorationUi,
   };
 }

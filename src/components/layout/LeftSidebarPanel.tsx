@@ -4,7 +4,9 @@ import LocationPanel from '../exploration/LocationPanel';
 import PrimaryStatsPanel from '../character/PrimaryStatsPanel';
 import DerivedStatsPanel from '../character/DerivedStatsPanel';
 import './layout.css';
-import locationBg from '@/assets/ui_seinen-sublime-atmosferico_1767723116286.png';
+
+/** Atmospheric sidebar plate — served from public/ (missing ui_seinen-* asset removed). */
+const LOCATION_PANEL_BG = '/assets/location_foggy_shoreline.png';
 
 interface LeftSidebarPanelProps {
   // Props are now optional - uses context if not provided
@@ -31,7 +33,7 @@ const LeftSidebarPanel: React.FC<LeftSidebarPanelProps> = ({
         dangerLevel={dangerLevel}
         regionName={regionName}
         storyArcLabel={arcLabel}
-        backgroundImage={locationBg}
+        backgroundImage={LOCATION_PANEL_BG}
         lootTheme={region?.lootTheme}
       />
 

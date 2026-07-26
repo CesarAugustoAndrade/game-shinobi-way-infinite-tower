@@ -119,18 +119,20 @@
 .game-over__panel {
   width: 100%;
   padding: var(--sw-space-5);
-  background: var(--sw-bg-secondary);
-  border: 2px solid rgba(127, 29, 29, 0.4);
+  /* Abyss + rust death plate — same chrome language as Victory/Interlude */
+  background: var(--sw-abyss-deep, #0a0c10);
+  border: 3px solid rgba(127, 29, 29, 0.55);
   border-radius: var(--sw-radius-sm);
-  box-shadow: var(--sw-pix-shadow-lg), 0 0 20px rgba(127, 29, 29, 0.15);
+  box-shadow: var(--sw-pix-shadow-lg), 0 0 20px rgba(127, 29, 29, 0.18);
   margin-bottom: var(--sw-space-8);
   text-align: center;
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .game-over__location {
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-lg);
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone-dim, #b8b4a8);
   margin: 0 0 var(--sw-space-2) 0;
 }
 
@@ -152,9 +154,18 @@
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
   color: var(--sw-text-muted);
+  margin: 0 0 var(--sw-space-2) 0;
+}
+
+.game-over__hint {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--sw-bone-muted, #7a766c);
   margin: 0 0 var(--sw-space-4) 0;
   padding-bottom: var(--sw-space-4);
-  border-bottom: 1px solid var(--sw-frame-soft);
+  border-bottom: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
+  max-width: 22rem;
 }
 
 .game-over__summary {
@@ -261,6 +272,12 @@
   box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
+.game-over__retry:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4d9), var(--sw-pix-shadow);
+}
+
 .game-over__retry-text {
   position: relative;
   z-index: 1;
@@ -281,5 +298,25 @@
 
   .game-over__retry {
     max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-over__content {
+    animation: none;
+  }
+
+  .game-over__death-vignette {
+    animation: none;
+    opacity: 0.85;
+  }
+
+  .game-over__icon {
+    animation: none;
+  }
+
+  .game-over__retry:hover,
+  .game-over__retry:active {
+    transform: none;
   }
 }

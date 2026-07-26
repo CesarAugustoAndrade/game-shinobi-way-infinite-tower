@@ -1112,7 +1112,7 @@ export function processEnemyTurn(
         intendedSkillName: nextDecision.skill.name,
         intentReason: nextDecision.reason,
       };
-      logs.push(`${updatedEnemy.name} prepares ${nextDecision.skill.name}...`);
+      logs.push(`${updatedEnemy.name} readies ${nextDecision.skill.name} next...`);
     }
   }
 

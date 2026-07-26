@@ -1,17 +1,16 @@
 /**
- * Item Tile pattern (T-018 a3) — "the item IS the asset + info in tooltip".
+ * Item Tile pattern — "the item IS the asset + depth in tooltip".
  *
  * Shared by Loot, Merchant and Treasure item cards:
  *  - .item-tile          host modifier (position anchor + focusable)
- *  - .item-tile__visual  big, protagonist item visual (emoji today, PNG-ready
- *                        for T-019/T-020 asset waves)
- *  - .item-tile__tooltip scoped blocky popover (T-011 Event.css pattern:
- *                        hard shadow, no blur, opens upward, hover + focus)
- *  - .item-tooltip__*    tooltip content rows (name/type/desc/stats/deltas)
+ *  - .item-tile__visual  protagonist item visual (PNG/JPG via ArtIcon, emoji fallback)
+ *  - .item-tile__tooltip abyss popover — same chrome as portal `.tooltip`
+ *                        (void panel, bone text, rust accent, hard shadow, no glass blur)
+ *  - .item-tooltip__*    content rows (name/type/desc/stats/deltas/synth)
  *
  * Accessibility: tooltip opens on :hover AND :focus-within. Hosts are
- * focusable (button or tabIndex=0), so keyboard focus and touch-tap (tap
- * focuses the card) both reveal the tooltip. Action buttons stay on the card.
+ * focusable (button or tabIndex=0), so keyboard focus and touch-tap both
+ * reveal the tooltip. Action buttons stay on the card.
  */
 
 @import './design-system/index.css';
@@ -42,31 +41,56 @@
   align-items: center;
   justify-content: center;
   align-self: center;
-  width: 5rem;   /* 80px slot — ready for 64px PNG sprites */
-  height: 5rem;
-  font-size: 3.25rem; /* ~52px emoji glyph */
+  width: 5.5rem;
+  height: 5.5rem;
+  font-size: 3.25rem;
   line-height: 1;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--sw-frame-soft);
+  /* Void plate — figure against abyss */
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(154, 52, 18, 0.12) 0%, transparent 65%),
+    linear-gradient(160deg, rgba(18, 20, 28, 0.95) 0%, var(--sw-abyss, #050608) 100%);
+  border: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   border-radius: var(--sw-radius-sm);
-  box-shadow: var(--sw-shadow-inset);
-  image-rendering: pixelated;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    inset 0 -10px 18px rgba(0, 0, 0, 0.35),
+    var(--sw-pix-shadow-sm, 3px 3px 0 0 var(--sw-hard));
+  overflow: hidden;
   user-select: none;
+  flex-shrink: 0;
 }
 
-.item-tile__visual img {
+/* ArtIcon / img fill the plate — no tiny orphan glyph in a gray void */
+.item-tile__visual img,
+.item-tile__visual .art-icon--fill {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
+  object-fit: cover;
+  display: block;
+}
+
+.item-tile__visual .art-icon--fill-emoji {
+  font-size: 2.75rem;
+  line-height: 1;
+}
+
+/* Optional larger hero plate (loot skill / merchant preview) */
+.item-tile__visual--hero {
+  width: 7rem;
+  height: 7rem;
+}
+
+.item-tile__visual--sm {
+  width: 3.5rem;
+  height: 3.5rem;
+  font-size: 1.75rem;
 }
 
 /* ============================================================
-   Tooltip popover — blocky, hard shadow, opens upward
+   Tooltip popover — abyss / bone / rust (matches portal `.tooltip`)
    ============================================================ */
 
-/* Full card width (T-011 Event.css strategy) — the popover can never overflow
-   the viewport horizontally more than its own card does. */
+/* Full card width so the popover never overflows more than its card. */
 .item-tile__tooltip {
   position: absolute;
   left: 0;
@@ -74,10 +98,11 @@
   bottom: calc(100% + var(--sw-space-2));
   z-index: var(--sw-z-popover);
   padding: var(--sw-space-3);
-  background: var(--sw-bg-secondary);
-  border: 2px solid var(--sw-frame);
+  background: var(--sw-abyss-panel, rgba(8, 10, 14, 0.97));
+  border: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
   border-radius: var(--sw-radius-sm);
-  box-shadow: 4px 4px 0 0 var(--sw-hard);
+  box-shadow: var(--sw-pix-shadow, 4px 4px 0 0 var(--sw-hard));
+  /* No glass blur — product chrome is hard void, not frosted portal */
   opacity: 0;
   visibility: hidden;
   transform: translateY(4px);
@@ -88,6 +113,10 @@
   pointer-events: none;
   text-align: left;
   cursor: default;
+  color: var(--sw-bone-dim, #b8b4a8);
+  max-height: min(50vh, 22rem);
+  overflow-y: auto;
+  font-family: var(--sw-font-pixel, 'VT323', monospace);
 }
 
 .item-tile:hover > .item-tile__tooltip,
@@ -97,44 +126,88 @@
   transform: translateY(0);
 }
 
-/* Downward notch aimed at the card */
+@media (prefers-reduced-motion: reduce) {
+  .item-tile__tooltip {
+    transition: none;
+    transform: none;
+  }
+
+  .item-tile:hover > .item-tile__tooltip,
+  .item-tile:focus-within > .item-tile__tooltip {
+    transform: none;
+  }
+}
+
+/* Downward notch aimed at the card — rust edge */
 .item-tile__tooltip::after {
   content: '';
   position: absolute;
   top: 100%;
   left: var(--sw-space-4);
   border: 6px solid transparent;
-  border-top-color: var(--sw-frame);
+  border-top-color: var(--sw-rust, #9a3412);
+}
+
+/* Residual: flip below host when space above is tight (class set by alignItemTileTooltip) */
+.item-tile--tooltip-below > .item-tile__tooltip {
+  bottom: auto;
+  top: calc(100% + var(--sw-space-2));
+  transform: translateY(-4px);
+}
+
+.item-tile--tooltip-below:hover > .item-tile__tooltip,
+.item-tile--tooltip-below:focus-within > .item-tile__tooltip {
+  transform: translateY(0);
+}
+
+.item-tile--tooltip-below > .item-tile__tooltip::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--sw-rust, #9a3412);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item-tile--tooltip-below > .item-tile__tooltip {
+    transform: none;
+  }
+
+  .item-tile--tooltip-below:hover > .item-tile__tooltip,
+  .item-tile--tooltip-below:focus-within > .item-tile__tooltip {
+    transform: none;
+  }
 }
 
 /* ============================================================
-   Tooltip content rows
+   Tooltip content rows — bone hierarchy
    ============================================================ */
 
 .item-tooltip__name {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-sm);
   letter-spacing: var(--sw-tracking-wide);
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .item-tooltip__type {
   font-size: var(--sw-text-2xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-widest);
   margin-bottom: var(--sw-space-2);
 }
 
 .item-tooltip__desc {
-  font-family: var(--sw-font-pixel);
+  font-family: var(--sw-font-pixel, var(--sw-font-body));
   font-size: var(--sw-text-sm);
-  color: var(--sw-text-tertiary);
+  color: var(--sw-bone-dim, #b8b4a8);
   font-style: italic;
   margin-bottom: var(--sw-space-2);
+  line-height: 1.35;
 }
 
 .item-tooltip__section {
-  border-top: 1px solid var(--sw-frame-soft);
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   padding-top: var(--sw-space-2);
   margin-top: var(--sw-space-2);
   display: flex;
@@ -151,7 +224,7 @@
   text-transform: uppercase;
 }
 
-.item-tooltip__label { color: var(--sw-text-muted); }
+.item-tooltip__label { color: var(--sw-bone-muted, #7a766c); }
 
 .item-tooltip__values {
   display: flex;
@@ -159,26 +232,100 @@
   gap: var(--sw-space-2);
 }
 
-.item-tooltip__value { color: var(--sw-text-secondary); }
+.item-tooltip__value { color: var(--sw-bone, #e8e4d9); }
 
 .item-tooltip__delta--positive { color: var(--sw-risk-safe-light); }
 .item-tooltip__delta--negative { color: var(--sw-risk-high-light); }
-.item-tooltip__delta--new      { color: var(--sw-rarity-rare); }
+.item-tooltip__delta--new      { color: var(--sw-rust-light, #c2410c); }
 
 .item-tooltip__passive {
   font-size: var(--sw-text-2xs);
-  color: var(--sw-rarity-epic);
-  background: var(--sw-rarity-epic-bg);
-  border: 1px solid var(--sw-rarity-epic-glow);
+  color: var(--sw-bone, #e8e4d9);
+  background: rgba(154, 52, 18, 0.18);
+  border: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
   border-radius: var(--sw-radius-xs);
   padding: var(--sw-space-2);
   margin-top: var(--sw-space-2);
+  line-height: 1.35;
 }
 
+/* TFT synthesis block — readable combine identity */
 .item-tooltip__synth {
   font-size: var(--sw-text-2xs);
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-rust-light, #c2410c);
   margin-top: var(--sw-space-2);
+}
+
+.item-tooltip__synth-title {
+  font-family: var(--sw-font-mono);
+  font-size: var(--sw-text-3xs);
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-widest);
+  color: var(--sw-rust-light, #c2410c);
+  margin-bottom: 4px;
+}
+
+.item-tooltip__synth-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-tooltip__synth-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--sw-bone-dim, #b8b4a8);
+  font-size: var(--sw-text-2xs);
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.item-tooltip__synth-item img,
+.item-tooltip__synth-item .art-icon {
+  width: 1rem;
+  height: 1rem;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+  /* void plate under glyph — never bare zinc gray */
+  background: rgba(5, 6, 8, 0.65);
+}
+
+/* Result name is primary identity; partner is a quiet need-chip */
+.item-tooltip__synth-result {
+  flex: 1;
+  min-width: 0;
+  color: var(--sw-bone, #e8e4d9);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-tooltip__synth-partner {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  color: var(--sw-bone-muted, #7a766c);
+  font-size: var(--sw-text-3xs);
+}
+
+.item-tooltip__synth-partner img,
+.item-tooltip__synth-partner .art-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.item-tooltip__synth-more {
+  color: var(--sw-bone-muted, #7a766c);
+  font-style: italic;
+  font-size: var(--sw-text-3xs);
+  margin-top: 2px;
 }
 
 .item-tooltip__sell {
@@ -186,12 +333,37 @@
   color: var(--sw-risk-low-light);
 }
 
-/* Skill scroll variants (TreasureHuntReward) */
-.item-tooltip__value--chakra { color: var(--sw-rarity-rare); }
+/* Compact on-card stat chips — surface rarity/focus only; depth stays in tooltip */
+.item-tile__stat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.item-tile__stat-chip {
+  font-family: var(--sw-font-mono);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 5px;
+  border: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--sw-bone-dim, #b8b4a8);
+}
+
+.item-tile__stat-chip--focus {
+  color: var(--sw-bone, #e8e4d9);
+  border-color: var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  background: rgba(154, 52, 18, 0.22);
+}
+
+/* Skill scroll variants (TreasureHuntReward / Loot) */
+.item-tooltip__value--chakra { color: var(--sw-chakra-color); }
 
 .item-tooltip__effects-title {
   font-size: var(--sw-text-3xs);
-  color: var(--sw-rarity-rare);
+  color: var(--sw-rust-light, #c2410c);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
   margin-bottom: var(--sw-space-1);
@@ -202,5 +374,5 @@
   align-items: center;
   gap: var(--sw-space-1-5);
   font-size: var(--sw-text-2xs);
-  color: var(--sw-text-tertiary);
+  color: var(--sw-bone-dim, #b8b4a8);
 }

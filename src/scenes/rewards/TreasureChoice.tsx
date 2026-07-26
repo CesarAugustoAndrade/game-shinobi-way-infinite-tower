@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import {
   TreasureActivity,
   TreasureHunt,
@@ -6,6 +6,7 @@ import {
   Player,
   Rarity,
   RegionLootTheme,
+  Item,
 } from '../../game/types';
 import {
   Lock,
@@ -19,6 +20,8 @@ import {
   X,
   AlertTriangle,
   Package,
+  Scroll,
+  ShieldAlert,
 } from 'lucide-react';
 import { PendingBagFullItem } from '../../hooks/useTreasureHandlers';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
@@ -29,7 +32,9 @@ import {
   isFocusStat,
 } from '../../game/utils/itemFocusMatch';
 import { LaunchProperties } from '../../config/featureFlags';
+import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import ArtIcon from '../../components/shared/ArtIcon';
+import { alignItemTileTooltip } from '../../utils/itemTileTooltip';
 import './treasure.css';
 
 interface TreasureChoiceProps {
@@ -46,6 +51,8 @@ interface TreasureChoiceProps {
   pendingBagFullItem: PendingBagFullItem | null;
   onBagFullSell: () => void;
   onBagFullLeave: () => void;
+  /** Stash pending relic after player frees a bag slot (sidebars stay open on TREASURE). */
+  onBagFullStash?: () => void;
   getRarityColor: (rarity: Rarity) => string;
   /** Biome background image — replaces the solid-black backdrop. */
   background?: string;
@@ -57,10 +64,9 @@ interface TreasureChoiceProps {
   diceRollPending?: boolean;
 }
 
-/** T-053: claim beat before parent bags item and returns to map */
 interface TreasureClaimResult {
   index: number;
-  item: import('../../game/types').Item;
+  item: Item;
   isArtifact: boolean;
   ryoBonus: number;
 }
@@ -79,15 +85,30 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   pendingBagFullItem,
   onBagFullSell,
   onBagFullLeave,
+  onBagFullStash,
   getRarityColor,
   background,
   lootTheme = null,
   diceRollPending = false,
 }) => {
-  const [bgError, setBgError] = useState(false);
   const [claimResult, setClaimResult] = useState<TreasureClaimResult | null>(null);
+  /**
+   * Entrance fade for body (CSS defaults .treasure-scene__body to opacity: 0
+   * until --visible). Without this, Sealed Vault showed only the title shell.
+   */
+  const [showContent, setShowContent] = useState(false);
+  /**
+   * Sync mutex — claimResult state lags one frame (Claim & Continue click + Enter
+   * same tick). Handler also locks; this matches TreasureHuntReward W9 claimLock.
+   */
+  const claimConfirmLockRef = useRef(false);
   const canAffordReveal = player.currentChakra >= treasure.revealCost;
   const bagHasSpace = player.bag.some((slot) => slot === null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowContent(true), 50);
+    return () => clearTimeout(timer);
+  }, [treasure.type, treasure.choices.length, huntDeclined]);
 
   // Dice odds from launch config (same values the roll uses)
   const diceOdds = LaunchProperties.TREASURE_DICE_ODDS;
@@ -100,7 +121,6 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   const canTakeMapPieceAction =
     treasure.mapPieceAvailable && !diceRollPending && !pendingBagFullItem;
 
-  // T-053: if bag has space, show claim panel first; bag-full still goes to parent immediately
   const requestSelectItem = useCallback(
     (index: number) => {
       if (index < 0 || index >= treasure.choices.length) return;
@@ -108,6 +128,8 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
         onSelectItem(index);
         return;
       }
+      // New preview → allow Claim & Continue again
+      claimConfirmLockRef.current = false;
       const choice = treasure.choices[index];
       setClaimResult({
         index,
@@ -120,7 +142,8 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   );
 
   const confirmClaim = useCallback(() => {
-    if (!claimResult) return;
+    if (!claimResult || claimConfirmLockRef.current) return;
+    claimConfirmLockRef.current = true;
     const idx = claimResult.index;
     setClaimResult(null);
     onSelectItem(idx);
@@ -139,30 +162,34 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      // Bag full panel keys take priority
+      if (e.repeat) return;
+
       if (pendingBagFullItem) {
+        if ((e.key === 't' || e.key === 'T') && bagHasSpace && onBagFullStash) {
+          onBagFullStash();
+          return;
+        }
         if (e.key === 's' || e.key === 'S') { onBagFullSell(); return; }
         if (e.key === 'l' || e.key === 'L') { onBagFullLeave(); return; }
-        return; // Block other keys when bag full panel is shown
+        return;
       }
 
-      // Y/N keys for hunt prompt
       if (showHuntPrompt) {
         if (e.key === 'y' || e.key === 'Y') { onStartHunt(); return; }
         if (e.key === 'n' || e.key === 'N') { onDeclineHunt(); return; }
         return;
       }
 
-      // T-053: claim panel takes priority for continue
       if (claimResult) {
-        if (e.code === 'Space' || e.code === 'Enter') {
+        // Continue-family: Space / Enter / Escape claim (parity RewardModal / Rest)
+        if (e.code === 'Space' || e.code === 'Enter' || e.key === 'Escape') {
+          if (e.repeat) return;
           e.preventDefault();
           confirmClaim();
         }
         return;
       }
 
-      // Number keys for quick select (1-4)
       if (e.key >= '1' && e.key <= '4') {
         const idx = parseInt(e.key) - 1;
         if (treasure.isRevealed && idx < treasure.choices.length) {
@@ -170,26 +197,22 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
         }
       }
 
-      // R for reveal
       if (e.key === 'r' || e.key === 'R') {
         if (!treasure.isRevealed && canAffordReveal) {
           onReveal();
         }
       }
 
-      // Space to pick random (when not revealed)
       if (e.code === 'Space' && !treasure.isRevealed && isLockedChest) {
         e.preventDefault();
         const randomIdx = Math.floor(Math.random() * treasure.choices.length);
         requestSelectItem(randomIdx);
       }
 
-      // F for Fight Guardian (treasure hunter) — only if opportunity still open
       if ((e.key === 'f' || e.key === 'F') && isTreasureHunter && canTakeMapPieceAction) {
         onFightGuardian();
       }
 
-      // D for Dice Roll (treasure hunter) — one roll only
       if ((e.key === 'd' || e.key === 'D') && isTreasureHunter && canTakeMapPieceAction) {
         onRollDice();
       }
@@ -197,7 +220,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [treasure, canAffordReveal, onReveal, requestSelectItem, confirmClaim, claimResult, onFightGuardian, onRollDice, isLockedChest, isTreasureHunter, showHuntPrompt, onStartHunt, onDeclineHunt, pendingBagFullItem, onBagFullSell, onBagFullLeave, canTakeMapPieceAction]);
+  }, [treasure, canAffordReveal, onReveal, requestSelectItem, confirmClaim, claimResult, onFightGuardian, onRollDice, isLockedChest, isTreasureHunter, showHuntPrompt, onStartHunt, onDeclineHunt, pendingBagFullItem, onBagFullSell, onBagFullLeave, onBagFullStash, bagHasSpace, canTakeMapPieceAction]);
 
   const handlePickRandom = useCallback(() => {
     const randomIdx = Math.floor(Math.random() * treasure.choices.length);
@@ -211,7 +234,6 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
     const item = choice.item;
 
     if (!isRevealed) {
-      // Hidden card
       return (
         <button
           key={index}
@@ -230,13 +252,12 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
               <Lock className="treasure-card__lock-icon" />
             </div>
             <span className="treasure-card__mystery-symbol">?</span>
-            <span className="treasure-card__mystery-label">Unknown</span>
+            <span className="treasure-card__mystery-label">Sealed Relic</span>
           </div>
         </button>
       );
     }
 
-    // Revealed card — the item IS the asset; details live in the scoped tooltip
     const isFocusItem = itemMatchesEquipmentFocus(item, lootTheme?.equipmentFocus);
     return (
       <button
@@ -244,8 +265,9 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
         type="button"
         className="treasure-card treasure-card--revealed item-tile"
         onClick={() => requestSelectItem(index)}
+        onMouseEnter={(e) => alignItemTileTooltip(e.currentTarget)}
+        onFocus={(e) => alignItemTileTooltip(e.currentTarget)}
       >
-        {/* Detail tooltip — hover / keyboard focus / touch tap (focus) */}
         <div className="item-tile__tooltip" role="tooltip">
           <div className={`item-tooltip__name ${getRarityColor(item.rarity)}`}>{item.name}</div>
           <div className="item-tooltip__type">
@@ -282,10 +304,9 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
 
         {choice.isArtifact && (
           <div className="treasure-card__artifact-badge">
-            <Sparkles className="w-6 h-6" />
+            <Sparkles size={20} />
           </div>
         )}
-        {/* T-092: region Focus match (drops already biased T-071) */}
         {isFocusItem && (
           <span className="treasure-card__focus-badge" title="Matches region Focus stats">
             Focus
@@ -293,16 +314,15 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
         )}
 
         <div className="treasure-card__content">
-          {/* The item IS the asset — big visual, PNG-ready slot */}
           <span className="item-tile__visual" aria-hidden="true">
-            <ArtIcon art={resolveItemArt(item)} size="lg" />
+            <ArtIcon art={resolveItemArt(item)} size="fill" title={item.name} />
           </span>
           <span className={`treasure-card__item-name ${getRarityColor(item.rarity)}`}>
             {item.name}
           </span>
           <span className={`treasure-card__rarity ${getRarityColor(item.rarity)}`}>
             {item.rarity}
-            {choice.isArtifact && <span className="ml-1 text-purple-400">★</span>}
+            {choice.isArtifact && <span className="treasure-card__artifact-star">★</span>}
           </span>
         </div>
       </button>
@@ -317,11 +337,11 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
       <div className="map-progress">
         <div className="map-progress__header">
           <span className="map-progress__title">
-            <Map className="map-progress__title-icon" />
-            Treasure Map
+            <Scroll className="map-progress__title-icon" />
+            Ninja Map Scroll
           </span>
           <span className="map-progress__count">
-            {treasureHunt.collectedPieces}/{treasureHunt.requiredPieces} pieces
+            {treasureHunt.collectedPieces}/{treasureHunt.requiredPieces} Seals Collected
           </span>
         </div>
         <div className="map-progress__pieces">
@@ -340,47 +360,36 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
         </div>
         {treasureHunt.collectedPieces === treasureHunt.requiredPieces && (
           <div className="map-progress__complete">
-            Map Complete! Claim your reward!
+            ★ Scroll Complete! Claim Your Master Treasure!
           </div>
         )}
       </div>
     );
   };
 
-  // Hunt initiation prompt
+  // Hunt initiation prompt — sober, atmospheric framing
   if (showHuntPrompt) {
     return (
-      <div className="treasure-modal">
-        <div className="treasure-modal__backdrop">
-          {background && !bgError && (
-            <img src={background} alt="" className="treasure-modal__bg-img" aria-hidden="true" onError={() => setBgError(true)} />
-          )}
-          <div className="treasure-modal__scrim" />
-          <div className="treasure-modal__vignette" />
-          <div className="treasure-modal__scanlines" />
-        </div>
-        <div className="treasure-modal__container">
-          <div className="treasure-modal__body">
+      <SceneBackdrop background={background}>
+        <div className="treasure-scene">
+          <div className="treasure-scene__container">
             <div className="hunt-prompt">
               <div className="hunt-prompt__icon-wrapper">
-                <Map className="hunt-prompt__icon" />
+                <Scroll className="hunt-prompt__icon" />
               </div>
 
-              <h2 className="hunt-prompt__title">Treasure Map Found</h2>
+              <h2 className="hunt-prompt__title">Sealed Map Scroll Discovered</h2>
 
               <p className="hunt-prompt__description">
-                You've discovered an ancient treasure map! Collecting all pieces
-                will reveal the location of a grand treasure.
+                You have unearthed an ancient shinobi map scroll. Deciphering the scroll will track hidden relics across the chambers of this region.
               </p>
 
               <div className="hunt-prompt__card">
                 <p className="hunt-prompt__card-text">
-                  Do you want to begin the treasure hunt?
+                  Decipher the map scroll to begin tracking?
                 </p>
                 <p className="hunt-prompt__card-hint">
-                  Treasure hunt rooms will appear throughout this location.
-                  <br />
-                  Collect map pieces through combat or luck to unlock rewards!
+                  Map chambers will appear along your path. Collect all seals through battle or intuition to unseal the master treasure.
                 </p>
               </div>
 
@@ -390,9 +399,9 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                   className="treasure-btn treasure-btn--gold"
                   onClick={onStartHunt}
                 >
-                  <Map className="treasure-btn__icon" />
-                  <span className="treasure-btn__label">Begin Hunt</span>
-                  <span className="treasure-btn__hint">Seek the grand treasure</span>
+                  <Scroll className="treasure-btn__icon" />
+                  <span className="treasure-btn__label">Begin Map Track</span>
+                  <span className="treasure-btn__hint">Track hidden relics</span>
                   <span className="treasure-btn__key">[Y]</span>
                 </button>
 
@@ -401,283 +410,282 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                   className="treasure-btn treasure-btn--neutral"
                   onClick={onDeclineHunt}
                 >
-                  <X className="treasure-btn__icon" />
-                  <span className="treasure-btn__label">Skip Hunt</span>
-                  <span className="treasure-btn__hint">Take simple loot instead</span>
+                  <Package className="treasure-btn__icon" />
+                  <span className="treasure-btn__label">Open Vault Now</span>
+                  <span className="treasure-btn__hint">Claim immediate chest</span>
                   <span className="treasure-btn__key">[N]</span>
                 </button>
               </div>
 
               <p className="hunt-prompt__note">
-                Declining will turn all treasure rooms into regular locked chests
+                Declining will convert treasure chambers into standard sealed vaults.
               </p>
             </div>
           </div>
         </div>
-      </div>
+      </SceneBackdrop>
     );
   }
 
   // Main treasure UI
   return (
-    <div className="treasure-modal">
-      <div className="treasure-modal__backdrop">
-        {background && !bgError && (
-          <img src={background} alt="" className="treasure-modal__bg-img" aria-hidden="true" onError={() => setBgError(true)} />
-        )}
-        <div className="treasure-modal__scrim" />
-        <div className="treasure-modal__vignette" />
-        <div className="treasure-modal__scanlines" />
-      </div>
-      <div className="treasure-modal__container">
-        <div className="treasure-modal__header">
-          <h2 className="treasure-modal__title">
-            {isLockedChest ? '💰 Treasure Chest' : '🗺️ Treasure Hunter'}
-          </h2>
-          <p className="treasure-modal__subtitle">
-            {isLockedChest
-              ? (treasure.isRevealed ? 'Select your reward' : 'Reveal the contents or pick blindly')
-              : 'Collect map pieces to unlock the grand treasure'
-            }
-          </p>
-          {/* T-092: drops already bias to region lootTheme — surface identity */}
-          {lootTheme && (
-            <div className="treasure-modal__theme" aria-label="Region loot theme">
-              {lootTheme.primaryElement && (
-                <span className="treasure-modal__theme-chip treasure-modal__theme-chip--affinity">
-                  Affinity {lootTheme.primaryElement}
-                </span>
-              )}
-              {lootTheme.equipmentFocus?.length > 0 && (
-                <span className="treasure-modal__theme-chip treasure-modal__theme-chip--focus">
-                  Focus{' '}
-                  {lootTheme.equipmentFocus
-                    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                    .join(' · ')}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="treasure-modal__body">
-          {/* Treasure Hunter: Map Progress */}
-          {isTreasureHunter && renderMapProgress()}
-
-          {/* Locked Chest: Item Grid (≤3 items shown at once) */}
-          {isLockedChest && (
-            <>
-              <div className="treasure-grid">
-                {treasure.choices.map((_, index) => renderTreasureCard(index))}
+    <SceneBackdrop background={background}>
+      <div className="treasure-scene">
+        <div className="treasure-scene__container">
+          <div className="treasure-scene__header">
+            <h2 className="treasure-scene__title">
+              {isLockedChest ? 'Sealed Vault' : 'Shinobi Relic Chamber'}
+            </h2>
+            <p className="treasure-scene__subtitle">
+              {isLockedChest
+                ? (treasure.isRevealed ? 'Select your claimed relic' : 'Unseal the vault or choose by instinct')
+                : 'Collect map seals to unlock the master treasure'
+              }
+            </p>
+            {lootTheme && (
+              <div className="treasure-scene__theme" aria-label="Region loot theme">
+                {lootTheme.primaryElement && (
+                  <span className="treasure-scene__theme-chip treasure-scene__theme-chip--affinity">
+                    Affinity {lootTheme.primaryElement}
+                  </span>
+                )}
+                {lootTheme.equipmentFocus?.length > 0 && (
+                  <span className="treasure-scene__theme-chip treasure-scene__theme-chip--focus">
+                    Focus{' '}
+                    {lootTheme.equipmentFocus
+                      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                      .join(' · ')}
+                  </span>
+                )}
               </div>
+            )}
+          </div>
 
-              {/* Action Buttons for Locked Chest */}
-              {!treasure.isRevealed && (
-                <div className="chest-actions">
+          <div className={`treasure-scene__body ${showContent ? 'treasure-scene__body--visible' : ''}`}>
+            {/* Treasure Hunter: Map Progress */}
+            {isTreasureHunter && renderMapProgress()}
+
+            {/* Locked Chest: Item Grid */}
+            {isLockedChest && (
+              <>
+                {treasure.choices.length === 0 ? (
+                  <div className="treasure-scene__status-note" role="status">
+                    The vault seals are blank — no relics generated. Leave and re-enter the chamber.
+                  </div>
+                ) : (
+                <div className="treasure-grid">
+                  {treasure.choices.map((_, index) => renderTreasureCard(index))}
+                </div>
+                )}
+
+                {treasure.choices.length > 0 && !treasure.isRevealed && (
+                  <div className="chest-actions">
+                    <button
+                      type="button"
+                      className="treasure-btn treasure-btn--neutral"
+                      onClick={handlePickRandom}
+                    >
+                      <Lock className="treasure-btn__icon" />
+                      <span className="treasure-btn__label">Choose by Instinct</span>
+                      <span className="treasure-btn__hint">Free · Trust intuition</span>
+                      <span className="treasure-btn__key">[SPACE]</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="treasure-btn treasure-btn--gold"
+                      onClick={onReveal}
+                      disabled={!canAffordReveal}
+                    >
+                      <Eye className="treasure-btn__icon" />
+                      <span className="treasure-btn__label">Unseal All</span>
+                      <span className="treasure-btn__hint">{treasure.revealCost} Chakra</span>
+                      <span className="treasure-btn__key">[R]</span>
+                    </button>
+                  </div>
+                )}
+
+                {treasure.choices.length > 0 && !treasure.isRevealed && (
+                  <div className="chest-actions__chakra-display">
+                    Chakra Level:{' '}
+                    <span className={`chest-actions__chakra-value${!canAffordReveal ? '--low' : ''}`}>
+                      {player.currentChakra}
+                    </span>
+                    {!canAffordReveal && (
+                      <span className="chest-actions__chakra-needed">
+                        (Need {treasure.revealCost - player.currentChakra} more)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Treasure Hunter: Guardian vs Dice Choice */}
+            {isTreasureHunter && canTakeMapPieceAction && (
+              <div className="guardian-choice">
+                <div className="guardian-choice__header">
+                  <h3 className="guardian-choice__title">Select Approach</h3>
+                  <p className="guardian-choice__subtitle">
+                    Confront the guardian directly or rely on shinobi intuition
+                  </p>
+                </div>
+
+                <div className="guardian-choice__split">
+                  <button
+                    type="button"
+                    className="guardian-choice__option guardian-choice__option--fight"
+                    onClick={onFightGuardian}
+                  >
+                    <div className="guardian-choice__icon-wrapper">
+                      <Swords className="guardian-choice__icon" />
+                    </div>
+                    <span className="guardian-choice__option-title">Confront Guardian</span>
+                    <div className="guardian-choice__odds">
+                      <span className="guardian-choice__odds-item guardian-choice__odds-item--success">
+                        ✓ Guaranteed map seal
+                      </span>
+                    </div>
+                    <span className="guardian-choice__key-hint">[F] key</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="guardian-choice__option guardian-choice__option--dice"
+                    onClick={onRollDice}
+                  >
+                    <div className="guardian-choice__icon-wrapper">
+                      <Dices className="guardian-choice__icon" />
+                    </div>
+                    <span className="guardian-choice__option-title">Shinobi Intuition (Dice)</span>
+                    <div className="guardian-choice__odds">
+                      <span className="guardian-choice__odds-item guardian-choice__odds-item--success">
+                        Map Seal ({piecePct}%)
+                      </span>
+                      <span className="guardian-choice__odds-item guardian-choice__odds-item--neutral">
+                        Passage ({nothingPct}%)
+                      </span>
+                      <span className="guardian-choice__odds-item guardian-choice__odds-item--danger">
+                        Trap ({trapPct}%)
+                      </span>
+                    </div>
+                    <span className="guardian-choice__key-hint">[D] key</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isTreasureHunter && !canTakeMapPieceAction && (
+              <div className="treasure-scene__status-note">
+                {diceRollPending
+                  ? 'Roll result pending…'
+                  : treasure.mapPieceAvailable
+                    ? 'Resolve bag full first…'
+                    : 'Relic seal attempt used for this chamber.'}
+              </div>
+            )}
+
+            {/* ryoBonus is granted with locked-chest item claim only — never show on hunter path */}
+
+            {isLockedChest && treasure.isRevealed && !pendingBagFullItem && (
+              <div className="keyboard-hints">
+                [1-{treasure.choices.length}] Select relic
+              </div>
+            )}
+
+            {pendingBagFullItem && (
+              <div className="bag-full-panel">
+                <div className="bag-full-panel__header">
+                  <AlertTriangle className="bag-full-panel__warning-icon" />
+                  <h3 className="bag-full-panel__title">Inventory Limit Reached</h3>
+                </div>
+
+                <div className="bag-full-panel__item">
+                  <span className="item-tile__visual item-tile__visual--sm bag-full-panel__item-icon" aria-hidden="true">
+                    <ArtIcon art={resolveItemArt(pendingBagFullItem.item)} size="fill" title={pendingBagFullItem.item.name} />
+                  </span>
+                  <span className={`bag-full-panel__item-name ${getRarityColor(pendingBagFullItem.item.rarity)}`}>
+                    {pendingBagFullItem.item.name}
+                  </span>
+                </div>
+
+                <p className="bag-full-panel__description">
+                  {bagHasSpace
+                    ? 'A pocket opened. Stash the relic — or sell it, or leave it behind.'
+                    : 'Your ninja bag is full. Free a pocket in the bag, then stash — or sell / leave.'}
+                </p>
+
+                <div className="bag-full-panel__actions">
+                  {bagHasSpace && onBagFullStash && (
+                    <button
+                      type="button"
+                      className="treasure-btn treasure-btn--gold"
+                      onClick={onBagFullStash}
+                    >
+                      <Package className="treasure-btn__icon" />
+                      <span className="treasure-btn__label">Stash in Bag</span>
+                      <span className="treasure-btn__hint">Take the relic</span>
+                      <span className="treasure-btn__key">[T]</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className={`treasure-btn ${bagHasSpace ? 'treasure-btn--neutral' : 'treasure-btn--gold'}`}
+                    onClick={onBagFullSell}
+                  >
+                    <Coins className="treasure-btn__icon" />
+                    <span className="treasure-btn__label">Fence the Relic</span>
+                    <span className="treasure-btn__hint">+{getSellPrice(pendingBagFullItem.item)} Ryo</span>
+                    <span className="treasure-btn__key">[S]</span>
+                  </button>
+
                   <button
                     type="button"
                     className="treasure-btn treasure-btn--neutral"
-                    onClick={handlePickRandom}
+                    onClick={onBagFullLeave}
                   >
-                    <Lock className="treasure-btn__icon" />
-                    <span className="treasure-btn__label">Pick Random</span>
-                    <span className="treasure-btn__hint">Free · Trust your luck</span>
-                    <span className="treasure-btn__key">[SPACE]</span>
+                    <Package className="treasure-btn__icon" />
+                    <span className="treasure-btn__label">Leave Behind</span>
+                    <span className="treasure-btn__hint">Discard relic</span>
+                    <span className="treasure-btn__key">[L]</span>
                   </button>
+                </div>
+              </div>
+            )}
 
+            {claimResult && (
+              <div className="treasure-claim" role="dialog" aria-modal="true" aria-label="Relic claimed">
+                <div className="treasure-claim__panel">
+                  <div className="treasure-claim__art item-tile__visual">
+                    <ArtIcon art={resolveItemArt(claimResult.item)} size="fill" title={claimResult.item.name} />
+                  </div>
+                  <h3 className="treasure-claim__title">
+                    {claimResult.isArtifact ? 'Artifact Unsealed' : 'Relic Acquired'}
+                  </h3>
+                  <p className={`treasure-claim__name ${getRarityColor(claimResult.item.rarity)}`}>
+                    {claimResult.item.name}
+                  </p>
+                  <p className="treasure-claim__rarity">{claimResult.item.rarity}</p>
+                  {claimResult.ryoBonus > 0 && (
+                    <p className="treasure-claim__ryo">+{claimResult.ryoBonus} Ryō found in chamber</p>
+                  )}
                   <button
                     type="button"
-                    className="treasure-btn treasure-btn--gold"
-                    onClick={onReveal}
-                    disabled={!canAffordReveal}
+                    className="treasure-claim__continue"
+                    onClick={confirmClaim}
                   >
-                    <Eye className="treasure-btn__icon" />
-                    <span className="treasure-btn__label">Reveal All</span>
-                    <span className="treasure-btn__hint">{treasure.revealCost} Chakra</span>
-                    <span className="treasure-btn__key">[R]</span>
+                    Claim & Continue
+                    <span className="treasure-btn__key">[Enter]</span>
+                    <span className="treasure-btn__key">[Esc]</span>
                   </button>
                 </div>
-              )}
-
-              {/* Chakra Display */}
-              {!treasure.isRevealed && (
-                <div className="chest-actions__chakra-display">
-                  Your Chakra:{' '}
-                  <span className={`chest-actions__chakra-value${!canAffordReveal ? '--low' : ''}`}>
-                    {player.currentChakra}
-                  </span>
-                  {!canAffordReveal && (
-                    <span className="chest-actions__chakra-needed">
-                      (Need {treasure.revealCost - player.currentChakra} more)
-                    </span>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Treasure Hunter: Guardian vs Dice Choice (one action per room) */}
-          {isTreasureHunter && canTakeMapPieceAction && (
-            <div className="guardian-choice">
-              <div className="guardian-choice__header">
-                <h3 className="guardian-choice__title">Choose Your Path</h3>
-                <p className="guardian-choice__subtitle">
-                  One chance only — fight for a sure piece, or roll the dice
-                </p>
               </div>
-
-              <div className="guardian-choice__split">
-                {/* Fight Guardian Option */}
-                <button
-                  type="button"
-                  className="guardian-choice__option guardian-choice__option--fight"
-                  onClick={onFightGuardian}
-                >
-                  <div className="guardian-choice__icon-wrapper">
-                    <Swords className="guardian-choice__icon" />
-                  </div>
-                  <span className="guardian-choice__option-title">Fight Guardian</span>
-                  <div className="guardian-choice__odds">
-                    <span className="guardian-choice__odds-item guardian-choice__odds-item--success">
-                      ✓ Guaranteed map piece
-                    </span>
-                  </div>
-                  <span className="guardian-choice__key-hint">[F] key</span>
-                </button>
-
-                {/* Roll Dice Option — odds match LaunchProperties.TREASURE_DICE_ODDS */}
-                <button
-                  type="button"
-                  className="guardian-choice__option guardian-choice__option--dice"
-                  onClick={onRollDice}
-                >
-                  <div className="guardian-choice__icon-wrapper">
-                    <Dices className="guardian-choice__icon" />
-                  </div>
-                  <span className="guardian-choice__option-title">Roll the Dice</span>
-                  <div className="guardian-choice__odds">
-                    <span className="guardian-choice__odds-item guardian-choice__odds-item--success">
-                      {piecePct}% map piece
-                    </span>
-                    <span className="guardian-choice__odds-item guardian-choice__odds-item--neutral">
-                      {nothingPct}% nothing
-                    </span>
-                    <span className="guardian-choice__odds-item guardian-choice__odds-item--danger">
-                      {trapPct}% trap damage
-                    </span>
-                  </div>
-                  <span className="guardian-choice__key-hint">[D] key · once</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Opportunity spent (after roll) or none in room */}
-          {isTreasureHunter && !canTakeMapPieceAction && (
-            <div className="text-center text-zinc-500 text-sm py-8">
-              {diceRollPending
-                ? 'Dice result pending…'
-                : treasure.mapPieceAvailable
-                  ? 'Resolve bag full first…'
-                  : 'Map piece chance already used in this room.'}
-            </div>
-          )}
-
-          {/* Ryo bonus display */}
-          {isTreasureHunter && treasure.ryoBonus > 0 && (
-            <div className="text-center">
-              <div className="ryo-bonus">
-                <Coins className="ryo-bonus__icon" />
-                <span className="ryo-bonus__value">+{treasure.ryoBonus} Ryō bonus</span>
-              </div>
-            </div>
-          )}
-
-          {/* Keyboard hints */}
-          {isLockedChest && treasure.isRevealed && !pendingBagFullItem && (
-            <div className="keyboard-hints">
-              [1-{treasure.choices.length}] Select item
-            </div>
-          )}
-
-          {/* Bag Full Options */}
-          {pendingBagFullItem && (
-            <div className="bag-full-panel">
-              <div className="bag-full-panel__header">
-                <AlertTriangle className="bag-full-panel__warning-icon" />
-                <h3 className="bag-full-panel__title">Bag is Full!</h3>
-              </div>
-
-              <div className="bag-full-panel__item">
-                <span className="bag-full-panel__item-icon">
-                  <ArtIcon art={resolveItemArt(pendingBagFullItem.item)} size="md" />
-                </span>
-                <span className={`bag-full-panel__item-name ${getRarityColor(pendingBagFullItem.item.rarity)}`}>
-                  {pendingBagFullItem.item.name}
-                </span>
-              </div>
-
-              <p className="bag-full-panel__description">
-                Choose what to do with this item:
-              </p>
-
-              <div className="bag-full-panel__actions">
-                <button
-                  type="button"
-                  className="treasure-btn treasure-btn--gold"
-                  onClick={onBagFullSell}
-                >
-                  <Coins className="treasure-btn__icon" />
-                  <span className="treasure-btn__label">Sell</span>
-                  <span className="treasure-btn__hint">+{getSellPrice(pendingBagFullItem.item)} Ryo</span>
-                  <span className="treasure-btn__key">[S]</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="treasure-btn treasure-btn--neutral"
-                  onClick={onBagFullLeave}
-                >
-                  <Package className="treasure-btn__icon" />
-                  <span className="treasure-btn__label">Leave</span>
-                  <span className="treasure-btn__hint">Abandon item</span>
-                  <span className="treasure-btn__key">[L]</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* T-053: claim beat before bag + return to map */}
-          {claimResult && (
-            <div className="treasure-claim" role="dialog" aria-modal="true" aria-label="Treasure claimed">
-              <div className="treasure-claim__panel">
-                <div className="treasure-claim__art">
-                  <ArtIcon art={resolveItemArt(claimResult.item)} size="xl" title={claimResult.item.name} />
-                </div>
-                <h3 className="treasure-claim__title">
-                  {claimResult.isArtifact ? 'Artifact Claimed' : 'Treasure Claimed'}
-                </h3>
-                <p className={`treasure-claim__name ${getRarityColor(claimResult.item.rarity)}`}>
-                  {claimResult.item.name}
-                </p>
-                <p className="treasure-claim__rarity">{claimResult.item.rarity}</p>
-                {claimResult.ryoBonus > 0 && (
-                  <p className="treasure-claim__ryo">+{claimResult.ryoBonus} Ryō found nearby</p>
-                )}
-                <button
-                  type="button"
-                  className="treasure-claim__continue"
-                  onClick={confirmClaim}
-                >
-                  Continue
-                  <span className="treasure-btn__key">[Enter]</span>
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </SceneBackdrop>
   );
 };
 

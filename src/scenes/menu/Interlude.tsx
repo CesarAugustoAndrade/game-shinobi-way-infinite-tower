@@ -3,7 +3,7 @@
  * T-043: Imagine art on item/skill boons + story-run bonus chips.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player, RegionLootTheme } from '../../game/types';
 import { CampaignBoon } from '../../game/systems/CampaignSystem';
 import { getSkillArt, resolveItemArt } from '../../game/constants/artRegistry';
@@ -14,6 +14,7 @@ import {
 } from '../../game/utils/itemFocusMatch';
 import ArtIcon from '../../components/shared/ArtIcon';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './Interlude.css';
 
 interface InterludeProps {
@@ -38,17 +39,24 @@ interface InterludeProps {
   background?: string;
 }
 
-/** Stat boon glyph when no registry tile applies */
+/** Stat boon glyph when no registry tile applies (text fallbacks preferred in UI) */
 const STAT_GLYPH: Record<string, string> = {
-  Willpower: '❤️',
-  Chakra: '💧',
-  Strength: '💪',
-  Spirit: '🔥',
-  Intelligence: '🧠',
-  Calmness: '🧘',
-  Speed: '💨',
-  Accuracy: '🎯',
-  Dexterity: '✋',
+  Willpower: 'WIL',
+  Chakra: 'CHK',
+  Strength: 'STR',
+  Spirit: 'SPI',
+  Intelligence: 'INT',
+  Calmness: 'CAL',
+  Speed: 'SPD',
+  Accuracy: 'ACC',
+  Dexterity: 'DEX',
+};
+
+/** R1: human labels instead of raw boon.kind enum strings */
+const BOON_KIND_LABEL: Record<string, string> = {
+  item: 'Item',
+  skill: 'Jutsu',
+  stat: 'Stat',
 };
 
 const Interlude: React.FC<InterludeProps> = ({
@@ -66,6 +74,10 @@ const Interlude: React.FC<InterludeProps> = ({
   const [selected, setSelected] = useState<number | null>(null);
   const storyLabels = player ? getEventFlagRunModifiers(player).activeLabels : [];
   const focus = nextLootTheme?.equipmentFocus;
+  const rootRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(rootRef);
+  /** Blocks same-tick double Enter/click → double applyCampaignBoon + region spawn. */
+  const boonLockRef = useRef(false);
 
   const boonMatchesFocus = (boon: CampaignBoon): boolean => {
     if (!focus || focus.length === 0) return false;
@@ -79,13 +91,16 @@ const Interlude: React.FC<InterludeProps> = ({
   };
 
   const confirm = useCallback(() => {
-    if (selected == null) return;
+    if (selected == null || boonLockRef.current) return;
     const boon = boons[selected];
-    if (boon) onChooseBoon(boon);
+    if (!boon) return;
+    boonLockRef.current = true;
+    onChooseBoon(boon);
   }, [selected, boons, onChooseBoon]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       if (e.key >= '1' && e.key <= '3') {
         e.preventDefault();
         const i = parseInt(e.key, 10) - 1;
@@ -121,8 +136,8 @@ const Interlude: React.FC<InterludeProps> = ({
         />
       );
     }
-    // stat or fallback
-    const glyph = (boon.stat && STAT_GLYPH[boon.stat]) || '✨';
+    // stat or fallback — short letter codes, not emoji
+    const glyph = (boon.stat && STAT_GLYPH[boon.stat]) || '★';
     return (
       <span className="interlude__boon-stat-glyph" aria-hidden>
         {glyph}
@@ -131,23 +146,23 @@ const Interlude: React.FC<InterludeProps> = ({
   };
 
   return (
-    <div className="interlude">
+    <div ref={rootRef} className="interlude" role="dialog" aria-modal="true" aria-label="Region interlude">
       <SceneBackdrop background={background} dim={0.35}>
         <div className="interlude__panel">
-          <p className="interlude__eyebrow">Region Cleared · {regionName}</p>
+          <p className="interlude__eyebrow">Region sealed · {regionName}</p>
           <h1 className="interlude__title">{title}</h1>
           <p className="interlude__body">{body}</p>
 
-          <div className="interlude__summary">
-            <span>Lv.{runSummary.level}</span>
-            <span>💰 {runSummary.ryo}</span>
-            <span>📍 {runSummary.locationsCleared}</span>
-            <span>🏛 {runSummary.regionsCompleted} region(s)</span>
+          <div className="interlude__summary" aria-label="Run summary">
+            <span>Lv. {runSummary.level}</span>
+            <span>Ryo {runSummary.ryo}</span>
+            <span>Sites {runSummary.locationsCleared}</span>
+            <span>Regions {runSummary.regionsCompleted}</span>
           </div>
 
           {storyLabels.length > 0 && (
-            <div className="interlude__story" aria-label="Story bonuses this run">
-              <span className="interlude__story-label">Story bonuses:</span>
+            <div className="interlude__story" aria-label="Path marks this run">
+              <span className="interlude__story-label">Marks carried:</span>
               {storyLabels.map((label) => (
                 <span key={label} className="interlude__story-chip">
                   {label}
@@ -156,7 +171,7 @@ const Interlude: React.FC<InterludeProps> = ({
             </div>
           )}
 
-          <p className="interlude__heal">✦ Full heal applied on continue</p>
+          <p className="interlude__heal">✦ Wounds close before the next land</p>
 
           {/* T-095: next region theme at the only peak where Focus changes */}
           {nextLootTheme && (
@@ -185,7 +200,7 @@ const Interlude: React.FC<InterludeProps> = ({
             </div>
           )}
 
-          <h2 className="interlude__boon-heading">Choose a boon (1 of 3)</h2>
+          <h2 className="interlude__boon-heading">Claim one mark (1 of 3)</h2>
 
           <div className="interlude__boons">
             {boons.map((boon, i) => {
@@ -196,6 +211,7 @@ const Interlude: React.FC<InterludeProps> = ({
                 type="button"
                 className={`interlude__boon ${selected === i ? 'interlude__boon--selected' : ''} ${focusMatch ? 'interlude__boon--focus' : ''}`}
                 onClick={() => setSelected(i)}
+                autoFocus={i === 0}
               >
                 <div className="interlude__boon-top">
                   <span className="interlude__boon-idx">{i + 1}</span>
@@ -206,7 +222,9 @@ const Interlude: React.FC<InterludeProps> = ({
                     </span>
                   )}
                 </div>
-                <span className="interlude__boon-kind">{boon.kind}</span>
+                <span className="interlude__boon-kind">
+                  {BOON_KIND_LABEL[boon.kind] ?? boon.kind}
+                </span>
                 <span className="interlude__boon-title">{boon.title}</span>
                 <span className="interlude__boon-desc">{boon.description}</span>
               </button>
@@ -220,7 +238,7 @@ const Interlude: React.FC<InterludeProps> = ({
             disabled={selected == null}
             onClick={confirm}
           >
-            Continue to {nextRegionName}
+            Walk on — {nextRegionName}
             <span className="interlude__key">Enter</span>
           </button>
         </div>

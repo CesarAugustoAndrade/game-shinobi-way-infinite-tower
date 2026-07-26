@@ -140,7 +140,7 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
                             {buff.name}
                           </div>
                           <div className="player-hud__buff-tooltip-type">
-                            {isPositive ? 'Beneficial' : 'Harmful'} Effect
+                            {isPositive ? 'Blessing' : 'Burden'}
                           </div>
                         </div>
                       </div>
@@ -150,13 +150,13 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
                         {getBuffDescription(buff)}
                       </div>
 
-                      {/* Mechanics Breakdown */}
+                      {/* Trade-off / effect lines */}
                       <div className="player-hud__buff-tooltip-section">
-                        <div className="player-hud__buff-tooltip-section-title">Mechanics</div>
+                        <div className="player-hud__buff-tooltip-section-title">What it does</div>
                         <div>
                           {mechanics.map((mechanic, i) => (
                             <div key={i} className="player-hud__buff-tooltip-mechanic">
-                              <span className="player-hud__buff-tooltip-bullet">•</span>
+                              <span className="player-hud__buff-tooltip-bullet">–</span>
                               <span>{mechanic}</span>
                             </div>
                           ))}
@@ -166,21 +166,21 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
                       {/* Source & Duration */}
                       <div className="player-hud__buff-tooltip-footer">
                         <div>
-                          <span className="player-hud__buff-tooltip-label">Source: </span>
-                          <span className="player-hud__buff-tooltip-value">{buff.source || 'Unknown'}</span>
+                          <span className="player-hud__buff-tooltip-label">From </span>
+                          <span className="player-hud__buff-tooltip-value">{buff.source || 'the field'}</span>
                         </div>
                         <div>
-                          <span className="player-hud__buff-tooltip-label">Remaining: </span>
+                          <span className="player-hud__buff-tooltip-label">Left </span>
                           <span className={buff.duration <= 1 ? 'player-hud__buff-tooltip-value--expiring' : 'player-hud__buff-tooltip-value'}>
-                            {buff.duration === -1 ? 'Permanent' : `${buff.duration} turn${buff.duration !== 1 ? 's' : ''}`}
+                            {buff.duration === -1 ? 'lingers' : `${buff.duration} turn${buff.duration !== 1 ? 's' : ''}`}
                           </span>
                         </div>
                       </div>
 
-                      {/* Strategic Tip */}
+                      {/* Strategic counsel — shinobi voice, not debug */}
                       {tip && (
                         <div className="player-hud__buff-tooltip-tip">
-                          Tip: {tip}
+                          {tip}
                         </div>
                       )}
                     </div>
@@ -209,8 +209,8 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
         {runFlagLabels.length > 0 && (
           <div
             className="player-hud__run-flags"
-            title="Bonuses from story choices this run"
-            aria-label={`Story bonuses: ${runFlagLabels.join(', ')}`}
+            title="Path marks from choices this run"
+            aria-label={`Path marks: ${runFlagLabels.join(', ')}`}
           >
             {runFlagLabels.map((label) => (
               <span key={label} className="player-hud__run-flag">

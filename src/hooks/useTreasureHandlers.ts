@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   GameState, Player, BranchingRoom, BranchingFloor, CharacterStats,
   Location, Region, Item, Skill, LogEntry,
-  TreasureActivity, TreasureHunt, Enemy, DiceRollResult,
+  TreasureActivity, TreasureHunt, TreasureType, Enemy, DiceRollResult,
 } from '../game/types';
 import {
   completeActivity,
@@ -103,6 +103,8 @@ export interface UseTreasureHandlersReturn {
   handleDiceResultContinue: () => void;
   handleBagFullSell: () => void;
   handleBagFullLeave: () => void;
+  /** Stash pending bag-full relic after player frees a bag slot. */
+  handleBagFullStash: () => void;
 }
 
 /**
@@ -152,6 +154,17 @@ export function useTreasureHandlers(
   const { addLog, returnToMap, returnToMapActivityComplete, onAutoTreasureGuardianVictory } = deps;
 
   /**
+   * Sync mutex — eager useState updaters alone can double-fire on same-frame clicks
+   * (double relic, double ryo, fight+dice). Reset when a fresh uncollected chest opens.
+   */
+  const treasureActionLockRef = useRef(false);
+  useEffect(() => {
+    if (currentTreasure && !currentTreasure.collected) {
+      treasureActionLockRef.current = false;
+    }
+  }, [currentTreasure]);
+
+  /**
    * Helper: Complete treasure activity and return to map.
    * Extracts common logic from handleTreasureSelectItem, handleBagFullSell, handleBagFullLeave.
    */
@@ -167,15 +180,16 @@ export function useTreasureHandlers(
     }
     setCurrentTreasure(null);
     setCurrentTreasureHunt(null);
+    setPendingBagFullItem(null);
     returnToMapActivityComplete(finalFloor);
   }, [locationFloor, branchingFloor, selectedBranchingRoom,
       setLocationFloor, setBranchingFloor, setCurrentTreasure,
-      setCurrentTreasureHunt, returnToMapActivityComplete]);
+      setCurrentTreasureHunt, setPendingBagFullItem, returnToMapActivityComplete]);
 
   // Reveal treasure choices (pay chakra) — one reveal only (no multi-click chakra drain)
   const handleTreasureReveal = useCallback(() => {
     if (!currentTreasure || !player) return;
-    if (currentTreasure.isRevealed) return;
+    if (currentTreasure.isRevealed || treasureActionLockRef.current) return;
 
     const cost = currentTreasure.revealCost;
     if (player.currentChakra < cost) {
@@ -183,30 +197,46 @@ export function useTreasureHandlers(
       return;
     }
 
-    // Atomically mark revealed before charging (blocks double-click exploit)
-    let consumed = false;
-    setCurrentTreasure(prev => {
-      if (!prev || prev.isRevealed) return prev;
-      consumed = true;
-      return { ...prev, isRevealed: true };
-    });
-    if (!consumed) return;
+    treasureActionLockRef.current = true;
 
+    // Charge first on latest player — never free-reveal if chakra was spent elsewhere
+    let charged = false;
     setPlayer(p => {
-      if (!p) return null;
-      if (p.currentChakra < cost) return p;
+      if (!p || p.currentChakra < cost) return p;
+      charged = true;
       return { ...p, currentChakra: p.currentChakra - cost };
     });
+    if (!charged) {
+      treasureActionLockRef.current = false;
+      addLog('Not enough chakra to reveal the treasure!', 'danger');
+      return;
+    }
+
+    let revealed = false;
+    setCurrentTreasure(prev => {
+      if (!prev || prev.isRevealed) return prev;
+      revealed = true;
+      return { ...prev, isRevealed: true };
+    });
+    if (!revealed) {
+      // Already revealed (stale) — refund the chakra we just took
+      setPlayer(p => (p ? { ...p, currentChakra: p.currentChakra + cost } : null));
+      treasureActionLockRef.current = false;
+      return;
+    }
+
     addLog(`Spent ${cost} chakra to reveal the treasure contents.`, 'info');
+    treasureActionLockRef.current = false;
   }, [currentTreasure, player, addLog, setPlayer, setCurrentTreasure]);
 
   // Select an item from treasure choices — one claim only (no multi-loot / multi-ryo)
   const handleTreasureSelectItem = useCallback((index: number) => {
     if (!currentTreasure || !player || !selectedBranchingRoom) return;
-    if (currentTreasure.collected) return;
+    if (currentTreasure.collected || treasureActionLockRef.current) return;
     if (index < 0 || index >= currentTreasure.choices.length) return;
 
     const selectedItem = currentTreasure.choices[index].item;
+    const ryoBonus = currentTreasure.ryoBonus;
 
     // Check bag space first (do not mark collected until resolved)
     const hasBagSpace = player.bag.some(slot => slot === null);
@@ -218,6 +248,8 @@ export function useTreasureHandlers(
       return;
     }
 
+    treasureActionLockRef.current = true;
+
     // Atomically claim this chest (blocks double-select exploit)
     let claimed = false;
     setCurrentTreasure(prev => {
@@ -225,24 +257,44 @@ export function useTreasureHandlers(
       claimed = true;
       return { ...prev, collected: true, selectedIndex: index };
     });
-    if (!claimed) return;
-
-    // Atomic ryo + bag add (single setPlayer — two updates would race and drop ryo)
-    let nextPlayer: Player = player;
-    if (currentTreasure.ryoBonus > 0) {
-      nextPlayer = { ...nextPlayer, ryo: nextPlayer.ryo + currentTreasure.ryoBonus };
-      addLog(`Found ${currentTreasure.ryoBonus} Ryo alongside the treasure!`, 'loot');
+    if (!claimed) {
+      treasureActionLockRef.current = false;
+      return;
     }
-    const withItem = addToBag(nextPlayer, selectedItem);
-    if (withItem) {
-      setPlayer(withItem);
+
+    // Functional ryo + bag add on latest player (avoids overwriting concurrent ryo/bag)
+    type ClaimOut = 'ok' | 'full' | 'noprev';
+    const box: { o: ClaimOut } = { o: 'noprev' };
+    setPlayer(prev => {
+      if (!prev) {
+        box.o = 'noprev';
+        return null;
+      }
+      let next = prev;
+      if (ryoBonus > 0) {
+        next = { ...next, ryo: next.ryo + ryoBonus };
+      }
+      const withItem = addToBag(next, selectedItem);
+      if (!withItem) {
+        // Unexpected full after pre-check — keep ryo if granted
+        box.o = 'full';
+        return ryoBonus > 0 ? next : prev;
+      }
+      box.o = 'ok';
+      return withItem;
+    });
+
+    if (box.o === 'ok') {
+      if (ryoBonus > 0) {
+        addLog(`Found ${ryoBonus} Ryo alongside the treasure!`, 'loot');
+      }
       addLog(`${selectedItem.name} added to your bag!`, 'loot');
-    } else if (currentTreasure.ryoBonus > 0) {
-      // Bag add failed unexpectedly; still grant ryo if any
-      setPlayer(nextPlayer);
+    } else if (box.o === 'full' && ryoBonus > 0) {
+      addLog(`Found ${ryoBonus} Ryo alongside the treasure!`, 'loot');
+      addLog('Bag was full — relic slipped back into the mist.', 'danger');
     }
 
-    // Complete activity and return to map
+    // Complete activity and return to map (lock held — room is done)
     completeTreasureAndReturn();
   }, [currentTreasure, player, selectedBranchingRoom, pendingBagFullItem, addLog,
       setPlayer, setPendingBagFullItem, setCurrentTreasure, completeTreasureAndReturn]);
@@ -250,11 +302,22 @@ export function useTreasureHandlers(
   // Fight guardian for guaranteed map piece (treasure hunter)
   const handleTreasureFightGuardian = useCallback(() => {
     if (!currentTreasure || !currentTreasureHunt || !player || !playerStats || !selectedBranchingRoom || !locationFloor) return;
-    // Already resolved this room via dice (or previous attempt) — no double claim
-    if (!currentTreasure.mapPieceAvailable) {
+    if (treasureActionLockRef.current) return;
+
+    // Atomically consume map-piece opportunity (blocks dice while approach is open / double fight)
+    // Restored on Approach cancel in App.handleApproachCancel.
+    let consumed = false;
+    setCurrentTreasure(prev => {
+      if (!prev?.mapPieceAvailable) return prev;
+      consumed = true;
+      return { ...prev, mapPieceAvailable: false };
+    });
+    if (!consumed) {
       addLog('This map piece opportunity is already spent.', 'info');
       return;
     }
+
+    treasureActionLockRef.current = true;
 
     // Generate a guardian enemy based on danger level
     // T-057: location-themed guardian base (name overridden below)
@@ -270,6 +333,10 @@ export function useTreasureHandlers(
       region?.lootTheme?.primaryElement ?? locationFloor?.preferredElement,
     );
     guardian.name = 'Treasure Guardian';
+    // Prefer painted guardian sprite + cutout (pool may already, force for identity)
+    if (!guardian.image?.startsWith('/assets/enemy_')) {
+      guardian.image = '/assets/enemy_monk.png';
+    }
 
     // Clear any pending artifact - this is a map piece fight
     setPendingArtifact(null);
@@ -282,6 +349,8 @@ export function useTreasureHandlers(
       // Keep currentTreasure so Approach cancel can restore TREASURE (no soft-lock blank screen).
       // currentTreasure is cleared when combat actually starts (handleBranchingApproachSelect).
       // Keep currentTreasureHunt for after combat.
+      // Unlock so cancel path can re-arm; mapPieceAvailable stays false until cancel restores it.
+      treasureActionLockRef.current = false;
 
       addLog('A guardian appears to protect the treasure map piece!', 'danger');
     } else {
@@ -332,8 +401,10 @@ export function useTreasureHandlers(
   // Roll dice for map piece (treasure hunter)
   // One roll per room: trap / nothing / piece by TREASURE_DICE_ODDS.
   // Multi-click exploit: consume mapPieceAvailable before resolving.
+  // Also blocked after Fight consumes the same flag (approach open or combat).
   const handleTreasureRollDice = useCallback(() => {
     if (!currentTreasure || !currentTreasureHunt || !player || !playerStats || !selectedBranchingRoom || !locationFloor) return;
+    if (treasureActionLockRef.current) return;
 
     // Atomically consume the map-piece opportunity (blocks re-rolls / fight after dice)
     let consumed = false;
@@ -343,9 +414,11 @@ export function useTreasureHandlers(
       return { ...prev, mapPieceAvailable: false };
     });
     if (!consumed) {
-      addLog('You already rolled the dice for this treasure.', 'info');
+      addLog('You already committed this chamber (dice or guardian).', 'info');
       return;
     }
+
+    treasureActionLockRef.current = true;
 
     // Probabilities: trap% / nothing% / piece% (sum need not be 100 — we normalize)
     const { trap, nothing, piece } = LaunchProperties.TREASURE_DICE_ODDS;
@@ -368,27 +441,35 @@ export function useTreasureHandlers(
     } else {
       // Map piece! (remaining share of odds = piece)
       const { floor: updatedFloorWithPiece, isComplete } = addMapPiece(locationFloor);
-      const newHunt = updatedFloorWithPiece.treasureHunt;
+      // Prefer floor hunt; fall back to session hunt so the result modal always opens
+      // (mapPieceAvailable already consumed — no modal = softlock).
+      const newHunt = updatedFloorWithPiece.treasureHunt ?? currentTreasureHunt;
+      const piecesCollected =
+        updatedFloorWithPiece.treasureHunt?.collectedPieces
+        ?? (currentTreasureHunt ? currentTreasureHunt.collectedPieces + 1 : 1);
+      const piecesRequired =
+        newHunt?.requiredPieces ?? currentTreasureHunt?.requiredPieces ?? 1;
 
       // Use the updated floor for completion
       floorForCompletion = updatedFloorWithPiece;
-      setCurrentTreasureHunt(newHunt);
-
-      if (newHunt) {
-        setDiceRollResult({
-          type: 'piece',
-          piecesCollected: newHunt.collectedPieces,
-          piecesRequired: newHunt.requiredPieces,
-        });
-        addLog(`Found a map piece! (${newHunt.collectedPieces}/${newHunt.requiredPieces})`, 'loot');
+      if (updatedFloorWithPiece.treasureHunt) {
+        setCurrentTreasureHunt(updatedFloorWithPiece.treasureHunt);
       }
+
+      // Always stage dismissable result (trap/nothing paths always set; piece must match)
+      setDiceRollResult({
+        type: 'piece',
+        piecesCollected,
+        piecesRequired,
+      });
+      addLog(`Found a map piece! (${piecesCollected}/${piecesRequired})`, 'loot');
 
       // Check if map is complete - will transition to reward after modal dismissed
       if (isComplete && newHunt) {
         // Generate reward and store it, but don't transition yet
         const wealthLevel = currentLocation?.wealthLevel ?? 4;
         const reward = getTreasureHuntReward(
-          newHunt.collectedPieces,
+          piecesCollected,
           wealthLevel,
           currentDangerLevel,
           difficulty,
@@ -400,7 +481,7 @@ export function useTreasureHandlers(
           items: reward.items,
           skills: reward.skills,
           ryo: reward.ryo,
-          piecesCollected: newHunt.collectedPieces,
+          piecesCollected,
           wealthLevel,
         });
         // Complete treasure activity and clear hunt
@@ -478,8 +559,20 @@ export function useTreasureHandlers(
       setBranchingFloor(prev => (prev ? { ...prev, huntDeclined: true } : prev));
     }
 
+    // Convert the current chamber into a sealed vault (keep generated choices).
+    // Without this, UI only fakes LOCKED_CHEST via huntDeclined while type stays hunter.
+    setCurrentTreasure(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        type: TreasureType.LOCKED_CHEST,
+        isHuntRoom: false,
+        mapPieceAvailable: false,
+      };
+    });
+
     addLog('You declined the treasure hunt. All treasure rooms will now be regular chests.', 'info');
-  }, [locationFloor, branchingFloor, addLog, setLocationFloor, setBranchingFloor]);
+  }, [locationFloor, branchingFloor, addLog, setLocationFloor, setBranchingFloor, setCurrentTreasure]);
 
   // Claim treasure hunt reward — one claim only (no double ryo/loot)
   const handleTreasureHuntRewardClaim = useCallback(() => {
@@ -513,11 +606,13 @@ export function useTreasureHandlers(
   // Sell pending item when bag is full — one resolution only
   const handleBagFullSell = useCallback(() => {
     if (!pendingBagFullItem || !currentTreasure || !player || !selectedBranchingRoom) return;
-    if (currentTreasure.collected) return;
+    if (currentTreasure.collected || treasureActionLockRef.current) return;
 
     const sellValue = getSellPrice(pendingBagFullItem.item);
     const pending = pendingBagFullItem;
     const ryoBonus = currentTreasure.ryoBonus;
+
+    treasureActionLockRef.current = true;
 
     // Claim chest before payout (blocks double sell)
     let claimed = false;
@@ -526,7 +621,10 @@ export function useTreasureHandlers(
       claimed = true;
       return { ...prev, collected: true, selectedIndex: pending.index };
     });
-    if (!claimed) return;
+    if (!claimed) {
+      treasureActionLockRef.current = false;
+      return;
+    }
 
     setPendingBagFullItem(null);
 
@@ -545,10 +643,12 @@ export function useTreasureHandlers(
   // Leave pending item behind when bag is full — one resolution only
   const handleBagFullLeave = useCallback(() => {
     if (!pendingBagFullItem || !currentTreasure || !player || !selectedBranchingRoom) return;
-    if (currentTreasure.collected) return;
+    if (currentTreasure.collected || treasureActionLockRef.current) return;
 
     const pending = pendingBagFullItem;
     const ryoBonus = currentTreasure.ryoBonus;
+
+    treasureActionLockRef.current = true;
 
     let claimed = false;
     setCurrentTreasure(prev => {
@@ -556,7 +656,10 @@ export function useTreasureHandlers(
       claimed = true;
       return { ...prev, collected: true, selectedIndex: pending.index };
     });
-    if (!claimed) return;
+    if (!claimed) {
+      treasureActionLockRef.current = false;
+      return;
+    }
 
     setPendingBagFullItem(null);
     addLog(`Left ${pending.item.name} behind.`, 'info');
@@ -564,6 +667,73 @@ export function useTreasureHandlers(
     if (ryoBonus > 0) {
       setPlayer(p => p ? { ...p, ryo: p.ryo + ryoBonus } : null);
       addLog(`Found ${ryoBonus} Ryo alongside the treasure!`, 'loot');
+    }
+
+    completeTreasureAndReturn();
+  }, [pendingBagFullItem, currentTreasure, player, selectedBranchingRoom,
+      addLog, setPlayer, setPendingBagFullItem, setCurrentTreasure, completeTreasureAndReturn]);
+
+  /**
+   * After bag-full: player frees a slot (sidebar sell/equip) then stashes the relic.
+   * Claim chest first (blocks double-stash), then functional bag write.
+   */
+  const handleBagFullStash = useCallback(() => {
+    if (!pendingBagFullItem || !currentTreasure || !player || !selectedBranchingRoom) return;
+    if (currentTreasure.collected || treasureActionLockRef.current) return;
+
+    // Soft pre-check so we don't close the chest while still full
+    if (!player.bag.some(slot => slot === null)) {
+      addLog('Bag is still full — free a pocket first.', 'danger');
+      return;
+    }
+
+    const pending = pendingBagFullItem;
+    const ryoBonus = currentTreasure.ryoBonus;
+
+    treasureActionLockRef.current = true;
+
+    let claimed = false;
+    setCurrentTreasure(prev => {
+      if (!prev || prev.collected) return prev;
+      claimed = true;
+      return { ...prev, collected: true, selectedIndex: pending.index };
+    });
+    if (!claimed) {
+      treasureActionLockRef.current = false;
+      return;
+    }
+
+    setPendingBagFullItem(null);
+
+    type StashOut = 'ok' | 'full' | 'noprev';
+    const box: { o: StashOut } = { o: 'noprev' };
+
+    setPlayer(prev => {
+      if (!prev) {
+        box.o = 'noprev';
+        return null;
+      }
+      let next = prev;
+      if (ryoBonus > 0) {
+        next = { ...next, ryo: next.ryo + ryoBonus };
+      }
+      const withItem = addToBag(next, pending.item);
+      if (!withItem) {
+        // Race: bag filled again after pre-check — keep ryo, drop relic
+        box.o = 'full';
+        return next;
+      }
+      box.o = 'ok';
+      return withItem;
+    });
+
+    if (ryoBonus > 0) {
+      addLog(`Found ${ryoBonus} Ryo alongside the treasure!`, 'loot');
+    }
+    if (box.o === 'ok') {
+      addLog(`${pending.item.name} added to your bag!`, 'loot');
+    } else if (box.o === 'full') {
+      addLog('Bag filled again — relic slipped back into the mist.', 'danger');
     }
 
     completeTreasureAndReturn();
@@ -581,5 +751,6 @@ export function useTreasureHandlers(
     handleDiceResultContinue,
     handleBagFullSell,
     handleBagFullLeave,
+    handleBagFullStash,
   };
 }

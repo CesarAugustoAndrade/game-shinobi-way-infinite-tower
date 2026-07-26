@@ -81,11 +81,11 @@
 .treasure-hunt__icon {
   width: 1rem;
   height: 1rem;
-  color: #fbbf24;
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .treasure-hunt__title {
-  color: #fbbf24;
+  color: var(--sw-rust-light, #c47a52);
   font-size: var(--sw-text-xs);
   font-weight: 500;
 }
@@ -141,8 +141,9 @@
   border-radius: var(--sw-radius-sm);
   border-width: 2px;
   border-style: solid;
-  backdrop-filter: blur(8px);
-  box-shadow: var(--sw-shadow-lg);
+  /* Hard void plate — no glass blur (product chrome matches tooltips) */
+  background: var(--sw-abyss-panel, rgba(8, 10, 14, 0.97));
+  box-shadow: var(--sw-pix-shadow, 4px 4px 0 0 var(--sw-hard));
   font-size: var(--sw-text-xl);
 }
 

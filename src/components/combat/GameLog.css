@@ -52,7 +52,7 @@
 }
 
 .game-log__line--combat {
-  color: #facc15;
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .game-log__line--danger {

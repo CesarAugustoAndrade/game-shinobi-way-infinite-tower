@@ -1,10 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   Player, Item, Skill, EquipmentSlot, Rarity, LogEntry, MAX_BAG_SLOTS
 } from '../game/types';
 import {
   equipItem as equipItemFn,
-  sellItem as sellItemFn,
   getSellPrice,
   addToBag,
   bagHasItem,
@@ -86,45 +85,133 @@ export function useInventoryHandlers(
   const { setPlayer, setIsProcessingLoot, setSelectedComponent, setDroppedItems } = setters;
   const { addLog, returnToMap } = deps;
 
-  /** After claiming one loot drop: remove it; leave LOOT only when nothing remains. */
-  const finishLootItemClaim = useCallback((itemId: string) => {
-    const remaining = droppedItems.filter(i => i.id !== itemId);
-    setDroppedItems(remaining);
+  /** Sync mutex — isProcessingLoot lags one frame; double-click sold for double ryo. */
+  const lootClaimLockRef = useRef(false);
+  /**
+   * Closure `droppedSkill` can be stale if Learn ran while settling a claim
+   * (skill already consumed → empty LOOT would soft-stick without Step onward).
+   */
+  const droppedSkillRef = useRef(droppedSkill);
+  droppedSkillRef.current = droppedSkill;
+  /**
+   * One-shot LOOT exit — Leave All, Learn (empty pile), and delayed finish claim
+   * can all call returnToMap in the same breath (confirm abandon + Learn, or
+   * finish settle + Leave). Double returnToMap re-chains activities / double
+   * floor-complete meta.
+   */
+  const lootExitLockRef = useRef(false);
+
+  /** Re-arm when LOOT scene opens for a new pile. */
+  const rearmLootExit = useCallback(() => {
+    lootExitLockRef.current = false;
+  }, []);
+
+  /** Leave LOOT at most once per visit. */
+  const exitLootOnce = useCallback(() => {
+    if (lootExitLockRef.current) return;
+    lootExitLockRef.current = true;
+    returnToMap();
+  }, [returnToMap]);
+
+  /**
+   * Pull one drop off the pile immediately (functional) so the card cannot be
+   * re-claimed. Returns remaining count after claim, or null if missing.
+   */
+  const claimFromLootPile = useCallback((itemId: string): number | null => {
+    let remaining: number | null = null;
+    setDroppedItems(prev => {
+      if (!prev.some(i => i.id === itemId)) {
+        remaining = null;
+        return prev;
+      }
+      const next = prev.filter(i => i.id !== itemId);
+      remaining = next.length;
+      return next;
+    });
+    return remaining;
+  }, [setDroppedItems]);
+
+  /** Put a failed claim back on the pile (equip/store aborted after pull). */
+  const restoreToLootPile = useCallback((item: Item) => {
+    setDroppedItems(prev =>
+      prev.some(i => i.id === item.id) ? prev : [...prev, item]
+    );
+  }, [setDroppedItems]);
+
+  /** Release loot mutex; leave LOOT only when pile+skill are empty after a real claim. */
+  const settleLootClaim = useCallback((remainingAfterClaim: number) => {
     setIsProcessingLoot(false);
-    if (remaining.length === 0 && !droppedSkill) {
-      returnToMap();
+    lootClaimLockRef.current = false;
+    if (remainingAfterClaim === 0 && !droppedSkillRef.current) {
+      exitLootOnce();
     }
-  }, [droppedItems, droppedSkill, setDroppedItems, setIsProcessingLoot, returnToMap]);
+  }, [setIsProcessingLoot, exitLootOnce]);
 
   const equipItem = useCallback((item: Item) => {
-    if (!player || isProcessingLoot) return;
+    if (!player || isProcessingLoot || lootClaimLockRef.current) return;
 
-    // Only claim once (item must still be in the loot pile)
-    if (!droppedItems.some(i => i.id === item.id)) return;
-
+    lootClaimLockRef.current = true;
     setIsProcessingLoot(true);
 
-    const result = equipItemFn(player, item);
-    if (!result.success) {
-      addLog(result.reason || 'Cannot equip item.', 'danger');
+    // Claim pile first so Equip cannot multi-fill every empty slot with one drop
+    const remainingAfter = claimFromLootPile(item.id);
+    if (remainingAfter === null) {
+      lootClaimLockRef.current = false;
       setIsProcessingLoot(false);
       return;
     }
 
-    setPlayer(result.player);
-    if (result.replacedItem) {
-      addLog(`Equipped ${item.name}. ${result.replacedItem.name} moved to bag.`, 'loot');
+    // Functional equip on latest player (bag space for swap can change mid-frame)
+    type EquipOut = 'ok' | 'fail' | 'missing' | 'noprev';
+    const box: { o: EquipOut; reason?: string; replacedName?: string } = { o: 'noprev' };
+
+    setPlayer(prev => {
+      if (!prev) {
+        box.o = 'noprev';
+        return null;
+      }
+      const result = equipItemFn(prev, item);
+      if (!result.success) {
+        box.o = 'fail';
+        box.reason = result.reason;
+        return prev;
+      }
+      box.o = 'ok';
+      box.replacedName = result.replacedItem?.name;
+      return result.player;
+    });
+
+    if (box.o !== 'ok') {
+      restoreToLootPile(item);
+      lootClaimLockRef.current = false;
+      setIsProcessingLoot(false);
+      if (box.o === 'fail') {
+        addLog(box.reason || 'Cannot equip item.', 'danger');
+      }
+      return;
+    }
+
+    if (box.replacedName) {
+      addLog(`Equipped ${item.name}. ${box.replacedName} moved to bag.`, 'loot');
     } else {
       addLog(`Equipped ${item.name}.`, 'loot');
     }
-    setTimeout(() => finishLootItemClaim(item.id), 100);
-  }, [player, isProcessingLoot, droppedItems, setPlayer, addLog, setIsProcessingLoot, finishLootItemClaim]);
+    settleLootClaim(remainingAfter);
+  }, [player, isProcessingLoot, setPlayer, addLog, setIsProcessingLoot, claimFromLootPile, restoreToLootPile, settleLootClaim]);
 
   const sellItem = useCallback((item: Item) => {
-    if (!player || isProcessingLoot) return;
-    if (!droppedItems.some(i => i.id === item.id)) return;
+    if (!player || isProcessingLoot || lootClaimLockRef.current) return;
 
+    lootClaimLockRef.current = true;
     setIsProcessingLoot(true);
+
+    const remainingAfter = claimFromLootPile(item.id);
+    if (remainingAfter === null) {
+      lootClaimLockRef.current = false;
+      setIsProcessingLoot(false);
+      return;
+    }
+
     const price = getSellPrice(item);
     setPlayer(prev => {
       if (!prev) return null;
@@ -132,25 +219,53 @@ export function useInventoryHandlers(
       return { ...prev, ryo: prev.ryo + price };
     });
     addLog(`Sold ${item.name} for ${price} Ryō.`, 'loot');
-    setTimeout(() => finishLootItemClaim(item.id), 100);
-  }, [player, isProcessingLoot, droppedItems, setPlayer, addLog, setIsProcessingLoot, finishLootItemClaim]);
+    settleLootClaim(remainingAfter);
+  }, [player, isProcessingLoot, setPlayer, addLog, setIsProcessingLoot, claimFromLootPile, settleLootClaim]);
 
   // Store item in bag instead of equipping
   const storeToBag = useCallback((item: Item) => {
-    if (!player || isProcessingLoot) return;
-    if (!droppedItems.some(i => i.id === item.id)) return;
+    if (!player || isProcessingLoot || lootClaimLockRef.current) return;
 
-    const result = addToBag(player, item);
-    if (!result) {
-      addLog('Bag is full!', 'danger');
+    type StoreOut = 'ok' | 'full' | 'noprev';
+    const box: { o: StoreOut } = { o: 'noprev' };
+
+    lootClaimLockRef.current = true;
+    setIsProcessingLoot(true);
+
+    const remainingAfter = claimFromLootPile(item.id);
+    if (remainingAfter === null) {
+      lootClaimLockRef.current = false;
+      setIsProcessingLoot(false);
       return;
     }
 
-    setIsProcessingLoot(true);
-    setPlayer(result);
+    setPlayer(prev => {
+      if (!prev) {
+        box.o = 'noprev';
+        return null;
+      }
+      const result = addToBag(prev, item);
+      if (!result) {
+        box.o = 'full';
+        return prev;
+      }
+      box.o = 'ok';
+      return result;
+    });
+
+    if (box.o !== 'ok') {
+      restoreToLootPile(item);
+      lootClaimLockRef.current = false;
+      setIsProcessingLoot(false);
+      if (box.o === 'full') {
+        addLog('Bag is full!', 'danger');
+      }
+      return;
+    }
+
     addLog(`Stored ${item.name} in bag.`, 'loot');
-    setTimeout(() => finishLootItemClaim(item.id), 100);
-  }, [player, isProcessingLoot, droppedItems, setPlayer, addLog, setIsProcessingLoot, finishLootItemClaim]);
+    settleLootClaim(remainingAfter);
+  }, [player, isProcessingLoot, setPlayer, addLog, setIsProcessingLoot, claimFromLootPile, restoreToLootPile, settleLootClaim]);
 
   /**
    * Sell component from bag.
@@ -190,6 +305,13 @@ export function useInventoryHandlers(
       if (!prev) return null;
       if (!bagHasItem(prev, item.id)) {
         box.outcome = { kind: 'missing' };
+        return prev;
+      }
+      // Item already worn (stale bag click / duplicate id) — do not multi-slot
+      if ((Object.values(EquipmentSlot) as EquipmentSlot[]).some(
+        s => prev.equipment[s]?.id === item.id
+      )) {
+        box.outcome = { kind: 'fail', reason: 'Item is already equipped.' };
         return prev;
       }
       const playerWithoutItem = {
@@ -469,9 +591,12 @@ export function useInventoryHandlers(
     return true;
   }, [setPlayer, addLog]);
 
-  // Unequip component and start synthesis mode
-  const startSynthesisEquipped = useCallback((slot: EquipmentSlot, item: Item) => {
-    if (!item.isComponent) return;
+  /**
+   * Unequip component into bag and select it for synthesis.
+   * Returns true when bag received the piece (Bag must arm synthesisMode via session token).
+   */
+  const startSynthesisEquipped = useCallback((slot: EquipmentSlot, item: Item): boolean => {
+    if (!item.isComponent) return false;
     type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
     const outBox: { o: Outcome } = { o: 'noprev' };
 
@@ -501,15 +626,16 @@ export function useInventoryHandlers(
 
     if (outBox.o === 'full') {
       addLog('Bag is full!', 'danger');
-      return;
+      return false;
     }
-    if (outBox.o !== 'ok') return;
+    if (outBox.o !== 'ok') return false;
     setSelectedComponent(item);
     if (item.rarity === Rarity.BROKEN) {
       addLog(`Select a matching Broken component to upgrade ${item.name}.`, 'info');
     } else {
       addLog(`Select another component to synthesize with ${item.name}.`, 'info');
     }
+    return true;
   }, [setPlayer, addLog, setSelectedComponent]);
 
   /**
@@ -576,12 +702,28 @@ export function useInventoryHandlers(
   const dragBagToEquip = useCallback((item: Item, bagIndex: number, targetSlot: EquipmentSlot) => {
     let swappedName: string | null = null;
     let didEquip = false;
+    let failReason: string | null = null;
 
     setPlayer(prev => {
       if (!prev) return null;
       if (prev.bag[bagIndex]?.id !== item.id) return prev;
 
+      // Block multi-slot clone of the same instance
+      const wornElsewhere = (Object.values(EquipmentSlot) as EquipmentSlot[]).some(
+        s => s !== targetSlot && prev.equipment[s]?.id === item.id
+      );
+      if (wornElsewhere) {
+        failReason = 'Item is already equipped.';
+        return prev;
+      }
+
       const existingItem = prev.equipment[targetSlot];
+      // Same instance already on this slot — no-op
+      if (existingItem?.id === item.id) {
+        didEquip = true;
+        return prev;
+      }
+
       const newBag = [...prev.bag];
       newBag[bagIndex] = existingItem ?? null;
       swappedName = existingItem?.name ?? null;
@@ -593,6 +735,10 @@ export function useInventoryHandlers(
       };
     });
 
+    if (failReason) {
+      addLog(failReason, 'danger');
+      return;
+    }
     if (!didEquip) return;
     if (swappedName) {
       addLog(`Swapped ${item.name} with ${swappedName}.`, 'info');
@@ -710,6 +856,8 @@ export function useInventoryHandlers(
     reorderBag,
     dragBagToEquip,
     dragEquipToBag,
-    swapEquipment
+    swapEquipment,
+    exitLootOnce,
+    rearmLootExit,
   };
 }

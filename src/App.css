@@ -55,107 +55,91 @@
   background-position: center;
 }
 
-.parchment-panel {
-  /* Use your specific PNG file here */
-  background-image: url('/assets/background_parchment.png');
+/*
+ * Center stage — cinematic void/abyss plate (A8 product pass).
+ * Kills parchment chassis; exploration vs mission underlays switch by state.
+ * Palette: void #050608 · abyss #1a2633 · rust whisper #a65d3f
+ */
+.center-stage {
+  position: relative;
+  background-color: #050608;
+  background-image:
+    radial-gradient(ellipse 90% 72% at 50% 36%, rgba(26, 38, 51, 0.58) 0%, transparent 68%),
+    radial-gradient(ellipse 110% 55% at 50% 100%, rgba(166, 93, 63, 0.055) 0%, transparent 48%),
+    linear-gradient(180deg, #0a1018 0%, #050608 42%, #030406 100%);
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
-  
-  /* CRITICAL: This creates the "Vignette" effect.
-     It darkens the edges heavily so the parchment fades into the 
-     black sidebar and log area seamlessly. */
-  box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.9);
-  
-  /* Optional: Adds a slight sepia/warm tint if the PNG is too stark white */
-  background-color: #1a1a1a; 
-  background-blend-mode: overlay;
+  box-shadow:
+    inset 0 0 140px rgba(0, 0, 0, 0.94),
+    inset 0 0 48px rgba(5, 6, 8, 0.88);
 }
 
-/* Optional: Add a subtle noise texture over it for grit */
-.parchment-panel::after {
+/* Exploration maps — painted ops-table underlay (instrument, not world neon) */
+.center-stage--explore {
+  background-color: #050608;
+  background-image:
+    linear-gradient(180deg, rgba(5, 6, 8, 0.55) 0%, rgba(5, 6, 8, 0.75) 100%),
+    url('/assets/background_map_exploring.png');
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  box-shadow:
+    inset 0 0 120px rgba(0, 0, 0, 0.9),
+    inset 0 0 40px rgba(5, 6, 8, 0.85);
+  /* Full-bleed children (LocationMap / RegionMap) */
+  min-height: 0;
+}
+
+.center-stage--explore > * {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  max-width: none;
+}
+
+/* Combat / event / loot / amenities — deep mission void (láminas own the frame) */
+.center-stage--mission {
+  background-color: #05070c;
+  background-image:
+    radial-gradient(ellipse 90% 70% at 50% 32%, rgba(26, 38, 51, 0.52) 0%, transparent 62%),
+    linear-gradient(180deg, #0c0e1a 0%, #050608 48%, #030406 100%);
+  box-shadow:
+    inset 0 0 160px rgba(0, 0, 0, 0.95),
+    inset 0 0 48px rgba(5, 7, 12, 0.9);
+}
+
+/* Subtle visor grit: fine noise + faint CRT scanlines (chrome, not neon) */
+.center-stage::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
-  opacity: 0.4;
+  opacity: 0.28;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.14) 3px,
+      rgba(0, 0, 0, 0.14) 4px
+    ),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
 }
 
-/* ============================================
-   FLOATING COMBAT TEXT ANIMATIONS
-   ============================================ */
-
-/* Standard float up animation for damage/heal */
-@keyframes floatUp {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  20% {
-    opacity: 1;
-    transform: translate(-50%, -70%) scale(1.15);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -150%) scale(0.8);
-  }
+.center-stage > * {
+  position: relative;
+  z-index: 1;
 }
 
-/* Critical hit with shake effect */
-@keyframes critFloat {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.2);
-  }
-  10% {
-    transform: translate(-55%, -60%) scale(1.4) rotate(-3deg);
-  }
-  20% {
-    transform: translate(-45%, -70%) scale(1.3) rotate(3deg);
-  }
-  30% {
-    transform: translate(-52%, -80%) scale(1.2) rotate(-2deg);
-  }
-  40% {
-    opacity: 1;
-    transform: translate(-48%, -90%) scale(1.1) rotate(1deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -160%) scale(0.9) rotate(0deg);
+@media (prefers-reduced-motion: reduce) {
+  .center-stage::after {
+    opacity: 0.18;
   }
 }
 
-/* Simple fade for miss/block */
-@keyframes fadeOnly {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%);
-  }
-  70% {
-    opacity: 0.7;
-    transform: translate(-50%, -80%);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -100%);
-  }
-}
-
-/* Apply animations to floating text classes */
-.floating-text {
-  animation: floatUp 1.2s ease-out forwards;
-}
-
-.floating-text-crit {
-  animation: critFloat 1.2s ease-out forwards;
-}
-
-.floating-text-fade {
-  animation: fadeOnly 1s ease-out forwards;
-}
+/* Floating combat text: owned by components/combat/FloatingText.css (WAVE9/10).
+   Legacy floatUp/critFloat/fadeOnly + .floating-text animation rules removed —
+   they raced component keyframes and used non-BEM .floating-text-crit class names. */
 

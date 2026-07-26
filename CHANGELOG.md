@@ -4,6 +4,178 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Fixed (Sealed Vault blank body)
+
+- **TreasureChoice invisible content (P0)** (`TreasureChoice.tsx` / `treasure.css`): `.treasure-scene__body` defaults to `opacity: 0` and only becomes visible with `--visible`. Reward scene set that class; vault/chest never did — players saw title "Sealed Vault" with empty body. Entrance fade now applies `treasure-scene__body--visible`.
+- **Decline hunt → vault** (`useTreasureHandlers.ts`): declining map track now converts `currentTreasure` to `LOCKED_CHEST` (keeps choices).
+- **Vault tooltip ghost bar (P0)** (`treasure.css`): item-tile popovers sat above cards and were clipped by `.treasure-scene__body { overflow-y: auto }` into a thin rust rectangle. Treasure cards now overlay tooltips *inside* the card (`display: none` when idle).
+
+### Fixed (loot / equipment multi-select)
+
+- **Same loot drop multi-equip (P0)** (`useInventoryHandlers.ts`): Equip/Sell/Store now pull the drop off the pile **immediately** (no 100ms claim delay). One drop can no longer fill every empty equipment slot with the same instance.
+- **Same instance in multiple slots (P0)** (`LootSystem.equipItem`, drag bag→equip): refuse equipping an item id already worn elsewhere; bag drag has the same guard.
+- **Sticky bag selection** (`Bag.tsx`): re-clicking the selected tile clears menu + `selectedComponent` (no infinite select highlight).
+- **Item ids** (`LootSystem`): `generateUniqueId('item')` instead of short collidable `Math.random` slices.
+
+### Improved (combat stage & enemies — visual polish)
+
+- **Layer compositing** (`CinematicViewscreen.css`): rebalanced bg/mid/fg opacities, softer gradient/vignette/mist/scanlines/CRT, centered parallax overscan, bottom-weighted fg mask — stage reads as cinematic depth instead of muddy stacked plates.
+- **Enemy presentation**: larger right-side cutout stage (`clamp(320px, 58%, 560px)`), `object-fit: contain` + ground shadow + stronger elemental chakra aura; hit flash preserves aura filters; optional `blackKey` blend fallback.
+- **Enemy cutouts**: black-matte RGB cutouts converted to true RGBA (`scripts/blackkey-enemy-cutouts.mjs` + `pngjs`); 39/39 cutouts now colorType 6 with transparent corners.
+- **Key enemy art regen**: distinct seinen combat sprites for `forest_bandit`, `mist_ninja`, `hired_assassin`, `missing_nin`, `bandit_captain`, `village_thug` (portrait + cutout).
+- **Info panel polish** (`Combat.css` / `Combat.tsx`): glass panel, CSS reticle, clearer PHYS/ELEM/MND icons, glowing HP bar, stronger telegraph row.
+- **Layout wiring** (`Combat.tsx`): robust `deriveEnemyCutout` (jpg/png → cut png), stage min-height so deck doesn't crush the viewscreen, mini-log offset clear of left panel.
+
+### Fixed (scheduled bug hunt — double-submit residuals)
+
+- **Posture double-AP (P1)** (`useCombat.ts`): stance switch now shares `skillActionLockRef`. Double-click spent AP twice via functional `setState` while the gate still saw pre-switch `combatState`.
+- **End Turn double-log (P1)** (`useCombat.ts` / `App.tsx`): extracted `passTurn` with the same lock — Space/click no longer double-logs or races enemy-turn scheduling on stale `PLAYER` turnState.
+- **Map Space-hold / double-enter (P1)** (`LocationMap.tsx`, `RegionMap.tsx`, `useRoomNavigation.ts`, `useLocationCards.ts`): `e.repeat` on map keys; short enter mutex for room/location — blocked double rest heal, double intel, double `enterLocationFromCard` on stale snapshots.
+- **RewardModal key hold** (`RewardModal.tsx`): `e.repeat` hygiene (close already ref-locked).
+- **Event double-confirm (P1)** (`Event.tsx`, `useActivityHandlers.ts`): `choiceLocked` was React state only — same-tick Enter/click double-fired `resolveEventChoice`. Added `choiceLockRef` + parent `eventChoiceLockRef` (rearm on outcome clear / failed gate).
+- **Interlude double-boon (P1)** (`Interlude.tsx`, `App.tsx`): no lock on boon confirm → double `applyCampaignBoon` / region spawn. `boonLockRef` + `interludeBoonLockRef`.
+- **Training result continue** (`Training.tsx`): `resultContinueLockRef` + Enter `e.repeat`.
+- **Key-hold hygiene**: Loot, EliteChallenge F/E, Merchant Esc — `e.repeat`.
+- **startGame double-bootstrap (P1)** (`App.tsx`, `CharacterSelect.tsx`): same-tick clan click + 1–5 / Space hold re-ran `createPlayer` + region deck bootstrap. `startGameLockRef` re-arms on MENU/CHAR_SELECT; clan card Space/Enter ignores `e.repeat`.
+- **Auto-pass vs passTurn race** (`useCombat.ts`): auto-pass timer now shares `skillActionLockRef` (no double log / dual ENEMY_TURN schedule with Space).
+- **ScrollDiscovery result continue** (`ScrollDiscovery.tsx`): `resultContinueLockRef` (parity Training).
+- **Key-hold hygiene (menus/modals)**: Victory, MainMenu, Rest/Intel result — `e.repeat`.
+- **Multi-activity chain double-fire (P1)** (`useExploration.ts`): `returnToMap` scheduled `executeRoomActivity` via bare `setTimeout` — second returnToMap re-queued merchant/event on stale floor. `activityChainTimerRef` one-shots the chain.
+- **Blank COMBAT shell recovery (P1)** (`App.tsx`): `COMBAT` + no enemy + no `combatReward` + not mid-approach → fall back to map (Combat UI requires enemy). Skips victory window (reward set before enemy null settles).
+- **Dice modal timer leak** (`DiceRollResultModal.tsx`): nested 200ms result timer now cleared on unmount; key hold `e.repeat`.
+- **Event/Location complete / GameOver**: `e.repeat` + GameOver `retryLockRef`.
+- **Blank activity shells (P1)** (`App.tsx`): recovery when EVENT/TRAINING/SCROLL/ELITE/TREASURE/HUNT/LOOT lack their payload (UI gated null → empty center stage). Orphan `showApproachSelector` without room cleared.
+- **Merchant Leave no-op soft-lock (P1)** (`useActivityHandlers.ts`): `leaveMerchant` early-returned when `selectedBranchingRoom` was null — Leave did nothing. Now exits shop to map without completeActivity.
+- **Approach Esc key-hold**: `e.repeat` on Escape.
+- **Approach Engage stuck "Engaging…" (P1)** (`App.tsx`, `ApproachSelector.tsx`): parent early-return after Engage left `commitLockRef` true forever. Early-return now dismisses approach; recovery clears orphan approach without foe; null `combatState` mid-COMBAT falls back to map; MERCHANT without player recovered.
+- **Ghost combat after mid-delay death (P1)** (`useCombat.ts`): enemy-turn timer cancel treated any dead actor as `setTurnState('PLAYER')`, leaving 0-HP player in COMBAT with a live enemy (no GAME_OVER). Player death now forces GAME_OVER; enemy corpse ensures `handleVictory`. passTurn / useSkill / auto-pass / posture gate on HP.
+- **Approach cancel explore hygiene** (`App.tsx`): non-treasure Exit Room forces LOCATION_EXPLORE/REGION_MAP if gameState drifted.
+- **Dead player stuck in COMBAT (P1 belt)** (`App.tsx`, `useCombat.ts`): soft-lock recovery forces `GAME_OVER` when `player.currentHp <= 0` mid-COMBAT; upkeep skips redraw when either actor is already dead (ghost-hand after death race).
+- **RegionMap full-bleed height** (`App.tsx`): wrapper matches LocationMap (`min-h-0 flex-1`) so ops-table stage fills center column.
+- **LOOT stuck after leave / chain (P1)** (`useExploration.ts`): `returnToMap` multi-activity chain and floor-complete paths did not leave `GameState.LOOT` — empty LOOT shell stayed mounted under approach/complete panel for ~100ms+ (or until recovery). Now set `LOCATION_EXPLORE` before chain timer / complete panel.
+- **Activity leave + floor complete (P1)** (`useExploration.ts`): `returnToMapActivityComplete` floor-complete path also left MERCHANT/TRAINING/EVENT/TREASURE mounted under LocationCompleteModal — set `LOCATION_EXPLORE` first.
+- **Treasure Guardian double returnToMap (P1)** (`App.tsx`): victory staged `combatReward` + `diceRollResult`; reward Continue and dice Continue both called `returnToMap` (double floor-complete / chain). Reward close skips map when dice pending; dice modal hidden while reward is open. TreasureChoice key-hold `e.repeat` for bag-full / hunt prompts.
+- **Multi-activity leave skips chain (P1)** (`useExploration.ts`): `returnToMapActivityComplete` (merchant / training / event / treasure / elite escape / approach skip) dumped the player on `LOCATION_EXPLORE` while the same room still had pending activities — children stayed sealed until manual re-Enter. Now chains `executeRoomActivity` like `returnToMap` (shared `activityChainTimerRef` + unmount clear).
+- **Empty LOOT recovery skips chain/complete (P1)** (`App.tsx`): blank LOOT desync belt used `setGameState(exploreFallback)` — exit-room victories could land on the map without `LocationCompleteModal` / multi-activity chain. Now calls `returnToMap()`.
+- **Mid-location activity leave → REGION_MAP (P1)** (`useActivityHandlers.ts`): training/scroll skip/complete and merchant leave fallbacks forced `REGION_MAP` when room pointer or complete target was missing while still on a live floor — orphaned location progress. Prefer `getCurrentRoom` complete + `returnToMapActivityComplete`, else `LOCATION_EXPLORE`.
+- **Second event choices dead (P0)** (`useActivityHandlers.ts`): `eventChoiceLockRef` stayed true after terminal outcome / event-combat — next room’s Event UI locked confirm with no resolve (local `choiceLockRef` armed, parent no-op). Re-arm when `activeEvent` opens.
+- **Double combat victory payout (P1)** (`useCombatVictory.ts`): auto/event-sim paths called `handleCombatVictory` without a payout mutex (manual path only had `victoryLockRef`). Ref lock until `combatReward` clears.
+- **Multi-activity chain × Enter Room race (P1)** (`useExploration.ts`, `useRoomNavigation.ts`): `returnToMap` / `returnToMapActivityComplete` schedule `executeRoomActivity` after 100ms while map is live — Space/click Enter Room in that window double-fired rest/intel/merchant/approach on a stale floor. Manual enter/leave/deploy now `cancelActivityChain()`.
+- **Auto-pass dropped mid-card (P2)** (`useCombat.ts`): auto-pass timer no-op’d forever when `skillActionLockRef` was held at fire — one 50ms retry.
+- **Victory blank COMBAT beat (P1)** (`useCombatVictory.ts`): reward path delayed `setGameState(explore)` by 100ms while enemy was already null — blank center stage (Combat needs enemy; RewardModal only mounts on LOCATION_EXPLORE/REGION_MAP). Now sets explore state in the same turn as `combatReward`.
+- **Event auto-combat ignores post-event player (P1)** (`useActivityHandlers.ts`): `ENABLE_MANUAL_COMBAT=false` sim used pre-choice `player` after event HP/ryo applied — wrong fight starting HP. Uses `postEventPlayer`.
+- **Approach re-engage completed combat (P1)** (`App.tsx`): orphan approach / Engage used `combat?.enemy` without `!completed` (elite already gated). Cleared rooms kept approach UI and could start a second fight. Gate hasFoe, mount targetEnemy, and approach select on incomplete activities only.
+- **Auto-pass after kill schedules enemy turn (P1)** (`useCombat.ts`): auto-pass timer could fire after a killing blow before effect cleanup — `setTurnState('ENEMY_TURN')` on a finished fight. Gate on `victoryLockRef` + actor HP.
+- **New-run modal residue soft-lock (P1)** (`App.tsx`, `useExploration.ts`, `useLocationCards.ts`): `startGame` / GAME_OVER retry left `combatReward`, dice/rest/intel/event outcome, treasure, location-complete panel, activity payloads. RewardModal/Dice can mount on a fresh REGION_MAP. Full UI reset + `resetExplorationUi()`.
+- **Death leaves combatState** (`useCombat.ts`): player-defeat paths now `setCombatState(null)` so ghost deck/AP cannot revive mid-shell.
+
+### Fixed / polished (A8 WAVE13 integration — regression gate FINAL)
+
+- **Typecheck / build glue**: `npx tsc --noEmit` **exit 0**; `npm run build` **exit 0** (~7.20s, 1857 modules; chunk `index-E0ut_4yH.js` ~1.07 MB / 292 kB gzip — **identical to WAVE12 post-peer**). **No residual TS glue. No product code changes.**
+- **WAVE12 soft-lock regression (static)**: Approach `commitLockRef` Exit/Esc; `resolveExploreReturnState` victory return; `clearRoomIfSpent` recovery; dice `closedRef`; LOOT `exitLootOnce` / `lootExitLockRef`; FREE_FIRST toggle waiver — **all HELD**. Event content smoke **18/18**.
+- **Peer WAVE13 reports**: none landed; A8 static + chunk-identity regression treats A2–A7b as **CLEAN**. **No NEW blockers.**
+- **Art ceiling held**: skills **93** / **21** jpg; enemies **39/39**; events **11**; laminas **14/14**. public ↔ assets gaps **0**. No paint.
+- **Docs**: `out-of-scope.md` WAVE13 regression **CLEAN**; **HARD STOP** further scheduled agent waves until human playtest; recommend cancel/pause automated swarm ticks. Report: `.agents/swarm-grok/reports/A8-wave13-integration.md`. **Human playtest is the only remaining work.** Diminishing returns stamped.
+
+### Fixed / polished (A8 WAVE12 integration — soft-lock residual smoke)
+
+- **Typecheck / build glue**: `npx tsc --noEmit` **exit 0** (initial + re-run after A2–A7b WAVE12 landings); `npm run build` **exit 0** (~6.6–7.7s, 1857 modules; post-peer `index-*.js` ~1.07 MB / 292 kB gzip). **No residual TS glue required** from A8.
+- **Soft-lock residual smoke (peers)**:
+  - **A2 P1**: Approach **Exit Room mid-Engage** no longer clears enemy under `COMBAT` (blank combat shell); victory return uses `resolveExploreReturnState`; RewardModal mounts on `REGION_MAP` fallback.
+  - **A4**: Empty/spent room branch seal → `clearRoomIfSpent` recovery; EXPLORE/null-floor blank-map guards.
+  - **A5**: `DiceRollResultModal` `closedRef` one-shot; treasure hunt piece path always stages dice result.
+  - **A7a P1**: LOOT multi-path exit one-shot (`lootExitLockRef` / `exitLootOnce`) — Leave All / Learn / finish-claim share mutex.
+  - **A7b**: FREE_FIRST toggle activation waiver + flag consume; sim parity; silence banner + empty/blocked hand pass nudge.
+  - **A3 / A6**: **CLEAN** verify-only (cinematic shell / first-hour UX).
+- **Art ceiling held**: no new paint. Skills **93** / **21** jpg; enemies **39/39**; events **11**; laminas **14/14**. public ↔ assets runtime-prefix gaps **0**.
+- **Event content smoke**: `eventContent.test.ts` **18/18**.
+- **Docs**: `out-of-scope.md` WAVE12 soft-lock residual; still **STOP art waves**; **human playtest only ship gate**. Report: `.agents/swarm-grok/reports/A8-wave12-integration.md`. **Recommend STOP scheduled agent waves pending human playtest.**
+
+### Fixed / polished (A8 WAVE11 integration — ceiling reconfirm)
+
+- **Typecheck / build glue**: `npx tsc --noEmit` **exit 0** (initial + re-run after peer landings); `npm run build` **exit 0** (~6.5–7.1s, 1857 modules). **No residual TS glue required** from A8 after WAVE11 peer residual smoke.
+- **Peer residual smoke**: A3–A7b **CLEAN** (verify-only). **A2 P1**: post-death enemy-turn reschedule hang fixed in `useCombat.ts` (null enemy + turn hygiene + player HP gate); six combat double-submit locks still present.
+- **Art tree mirror**: public top-level `assets/` ↔ project `assets/` — **0** gaps (`skill_`/`enemy_`/`lamina_`/`event_`). Inventory unchanged: skills **93** painted / **21** jpg; enemy portraits/cuts **39/39**; events **11** dedicated; laminas mid/fg **14/14**. Manifest painted-png: **0 missing on disk**.
+- **Event content smoke**: `eventContent.test.ts` **18/18**.
+- **Docs**: `out-of-scope.md` R1 polish **ceiling reconfirmed**; report `.agents/swarm-grok/reports/A8-wave11-integration.md`. **STOP WAVE12 art polish without human playtest blockers.** Ship readiness: **still human playtest gate**.
+
+### Fixed / polished (A8 WAVE10 integration — production gate)
+
+- **Typecheck / build glue**: `npx tsc --noEmit` **exit 0**; `npm run build` **exit 0** (~8.4s, 1857 modules). **No residual TS glue required** after WAVE9 peer landings (A2–A7b production verification + A3 cast closeout).
+- **Art tree mirror**: public top-level `assets/` ↔ project `assets/` — **0** gaps (no copy). Full R1 inventory (post-WAVE9 authoritative): skills **93** painted PNG / **21** imagine-jpg (114); enemy portraits/cuts **39/39** (47 painted manifest keys / 39 unique plates; 5 archetype jpg only); events **11** dedicated PNG (12 painted keys; `tazuna_road_mist` reuses meet_tazuna); laminas mid/fg **14/14**. Manifest painted-png srcs: **0 missing on disk**.
+- **Docs**: `out-of-scope.md` R1 polish **ceiling** stamped; gate = human playtest. Report: `.agents/swarm-grok/reports/A8-wave10-integration.md`. **STOP further scheduled art/polish waves unless playtest finds blockers.**
+
+### Fixed / polished (A8 WAVE9 integration — production readiness)
+
+- **Typecheck / build glue**: `npx tsc --noEmit` **exit 0**; `npm run build` **exit 0** (~7.3s, 1857 modules). **No residual TS glue required** after WAVE8 peer landings.
+- **Art tree mirror**: public top-level `assets/` ↔ project `assets/` — **0** gaps. Full R1 inventory (post-WAVE8 A8 snapshot; A3 WAVE9 later closed shrine_demon + corrupted_priest → 39): skills **93** painted PNG / **21** imagine-jpg (114); enemy portraits/cuts **37/37** at A8-w9 audit time; events **11** dedicated PNG; laminas mid/fg **14/14**. Manifest painted-png srcs: **0 missing on disk**.
+- **Docs**: `out-of-scope.md` OOS-A8-02/04/05 production-readiness inventory. Report: `.agents/swarm-grok/reports/A8-wave9-integration.md`. **Recommend STOP scheduled art polish — human playtest is the gate.**
+
+### Fixed / polished (A8 WAVE8 integration residual)
+
+- **Typecheck glue**: `npx tsc --noEmit` clean after full WAVE7 peer landings (A2–A7b residual bug hunts + A3/A7b art). **No residual TS glue required.** WAVE8 A3/A7b art (+8 skills → 93; +4 enemies → 37) landed in-tree; A8 WAVE8 report snapshot (85/33) superseded by WAVE9 disk audit.
+- **Art tree mirror**: public top-level `assets/` ↔ project `assets/` — **0** gaps. Post-WAVE8 final counts: skills **93** / **21** jpg; enemies **37/37**; events **11**; laminas **14/14**.
+- **Docs**: `out-of-scope.md` OOS-A8-02/04/05 R1 inventory. Report: `.agents/swarm-grok/reports/A8-wave8-integration.md`. **Honest call: STOP further R1 art waves — human playtest before ship.**
+
+### Fixed / polished (A8 WAVE7 integration residual)
+
+- **Typecheck glue**: `npx tsc --noEmit` clean after full WAVE6 peer landings (A2–A7b bug hunts + art). **No residual TS glue required.** WAVE7 peers (A2–A7b) landed after this A8 pass; counts superseded by WAVE8 audit.
+- **Art tree mirror**: public top-level `assets/` ↔ project `assets/` — **0** gaps (pre-WAVE7-peer snapshot: skills **73** / enemies **29/29** / events **9**). Final post-WAVE7 = skills **85**, enemies **33/33**, events **11** (see WAVE8).
+- **Docs**: early WAVE7 A8 undercount vs late peer art superseded by A8 WAVE8. Report: `.agents/swarm-grok/reports/A8-wave7-integration.md`.
+
+### Fixed / polished (A8 WAVE6 integration residual)
+
+- **Typecheck glue**: `npx tsc --noEmit` clean after WAVE5 peer landings + late Waves tone residual (`wavesArcEvents` hope-language kill); **no residual TS glue required**.
+- **Art tree mirror** (WAVE6 A8 snapshot pre full peer art land): later corrected by WAVE7 audit — final post-WAVE6 disk = skills **73**, enemies **29/29**, events **9** (see WAVE7).
+- **Docs**: early WAVE6 A8 undercount superseded by A3/A7b WAVE6 + A8 WAVE7. Report: `.agents/swarm-grok/reports/A8-wave6-integration.md`.
+
+### Fixed / polished (A8 WAVE5 integration residual)
+
+- **Typecheck glue**: `npx tsc --noEmit` clean after parallel WAVE5 peer landings (A2–A7b); no residual TS glue required.
+- **Art tree mirror**: public top-level `assets/` ↔ project `assets/` — **0** gaps after WAVE5 plates (skills **61**, enemy portraits/cuts **25/25**, events **7** dedicated PNG). Manifest painted-png srcs: **0 missing on disk**.
+- **getEnemyArt mist-keyword comment**: backlog note no longer claims beach_bandit→dock_worker (dedicated since WAVE4); mist keyword still routes `pool_assassin` → `enemy_mist_ninja.png`.
+- **Docs**: `out-of-scope.md` OOS-A8-02 (61 painted / ~53 jpg), OOS-A8-04 (7 spine/side plates), OOS-A8-05 (WAVE5 human residual pools closed; thin shares remain). Report: `.agents/swarm-grok/reports/A8-wave5-integration.md`.
+
+### Fixed / polished (A8 WAVE4 integration residual)
+
+- **Typecheck glue**: `npx tsc --noEmit` clean after WAVE3 peer landings; no residual TS glue required for WAVE4.
+- **getEnemyArt mist-keyword misroute**: name containing `mist` no longer resolves via `enemy:pool_beach_bandit` (dock_worker plate). Routes to `enemy:pool_assassin` → `enemy_mist_ninja.png` (same plate as river_bandit / hidden_guard / assassin pools).
+- **Art tree mirror**: public top-level `assets/` ↔ project `assets/` — **0** residual gaps (WAVE3 mirrors still complete; no new WAVE4 painted plates).
+- **Docs**: `out-of-scope.md` OOS-A8-05 partial progress (mist keyword fixed; pool shares remain); OOS-A8-04 still partial (side-event plates deferred). Report: `.agents/swarm-grok/reports/A8-wave4-integration.md`.
+
+### Fixed / polished (A8 WAVE3 integration residual)
+
+- **Typecheck glue**: `npx tsc --noEmit` clean after parallel WAVE3 landings (A2–A7b); no residual TS glue required.
+- **Art path audit**: 37/37 `skill_*.png` painted-manifest srcs on disk; 17 enemy portraits + 17 cutouts; 3 event plates (`meet_tazuna`, `protect_bridge`, `final_confrontation`) + lamina mid/fg 14/14.
+- **Art tree mirror**: residual public→`assets/` sync for `enemy_gato.png`, `event_meet_tazuna.png`, `button_enter_location.png`, `translucent_begin_journey.png` (WAVE3 skill/enemy/event plates already mirrored by peers).
+- **Registry notes** (`artRegistry.ART_BACKLOG_NOTES`): T020 = 37 painted / ~77 jpg; T021 = 17 enemy plates + 3 event spine plates + remaining shared-pool aliases.
+- **Docs**: `out-of-scope.md` OOS-A8-02 partial (R1 loadouts closed); WAVE3 product residual report under `.agents/swarm-grok/reports/A8-wave3-integration.md`.
+
+### Fixed / polished (A8 WAVE2 integration residual)
+
+- **Typecheck glue**: `npx tsc --noEmit` clean after parallel WAVE2 landings (no residual TS errors left for parent).
+- **Art tree mirror**: copied WAVE2 `skill_*.png` (12 new faces → 20 total) and missing `enemy_cut_*` (bridge_saboteur, hired_assassin, missing_nin) into root `assets/` so public + project mirror stay in sync.
+- **Art path audit**: 20 painted skill manifest srcs exist on disk; 14/14 `lamina_mid_*` + `lamina_fg_*`; `enemy_cut_mist_ninja.png` present (Combat `enemy_` → `enemy_cut_` rewrite picks it up).
+- **Registry notes** (`artRegistry.ART_BACKLOG_NOTES`): T020/T021 + new `T_laminas_r1` reflect WAVE2 painted counts, mist cutout, full R1 lamina set.
+- **Parchment callers**: App shell uses `center-stage` / `--explore` / `--mission` only; `.parchment-panel` remains dead CSS void-alias (no TSX callers).
+- **Docs**: `out-of-scope.md` OOS-A8-02 partial / OOS-A8-03 closed for R1 mid/fg; WAVE2 product residual report under `.agents/swarm-grok/reports/A8-wave2-integration.md`.
+
+### Fixed / polished (A8 integration & product coherence)
+
+- **Center stage shell** (`App.css`, `App.tsx`): killed parchment chassis; `center-stage` void/abyss underlay with `--explore` (map plate) and `--mission` (combat/event/loot) variants so transitions never flash empty beige.
+- **Event biome glue** (`Event.tsx`, `App.tsx`): Event sits on `SceneBackdrop` with combat lamina background; lamina resolution always returns a painted plate (Coastal Harbor default).
+- **Art registry / manifests**: wired on-disk painted plates — skill PNGs (`skill_*.png`), `event_meet_tazuna.png`, `enemy_mist_ninja.png` for beach bandit; mist keyword in `getEnemyArt`; lamina slug aliases + empty-biome fallback in `colorHelpers`.
+
+### Fixed / polished (Region 1 deep polish — swarm)
+
+- **First-hour UX**: clan role/weakness; menu back; difficulty D–S hints; region first-tip + 75% boss gate; bag slot count; low-intel destination slots; room activity tooltips.
+- **Amenities**: flags inject merchant/rest/training into floors; UI shows guaranteed amenities.
+- **Combat**: no left hero sprite; enemy focus; laminas chroma + cache-bust; no “0 dmg” utility logs; hand block reasons; enemy display names.
+- **Flow CTAs**: rest/intel/loot/merchant/scroll/train leave-continue; Esc leaves shop; path secrets set eventFlags.
+- **Narrative / presentation**: Waves interlude; event chain copy; outcome chips as text codes; game over / victory copy.
+- **Rest soft-stall** (`App.tsx`): rest/intel modals call `returnToMap()` for activity chaining.
+- **Public backgrounds**: map + combat exploration BGs under `public/assets/`.
+
 ### Fixed (exploit / multi-action / UX balance pass)
 
 - **Broken component upgrade path** (`LootSystem.getCraftCombination`, `Bag`, `useInventoryHandlers`): 2× matching Broken (e.g. two Broken Chakra Pills) upgrades to Common; UI no longer requires artifact recipes for that step.

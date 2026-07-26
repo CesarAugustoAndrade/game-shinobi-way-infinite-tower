@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   Player, Enemy, Item, Skill, GameState, BranchingRoom, BranchingFloor,
   Region, LogEntry
@@ -25,6 +25,7 @@ import { chance } from '../game/utils/rng';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { logVictory, logRewardModal, logFlowCheckpoint } from '../game/utils/combatDebug';
 import { logActivityComplete, logIntelGain } from '../game/utils/explorationDebug';
+import { resolveExploreReturnState } from './useExploration';
 
 export interface VictoryState {
   player: Player | null;
@@ -41,6 +42,8 @@ export interface VictoryState {
   currentTreasure: any;
   currentTreasureHunt: any;
   currentIntel: number;
+  /** When null after a victory, re-arm payout lock for the next fight. */
+  combatReward: unknown;
 }
 
 export interface VictorySetters {
@@ -74,7 +77,7 @@ export function useCombatVictory(
   const {
     player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty,
     region, currentLocation, branchingFloor, locationFloor, selectedBranchingRoom,
-    pendingArtifact, currentTreasure, currentTreasureHunt, currentIntel
+    pendingArtifact, currentTreasure, currentTreasureHunt, currentIntel, combatReward,
   } = state;
 
   const {
@@ -85,7 +88,28 @@ export function useCombatVictory(
 
   const { addLog, checkLevelUp, returnToMap } = deps;
 
+  /**
+   * Blocks double XP/ryo when auto-combat / event-sim call handleCombatVictory twice
+   * (manual path also uses victoryLockRef in useCombat). Re-arm when combatReward
+   * is cleared so the next fight can pay out.
+   */
+  const combatVictoryLockRef = useRef(false);
+
+  useEffect(() => {
+    if (!combatReward) {
+      combatVictoryLockRef.current = false;
+    }
+  }, [combatReward]);
+
   const handleCombatVictory = useCallback((defeatedEnemy: Enemy, combatStateAtVictory: CombatState | null) => {
+    if (combatVictoryLockRef.current) {
+      logFlowCheckpoint('handleCombatVictory SKIP (already applied)', {
+        enemy: defeatedEnemy.name,
+      });
+      return;
+    }
+    combatVictoryLockRef.current = true;
+
     logFlowCheckpoint('handleCombatVictory START', {
       enemy: defeatedEnemy.name,
       tier: defeatedEnemy.tier,
@@ -322,7 +346,10 @@ export function useCombatVictory(
       setCurrentTreasureHunt(newHunt);
       setCurrentTreasure(null);
 
-      // Show combat reward modal first, then dice result modal will show after
+      // Show combat reward modal first, then dice result modal will show after.
+      // Set explore state in the same turn as combatReward — delayed setGameState left
+      // COMBAT + null enemy + reward staged for ~100ms with no Combat UI and no RewardModal
+      // (RewardModal only mounts on LOCATION_EXPLORE / REGION_MAP).
       setCombatReward({
         expGain,
         ryoGain,
@@ -335,15 +362,7 @@ export function useCombatVictory(
         fogNote: fogNote || undefined,
         ryoNote: ryoNote || undefined,
       });
-
-      setTimeout(() => {
-        // Never soft-lock on EXPLORE (no UI). Prefer location map when still inside one.
-        if (region && region.currentLocationId) {
-          setGameState(GameState.LOCATION_EXPLORE);
-        } else {
-          setGameState(GameState.REGION_MAP);
-        }
-      }, 100);
+      setGameState(resolveExploreReturnState(region, !!locationFloor));
       return;
     }
 
@@ -362,16 +381,9 @@ export function useCombatVictory(
       ryoNote: ryoNote || undefined,
     });
 
-    // Set game state to appropriate explore view so the modal shows on the map
+    // Same-turn explore transition so RewardModal mounts with combatReward (no blank COMBAT beat).
     logFlowCheckpoint('Transitioning to explore with reward modal');
-    setTimeout(() => {
-      // Never soft-lock on EXPLORE (no UI). Prefer location map when still inside one.
-      if (region && region.currentLocationId) {
-        setGameState(GameState.LOCATION_EXPLORE);
-      } else {
-        setGameState(GameState.REGION_MAP);
-      }
-    }, 100);
+    setGameState(resolveExploreReturnState(region, !!locationFloor));
   }, [
     branchingFloor, region, currentDangerLevel, currentBaseDifficulty, addLog, pendingArtifact,
     currentTreasureHunt, locationFloor, selectedBranchingRoom, currentLocation, difficulty,
@@ -450,7 +462,9 @@ export function useCombatVictory(
       undefined,
       room.terrain,
       eliteLocMods,
-      room.activities.combat?.modifiers,
+      // T-108: elite-only rooms store mods on eliteChallenge
+      room.activities.eliteChallenge?.modifiers
+        ?? room.activities.combat?.modifiers,
     );
 
     // Update player HP and chakra based on simulation result

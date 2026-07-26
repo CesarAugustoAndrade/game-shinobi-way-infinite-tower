@@ -2,12 +2,17 @@ import React, { useEffect, useCallback } from 'react';
 import { Clan, PrimaryAttributes } from '../../game/types';
 import { CLAN_STATS, CLAN_START_LOADOUT, getClanStartingSkills, getClanArt } from '../../game/constants';
 import { getSkillArt } from '../../game/constants/artRegistry';
+import { HELP_TEXT } from '../../game/constants/helpText';
 import ArtIcon from '../../components/shared/ArtIcon';
 import Tooltip from '../../components/shared/Tooltip';
 import './CharacterSelect.css';
 
 interface CharacterSelectProps {
   onSelectClan: (clan: Clan) => void;
+  /** R1-002: return to main menu to retune difficulty */
+  onBack?: () => void;
+  /** T-027: pending run mode so lineage screen is not silent about Infinite Ascent */
+  runMode?: 'campaign' | 'infinite';
 }
 
 // Canon triad (types.ts / Training / helpText): Body · Mind · Technique
@@ -37,22 +42,45 @@ const getRankModifier = (rank: string): string => {
   }
 };
 
-const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
+const CharacterSelect: React.FC<CharacterSelectProps> = ({
+  onSelectClan,
+  onBack,
+  runMode = 'campaign',
+}) => {
   const clans = Object.values(Clan);
+  const isInfinite = runMode === 'infinite';
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — skip when focus is in a text field (defensive)
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const key = e.key;
+    const target = e.target;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    ) {
+      return;
+    }
 
-    // Number keys 1-5 to select clan
-    if (key >= '1' && key <= '5') {
+    // Escape / Backspace → main menu (retune difficulty / cancel pending Infinite)
+    // Ignore key-repeat so held Esc does not double-fire parent state thrash.
+    if ((key === 'Escape' || key === 'Backspace') && onBack) {
+      if (e.repeat) return;
       e.preventDefault();
-      const index = parseInt(key) - 1;
+      onBack();
+      return;
+    }
+
+    // Number keys 1-5 to select clan (digit keys only — not numpad side-effects via parse)
+    if (key >= '1' && key <= '5' && !e.repeat) {
+      e.preventDefault();
+      const index = parseInt(key, 10) - 1;
       if (index < clans.length) {
         onSelectClan(clans[index]);
       }
     }
-  }, [clans, onSelectClan]);
+  }, [clans, onSelectClan, onBack]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -60,12 +88,48 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
   }, [handleKeyDown]);
 
   return (
-    <div className="char-select">
+    <div
+      className={`char-select${isInfinite ? ' char-select--infinite' : ''}`}
+      data-run-mode={runMode}
+    >
       {/* Header */}
       <header className="char-select__header">
-        <h2 className="char-select__title">Select Lineage</h2>
+        {onBack && (
+          <button
+            type="button"
+            className="char-select__back"
+            onClick={onBack}
+            aria-label="Back to main menu"
+          >
+            ← Mission Brief
+          </button>
+        )}
+        {isInfinite && (
+          <p className="char-select__mode" role="status">
+            Infinite Ascent
+            <span className="char-select__mode-sub">no summit · floor rises forever</span>
+          </p>
+        )}
+        <h2 className="char-select__title">Choose Your Lineage</h2>
         <p className="char-select__hint">
-          Press <span className="sw-shortcut">1</span>-<span className="sw-shortcut">5</span> to select
+          <span className="sw-shortcut">1</span>–<span className="sw-shortcut">5</span> or select a card
+          {onBack && (
+            <>
+              {' · '}
+              <span className="sw-shortcut">Esc</span> return
+            </>
+          )}
+        </p>
+        <p className="char-select__tip">
+          {isInfinite ? (
+            <>
+              The tower does not forgive. <strong>Uzumaki</strong> endures longest — will and chakra hold the line.
+            </>
+          ) : (
+            <>
+              Unknown path? <strong>Uzumaki</strong> endures longest — will and chakra hold the line.
+            </>
+          )}
         </p>
       </header>
 
@@ -82,141 +146,166 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
           const bodyRank = getStatRank(stats, BODY_KEYS);
           const mindRank = getStatRank(stats, MIND_KEYS);
           const techniqueRank = getStatRank(stats, TECHNIQUE_KEYS);
+          // R1-004: surface role + weakness without opening Handbook
+          const clanMeta = HELP_TEXT.CLANS.find((c) => c.id === clan);
 
+          // Tooltip wraps the focusable card so keyboard focus reveals loadout/stats
+          // (portal clamp keeps the tall clan sheet on-screen).
           return (
-            <div
+            <Tooltip
               key={clan}
-              className="clan-card"
-            >
-              {/* Clan crest watermark (art registry T-019) */}
-              <span className="clan-card__watermark" aria-hidden="true">
-                <ArtIcon art={getClanArt(clan)} size="xl" title={clan} />
-              </span>
-
-              {/* Card Header */}
-              <div className="clan-card__header">
-                <h3 className="clan-card__name">
-                  <span className="clan-card__index">{index + 1}</span>
-                  {clan}
-                </h3>
-                {/* T-045: signature jutsu Imagine chips + name label */}
-                <div className="clan-card__skill" title={`${startingSkills.length} starting jutsu`}>
-                  <div className="clan-card__skill-arts" aria-hidden={signatureSkills.length === 0}>
-                    {signatureSkills.map((skill) => (
-                      <span key={skill.id} className="clan-card__skill-chip" title={skill.name}>
-                        <ArtIcon
-                          art={getSkillArt(skill)}
-                          size="sm"
-                          className="clan-card__skill-art"
-                          title={skill.name}
-                        />
-                      </span>
-                    ))}
+              className="clan-card__tip-host"
+              content={
+                <div className="clan-tooltip">
+                  <div className="clan-tooltip__skill">
+                    Starting loadout ({startingSkills.length})
                   </div>
-                  <span className="clan-card__skill-names">{loadoutLabel}</span>
+                  <div className="clan-tooltip__loadout">
+                    {loadout.main.length > 0 && (
+                      <div className="clan-tooltip__loadout-row">
+                        <span className="clan-tooltip__loadout-label">Main</span>
+                        <span className="clan-tooltip__loadout-skills">
+                          {loadout.main.map((s) => (
+                            <span key={s.id} className="clan-tooltip__loadout-skill">
+                              <ArtIcon art={getSkillArt(s)} size="xs" title={s.name} />
+                              {s.name}
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                    )}
+                    {loadout.side.length > 0 && (
+                      <div className="clan-tooltip__loadout-row">
+                        <span className="clan-tooltip__loadout-label">Side</span>
+                        <span>{loadout.side.map(s => s.name).join(', ')}</span>
+                      </div>
+                    )}
+                    {loadout.toggle.length > 0 && (
+                      <div className="clan-tooltip__loadout-row">
+                        <span className="clan-tooltip__loadout-label">Toggle</span>
+                        <span>{loadout.toggle.map(s => s.name).join(', ')}</span>
+                      </div>
+                    )}
+                    {loadout.passive.length > 0 && (
+                      <div className="clan-tooltip__loadout-row">
+                        <span className="clan-tooltip__loadout-label">Passive</span>
+                        <span>{loadout.passive.map(s => s.name).join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Body Stats */}
+                  <div className="clan-tooltip__category">
+                    <div className="clan-tooltip__category-title clan-tooltip__category-title--body">
+                      The Body
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--wil">WIL</span>
+                      <span className="clan-tooltip__stat-value">{stats.willpower}</span>
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--cha">CHA</span>
+                      <span className="clan-tooltip__stat-value">{stats.chakra}</span>
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--str">STR</span>
+                      <span className="clan-tooltip__stat-value">{stats.strength}</span>
+                    </div>
+                  </div>
+
+                  {/* Mind Stats */}
+                  <div className="clan-tooltip__category">
+                    <div className="clan-tooltip__category-title clan-tooltip__category-title--mind">
+                      The Mind
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spi">SPI</span>
+                      <span className="clan-tooltip__stat-value">{stats.spirit}</span>
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--int">INT</span>
+                      <span className="clan-tooltip__stat-value">{stats.intelligence}</span>
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--cal">CAL</span>
+                      <span className="clan-tooltip__stat-value">{stats.calmness}</span>
+                    </div>
+                  </div>
+
+                  {/* Technique Stats */}
+                  <div className="clan-tooltip__category">
+                    <div className="clan-tooltip__category-title clan-tooltip__category-title--technique">
+                      The Technique
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spd">SPD</span>
+                      <span className="clan-tooltip__stat-value">{stats.speed}</span>
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--acc">ACC</span>
+                      <span className="clan-tooltip__stat-value">{stats.accuracy}</span>
+                    </div>
+                    <div className="clan-tooltip__stat">
+                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--dex">DEX</span>
+                      <span className="clan-tooltip__stat-value">{stats.dexterity}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-
-              {/* Stat Ranks with Tooltip */}
-              <Tooltip
-                content={
-                  <div className="clan-tooltip">
-                    <div className="clan-tooltip__skill">
-                      Starting loadout ({startingSkills.length})
-                    </div>
-                    <div className="clan-tooltip__loadout">
-                      {loadout.main.length > 0 && (
-                        <div className="clan-tooltip__loadout-row">
-                          <span className="clan-tooltip__loadout-label">Main</span>
-                          <span className="clan-tooltip__loadout-skills">
-                            {loadout.main.map((s) => (
-                              <span key={s.id} className="clan-tooltip__loadout-skill">
-                                <ArtIcon art={getSkillArt(s)} size="xs" title={s.name} />
-                                {s.name}
-                              </span>
-                            ))}
-                          </span>
-                        </div>
-                      )}
-                      {loadout.side.length > 0 && (
-                        <div className="clan-tooltip__loadout-row">
-                          <span className="clan-tooltip__loadout-label">Side</span>
-                          <span>{loadout.side.map(s => s.name).join(', ')}</span>
-                        </div>
-                      )}
-                      {loadout.toggle.length > 0 && (
-                        <div className="clan-tooltip__loadout-row">
-                          <span className="clan-tooltip__loadout-label">Toggle</span>
-                          <span>{loadout.toggle.map(s => s.name).join(', ')}</span>
-                        </div>
-                      )}
-                      {loadout.passive.length > 0 && (
-                        <div className="clan-tooltip__loadout-row">
-                          <span className="clan-tooltip__loadout-label">Passive</span>
-                          <span>{loadout.passive.map(s => s.name).join(', ')}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Body Stats */}
-                    <div className="clan-tooltip__category">
-                      <div className="clan-tooltip__category-title clan-tooltip__category-title--body">
-                        The Body
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--wil">WIL</span>
-                        <span className="clan-tooltip__stat-value">{stats.willpower}</span>
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--cha">CHA</span>
-                        <span className="clan-tooltip__stat-value">{stats.chakra}</span>
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--str">STR</span>
-                        <span className="clan-tooltip__stat-value">{stats.strength}</span>
-                      </div>
-                    </div>
-
-                    {/* Mind Stats */}
-                    <div className="clan-tooltip__category">
-                      <div className="clan-tooltip__category-title clan-tooltip__category-title--mind">
-                        The Mind
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spi">SPI</span>
-                        <span className="clan-tooltip__stat-value">{stats.spirit}</span>
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--int">INT</span>
-                        <span className="clan-tooltip__stat-value">{stats.intelligence}</span>
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--cal">CAL</span>
-                        <span className="clan-tooltip__stat-value">{stats.calmness}</span>
-                      </div>
-                    </div>
-
-                    {/* Technique Stats */}
-                    <div className="clan-tooltip__category">
-                      <div className="clan-tooltip__category-title clan-tooltip__category-title--technique">
-                        The Technique
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spd">SPD</span>
-                        <span className="clan-tooltip__stat-value">{stats.speed}</span>
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--acc">ACC</span>
-                        <span className="clan-tooltip__stat-value">{stats.accuracy}</span>
-                      </div>
-                      <div className="clan-tooltip__stat">
-                        <span className="clan-tooltip__stat-name clan-tooltip__stat-name--dex">DEX</span>
-                        <span className="clan-tooltip__stat-value">{stats.dexterity}</span>
-                      </div>
-                    </div>
-                  </div>
-                }
+              }
+            >
+              <div
+                className="clan-card"
+                role="button"
+                tabIndex={0}
+                aria-label={`Select ${clan} lineage${clanMeta ? `: ${clanMeta.role}` : ''}`}
+                onClick={() => onSelectClan(clan)}
+                onKeyDown={(e) => {
+                  if (e.repeat) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectClan(clan);
+                  }
+                }}
               >
+                {/* Clan crest watermark (art registry T-019) */}
+                <span className="clan-card__watermark" aria-hidden="true">
+                  <ArtIcon art={getClanArt(clan)} size="xl" title={clan} />
+                </span>
+
+                {/* Card Header */}
+                <div className="clan-card__header">
+                  <h3 className="clan-card__name">
+                    <span className="clan-card__index">{index + 1}</span>
+                    {clan}
+                  </h3>
+                  {clanMeta && (
+                    <p className="clan-card__role" title={clanMeta.strategy}>
+                      {clanMeta.role}
+                    </p>
+                  )}
+                  {/* T-045: signature jutsu Imagine chips + name label */}
+                  <div className="clan-card__skill" title={`${startingSkills.length} starting jutsu`}>
+                    <div className="clan-card__skill-arts" aria-hidden={signatureSkills.length === 0}>
+                      {signatureSkills.map((skill) => (
+                        <span key={skill.id} className="clan-card__skill-chip" title={skill.name}>
+                          <ArtIcon
+                            art={getSkillArt(skill)}
+                            size="sm"
+                            className="clan-card__skill-art"
+                            title={skill.name}
+                          />
+                        </span>
+                      ))}
+                    </div>
+                    <span className="clan-card__skill-names">{loadoutLabel}</span>
+                  </div>
+                  {clanMeta && (
+                    <p className="clan-card__weak" title={clanMeta.desc}>
+                      Soft spot: {clanMeta.weakness}
+                    </p>
+                  )}
+                </div>
+
                 <div className="clan-card__stats">
                   <div className="stat-rank">
                     <span className="stat-rank__label stat-rank__label--body">Body</span>
@@ -231,28 +320,38 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({ onSelectClan }) => {
                     <span className={`stat-rank__value ${getRankModifier(techniqueRank)}`}>{techniqueRank}</span>
                   </div>
                 </div>
-              </Tooltip>
 
-              {/* Select Button - Covers entire card for click */}
-              <button
-                type="button"
-                onClick={() => onSelectClan(clan)}
-                className="clan-card__select"
-                aria-label={`Select ${clan} clan`}
-              >
-                <img
-                  src="/assets/translucent_begin_journey.png"
-                  alt="Begin Journey"
-                  className="clan-card__select-img"
-                  onError={(e) => {
-                    // Fallback if image doesn't load
-                    const target = e.target as HTMLImageElement;
-                    target.parentElement?.classList.add('clan-card__select--fallback');
+                {/* CTA chrome (card itself is the hit target — R1-003) */}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectClan(clan);
                   }}
-                />
-                <span className="clan-card__select-text">Begin Journey</span>
-              </button>
-            </div>
+                  className="clan-card__select"
+                  aria-label={
+                    isInfinite
+                      ? `Begin Infinite Ascent as ${clan}`
+                      : `Enter the mist as ${clan}`
+                  }
+                >
+                  <img
+                    src="/assets/translucent_begin_journey.png"
+                    alt={isInfinite ? 'Begin Ascent' : 'Enter the Mist'}
+                    className="clan-card__select-img"
+                    onError={(e) => {
+                      // Fallback if image doesn't load
+                      const target = e.target as HTMLImageElement;
+                      target.parentElement?.classList.add('clan-card__select--fallback');
+                    }}
+                  />
+                  <span className="clan-card__select-text">
+                    {isInfinite ? 'Begin Ascent' : 'Enter the Mist'}
+                  </span>
+                </button>
+              </div>
+            </Tooltip>
           );
         })}
       </div>

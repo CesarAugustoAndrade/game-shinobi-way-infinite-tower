@@ -748,6 +748,11 @@ export interface GameEvent {
   id: string;
   title: string;
   description: string;
+  /**
+   * Optional one-line mystery tag under the title (Event UI).
+   * Keep short — pressure, not exposition.
+   */
+  mysteryFlavor?: string;
   allowedArcs?: string[]; // Story arcs where this event can occur
   // Weights how often this event surfaces vs its peers in the same arc pool
   // (T-016). Rarer tiers appear less; see EVENT_RARITY_WEIGHTS + selectWeightedEvent.
@@ -1200,6 +1205,11 @@ export interface ScrollDiscoveryActivity {
 export interface EliteChallengeActivity {
   enemy: Enemy;      // Elite-tier enemy guardian
   artifact: Item;    // The artifact reward
+  /**
+   * T-108: room combat conditions (same pool as CombatActivity.modifiers).
+   * Elite rooms exclude combat, so mods live here.
+   */
+  modifiers: CombatModifierType[];
   completed: boolean;
 }
 
@@ -1364,6 +1374,18 @@ export interface BranchingFloor {
    * T-046: ambient flavor line for this location (from atmosphereEvents).
    */
   atmosphereFlavor?: string;
+
+  /**
+   * A4: true when re-entering a previously completed location (reduced rewards).
+   * UI scar chip + log; systems already apply revisit weight via deck.
+   */
+  isRevisit?: boolean;
+
+  /**
+   * A4 wave2: veiled / secret destination (flags.isSecret or LocationType.SECRET).
+   * UI chip only — no new unlock systems.
+   */
+  isSecret?: boolean;
 
   /**
    * T-056: location enemyPool ids for room combat theming.

@@ -1,6 +1,7 @@
 /**
  * Reward Modal Styles
- * BEM-style CSS for the post-combat victory modal
+ * Post-combat victory → spoils. Seinen void chassis; rust heat only.
+ * Cinematic entrance (overlay → panel → staggered rows).
  */
 
 @import '../../styles/design-system/index.css';
@@ -9,18 +10,17 @@
    Overlay
    =========================================== */
 
-/* Reduced opacity so the biome scene behind (Combat's CinematicViewscreen)
-   shows through — reinforcing the "in-game" feel rather than a void overlay. */
+/* Reduced opacity so the biome stage behind shows through — "still in the fight's ash". */
 .reward-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.62);
+  background: rgba(5, 6, 8, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 50;
   padding: var(--sw-space-4);
-  animation: sw-fade-in 0.2s ease-out;
+  animation: reward-overlay-in 0.42s ease-out both;
 }
 
 /* ===========================================
@@ -28,13 +28,15 @@
    =========================================== */
 
 .reward-modal__container {
-  background: var(--sw-bg-secondary);
-  border: 2px solid var(--sw-frame);
+  background: linear-gradient(180deg, var(--sw-abyss, #1a2633) 0%, var(--sw-void, #050608) 100%);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-top: 3px solid var(--sw-rust, #a65d3f);
   border-radius: var(--sw-radius-lg);
   max-width: 28rem;
   width: 100%;
   overflow: hidden;
-  box-shadow: var(--sw-pix-shadow);
+  box-shadow: 6px 6px 0 var(--sw-void, #050608), 0 0 48px rgba(5, 6, 8, 0.85);
+  animation: reward-panel-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ===========================================
@@ -43,9 +45,9 @@
 
 .reward-modal__header {
   padding: var(--sw-space-4);
-  border-bottom: 1px solid var(--sw-glass-border);
+  border-bottom: 1px solid var(--sw-metal, #2d3d4a);
   text-align: center;
-  background: var(--sw-bg-tertiary);
+  background: linear-gradient(to bottom, rgba(166, 93, 63, 0.12), transparent);
 }
 
 .reward-modal__header-icons {
@@ -57,22 +59,25 @@
 }
 
 .reward-modal__header-icon {
-  color: var(--sw-accent-primary);
+  color: var(--sw-rust, #a65d3f);
 }
 
 .reward-modal__title {
   font-size: var(--sw-text-2xl);
   font-family: var(--sw-font-serif);
-  color: var(--sw-text-primary);
+  color: var(--sw-bone, #e8e4dc);
   letter-spacing: var(--sw-tracking-wide);
   text-transform: uppercase;
+  text-shadow: 2px 2px 0 var(--sw-void, #050608);
 }
 
 .reward-modal__subtitle {
   font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-fog, #8a9199);
   font-family: var(--sw-font-mono);
   margin-top: var(--sw-space-1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 /* ===========================================
@@ -86,17 +91,27 @@
   gap: var(--sw-space-4);
 }
 
+/* Staggered spoils reveal — DD victory sheet, not instant dump */
+.reward-modal__body > * {
+  animation: reward-row-in 0.4s ease-out both;
+}
+.reward-modal__body > *:nth-child(1) { animation-delay: 0.1s; }
+.reward-modal__body > *:nth-child(2) { animation-delay: 0.18s; }
+.reward-modal__body > *:nth-child(3) { animation-delay: 0.26s; }
+.reward-modal__body > *:nth-child(4) { animation-delay: 0.34s; }
+.reward-modal__body > *:nth-child(5) { animation-delay: 0.42s; }
+
 .reward-modal__rewards-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--sw-space-4);
 }
 
-/* T-087: combat intel + fog honesty */
+/* T-087: combat intel + fog honesty — mist plate, not party teal */
 .reward-modal__intel {
-  border: 2px solid #000;
-  box-shadow: 2px 2px 0 #000;
-  background: rgba(45, 212, 191, 0.08);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  background: rgba(26, 38, 51, 0.55);
   padding: var(--sw-space-3);
 }
 
@@ -111,12 +126,12 @@
 }
 
 .reward-modal__intel-label {
-  color: #5eead4;
+  color: var(--sw-fog, #8a9199);
   font-weight: 700;
 }
 
 .reward-modal__intel-value {
-  color: #2dd4bf;
+  color: var(--sw-bone, #e8e4dc);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -124,49 +139,51 @@
 }
 
 .reward-modal__intel-base {
-  color: #64748b;
+  color: var(--sw-fog, #8a9199);
   text-decoration: line-through;
   font-weight: 600;
+  opacity: 0.75;
 }
 
 .reward-modal__intel-arrow {
-  color: #94a3b8;
+  color: var(--sw-metal, #2d3d4a);
 }
 
 .reward-modal__intel-fog {
   margin: 6px 0 0;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #7dd3fc;
+  color: var(--sw-rust-light, #c47a52);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 /* Reward box base */
 .reward-modal__reward-box {
-  border: 1px solid var(--sw-glass-border);
+  border: 1px solid var(--sw-metal, #2d3d4a);
   border-radius: var(--sw-radius-md);
   padding: var(--sw-space-4);
   text-align: center;
-  background: var(--sw-bg-tertiary);
+  background: rgba(5, 6, 8, 0.45);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
 }
 
 .reward-modal__reward-box--xp {
-  background: rgba(6, 182, 212, 0.08);
-  border-color: rgba(6, 182, 212, 0.3);
+  background: rgba(26, 38, 51, 0.55);
+  border-color: rgba(138, 145, 153, 0.35);
 }
 
 .reward-modal__reward-box--ryo {
-  background: rgba(234, 179, 8, 0.08);
-  border-color: rgba(234, 179, 8, 0.3);
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.18));
+  border-color: rgba(166, 93, 63, 0.45);
 }
 
-/* T-089: wealth / region gold multiplier note */
+/* T-089: wealth / region ryo multiplier note — rust heat, not party gold */
 .reward-modal__reward-note {
   margin: 6px 0 0;
   font-size: 9px;
   font-family: var(--sw-font-mono, monospace);
-  color: #fcd34d;
+  color: var(--sw-rust-light, #c47a52);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   line-height: 1.3;
@@ -181,23 +198,23 @@
 }
 
 .reward-modal__reward-icon--xp {
-  color: var(--sw-clan-yamanaka);
+  color: var(--sw-fog, #8a9199);
 }
 
 .reward-modal__reward-icon--ryo {
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .reward-modal__reward-label-text--xp {
   font-size: var(--sw-text-2xs);
-  color: var(--sw-clan-yamanaka);
+  color: var(--sw-fog, #8a9199);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
 }
 
 .reward-modal__reward-label-text--ryo {
   font-size: var(--sw-text-2xs);
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-rust-light, #c47a52);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
 }
@@ -206,14 +223,14 @@
   font-size: var(--sw-text-2xl);
   font-family: var(--sw-font-mono);
   font-weight: 700;
-  color: var(--sw-clan-yamanaka);
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .reward-modal__reward-amount--ryo {
   font-size: var(--sw-text-2xl);
   font-family: var(--sw-font-mono);
   font-weight: 700;
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-rust-light, #c47a52);
 }
 
 /* ===========================================
@@ -386,16 +403,17 @@
 
 .reward-modal__footer {
   padding: var(--sw-space-4);
-  border-top: 1px solid var(--sw-glass-border);
+  border-top: 1px solid var(--sw-metal, #2d3d4a);
+  animation: reward-row-in 0.4s ease-out 0.48s both;
 }
 
 .reward-modal__continue-btn {
   width: 100%;
   padding: var(--sw-space-3) var(--sw-space-4);
-  background: rgba(180, 83, 9, 0.25);
-  border: 2px solid var(--sw-accent-secondary);
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.22));
+  border: 2px solid var(--sw-rust, #a65d3f);
   border-radius: var(--sw-radius-md);
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-bone, #e8e4dc);
   font-family: var(--sw-font-mono);
   font-size: var(--sw-text-sm);
   font-weight: 700;
@@ -403,19 +421,62 @@
   letter-spacing: var(--sw-tracking-wide);
   cursor: pointer;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast), background var(--sw-transition-base);
-  box-shadow: var(--sw-pix-shadow-sm);
-  animation: sw-ready-pulse 2s ease-in-out infinite;
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  --sw-glow-color: var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
+  animation: sw-ready-pulse 2.4s ease-in-out infinite;
 }
 
 .reward-modal__continue-btn:hover {
-  background: rgba(180, 83, 9, 0.45);
+  background: rgba(166, 93, 63, 0.4);
   transform: translate(-2px, -2px);
-  box-shadow: var(--sw-pix-shadow);
+  box-shadow: 4px 4px 0 var(--sw-void, #050608);
   animation: none;
 }
 
 .reward-modal__continue-btn:active {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 0 var(--sw-hard);
+  box-shadow: 0 0 0 var(--sw-void, #050608);
   animation: none;
+}
+
+/* ── Cinematic keyframes ─────────────────────────────────── */
+
+@keyframes reward-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes reward-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes reward-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reward-modal,
+  .reward-modal__container,
+  .reward-modal__body > *,
+  .reward-modal__footer {
+    animation: none;
+  }
+
+  .reward-modal__continue-btn {
+    animation: none;
+  }
 }

@@ -1,5 +1,6 @@
 /**
  * T-049: Intel gathering result panel
+ * Void chassis — fog intel signal, rust CTA (not party teal).
  */
 
 @import '../../styles/design-system/index.css';
@@ -12,19 +13,20 @@
   align-items: center;
   justify-content: center;
   padding: var(--sw-space-4);
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(5, 6, 8, 0.72);
 }
 
 .intel-result__panel {
   max-width: 22rem;
   width: 100%;
   padding: var(--sw-space-5);
-  background: var(--sw-bg-secondary, #12121a);
-  border: 3px solid #000;
-  box-shadow: 4px 4px 0 #000;
+  background: linear-gradient(180deg, var(--sw-abyss, #1a2633) 0%, var(--sw-void, #050608) 100%);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-top: 3px solid var(--sw-rust, #a65d3f);
+  box-shadow: 6px 6px 0 var(--sw-void, #050608);
   font-family: var(--sw-font-display, Silkscreen, monospace);
   text-align: center;
-  color: var(--sw-text-primary, #f0e8d8);
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .intel-result__header {
@@ -39,9 +41,9 @@
   width: 3rem !important;
   height: 3rem !important;
   image-rendering: pixelated;
-  border: 2px solid #000;
-  box-shadow: 2px 2px 0 #000;
-  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  background: rgba(5, 6, 8, 0.55);
 }
 
 .intel-result__title {
@@ -49,7 +51,8 @@
   font-size: var(--sw-text-lg);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #5eead4;
+  /* Bone instrument — not party teal phosphor */
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .intel-result__flavor {
@@ -57,14 +60,14 @@
   font-family: var(--sw-font-body, VT323, monospace);
   font-size: var(--sw-text-base);
   line-height: 1.4;
-  color: var(--sw-text-secondary, #ccc);
+  color: var(--sw-fog, #8a9199);
 }
 
 .intel-result__gain {
   margin-bottom: var(--sw-space-2);
   font-size: var(--sw-text-sm);
   font-weight: 700;
-  color: #2dd4bf;
+  color: var(--sw-bone, #e8e4dc);
   text-transform: uppercase;
   display: flex;
   align-items: center;
@@ -75,24 +78,24 @@
 
 /* T-086: fog honesty when visibility reduced the gain */
 .intel-result__gain-base {
-  color: #64748b;
+  color: var(--sw-bone-muted, #7a766c);
   text-decoration: line-through;
   font-weight: 600;
 }
 
 .intel-result__gain-arrow {
-  color: #94a3b8;
+  color: var(--sw-metal, #2d3d4a);
 }
 
 .intel-result__gain-effective {
-  color: #2dd4bf;
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .intel-result__fog {
   margin: 0 0 var(--sw-space-3);
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #7dd3fc;
+  color: var(--sw-rust-light, #c47a52);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -109,26 +112,29 @@
   margin-bottom: 6px;
   font-size: 12px;
   font-family: var(--sw-font-mono, monospace);
+  color: var(--sw-fog, #8a9199);
 }
 
 .intel-result__bar-after {
-  color: #5eead4;
+  color: var(--sw-bone, #e8e4dc);
   font-weight: 700;
 }
 
 .intel-result__bar-track {
   height: 10px;
-  background: #0a0a12;
-  border: 2px solid #000;
+  background: var(--sw-void, #050608);
+  border: 2px solid var(--sw-metal, #2d3d4a);
   overflow: hidden;
 }
 
+/* Mist plate fill — fog signal, not party teal */
 .intel-result__bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0f766e, #2dd4bf);
+  background: linear-gradient(90deg, var(--sw-metal, #2d3d4a), var(--sw-fog, #8a9199));
   transition: width 0.2s steps(6);
 }
 
+/* Continue CTA — rust instrument heat */
 .intel-result__continue {
   display: inline-flex;
   align-items: center;
@@ -136,10 +142,10 @@
   gap: 10px;
   width: 100%;
   padding: var(--sw-space-3);
-  background: rgba(15, 118, 110, 0.35);
-  border: 2px solid #2dd4bf;
-  box-shadow: 2px 2px 0 #000;
-  color: #5eead4;
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.22));
+  border: 2px solid var(--sw-rust, #a65d3f);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  color: var(--sw-bone, #e8e4dc);
   font-family: inherit;
   font-size: var(--sw-text-sm);
   font-weight: 700;
@@ -148,5 +154,12 @@
 }
 
 .intel-result__continue:hover {
-  background: rgba(15, 118, 110, 0.55);
+  background: rgba(166, 93, 63, 0.4);
+  border-color: var(--sw-rust-light, #c47a52);
+}
+
+.intel-result__continue:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4dc);
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HELP_TEXT } from '../../game/constants/helpText';
 import { ArrowLeft, Flame, Wind, Zap, Mountain, Droplet, Sword, Brain, Sparkles, Shield, Map, MapPin, Box, Hammer, Target, TreePine } from 'lucide-react';
 import './GameGuide.css';
@@ -68,23 +68,58 @@ const getRarityNameClass = (rarity: string): string => {
 
 const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
   const [activeTab, setActiveTab] = useState<Tab>('STATS');
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  // Keyboard shortcuts: 1-9 for tabs, Escape to close
+  // Reset scroll when tab changes (1-9 or click) — residual: long EXPLORATION stayed scrolled mid-page
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, left: 0 });
+  }, [activeTab]);
+
+  // Keyboard shortcuts: 1-9 for tabs, ←/→ cycle, Escape to close
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement ||
+      e.target instanceof HTMLSelectElement
+    ) {
+      return;
+    }
 
-    // Escape to go back
+    // Escape to go back (ignore key-repeat thrash)
     if (e.key === 'Escape') {
+      if (e.repeat) return;
       e.preventDefault();
       onBack();
       return;
     }
 
-    // Number keys 1-9 for tabs
-    const num = parseInt(e.key);
-    if (num >= 1 && num <= 9) {
+    // Arrow Left/Right cycle tabs (roving tabindex focus follows selection)
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
-      setActiveTab(TABS[num - 1]);
+      setActiveTab((prev) => {
+        const i = TABS.indexOf(prev);
+        const nextIdx =
+          e.key === 'ArrowRight'
+            ? (i + 1) % TABS.length
+            : (i - 1 + TABS.length) % TABS.length;
+        const next = TABS[nextIdx];
+        window.requestAnimationFrame(() => {
+          document.getElementById(`game-guide-tab-${next}`)?.focus({ preventScroll: true });
+        });
+        return next;
+      });
+      return;
+    }
+
+    // Number keys 1-9 for tabs (ignore non-digit keys; parseInt alone is too loose)
+    if (e.key >= '1' && e.key <= '9') {
+      const num = parseInt(e.key, 10);
+      const next = TABS[num - 1];
+      e.preventDefault();
+      setActiveTab(next);
+      window.requestAnimationFrame(() => {
+        document.getElementById(`game-guide-tab-${next}`)?.focus({ preventScroll: true });
+      });
     }
   }, [onBack]);
 
@@ -103,10 +138,10 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
             <div className="game-guide__icon-wrapper">
               <ScrollIcon />
             </div>
-            <h2 className="game-guide__title">Shinobi Handbook</h2>
+            <h2 className="game-guide__title" id="game-guide-title">Shinobi Handbook</h2>
           </div>
           <button type="button" onClick={onBack} className="game-guide__back-btn">
-            <ArrowLeft size={14} /> Return to Menu
+            <ArrowLeft size={14} /> Return to the Gate
           </button>
         </div>
 
@@ -116,27 +151,44 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
             <span className="sw-shortcut">1-9</span> Switch Tabs
           </span>
           <span className="game-guide__hint">
+            <span className="sw-shortcut">←→</span> Cycle
+          </span>
+          <span className="game-guide__hint">
             <span className="sw-shortcut">Esc</span> Close
           </span>
         </div>
 
         {/* Tabs */}
-        <div className="game-guide__tabs">
-          {TABS.map((tab, idx) => (
-            <button
-              type="button"
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`game-guide__tab ${activeTab === tab ? 'game-guide__tab--active' : ''}`}
-            >
-              <span className="game-guide__tab-number">{idx + 1}</span>
-              {tab}
-            </button>
-          ))}
+        <div className="game-guide__tabs" role="tablist" aria-label="Handbook sections">
+          {TABS.map((tab, idx) => {
+            const selected = activeTab === tab;
+            return (
+              <button
+                type="button"
+                key={tab}
+                role="tab"
+                id={`game-guide-tab-${tab}`}
+                aria-selected={selected}
+                aria-controls="game-guide-panel"
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActiveTab(tab)}
+                className={`game-guide__tab ${selected ? 'game-guide__tab--active' : ''}`}
+              >
+                <span className="game-guide__tab-number">{idx + 1}</span>
+                {tab}
+              </button>
+            );
+          })}
         </div>
 
         {/* Content Area */}
-        <div className="game-guide__content">
+        <div
+          ref={contentRef}
+          className="game-guide__content"
+          role="tabpanel"
+          id="game-guide-panel"
+          aria-labelledby={`game-guide-tab-${activeTab}`}
+        >
 
           {/* --- STATS TAB --- */}
           {activeTab === 'STATS' && (
@@ -495,6 +547,29 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
           {/* --- EXPLORATION TAB --- */}
           {activeTab === 'EXPLORATION' && (
             <div className="game-guide__exploration-section">
+              {/* First-run steps (Region 1) */}
+              {HELP_TEXT.EXPLORATION.FIRST_RUN && (
+                <section className="game-guide__hierarchy-section">
+                  <h3 className="game-guide__hierarchy-title">
+                    <MapPin size={20} /> First Steps
+                  </h3>
+                  <p className="game-guide__activities-intro">
+                    How to leave the menu and clear your first location.
+                  </p>
+                  <div className="game-guide__activities-grid">
+                    {HELP_TEXT.EXPLORATION.FIRST_RUN.map((item) => (
+                      <div key={item.step} className="game-guide__activity-card">
+                        <div className="game-guide__activity-number">{item.step}</div>
+                        <div>
+                          <div className="game-guide__activity-name">{item.title}</div>
+                          <div className="game-guide__activity-desc">{item.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Region Hierarchy */}
               <section className="game-guide__hierarchy-section">
                 <h3 className="game-guide__hierarchy-title">

@@ -305,6 +305,41 @@ describe('equipItem', () => {
     expect(result.success).toBe(false);
     expect(result.reason).toContain('Bag is full');
   });
+
+  it('refuses equipping the same item instance into a second slot', () => {
+    const item = createMockArtifact();
+    const player = createMockPlayer({
+      equipment: {
+        [EquipmentSlot.SLOT_1]: item,
+        [EquipmentSlot.SLOT_2]: null,
+        [EquipmentSlot.SLOT_3]: null,
+        [EquipmentSlot.SLOT_4]: null,
+      },
+    });
+
+    const result = equipItem(player, item, EquipmentSlot.SLOT_2);
+
+    expect(result.success).toBe(false);
+    expect(result.reason).toMatch(/already equipped/i);
+    expect(result.player.equipment[EquipmentSlot.SLOT_1]).toEqual(item);
+    expect(result.player.equipment[EquipmentSlot.SLOT_2]).toBeNull();
+  });
+
+  it('is idempotent when re-equipping into the same slot', () => {
+    const item = createMockArtifact();
+    const player = createMockPlayer({
+      equipment: {
+        [EquipmentSlot.SLOT_1]: item,
+        [EquipmentSlot.SLOT_2]: null,
+        [EquipmentSlot.SLOT_3]: null,
+        [EquipmentSlot.SLOT_4]: null,
+      },
+    });
+
+    const result = equipItem(player, item, EquipmentSlot.SLOT_1);
+    expect(result.success).toBe(true);
+    expect(result.player.equipment[EquipmentSlot.SLOT_1]).toEqual(item);
+  });
 });
 
 describe('addToBag', () => {

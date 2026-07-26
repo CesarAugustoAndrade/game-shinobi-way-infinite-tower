@@ -1,5 +1,5 @@
 /**
- * Combat Scene Styles — T-014 v4 (Buriedbornes pixel-arcade overhaul)
+ * Combat Scene Styles — T-014 v4 + A2 seinen-sublime combat chrome
  *
  * Layout: 2-row CSS grid
  *   stage (1fr) — cinematic viewscreen, full-width, floating panel inside
@@ -46,111 +46,188 @@
    ============================================================ */
 
 .combat {
-  /* Scoped tokens */
-  --cb-stage-min: 200px;
-  --cb-deck-bg: rgba(5, 7, 12, 0.97);
-  --cb-deck-border: var(--sw-frame-soft);
+  /* Scoped tokens — seinen-sublime combat chrome */
+  /* Stage floor: keep cinematic tall enough that deck never crushes the foe
+     (reference: big enemy + left glass panel need vertical presence). */
+  --cb-stage-min: clamp(260px, 40vh, 560px);
+  --cb-deck-bg: var(--sw-void-glass, rgba(5, 6, 8, 0.96));
+  --cb-deck-border: var(--sw-metal, #2d3d4a);
   --cb-deck-pad-x: var(--sw-space-6);
   --cb-deck-pad-y: var(--sw-space-3);
   --cb-deck-gap: var(--sw-space-3);
 
-  /* Floating panel tokens */
-  --cb-panel-bg: rgba(5, 7, 12, 0.82);
-  --cb-panel-border: rgba(63, 63, 70, 0.7);
-  --cb-panel-radius: 4px;
-  --cb-panel-pad: var(--sw-space-3);
-  --cb-panel-gap: var(--sw-space-2);
+  /* Floating panel — deep abyss glass over painted world */
+  --cb-panel-bg: linear-gradient(
+    165deg,
+    rgba(10, 14, 20, 0.94) 0%,
+    rgba(8, 12, 18, 0.96) 55%,
+    rgba(6, 9, 14, 0.97) 100%
+  );
+  --cb-panel-border: rgba(45, 61, 74, 0.55);
+  --cb-panel-radius: 2px;
+  --cb-panel-pad: 10px 12px;
+  --cb-panel-gap: 6px;
+  --cb-rust: var(--sw-rust, #a65d3f);
+  --cb-bone: var(--sw-bone, #e8e4dc);
+  --cb-fog: var(--sw-fog, #8a9199);
 
   position: relative; /* T-054: anchor open banner */
   width: 100%;
   display: grid;
-  grid-template-rows: 1fr auto;
+  /* minmax floor protects stage when hand/command bar grow tall */
+  grid-template-rows: minmax(var(--cb-stage-min), 1fr) auto;
   height: 100%;
   min-height: 0;
   /* Belt: prevent any child from blowing out the viewport width */
   overflow-x: hidden;
   overflow-y: hidden;
   z-index: var(--sw-z-base);
+  background: var(--sw-void, #050608);
+  color: var(--cb-bone);
 }
 
 /* ============================================================
    Stage — cinematic viewscreen wrapper (full-width, 1fr)
+   Reference feel: left glass panel ~35–40% + big foe ~60% right
+   (panel/sprite geometry lives in CinematicViewscreen.css).
    ============================================================ */
 
 .combat__stage {
   position: relative;
-  min-height: var(--cb-stage-min);
+  /* Floor comes from grid minmax; min-height:0 lets 1fr size + overflow clip */
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
+  /* Stage fills grid 1fr; 16:9 is encoded in lámina assets (1024×576) + object-cover.
+     Do not force aspect-ratio here — it collides with deck row auto-sizing. */
 }
 
-/* Mini combat log — recent lines overlaid bottom-left of the stage (A-010) */
+/* Mini combat log — stage overlay (A-010).
+   Clear the left floating panel slot (~40% / ≤340px — .cinematic__panel-slot)
+   so lines stay readable beside the glass info panel, not under it. */
 .combat__mini-log {
   position: absolute;
-  left: var(--sw-space-3, 0.75rem);
+  /* Start just past the panel slot (matches .cinematic__panel-slot max-width) */
+  left: max(
+    var(--sw-space-3, 0.75rem),
+    calc(min(40%, 340px) + var(--sw-space-4, 1rem) + var(--sw-space-3, 0.75rem))
+  );
   bottom: var(--sw-space-3, 0.75rem);
-  z-index: 25;
-  width: min(22rem, 48%);
-  max-width: 100%;
+  /* Below floating enemy panel (slot z=30) but above stage art */
+  z-index: 22;
+  width: min(16rem, 34%);
+  max-width: calc(100% - min(40%, 340px) - 2 * var(--sw-space-4, 1rem));
   pointer-events: none;
+  opacity: 0.88;
+  /* Quiet chassis so tactical stage stays primary */
+  filter: saturate(0.85);
 }
 
 @media (max-width: 640px) {
   .combat__mini-log {
-    width: min(16rem, 55%);
-    left: var(--sw-space-2, 0.5rem);
+    /* Narrow: panel goes near full-width — tuck log bottom-center under stage */
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(16rem, 70%);
+    max-width: calc(100% - 2 * var(--sw-space-2, 0.5rem));
     bottom: var(--sw-space-2, 0.5rem);
   }
 }
 
 /* ============================================================
    Floating Enemy Info Panel — .combat__ip
-   Rendered inside CinematicViewscreen via the floatingPanel prop.
-   Absolute positioning is handled by .cinematic__panel-slot in
-   CinematicViewscreen.css. This block styles the panel content.
+   Mercenary ninja card: deep abyss glass, rust rail, mono labels.
+   Positioned by .cinematic__panel-slot (CinematicViewscreen.css).
    ============================================================ */
 
 .combat__ip {
   background: var(--cb-panel-bg);
   border: 1px solid var(--cb-panel-border);
+  border-left: 3px solid var(--cb-rust);
   border-radius: var(--cb-panel-radius);
   padding: var(--cb-panel-pad);
   display: flex;
   flex-direction: column;
   gap: var(--cb-panel-gap);
-  /* Prevent panel text from busting out horizontally */
   min-width: 0;
   overflow: hidden;
-  /* Backdrop blur for depth — degrades gracefully where unsupported */
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.4);
+  /* Soft CRT glass — not frosted SaaS */
+  -webkit-backdrop-filter: blur(4px) saturate(0.92);
+  backdrop-filter: blur(4px) saturate(0.92);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(5, 6, 8, 0.65),
+    inset 0 1px 0 rgba(232, 228, 220, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
 }
 
-/* ── Row 1: target icon + name + level badge ───────────────── */
+/* ── Row 1: reticle + name + danger badge ──────────────────── */
 
 .combat__ip-name-row {
   display: flex;
   align-items: center;
-  gap: var(--sw-space-2);
+  gap: 8px;
   min-width: 0;
 }
 
+/* CSS crosshair reticle — intentional target mark, not a letter */
 .combat__ip-target-icon {
-  font-size: var(--sw-text-base);
-  color: #ef4444;
   flex-shrink: 0;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: #e05a45;
+  line-height: 0;
+}
+
+.combat__ip-target-reticle {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 6px rgba(224, 90, 69, 0.35);
+}
+
+.combat__ip-target-reticle::before,
+.combat__ip-target-reticle::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+  pointer-events: none;
+}
+
+/* Horizontal tick */
+.combat__ip-target-reticle::before {
+  left: -3px;
+  right: -3px;
+  top: 50%;
+  height: 1.5px;
+  transform: translateY(-50%);
+}
+
+/* Vertical tick */
+.combat__ip-target-reticle::after {
+  top: -3px;
+  bottom: -3px;
+  left: 50%;
+  width: 1.5px;
+  transform: translateX(-50%);
 }
 
 .combat__ip-name {
   font-family: var(--sw-font-display);
-  font-size: clamp(0.7rem, 2.2vw, 1.1rem);
+  font-size: clamp(0.72rem, 2.1vw, 1.05rem);
   font-weight: 900;
-  color: var(--sw-text-primary);
+  color: var(--cb-bone);
   text-transform: uppercase;
-  letter-spacing: -0.02em;
-  text-shadow: 2px 2px 0 var(--sw-hard);
-  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-shadow: 2px 2px 0 var(--sw-void, #050608);
+  line-height: 1.05;
   margin: 0;
   flex: 1;
   min-width: 0;
@@ -162,50 +239,52 @@
 .combat__ip-level-badge {
   flex-shrink: 0;
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-xs);
+  font-size: 0.625rem;
   font-weight: 700;
-  color: var(--sw-text-primary);
-  background: rgba(39, 39, 42, 0.9);
-  border: 1px solid var(--sw-frame-soft);
-  border-radius: var(--sw-radius-sm);
-  padding: 1px var(--sw-space-2);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cb-bone);
+  background: rgba(5, 6, 8, 0.82);
+  border: 1px solid rgba(45, 61, 74, 0.7);
+  border-radius: 2px;
+  padding: 2px 6px;
   white-space: nowrap;
 }
 
-/* ── Row 2: tier tag + affinity badge ─────────────────────── */
+/* ── Row 2: tier + affinity ────────────────────────────────── */
 
 .combat__ip-tags-row {
   display: flex;
   align-items: center;
-  gap: var(--sw-space-2);
+  gap: 6px;
   flex-wrap: wrap;
   min-width: 0;
 }
 
 .combat__ip-tier-tag {
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-2xs);
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-  color: #fca5a5;
-  background: rgba(127, 29, 29, 0.5);
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  letter-spacing: 0.06em;
+  color: var(--sw-rust-light, #c47a52);
+  background: rgba(166, 93, 63, 0.18);
+  border: 1px solid rgba(166, 93, 63, 0.55);
   border-radius: 2px;
-  padding: 1px var(--sw-space-2);
+  padding: 1px 6px;
   white-space: nowrap;
 }
 
 .combat__ip-affinity-tag {
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-2xs);
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--cb-panel-border);
+  letter-spacing: 0.05em;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(45, 61, 74, 0.5);
   border-radius: 2px;
-  padding: 1px var(--sw-space-2);
+  padding: 1px 6px;
   white-space: nowrap;
   min-width: 0;
   overflow: hidden;
@@ -216,78 +295,92 @@
 
 .combat__ip-divider {
   height: 1px;
-  background: var(--cb-panel-border);
+  margin: 1px 0;
+  background: linear-gradient(
+    90deg,
+    rgba(166, 93, 63, 0.35) 0%,
+    rgba(45, 61, 74, 0.55) 40%,
+    rgba(45, 61, 74, 0.2) 100%
+  );
 }
 
-/* ── Row 3: PHYS / ELEM / MND stat columns ─────────────────── */
+/* ── Row 3: PHYS / ELEM / MND ──────────────────────────────── */
 
 .combat__ip-stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--sw-space-2);
+  gap: 6px;
   cursor: help;
+  padding: 2px 0;
 }
 
 .combat__ip-stat {
   display: flex;
   align-items: flex-start;
-  gap: var(--sw-space-1);
+  gap: 5px;
   min-width: 0;
 }
 
 .combat__ip-stat-icon {
-  font-size: 0.85rem;
-  line-height: 1;
+  font-size: 0.8rem;
+  line-height: 1.15;
   flex-shrink: 0;
-  margin-top: 1px;
+  width: 1em;
+  text-align: center;
+  opacity: 0.95;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6));
 }
 
 .combat__ip-stat-body {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
   min-width: 0;
 }
 
 .combat__ip-stat-label {
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-3xs);
+  font-size: 0.55rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-  color: var(--sw-text-muted);
+  letter-spacing: 0.08em;
+  color: var(--cb-fog);
+  line-height: 1.2;
 }
 
 .combat__ip-stat-value {
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-xs);
+  font-size: 0.75rem;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.15;
   white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .combat__ip-stat-pct {
-  font-size: var(--sw-text-3xs);
-  opacity: 0.75;
-  margin-left: 1px;
+  font-size: 0.55rem;
+  font-weight: 600;
+  opacity: 0.7;
+  margin-left: 2px;
+  letter-spacing: 0;
 }
 
-/* Stat type colors */
+/* Stat type colors — warm / spirit / cold mind */
 .combat__ip-stat--phys .combat__ip-stat-icon,
-.combat__ip-stat--phys .combat__ip-stat-value { color: #fb923c; }
+.combat__ip-stat--phys .combat__ip-stat-value { color: #f0a060; }
 
 .combat__ip-stat--elem .combat__ip-stat-icon,
-.combat__ip-stat--elem .combat__ip-stat-value { color: #c084fc; }
+.combat__ip-stat--elem .combat__ip-stat-value { color: #c9a0f5; }
 
 .combat__ip-stat--mnd .combat__ip-stat-icon,
-.combat__ip-stat--mnd .combat__ip-stat-value { color: #60a5fa; }
+.combat__ip-stat--mnd .combat__ip-stat-value { color: #7eb8f0; }
 
-/* ── Row 4: STATUS EFFECTS + INFO ──────────────────────────── */
+/* ── Row 4: SEALS + READ ───────────────────────────────────── */
 
 .combat__ip-mid-row {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: var(--sw-space-3);
+  gap: 10px;
   align-items: start;
   min-width: 0;
 }
@@ -295,58 +388,71 @@
 .combat__ip-section-label {
   display: block;
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-3xs);
+  font-size: 0.55rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-  color: var(--sw-text-muted);
-  margin-bottom: var(--sw-space-1);
+  letter-spacing: 0.1em;
+  color: var(--cb-fog);
+  margin-bottom: 4px;
+  line-height: 1;
 }
 
-/* Status effects: column with label + 4 square slots */
+/* Seals: 4 compact plates */
 .combat__ip-status {
   flex-shrink: 0;
 }
 
 .combat__ip-status-slots {
   display: flex;
-  gap: var(--sw-space-1);
+  gap: 4px;
 }
 
-/* Each slot: square chip ~28px */
 .combat__ip-slot {
   width: 28px;
   height: 28px;
-  border-radius: 3px;
+  border-radius: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
   position: relative;
   cursor: default;
+  box-shadow: 1px 1px 0 rgba(5, 6, 8, 0.75);
 }
 
 .combat__ip-slot--empty {
-  border: 1px solid rgba(63, 63, 70, 0.5);
-  background: rgba(0, 0, 0, 0.3);
+  border: 1px dashed rgba(45, 61, 74, 0.45);
+  background: rgba(5, 6, 8, 0.45);
+  box-shadow: none;
 }
 
-.combat__ip-slot-plus {
-  font-size: 0.75rem;
-  color: rgba(113, 113, 122, 0.5);
-  line-height: 1;
+/* Quiet unfilled seal diamond mark */
+.combat__ip-slot-mark {
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(138, 145, 153, 0.2);
+  border-radius: 1px;
+  transform: rotate(45deg);
 }
 
 .combat__ip-slot--positive {
-  border: 1px solid rgba(34, 197, 94, 0.5);
-  background: rgba(5, 46, 22, 0.6);
+  border: 1px solid rgba(166, 93, 63, 0.5);
+  background: linear-gradient(160deg, rgba(40, 28, 18, 0.88), rgba(12, 16, 14, 0.92));
   cursor: help;
 }
 
+.combat__ip-slot--positive .combat__ip-slot-icon {
+  filter: saturate(0.85);
+}
+
 .combat__ip-slot--negative {
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  background: rgba(69, 10, 10, 0.6);
+  border: 1px solid rgba(185, 60, 60, 0.55);
+  background: linear-gradient(160deg, rgba(42, 14, 14, 0.88), rgba(12, 8, 10, 0.92));
   cursor: help;
+}
+
+.combat__ip-slot--expiring {
+  box-shadow: 1px 1px 0 rgba(5, 6, 8, 0.75), 0 0 0 1px rgba(196, 122, 82, 0.45);
 }
 
 .combat__ip-slot-icon {
@@ -358,14 +464,20 @@
   position: absolute;
   bottom: 1px;
   right: 2px;
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   font-family: var(--sw-font-mono);
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--sw-bone-dim, #b8b4a8);
   line-height: 1;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9);
+  letter-spacing: -0.02em;
 }
 
-/* Info: archetype description */
+.combat__ip-slot--expiring .combat__ip-slot-duration {
+  color: var(--sw-rust-light, #c47a52);
+}
+
+/* Info / archetype read */
 .combat__ip-info {
   min-width: 0;
   overflow: hidden;
@@ -373,13 +485,17 @@
 
 .combat__ip-info-text {
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-2xs);
-  color: var(--sw-text-muted);
-  line-height: 1.4;
+  font-size: 0.65rem;
+  color: rgba(184, 180, 168, 0.88);
+  line-height: 1.35;
   margin: 0;
-  /* Allow wrapping within the cell */
   word-break: break-word;
   overflow-wrap: break-word;
+  /* Cap so panel stays scroll-free on desktop */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ── Row 5: HP ─────────────────────────────────────────────── */
@@ -387,8 +503,9 @@
 .combat__ip-hp-row {
   display: flex;
   flex-direction: column;
-  gap: var(--sw-space-1);
+  gap: 4px;
   min-width: 0;
+  padding-top: 1px;
 }
 
 .combat__ip-hp-header {
@@ -396,39 +513,125 @@
   justify-content: space-between;
   align-items: baseline;
   min-width: 0;
+  gap: 8px;
 }
 
 .combat__ip-hp-label {
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-xs);
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
-  color: var(--sw-text-muted);
+  letter-spacing: 0.1em;
+  color: var(--cb-fog);
   flex-shrink: 0;
 }
 
 .combat__ip-hp-value {
-  font-family: var(--sw-font-display);
-  font-size: clamp(0.75rem, 2vw, 1rem);
+  font-family: var(--sw-font-mono);
+  font-size: clamp(0.8rem, 2vw, 0.95rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1;
 }
 
+/* Current = rust/blood; max = fog */
 .combat__ip-hp-current {
-  color: #ef4444;
-  font-weight: 900;
+  color: #e05a45;
+  font-weight: 800;
+  text-shadow: 0 0 10px rgba(224, 90, 69, 0.25);
 }
 
 .combat__ip-hp-sep {
-  color: var(--sw-text-muted);
-  font-size: 0.8em;
+  color: var(--cb-fog);
+  font-size: 0.85em;
+  margin: 0 3px;
+  font-weight: 500;
+  opacity: 0.75;
 }
 
 .combat__ip-hp-max {
-  color: var(--sw-text-secondary);
+  color: var(--cb-fog);
+  font-weight: 600;
+}
+
+/* Thicker glowing HP track — scoped wrapper, StatBar unmodified */
+.combat__ip-hp-bar {
+  min-width: 0;
+}
+
+.combat__ip-hp-bar .stat-bar__track {
+  height: 0.7rem;
+  border-radius: 2px;
+  border-color: rgba(154, 52, 18, 0.45);
+  background: rgba(5, 6, 8, 0.9);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.combat__ip-hp-bar .stat-bar__fill {
+  border-radius: 1px;
+  box-shadow:
+    0 0 8px rgba(220, 50, 40, 0.45),
+    0 0 2px rgba(239, 68, 68, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.combat__ip-hp-bar .stat-bar__fill--hp {
+  background: linear-gradient(90deg, #9b1c1c 0%, #dc2626 55%, #ef4444 100%);
+}
+
+/* ── Row 6: Telegraph — danger preview (prominent) ─────────── */
+
+.combat__ip-telegraph {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 1px;
+  padding: 6px 8px;
+  background:
+    linear-gradient(90deg, rgba(166, 93, 63, 0.22) 0%, rgba(5, 6, 8, 0.88) 28%),
+    rgba(5, 6, 8, 0.88);
+  border: 1px solid rgba(166, 93, 63, 0.75);
+  border-left: 3px solid #e05a45;
+  border-radius: 2px;
+  box-shadow:
+    inset 0 0 0 1px rgba(166, 93, 63, 0.12),
+    0 0 12px rgba(166, 93, 63, 0.12),
+    1px 1px 0 rgba(5, 6, 8, 0.85);
+}
+
+.combat__ip-telegraph-label {
+  flex-shrink: 0;
+  font-family: var(--sw-font-mono);
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #f0c4a8;
+  padding: 2px 5px;
+  border: 1px solid rgba(224, 90, 69, 0.7);
+  background: rgba(166, 93, 63, 0.35);
+  border-radius: 1px;
+  line-height: 1.2;
+}
+
+.combat__ip-telegraph-skill {
+  font-family: var(--sw-font-display);
+  font-size: clamp(0.7rem, 1.9vw, 0.9rem);
+  font-weight: 800;
+  color: var(--cb-bone);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.15;
+  text-shadow: 1px 1px 0 rgba(5, 6, 8, 0.95);
 }
 
 /* ============================================================
@@ -439,6 +642,8 @@
 .combat__deck {
   background: var(--cb-deck-bg);
   border-top: 2px solid var(--cb-deck-border);
+  /* Rust hairline — sole heat of the frame at the stage/dock seam */
+  box-shadow: inset 0 1px 0 var(--cb-rust);
   padding: var(--cb-deck-pad-y) var(--cb-deck-pad-x);
   display: flex;
   flex-direction: column;
@@ -502,13 +707,17 @@
   color: var(--sw-text-tertiary);
 }
 
-/* Action Points */
+/* Action Points — rust heat = sole warm tactical signal */
 .combat__ap {
   display: flex;
   align-items: center;
   gap: var(--sw-space-2);
   min-width: 0;
   flex-shrink: 1;
+  padding: var(--sw-space-1) var(--sw-space-2);
+  background: rgba(5, 6, 8, 0.45);
+  border: 1px solid var(--sw-metal, #2d3d4a);
+  border-radius: 2px;
 }
 
 .combat__ap-label {
@@ -517,7 +726,7 @@
   font-weight: 700;
   letter-spacing: var(--sw-tracking-wide);
   text-transform: uppercase;
-  color: var(--sw-accent-tertiary);
+  color: var(--cb-rust);
   flex-shrink: 0;
 }
 
@@ -527,36 +736,37 @@
   flex-wrap: wrap;
 }
 
-/* Pixel-arcade AP chips */
+/* Blocky AP chips — full = rust heat, spent = metal void */
 .combat__ap-pip {
-  width: 0.7rem;
-  height: 1rem;
+  width: 0.75rem;
+  height: 1.05rem;
   border-radius: var(--sw-radius-xs);
-  border: 2px solid var(--sw-accent-dim);
-  background: var(--sw-scrim-soft);
-  box-shadow: var(--sw-shadow-sm);
+  border: 2px solid var(--sw-rust-dim, #6b3d2a);
+  background: rgba(5, 6, 8, 0.55);
+  box-shadow: 1px 1px 0 rgba(5, 6, 8, 0.8);
   transition: background var(--sw-transition-base), border-color var(--sw-transition-base),
     box-shadow var(--sw-transition-base);
   flex-shrink: 0;
 }
 
 .combat__ap-pip--full {
-  background: var(--sw-accent-tertiary);
-  border-color: var(--sw-accent-primary);
+  background: var(--cb-rust);
+  border-color: var(--sw-rust-light, #c47a52);
+  box-shadow: 1px 1px 0 rgba(5, 6, 8, 0.9), 0 0 6px var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
 }
 
 .combat__ap-pip--spent {
-  background: var(--sw-scrim-soft);
-  border-color: var(--sw-frame-soft);
-  box-shadow: var(--sw-shadow-inset);
-  opacity: 0.6;
+  background: rgba(5, 6, 8, 0.55);
+  border-color: var(--sw-metal, #2d3d4a);
+  box-shadow: inset 1px 1px 0 rgba(0, 0, 0, 0.45);
+  opacity: 0.55;
 }
 
 .combat__ap-value {
   font-size: var(--sw-text-sm);
   font-family: var(--sw-font-mono);
   font-weight: 700;
-  color: var(--sw-accent-tertiary);
+  color: var(--cb-bone);
   flex-shrink: 0;
 }
 
@@ -564,7 +774,7 @@
 .combat__ap-terrain {
   font-size: 9px;
   font-family: var(--sw-font-mono, monospace);
-  color: #7dd3fc;
+  color: var(--cb-fog);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-left: 4px;
@@ -621,13 +831,13 @@
 }
 
 .combat__auto-btn--active {
-  border-color: rgba(180, 83, 9, 0.5);
-  color: var(--sw-accent-tertiary);
-  background: rgba(69, 26, 3, 0.3);
+  border-color: var(--sw-rust, #a65d3f);
+  color: var(--sw-rust-light, #c47a52);
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.22));
 }
 
 .combat__auto-btn--active:hover {
-  background: rgba(69, 26, 3, 0.5);
+  background: rgba(166, 93, 63, 0.32);
 }
 
 .combat__auto-label {
@@ -640,7 +850,7 @@
 .combat__auto-timer {
   font-size: var(--sw-text-2xs);
   font-family: var(--sw-font-mono);
-  color: #f59e0b;
+  color: var(--sw-rust-light, #c47a52);
 }
 
 /* Pass Turn Button — height-matched to the auto button so the
@@ -721,7 +931,8 @@
     --cb-deck-pad-x: var(--sw-space-3);
     --cb-deck-pad-y: var(--sw-space-2);
     --cb-deck-gap: var(--sw-space-2);
-    --cb-stage-min: 180px;
+    /* Still protect stage height on portrait phones */
+    --cb-stage-min: clamp(200px, 34vh, 360px);
     --cb-panel-pad: var(--sw-space-2);
     --cb-panel-gap: var(--sw-space-1-5);
   }
@@ -756,20 +967,50 @@
     scroll-snap-align: start;
   }
 
-  /* Panel: tighter stat columns on very narrow screens */
-  .combat__ip-stats-row {
-    gap: var(--sw-space-1);
+  /* Panel: denser but still readable on narrow stages */
+  .combat__ip {
+    padding: 8px 10px;
+    gap: 5px;
   }
 
-  /* Mid row: stack status + info vertically on narrow screens */
+  .combat__ip-name {
+    font-size: clamp(0.68rem, 3.2vw, 0.9rem);
+  }
+
+  .combat__ip-stats-row {
+    gap: 4px;
+  }
+
+  .combat__ip-stat-value {
+    font-size: 0.7rem;
+  }
+
+  /* Mid row: stack seals + read vertically */
   .combat__ip-mid-row {
     grid-template-columns: 1fr;
+    gap: 6px;
   }
 
-  /* Status slots: allow scrolling if more than 4 effects shown */
   .combat__ip-status-slots {
     overflow-x: auto;
     scrollbar-width: none;
+  }
+
+  .combat__ip-info-text {
+    -webkit-line-clamp: 2;
+    font-size: 0.6rem;
+  }
+
+  .combat__ip-telegraph {
+    padding: 5px 7px;
+  }
+
+  .combat__ip-telegraph-skill {
+    font-size: clamp(0.65rem, 2.8vw, 0.8rem);
+  }
+
+  .combat__ip-hp-bar .stat-bar__track {
+    height: 0.6rem;
   }
 }
 
@@ -778,12 +1019,15 @@
    (unchanged from pre-T-014 — tooltip markup is stable)
    ============================================================ */
 
+/* Combat tooltip content lives inside portal `.tooltip` (abyss chrome).
+   Here only inner hierarchy — bone text, rust dividers. */
 .combat-tooltip {
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-3);
   padding: var(--sw-space-1);
   max-width: 280px;
+  color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .combat-tooltip--wide {
@@ -811,14 +1055,15 @@
   height: 2.25rem !important;
   object-fit: contain;
   image-rendering: pixelated;
-  border: 2px solid #000;
-  box-shadow: 1px 1px 0 #000;
-  background: rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--sw-hard);
+  box-shadow: 1px 1px 0 var(--sw-hard);
+  background: var(--sw-abyss, #050608);
 }
 
 .combat-tooltip__title {
   font-weight: 700;
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone, #e8e4d9);
+  font-family: var(--sw-font-display);
 }
 
 .combat-tooltip__subtitle {
@@ -831,15 +1076,15 @@
 }
 
 .combat-tooltip__tier {
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
 }
 
 .combat-tooltip__action--side {
-  color: #60a5fa;
+  color: var(--sw-chakra-color);
 }
 
 .combat-tooltip__action--toggle {
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-rust-light, #c2410c);
 }
 
 .combat-tooltip__action--main {
@@ -849,17 +1094,17 @@
 .combat-tooltip__level {
   font-size: var(--sw-text-xs);
   font-weight: 700;
-  color: #eab308;
+  color: var(--sw-rust-light, #c2410c);
 }
 
 .combat-tooltip__section {
-  border-top: 1px solid var(--sw-glass-border);
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   padding-top: var(--sw-space-2);
 }
 
 .combat-tooltip__section-title {
   font-size: var(--sw-text-3xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-rust-light, #c2410c);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
   margin-bottom: var(--sw-space-1);
@@ -867,7 +1112,7 @@
 
 .combat-tooltip__description {
   font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
   font-style: italic;
 }
 
@@ -956,7 +1201,7 @@
 }
 
 .combat-tooltip__crit-bonus {
-  color: #facc15;
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .combat-tooltip__pen-bonus {
@@ -1000,18 +1245,18 @@
 }
 
 .combat-tooltip__preview-dmg--effective {
-  color: #facc15;
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .combat-tooltip__crit-marker {
-  color: #eab308;
+  color: var(--sw-rust-light, #c47a52);
   margin-left: var(--sw-space-1);
 }
 
 .combat-tooltip__effectiveness--super {
   font-size: var(--sw-text-3xs);
   font-weight: 700;
-  color: #facc15;
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .combat-tooltip__effectiveness--resist {
@@ -1075,10 +1320,11 @@
 .combat-tooltip__stat-abbr--wil { color: #ef4444; }
 .combat-tooltip__stat-abbr--cha { color: #3b82f6; }
 .combat-tooltip__stat-abbr--spi { color: #a855f7; }
-.combat-tooltip__stat-abbr--int { color: #06b6d4; }
+/* Intelligence — fog-indigo (not neon cyan party chrome) */
+.combat-tooltip__stat-abbr--int { color: #7a9eb5; }
 .combat-tooltip__stat-abbr--cal { color: #6366f1; }
 .combat-tooltip__stat-abbr--spd { color: #22c55e; }
-.combat-tooltip__stat-abbr--acc { color: #eab308; }
+.combat-tooltip__stat-abbr--acc { color: #d4a574; }
 .combat-tooltip__stat-abbr--dex { color: #ec4899; }
 
 .combat-tooltip__derived {
@@ -1093,9 +1339,9 @@
 .combat-tooltip__derived-value--elem { color: var(--sw-category-mind-light); }
 .combat-tooltip__derived-value--mind { color: #a5b4fc; }
 .combat-tooltip__derived-value--eva  { color: var(--sw-category-technique-light); }
-.combat-tooltip__derived-value--crit { color: #facc15; }
+.combat-tooltip__derived-value--crit { color: var(--sw-rust-light, #c47a52); }
 
-/* Buff Tooltip */
+/* Buff Tooltip — content inside portal abyss chrome */
 .combat-tooltip__buff-header {
   display: flex;
   align-items: center;
@@ -1110,15 +1356,17 @@
   font-weight: 700;
   text-transform: uppercase;
   font-size: var(--sw-text-sm);
+  color: var(--sw-bone, #e8e4d9);
+  font-family: var(--sw-font-display);
 }
 
 .combat-tooltip__buff-name--positive {
-  color: #4ade80;
+  color: var(--sw-risk-safe-light);
 }
 
 .combat-tooltip__buff-type {
   font-size: var(--sw-text-3xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
 }
@@ -1163,13 +1411,13 @@
 }
 
 .combat-tooltip__duration-value--expiring {
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-rust-light, #c47a52);
   font-weight: 700;
 }
 
 .combat-tooltip__tip {
   font-size: var(--sw-text-2xs);
-  color: rgba(251, 191, 36, 0.8);
+  color: var(--sw-rust-light, #c2410c);
   font-style: italic;
 }
 
@@ -1208,7 +1456,7 @@
   color: var(--sw-text-tertiary);
 }
 
-/* T-054: combat open banner (approach + posture) */
+/* T-054: combat open banner (approach + posture) — void chassis, rust heat */
 .combat-open-banner {
   position: absolute;
   top: 12%;
@@ -1218,9 +1466,10 @@
   min-width: 16rem;
   max-width: min(28rem, 92vw);
   padding: 10px 14px;
-  background: rgba(12, 12, 18, 0.92);
-  border: 3px solid #000;
-  box-shadow: 3px 3px 0 #000;
+  background: var(--sw-void-glass, rgba(5, 6, 8, 0.94));
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-top: 2px solid var(--sw-rust, #a65d3f);
+  box-shadow: 3px 3px 0 var(--sw-void, #050608);
   font-family: var(--sw-font-display, Silkscreen, monospace);
   text-align: center;
   cursor: pointer;
@@ -1228,13 +1477,15 @@
 }
 
 .combat-open-banner--success {
-  border-color: #4ade80;
-  box-shadow: 3px 3px 0 #14532d;
+  border-color: #3d7a52;
+  border-top-color: #4ade80;
+  box-shadow: 3px 3px 0 #0a1a10;
 }
 
 .combat-open-banner--fail {
-  border-color: #f87171;
-  box-shadow: 3px 3px 0 #7f1d1d;
+  border-color: var(--sw-rust-dim, #6b3d2a);
+  border-top-color: var(--sw-rust, #a65d3f);
+  box-shadow: 3px 3px 0 #1a0c08;
 }
 
 .combat-open-banner__row {
@@ -1250,7 +1501,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #f0e8d8;
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .combat-open-banner__outcome {
@@ -1285,7 +1536,7 @@
 .combat-open-banner__effects {
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #fcd34d;
+  color: var(--sw-rust-light, #c47a52);
   margin-top: 4px;
 }
 
@@ -1293,7 +1544,7 @@
 .combat-open-banner__condition {
   font-size: 9px;
   font-family: var(--sw-font-mono, monospace);
-  color: #fbbf24;
+  color: var(--sw-bone-dim, #b8b4a8);
   margin-top: 4px;
   max-width: 22rem;
   line-height: 1.35;
@@ -1301,11 +1552,11 @@
   letter-spacing: 0.04em;
 }
 
-/* T-071: location terrain mods active this fight */
+/* T-071: location terrain mods active this fight — fog, not neon cyan */
 .combat-open-banner__terrain {
   font-size: 9px;
   font-family: var(--sw-font-mono, monospace);
-  color: #7dd3fc;
+  color: var(--sw-fog, #8a9199);
   margin-top: 4px;
   max-width: 22rem;
   line-height: 1.35;
@@ -1322,4 +1573,225 @@
 @keyframes combat-open-in {
   from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* TASK-R12: Stunned player turn banner & action button */
+.combat-stunned-banner {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  min-width: 18rem;
+  max-width: min(30rem, 92vw);
+  padding: 12px 18px;
+  background: rgba(42, 10, 10, 0.95);
+  border: 3px solid #ef4444;
+  box-shadow: 4px 4px 0 #7f1d1d, 0 0 15px rgba(239, 68, 68, 0.4);
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  animation: combat-stunned-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.combat-stunned-banner__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.combat-stunned-banner__title {
+  font-size: 14px;
+  font-weight: 900;
+  color: #fca5a5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.combat-stunned-banner__desc {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 11px;
+  color: #fecdd3;
+  line-height: 1.3;
+}
+
+.combat-stunned-banner__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #dc2626;
+  color: #fff;
+  border: 2px solid #fee2e2;
+  border-radius: 4px;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #7f1d1d;
+  transition: background 0.15s ease, transform 0.15s ease;
+  animation: combat-stunned-pulse 1.5s infinite alternate;
+}
+
+.combat-stunned-banner__action-btn:hover {
+  background: #b91c1c;
+  transform: scale(1.03);
+}
+
+.combat-stunned-banner__action-btn:active {
+  transform: scale(0.97);
+}
+
+.combat__pass-btn--stunned {
+  border-color: #ef4444 !important;
+  background: rgba(185, 28, 28, 0.4) !important;
+  color: #fca5a5 !important;
+  animation: combat-stunned-pulse 1.5s infinite alternate;
+}
+
+/* WAVE12: empty / fully blocked hand — make End Turn the obvious next action */
+.combat__pass-btn--nudge {
+  border-color: var(--sw-rust-light, #c47a52) !important;
+  background: rgba(166, 93, 63, 0.35) !important;
+  color: var(--sw-bone, #e8e4dc) !important;
+  animation: combat-pass-nudge-pulse 1.4s infinite alternate;
+}
+
+@keyframes combat-pass-nudge-pulse {
+  from { box-shadow: 2px 2px 0 var(--sw-void, #050608), 0 0 4px rgba(166, 93, 63, 0.35); }
+  to { box-shadow: 2px 2px 0 var(--sw-void, #050608), 0 0 12px rgba(166, 93, 63, 0.75); }
+}
+
+/* WAVE12: silence status (non-blocking — free taijutsu still works) */
+.combat-silence-banner {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 34;
+  min-width: 16rem;
+  max-width: min(28rem, 92vw);
+  padding: 10px 16px;
+  background: rgba(18, 18, 28, 0.94);
+  border: 2px solid #6b7280;
+  box-shadow: 3px 3px 0 #111827, 0 0 12px rgba(107, 114, 128, 0.35);
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  text-align: center;
+  animation: combat-stunned-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.combat-silence-banner__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.combat-silence-banner__title {
+  font-size: 13px;
+  font-weight: 900;
+  color: #d1d5db;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.combat-silence-banner__desc {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
+/* WAVE12: empty / blocked hand pass nudge (below silence/stun banners) */
+.combat-pass-nudge {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 33;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 14rem;
+  max-width: min(26rem, 92vw);
+  padding: 10px 14px;
+  background: rgba(12, 10, 8, 0.92);
+  border: 2px solid var(--sw-rust, #a65d3f);
+  box-shadow: 3px 3px 0 var(--sw-void, #050608);
+  font-family: var(--sw-font-mono, monospace);
+  text-align: center;
+  animation: combat-stunned-in 0.25s ease-out;
+}
+
+.combat-pass-nudge__text {
+  font-size: 11px;
+  color: var(--sw-bone, #e8e4dc);
+  line-height: 1.3;
+}
+
+.combat-pass-nudge__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--sw-rust, #a65d3f);
+  color: var(--sw-bone, #e8e4dc);
+  border: 2px solid var(--sw-rust-light, #c47a52);
+  border-radius: 4px;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+}
+
+.combat-pass-nudge__btn:hover {
+  background: var(--sw-rust-light, #c47a52);
+  color: var(--sw-void, #050608);
+}
+
+@keyframes combat-stunned-in {
+  from { opacity: 0; transform: translateX(-50%) scale(0.9); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+@keyframes combat-stunned-pulse {
+  from { box-shadow: 2px 2px 0 #7f1d1d, 0 0 4px rgba(239, 68, 68, 0.4); }
+  to { box-shadow: 2px 2px 0 #7f1d1d, 0 0 14px rgba(239, 68, 68, 0.8); }
+}
+
+/* Accessibility: collapse combat banner / stun juice when reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .combat-open-banner {
+    animation: none;
+  }
+
+  .combat-stunned-banner,
+  .combat-silence-banner,
+  .combat-pass-nudge {
+    animation: none;
+  }
+
+  .combat-stunned-banner__action-btn,
+  .combat__pass-btn--stunned,
+  .combat__pass-btn--nudge {
+    animation: none;
+  }
+
+  .combat-stunned-banner__action-btn:hover {
+    transform: none;
+  }
+
+  .combat__ap-pip {
+    transition: none;
+  }
 }

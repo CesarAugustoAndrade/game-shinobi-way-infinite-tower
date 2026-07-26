@@ -34,7 +34,7 @@ import { locationIconFromRegistry } from '../artRegistry';
 const THE_DOCKS: LocationConfig = {
   id: 'the_docks',
   name: 'The Docks',
-  description: 'A bustling harbor where fishermen and merchants gather. The gateway to Wave Country. Gato\'s enforcers patrol openly.',
+  description: 'Salt, tar, and Gato\'s coin. Fishermen keep their heads down while enforcers tax every crate that leaves the pier.',
   type: LocationType.SETTLEMENT,
   icon: locationIconFromRegistry('the_docks'),
   dangerLevel: 2,
@@ -44,7 +44,8 @@ const THE_DOCKS: LocationConfig = {
   enemyPool: ['dock_worker', 'corrupt_guard', 'smuggler'],
   lootTable: 'waves_settlement',
   atmosphereEvents: ['suspicious_cargo', 'overheard_conversation', 'dock_brawl'],
-  tiedStoryEvents: ['meet_tazuna'],
+  // Spine: Tazuna; residual: collector ledger (R1 side pressure)
+  tiedStoryEvents: ['meet_tazuna', 'docks_collector_ledger'],
   forwardPaths: [
     { id: 'docks_to_forest', targetId: 'coastal_forest', pathType: PathType.FORWARD, description: 'A well-worn path through the trees', dangerHint: 'Bandits lurk in the shadows' },
     { id: 'docks_to_beach', targetId: 'misty_beach', pathType: PathType.BRANCH, description: 'Follow the shoreline south', dangerHint: 'The mist is thick here' },
@@ -62,7 +63,7 @@ const THE_DOCKS: LocationConfig = {
 const MISTY_BEACH: LocationConfig = {
   id: 'misty_beach',
   name: 'Misty Beach',
-  description: 'Fog rolls in from the sea, obscuring everything. Wrecked boats dot the shoreline. Perfect for ambushes.',
+  description: 'Fog eats the horizon. Hulls lie half-buried in wet sand — good cover for anyone who wants a body to vanish.',
   type: LocationType.WILDERNESS,
   icon: locationIconFromRegistry('misty_beach'),
   dangerLevel: 1,
@@ -75,6 +76,8 @@ const MISTY_BEACH: LocationConfig = {
   enemyPool: ['beach_bandit', 'sea_spirit', 'stranded_ronin'],
   lootTable: 'waves_wilderness',
   atmosphereEvents: ['washed_up_treasure', 'stranded_sailor', 'ghost_ship_sighting'],
+  // Prefer Mist cache + residual omen so shore flags / fog pressure surface (R1-006 / A5-W2)
+  tiedStoryEvents: ['mist_ambush_cache', 'mist_omen_tide'],
   forwardPaths: [
     { id: 'beach_to_forest', targetId: 'coastal_forest', pathType: PathType.FORWARD, description: 'Head inland through the mist', dangerHint: 'The forest is dense' },
   ],
@@ -94,7 +97,7 @@ const MISTY_BEACH: LocationConfig = {
 const COASTAL_FOREST: LocationConfig = {
   id: 'coastal_forest',
   name: 'Coastal Forest',
-  description: 'Dense trees crowd together, blocking out the sun. Bandits and worse are known to lurk here.',
+  description: 'Salt-stunted pines choke the light. Bandits, boars, and missing-nin share the same wet trails.',
   type: LocationType.WILDERNESS,
   icon: locationIconFromRegistry('coastal_forest'),
   dangerLevel: 3,
@@ -107,6 +110,8 @@ const COASTAL_FOREST: LocationConfig = {
   enemyPool: ['forest_bandit', 'wild_boar', 'missing_nin'],
   lootTable: 'waves_wilderness',
   atmosphereEvents: ['animal_attack', 'hidden_cache', 'bandit_camp'],
+  // Residual mist omen — forest fog geometry (A5-W2)
+  tiedStoryEvents: ['mist_omen_tide'],
   forwardPaths: [
     { id: 'forest_to_village', targetId: 'fishing_village', pathType: PathType.FORWARD, description: 'Smoke rises from a village ahead', dangerHint: 'The villagers seem friendly' },
     { id: 'forest_to_cave', targetId: 'smugglers_cave', pathType: PathType.BRANCH, description: 'A hidden trail leads underground', dangerHint: 'Danger and riches await' },
@@ -140,6 +145,8 @@ const SMUGGLERS_CAVE: LocationConfig = {
   enemyPool: ['cave_smuggler', 'trap_master', 'guard_dog'],
   lootTable: 'waves_stronghold',
   atmosphereEvents: ['hidden_stash', 'cave_in', 'smuggler_deal'],
+  // Prefer Mist cache for hidden_cove flag path (R1-006 / W4)
+  tiedStoryEvents: ['mist_ambush_cache'],
   forwardPaths: [
     { id: 'cave_to_camp', targetId: 'riverside_camp', pathType: PathType.FORWARD, description: 'An exit near the river', dangerHint: 'A camp lies beyond' },
     { id: 'cave_to_village', targetId: 'fishing_village', pathType: PathType.BRANCH, description: 'A tunnel to the village outskirts', dangerHint: 'Emerge behind the village' },
@@ -163,17 +170,22 @@ const SMUGGLERS_CAVE: LocationConfig = {
 const FISHING_VILLAGE: LocationConfig = {
   id: 'fishing_village',
   name: 'Fishing Village',
-  description: 'A poor but peaceful village. Gato\'s thugs have been seen nearby, collecting "taxes".',
+  description: 'Weathered stilt-houses and empty nets. Gato\'s thugs collect "taxes" while Inari\'s people watch the bridge for wages that never arrive.',
   type: LocationType.SETTLEMENT,
   icon: locationIconFromRegistry('fishing_village'),
   dangerLevel: 1,
   terrain: LocationTerrainType.NEUTRAL,
-  terrainEffects: [],
+  // Soft coastal identity: water edge + room to breathe (safe haven mid-run)
+  terrainEffects: [
+    { type: 'water_damage_bonus', value: 0.1 },
+    { type: 'ambush_chance', value: -0.1 },
+  ],
   biome: 'Rural Village',
   enemyPool: ['village_thug', 'corrupt_merchant', 'hired_muscle'],
   lootTable: 'waves_settlement',
   atmosphereEvents: ['villager_plea', 'hidden_resistance', 'tax_collection'],
-  tiedStoryEvents: ['protect_village', 'meet_inari'],
+  // Spine + residual false scales (A5-W3)
+  tiedStoryEvents: ['protect_village', 'meet_inari', 'corrupt_merchant_scales'],
   forwardPaths: [
     { id: 'village_to_bridge', targetId: 'bridge_construction', pathType: PathType.FORWARD, description: 'The main road to the bridge', dangerHint: 'The bridge is heavily guarded' },
     { id: 'village_to_camp', targetId: 'riverside_camp', pathType: PathType.BRANCH, description: 'A detour along the river', dangerHint: 'Travelers camp here' },
@@ -201,6 +213,8 @@ const RIVERSIDE_CAMP: LocationConfig = {
   enemyPool: ['river_bandit', 'camp_raider', 'desperate_traveler'],
   lootTable: 'waves_wilderness',
   atmosphereEvents: ['campfire_tales', 'river_crossing', 'supply_trade'],
+  // Residual: ashfire travelers sell mist approaches (A5-W3)
+  tiedStoryEvents: ['riverside_traveler_pact'],
   forwardPaths: [
     { id: 'camp_to_bridge', targetId: 'bridge_construction', pathType: PathType.FORWARD, description: 'Continue to the bridge', dangerHint: 'The construction site looms' },
     { id: 'camp_to_outpost', targetId: 'bandit_outpost', pathType: PathType.BRANCH, description: 'A dangerous shortcut', dangerHint: 'Bandits control this route' },
@@ -235,6 +249,8 @@ const SUNKEN_SHIP: LocationConfig = {
   enemyPool: ['drowned_sailor', 'water_spirit', 'treasure_guardian'],
   lootTable: 'waves_secret',
   atmosphereEvents: ['trapped_air_pocket', 'spectral_captain', 'treasure_cache'],
+  // Residual: hold whispers map Gato's false-floor treasury (A5-W2)
+  tiedStoryEvents: ['shipwreck_whisper'],
   forwardPaths: [
     { id: 'ship_to_forest', targetId: 'coastal_forest', pathType: PathType.FORWARD, description: 'Return to solid ground', dangerHint: 'Back to the forest' },
   ],
@@ -255,7 +271,7 @@ const SUNKEN_SHIP: LocationConfig = {
 const BRIDGE_CONSTRUCTION: LocationConfig = {
   id: 'bridge_construction',
   name: 'Bridge Construction',
-  description: 'Tazuna\'s great bridge stretches across the water. Workers toil under constant threat.',
+  description: 'Tazuna\'s span grows under sawdust and crossbows. Every beam is a vote against Gato — or a target.',
   type: LocationType.LANDMARK,
   icon: locationIconFromRegistry('bridge_construction'),
   dangerLevel: 4,
@@ -268,7 +284,8 @@ const BRIDGE_CONSTRUCTION: LocationConfig = {
   enemyPool: ['bridge_saboteur', 'hired_assassin', 'corrupt_foreman'],
   lootTable: 'waves_landmark',
   atmosphereEvents: ['bridge_sabotage', 'worker_strike', 'gato_threat'],
-  tiedStoryEvents: ['protect_bridge', 'final_showdown_setup'],
+  // Spine + orphan worker plea + labor after Tazuna (preferred pool flag-gates rest)
+  tiedStoryEvents: ['protect_bridge', 'final_showdown_setup', 'bridge_worker_plea', 'tazuna_request'],
   forwardPaths: [
     { id: 'bridge_to_compound', targetId: 'gatos_compound', pathType: PathType.FORWARD, description: 'The final confrontation awaits', dangerHint: 'Gato\'s fortress looms' },
     { id: 'bridge_to_manor', targetId: 'abandoned_manor', pathType: PathType.BRANCH, description: 'An old manor on the hill', dangerHint: 'Ghosts haunt this place' },
@@ -286,7 +303,7 @@ const BRIDGE_CONSTRUCTION: LocationConfig = {
 const BANDIT_OUTPOST: LocationConfig = {
   id: 'bandit_outpost',
   name: 'Bandit Outpost',
-  description: 'Gato\'s hired muscle operates from this fortified position. A direct assault route.',
+  description: 'Stake walls and war hounds. Gato pays in ryo and fear — this camp is the receipt.',
   type: LocationType.STRONGHOLD,
   icon: locationIconFromRegistry('bandit_outpost'),
   dangerLevel: 5,
@@ -299,6 +316,8 @@ const BANDIT_OUTPOST: LocationConfig = {
   enemyPool: ['bandit_captain', 'elite_mercenary', 'war_dog'],
   lootTable: 'waves_stronghold',
   atmosphereEvents: ['prisoner_rescue', 'supply_raid', 'commander_duel'],
+  // Residual: unwritten toll / intimidation (A5-W3)
+  tiedStoryEvents: ['bandit_outpost_toll'],
   forwardPaths: [
     { id: 'outpost_to_compound', targetId: 'gatos_compound', pathType: PathType.FORWARD, description: 'A direct assault route', dangerHint: 'The compound is heavily fortified' },
     { id: 'outpost_to_manor', targetId: 'abandoned_manor', pathType: PathType.BRANCH, description: 'Circle around through the manor', dangerHint: 'A less guarded approach' },
@@ -319,16 +338,22 @@ const BANDIT_OUTPOST: LocationConfig = {
 const ABANDONED_MANOR: LocationConfig = {
   id: 'abandoned_manor',
   name: 'Abandoned Manor',
-  description: 'An old noble\'s estate, now empty. Or is it? Strange sounds echo in the halls.',
+  description: 'A noble house left to salt and mold. Portraits watch. Footsteps answer when no one should be home.',
   type: LocationType.LANDMARK,
   icon: locationIconFromRegistry('abandoned_manor'),
-  dangerLevel: 3,
+  // Late detour before Gato: quieter danger, mental pressure (not raw muscle)
+  dangerLevel: 4,
   terrain: LocationTerrainType.NEUTRAL,
-  terrainEffects: [{ type: 'mental_damage_bonus', value: 0.2 }],
+  terrainEffects: [
+    { type: 'mental_damage_bonus', value: 0.25 },
+    { type: 'visibility_penalty', value: -0.1 },
+  ],
   biome: 'Ruined Estate',
   enemyPool: ['vengeful_ghost', 'manor_guardian', 'cursed_servant'],
   lootTable: 'waves_landmark',
   atmosphereEvents: ['ghostly_wailing', 'hidden_passage', 'noble_treasure'],
+  // Residual: manor debt / sold-house haunt (A5-W2)
+  tiedStoryEvents: ['manor_haunt_debt'],
   forwardPaths: [
     { id: 'manor_to_compound', targetId: 'gatos_compound', pathType: PathType.FORWARD, description: 'The compound lies beyond', dangerHint: 'The final battle approaches' },
   ],
@@ -345,7 +370,7 @@ const ABANDONED_MANOR: LocationConfig = {
 const HIDDEN_COVE: LocationConfig = {
   id: 'hidden_cove',
   name: 'Hidden Cove',
-  description: 'A secret inlet used by smugglers. Rare goods and dark secrets can be found here.',
+  description: 'A secret inlet where lanterns never stay lit. Smugglers drop cargo on schedules written in tide — rare goods, quieter debts.',
   type: LocationType.SECRET,
   icon: locationIconFromRegistry('hidden_cove'),
   dangerLevel: 4,
@@ -358,6 +383,8 @@ const HIDDEN_COVE: LocationConfig = {
   enemyPool: ['cove_smuggler', 'sea_creature', 'hidden_guard'],
   lootTable: 'waves_secret',
   atmosphereEvents: ['smuggler_meeting', 'rare_cargo', 'sea_monster'],
+  // Residual: silent drop / unlogged gate codes (A5-W4)
+  tiedStoryEvents: ['hidden_cove_silent_drop'],
   forwardPaths: [
     { id: 'cove_to_outpost', targetId: 'bandit_outpost', pathType: PathType.FORWARD, description: 'A path to the outpost', dangerHint: 'Bandits guard this route' },
   ],
@@ -378,7 +405,7 @@ const HIDDEN_COVE: LocationConfig = {
 const DROWNED_SHRINE: LocationConfig = {
   id: 'drowned_shrine',
   name: 'Drowned Shrine',
-  description: 'An ancient temple now beneath the waves. Powerful chakra resonates here. Dark gods were once worshipped.',
+  description: 'Pillars under black water still keep accounts. Old chakra hums like unpaid interest — gods here preferred ledgers to prayers.',
   type: LocationType.SECRET,
   icon: locationIconFromRegistry('drowned_shrine'),
   dangerLevel: 6,
@@ -392,6 +419,8 @@ const DROWNED_SHRINE: LocationConfig = {
   enemyPool: ['shrine_demon', 'corrupted_priest', 'eldritch_guardian'],
   lootTable: 'waves_secret',
   atmosphereEvents: ['dark_ritual', 'forbidden_knowledge', 'ancient_curse'],
+  // Residual: black tide vow / vault geometry (A5-W4)
+  tiedStoryEvents: ['drowned_shrine_black_tide'],
   forwardPaths: [
     { id: 'shrine_to_compound', targetId: 'gatos_compound', pathType: PathType.FORWARD, description: 'A hidden approach to the compound', dangerHint: 'Emerge behind enemy lines' },
   ],
@@ -410,7 +439,7 @@ const DROWNED_SHRINE: LocationConfig = {
 const GATOS_COMPOUND: LocationConfig = {
   id: 'gatos_compound',
   name: 'Gato\'s Compound',
-  description: 'The shipping magnate\'s fortress. A monument to greed built on suffering. All roads lead here.',
+  description: 'Iron gates, paid blades, and a smile that prices every life. Wave Country ends here — one way or another.',
   type: LocationType.BOSS,
   icon: locationIconFromRegistry('gatos_compound'),
   dangerLevel: 7,
@@ -443,7 +472,7 @@ export const LAND_OF_WAVES_CONFIG: RegionConfig = {
   id: 'land_of_waves',
   name: 'Land of Waves',
   description: 'A poor coastal country under the thumb of the shipping magnate Gato. The great bridge may be its salvation... or its doom.',
-  theme: 'Misty coast, poverty, tyranny, hope in the face of despair',
+  theme: 'Misty coast, poverty, tyranny, silence priced as survival',
 
   entryLocationIds: ['the_docks', 'misty_beach'],
   bossLocationId: 'gatos_compound',

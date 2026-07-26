@@ -307,8 +307,22 @@ export function getClanArt(clan: Clan): ArtEntry {
   return getArt(clanArtKey(clan));
 }
 
+/**
+ * Runtime location ids are `location-<configId>-<timestamp>-<rand>` (RegionSystem).
+ * Art keys are config ids only (`the_docks`, `gatos_compound`, …).
+ */
+export function resolveLocationArtKey(locationId: string): string {
+  let id = locationId.trim();
+  if (id.startsWith('location-')) {
+    id = id.slice('location-'.length);
+    // Strip trailing generateId(): Date.now()-base36
+    id = id.replace(/-\d{10,}-[a-z0-9]+$/i, '');
+  }
+  return id;
+}
+
 export function getLocationArt(locationId: string): ArtEntry {
-  return getArt(artKey('location', locationId));
+  return getArt(artKey('location', resolveLocationArtKey(locationId)));
 }
 
 export function getActivityArt(activityKey: string): ArtEntry {
@@ -379,7 +393,11 @@ export function getEnemyArt(opts: {
     if (pool?.src) return pool;
   }
 
-  if (isBoss || lower.includes('haku')) {
+  if (isBoss || lower.includes('haku') || lower.includes('gato') || lower.includes('demon')) {
+    if (lower.includes('gato')) {
+      const art = ART_REGISTRY['enemy:pool_gato'];
+      if (art?.src) return art;
+    }
     if (lower.includes('haku')) {
       const art = ART_REGISTRY['enemy:boss_haku'];
       if (art) return art;
@@ -401,6 +419,14 @@ export function getEnemyArt(opts: {
   if (lower.includes('samurai')) {
     const art = ART_REGISTRY['enemy:job_samurai'];
     if (art) return art;
+  }
+  if (lower.includes('mist')) {
+    // Mist-keyword name fallback → dedicated mist-ninja plate owner.
+    // Do NOT route via pool_assassin — that plate is hired_assassin.
+    const mist =
+      ART_REGISTRY['enemy:pool_mist_ninja'] ||
+      ART_REGISTRY['enemy:pool_hidden_guard'];
+    if (mist?.src) return mist;
   }
   if (lower.includes('ninja') || lower.includes('shinobi') || lower.includes('mercenary')) {
     const art = ART_REGISTRY['enemy:job_ninja'];
@@ -498,7 +524,9 @@ export const ART_BACKLOG_NOTES = {
     'clan:* (5)',
   ],
   T020_skills:
-    'skill:* (114) registered — 8 painted PNG + 106 element SVG tiles. Replace SVGs with painted combat-art PNGs in place.',
+    'skill:* (114) registered — 93 painted PNG faces under /assets/skill_*.png (WAVE12: no new paint; R1 clan loadout 35/35 ON_DISK; FREE_FIRST toggle parity + silence/empty-hand pass feedback; endgame 21 jpg held; WAVE9–11 cost/block/FloatingText held).',
   T021_enemies_events:
-    'enemy: pool/job/boss/archetype cascade; event: id + category fallbacks. GenAI optional polish only.',
+    'enemy: painted portraits + enemy_cut_* (WAVE15: archetype_tank shinobi regen; pool_mist_ninja plate-owner key; mist-keyword → pool_mist_ninja; WAVE14 residual 15 JPGs deleted + P0/P1 regen + 5 DEDICATE plates). Soft-share KEEP: job_ninja/shinobi→exhausted_shinobi; guard_dog→war_dog; hidden_guard→mist_ninja; assassin→hired_assassin. event: 11 dedicated painted plates + tazuna_road_mist reuses meet_tazuna.',
+  T_laminas_r1:
+    'All 14 R1 location slugs have location_ + lamina_mid_ + lamina_fg_ plates (A3 wave2 closed mid/fg residual). resolveLaminaPaths + LAMINA_ASSET_REV=r2wave2a3.',
 } as const;

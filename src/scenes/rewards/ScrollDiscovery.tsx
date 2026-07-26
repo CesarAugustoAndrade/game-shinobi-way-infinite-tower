@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Skill,
   SkillTier,
@@ -6,6 +6,7 @@ import {
   DamageType,
   ScrollDiscoveryActivity,
   CharacterStats,
+  RegionLootTheme,
 } from '../../game/types';
 import { Scroll, Zap, Brain, Sparkles } from 'lucide-react';
 import Tooltip from '../../components/shared/Tooltip';
@@ -17,6 +18,7 @@ import {
   getEffectIcon,
   formatEffectDescription,
 } from '../../game/utils/tooltipFormatters';
+import { isFocusStat } from '../../game/utils/itemFocusMatch';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import ArtIcon from '../../components/shared/ArtIcon';
 import { getSkillArt } from '../../game/constants/artRegistry';
@@ -30,6 +32,10 @@ interface ScrollDiscoveryProps {
   onSkip: () => void;
   /** Biome background image — fills the scene like CinematicViewscreen. */
   background?: string;
+  /**
+   * T-113: region lootTheme for Affinity/Focus chips and themed scroll marks.
+   */
+  lootTheme?: RegionLootTheme | null;
 }
 
 /** T-051: local result before parent applies learn and leaves */
@@ -98,11 +104,24 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   onLearnScroll,
   onSkip,
   background,
+  lootTheme = null,
 }) => {
   const [result, setResult] = useState<ScrollLearnResult | null>(null);
+  /** Sync mutex — result state lags; double Enter/click re-called onLearnScroll. */
+  const resultContinueLockRef = useRef(false);
 
   const chakraCost = scrollDiscovery.cost?.chakra || 0;
   const canAfford = player.currentChakra >= chakraCost;
+  const focus = lootTheme?.equipmentFocus ?? null;
+  const preferredElement = lootTheme?.primaryElement;
+
+  const isThemedScroll = (skill: Skill): boolean => {
+    if (preferredElement && skill.element === preferredElement) return true;
+    if (focus && focus.length > 0) {
+      return isFocusStat(String(skill.scalingStat), focus);
+    }
+    return false;
+  };
 
   // Check if player already knows the skill
   const alreadyKnows = (skill: Skill) => player.skills.some(s => s.id === skill.id);
@@ -111,7 +130,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   // T-051: preview result then apply via parent on continue
   const prepareLearn = useCallback(
     (skill: Skill, slotIndex?: number) => {
-      if (!canAfford) return;
+      if (!canAfford || resultContinueLockRef.current) return;
       const known = alreadyKnows(skill);
       const chakraBefore = player.currentChakra;
       const chakraAfter = chakraBefore - chakraCost;
@@ -157,24 +176,32 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   );
 
   const handleResultContinue = useCallback(() => {
-    if (!result) return;
+    if (!result || resultContinueLockRef.current) return;
+    resultContinueLockRef.current = true;
     // Clear local result first so double Enter/click cannot re-learn / re-spend chakra
     const { skill, slotIndex } = result;
     setResult(null);
     onLearnScroll(skill, slotIndex);
   }, [result, onLearnScroll]);
 
-  // Keyboard: result → continue; else leave scrolls
+  // Keyboard: result → continue (Space/Enter/Esc); browse → leave (same keys)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.code === 'Space' || e.code === 'Enter') {
-        e.preventDefault();
-        if (result) {
+      if (e.repeat) return;
+
+      if (result) {
+        // Continue-family: Esc parity Reward/Rest/Treasure claim
+        if (e.code === 'Space' || e.code === 'Enter' || e.key === 'Escape') {
+          e.preventDefault();
           handleResultContinue();
-        } else {
-          onSkip();
         }
+        return;
+      }
+
+      if (e.key === 'Escape' || e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        onSkip();
       }
     };
 
@@ -205,16 +232,16 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   if (result) {
     const modeLabel =
       result.mode === 'upgraded'
-        ? `Upgraded to Level ${result.levelAfter}`
+        ? `Seal deepened — Level ${result.levelAfter}`
         : result.mode === 'replaced'
-          ? `Replaced ${result.forgottenName ?? 'a skill'}`
-          : 'Technique Learned';
+          ? `Overwrote ${result.forgottenName ?? 'a technique'}`
+          : 'Seal Claimed';
     return (
       <SceneBackdrop background={background}>
         <div className="scroll-discovery scroll-discovery--result">
           <div className="scroll-result" role="status">
             <div className="scroll-result__art">
-              <ArtIcon art={getSkillArt(result.skill)} size="xl" title={result.skill.name} />
+              <ArtIcon art={getSkillArt(result.skill)} size="fill" title={result.skill.name} />
             </div>
             <h2 className="scroll-result__title">{modeLabel}</h2>
             <p className="scroll-result__name">{result.skill.name}</p>
@@ -240,6 +267,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
             >
               Continue
               <span className="sw-shortcut">Enter</span>
+              <span className="sw-shortcut">Esc</span>
             </button>
           </div>
         </div>
@@ -257,8 +285,27 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
       </div>
 
       <p className="scroll-discovery__subtitle">
-        You discovered ancient jutsu scrolls. Study them to learn new techniques.
+        Sealed techniques wait in ink and dust. One path, one toll of chakra — choose carefully.
       </p>
+
+      {/* T-113: region Affinity / Focus identity (gen already biased) */}
+      {lootTheme && (
+        <div className="scroll-discovery__theme" aria-label="Region theme">
+          {lootTheme.primaryElement && (
+            <span className="scroll-discovery__theme-chip scroll-discovery__theme-chip--affinity">
+              Affinity {lootTheme.primaryElement}
+            </span>
+          )}
+          {lootTheme.equipmentFocus?.length > 0 && (
+            <span className="scroll-discovery__theme-chip scroll-discovery__theme-chip--focus">
+              Focus{' '}
+              {lootTheme.equipmentFocus
+                .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                .join(' · ')}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Keyboard Hints */}
       <div className="scroll-discovery__hints">
@@ -283,10 +330,19 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
       </div>
 
       <div className="scroll-discovery__grid">
+        {scrollDiscovery.availableScrolls.length === 0 && (
+          <div className="scroll-discovery__empty" role="status">
+            <p className="scroll-discovery__empty-title">The seals are blank</p>
+            <p className="scroll-discovery__empty-body">
+              Whatever was written here has already faded into the fog.
+            </p>
+          </div>
+        )}
         {scrollDiscovery.availableScrolls.map((skill) => {
           const known = alreadyKnows(skill);
           const reqCheck = meetsRequirements(skill);
           const canLearn = canAfford && reqCheck.meets && (!skillSlotsFull || known);
+          const themed = isThemedScroll(skill);
 
           return (
             <Tooltip
@@ -345,10 +401,15 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
                 </div>
               }
             >
-              <div className={`scroll-card ${getTierCardClass(skill.tier)}`}>
+              <div className={`scroll-card ${getTierCardClass(skill.tier)} ${themed ? 'scroll-card--region' : ''}`}>
                 <div className="scroll-card__art" aria-hidden="true">
-                  <ArtIcon art={getSkillArt(skill)} size="xl" title={skill.name} />
+                  <ArtIcon art={getSkillArt(skill)} size="fill" title={skill.name} />
                 </div>
+                {themed && (
+                  <span className="scroll-card__region-badge" title="Matches region Affinity or Focus">
+                    Region
+                  </span>
+                )}
                 <div className="scroll-card__header">
                   <div className="scroll-card__title-section">
                     <h3 className={`scroll-card__name ${getTierNameClass(skill.tier)}`}>
@@ -432,7 +493,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
 
                   {!canAfford && (
                     <div className="scroll-card__warning--chakra">
-                      Not enough chakra to study
+                      Chakra too thin to unseal this scroll
                     </div>
                   )}
                 </div>
@@ -444,7 +505,8 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
 
       <div className="scroll-discovery__footer">
         <button type="button" onClick={onSkip} className="scroll-discovery__leave-btn">
-          Leave Scrolls
+          Leave the scrolls sealed
+          <span className="sw-shortcut">Esc</span>
         </button>
       </div>
     </div>

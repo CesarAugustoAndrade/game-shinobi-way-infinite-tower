@@ -544,8 +544,12 @@ export function useSkill(
       reflectionGutsLog = lethalCheck.log;
     }
 
-    // Construct Log Message
-    logMsg = `Used ${skill.name} for ${finalDamageToEnemy} dmg`;
+    // Construct Log Message — R1: never spam "for 0 dmg" on setup/buff skills
+    if (finalDamageToEnemy > 0) {
+      logMsg = `Used ${skill.name} for ${finalDamageToEnemy} dmg`;
+    } else {
+      logMsg = `Used ${skill.name}`;
+    }
     // Add execute message
     if (checkExecuteThreshold(player, enemy, enemyMaxHp) && enemy.currentHp <= enemyMaxHp * 0.2) {
       logMsg += " EXECUTE!";
@@ -561,10 +565,14 @@ export function useSkill(
     if (reflectionGutsLog) {
       logMsg += ` ${reflectionGutsLog}`;
     }
-    if (damageResult.flatReduction > 0) logMsg += ` (${damageResult.flatReduction} blocked)`;
-    if (damageResult.elementMultiplier > 1) logMsg += " SUPER EFFECTIVE!";
-    else if (damageResult.elementMultiplier < 1) logMsg += " Resisted.";
-    if (damageResult.isCrit) logMsg += " CRITICAL!";
+    if (damageResult.flatReduction > 0 && finalDamageToEnemy > 0) {
+      logMsg += ` (${damageResult.flatReduction} blocked)`;
+    }
+    if (finalDamageToEnemy > 0) {
+      if (damageResult.elementMultiplier > 1) logMsg += " SUPER EFFECTIVE!";
+      else if (damageResult.elementMultiplier < 1) logMsg += " Resisted.";
+      if (damageResult.isCrit) logMsg += " CRITICAL!";
+    }
     // Add artifact passive logs
     if (onHitResult.logs.length > 0) {
       logMsg += ` [${onHitResult.logs.join(', ')}]`;
@@ -585,7 +593,11 @@ export function useSkill(
         // Instant HEAL: restore HP immediately (not a lingering buff).
         // Medical jutsu that mention poison/bleed also cleanse those DoTs.
         if (eff.type === EffectType.HEAL) {
-          const healAmount = Math.floor(eff.value || 0);
+          const baseHeal = eff.value || 0;
+          const intStat = playerStats.effectivePrimary?.intelligence ?? 10;
+          const spiritStat = playerStats.effectivePrimary?.spirit ?? 10;
+          const statMult = Math.max(1, (intStat + spiritStat) / 20);
+          const healAmount = Math.floor(baseHeal * statMult);
           if (healAmount > 0) {
             const healed = Math.min(healAmount, playerStats.derived.maxHp - newPlayerHp);
             if (healed > 0) {

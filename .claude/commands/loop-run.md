@@ -81,6 +81,7 @@ Corre tú los gates y guarda su salida para compartirla con los reviewers (más 
 - **El humano conserva el merge.** El loop propone y avisa; nunca auto-commit/auto-merge.
 - **Observabilidad.** Cada intento deja fila en el ledger + detalle en `logs/`. Los errores avisan, no se tragan.
 - **Memoria en disco.** VISION/RULES/STATE se leen y escriben en `loop/`, no solo en el chat.
+- **Eficiencia de Tokens.** Los datos de estado completados se archivan periódicamente; nunca cargar archivos masivos si existe un índice resumido o acotado.
 
 ## Reporte final al humano
 

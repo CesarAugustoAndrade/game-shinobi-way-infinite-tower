@@ -16,22 +16,61 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-fog, #8a9199);
+  font-family: var(--sw-font-mono);
+  border-left: 2px solid var(--sw-rust, #a65d3f);
+  padding-left: var(--sw-space-2);
 }
 
 .hand__grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--sw-space-2);
+  /* Cards sit slightly elevated so element border glows read cleanly */
+  align-items: stretch;
+  /* Allow StS hover lift to paint above neighbors */
+  isolation: isolate;
+}
+
+/* Empty slots keep the hand grid stable (StS-style presence) */
+.hand__grid > * {
+  min-width: 0;
+  position: relative;
+  transition: z-index 0s;
+}
+
+/* Hovered / focused card stacks above siblings (StS hand clarity) */
+.hand__grid > *:hover,
+.hand__grid > *:focus-within {
+  z-index: 3;
 }
 
 .hand__empty {
   grid-column: 1 / -1;
   text-align: center;
   padding: var(--sw-space-4);
-  color: var(--sw-text-muted);
+  color: var(--sw-fog, #8a9199);
   font-size: var(--sw-text-xs);
+  background: rgba(5, 6, 8, 0.55);
+  border: 1px dashed var(--sw-rust, #a65d3f);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.hand__empty-title {
+  font-family: var(--sw-font-mono);
+  font-weight: 800;
+  font-size: var(--sw-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sw-bone, #e8e4dc);
+}
+
+.hand__empty-hint {
   font-style: italic;
+  color: var(--sw-fog, #8a9199);
 }
 
 @media (min-width: 768px) {

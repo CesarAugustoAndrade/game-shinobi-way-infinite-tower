@@ -4,7 +4,7 @@
  * ESC / backdrop / X close.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Player, CharacterStats, RegionLootTheme } from '../../game/types';
 import PrimaryStatsPanel from '../character/PrimaryStatsPanel';
 import DerivedStatsPanel from '../character/DerivedStatsPanel';
@@ -15,6 +15,7 @@ import {
 } from '../../game/utils/tooltipFormatters';
 import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
 import { X } from 'lucide-react';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './exploreOverlays.css';
 
 interface CharacterSheetOverlayProps {
@@ -35,36 +36,44 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
 }) => {
   const flagMods = getEventFlagRunModifiers(player);
   const runFlagLabels = flagMods.activeLabels;
+  const rootRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(rootRef);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-      }
+      if (e.key !== 'Escape' || e.repeat) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
   return (
-    <div className="explore-overlay" role="dialog" aria-modal="true" aria-label="Character sheet">
+    <div
+      ref={rootRef}
+      className="explore-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Character sheet"
+    >
       <button
         type="button"
         className="explore-overlay__backdrop"
         aria-label="Close character sheet"
         onClick={onClose}
+        tabIndex={-1}
       />
       <div className="explore-overlay__panel explore-overlay__panel--sheet">
         <header className="explore-overlay__header">
           <h2 className="explore-overlay__title">
-            📜 {player.clan} · Lv.{player.level}
+            {player.clan} · Lv.{player.level}
           </h2>
           <span className="explore-overlay__hint">
             <kbd>C</kbd> toggle · <kbd>Esc</kbd> close
           </span>
-          <button type="button" className="explore-overlay__close" onClick={onClose} aria-label="Close">
+          <button type="button" className="explore-overlay__close" onClick={onClose} aria-label="Close" autoFocus>
             <X size={18} />
           </button>
         </header>
@@ -72,7 +81,7 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
           {/* T-101: current region theme (matches LocationPanel / ExplorationHUD) */}
           {lootTheme && (
             <section className="explore-overlay__region" aria-label="Region theme">
-              <h3 className="explore-overlay__section-title">Region Theme</h3>
+              <h3 className="explore-overlay__section-title">This land favors</h3>
               <div className="explore-overlay__region-chips">
                 {lootTheme.primaryElement && (
                   <span className="explore-overlay__region-chip explore-overlay__region-chip--affinity">
@@ -103,11 +112,11 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
           />
           <DerivedStatsPanel derived={playerStats.derived} />
 
-          {/* T-042: story-run bonuses from eventFlags (same source as HUD chips) */}
-          <section className="explore-overlay__story" aria-label="Story bonuses this run">
-            <h3 className="explore-overlay__section-title">Story Bonuses</h3>
+          {/* T-042: path marks from eventFlags (same source as HUD chips) */}
+          <section className="explore-overlay__story" aria-label="Path marks this run">
+            <h3 className="explore-overlay__section-title">Path marks</h3>
             {runFlagLabels.length === 0 ? (
-              <p className="explore-overlay__empty">No story bonuses yet — your event choices will appear here.</p>
+              <p className="explore-overlay__empty">No scars yet — choices in the mist will mark you here.</p>
             ) : (
               <>
                 <ul className="explore-overlay__story-list">
@@ -133,9 +142,9 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
           </section>
 
           <section className="explore-overlay__buffs">
-            <h3 className="explore-overlay__section-title">Active Buffs</h3>
+            <h3 className="explore-overlay__section-title">Lingering effects</h3>
             {player.activeBuffs.length === 0 ? (
-              <p className="explore-overlay__empty">No active buffs</p>
+              <p className="explore-overlay__empty">Nothing clinging to you</p>
             ) : (
               <ul className="explore-overlay__buff-list">
                 {player.activeBuffs.map((buff, idx) => (

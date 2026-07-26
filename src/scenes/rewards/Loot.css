@@ -42,7 +42,7 @@
   font-size: var(--sw-text-sm);
   letter-spacing: var(--sw-tracking-ultra);
   text-transform: uppercase;
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
   margin-top: var(--sw-space-2);
 }
 
@@ -158,12 +158,12 @@
   max-width: 22rem;
   width: 100%;
   padding: var(--sw-space-5);
-  background: var(--sw-bg-secondary, #12121a);
-  border: 3px solid #000;
+  background: var(--sw-abyss-panel, rgba(8, 10, 14, 0.97));
+  border: 3px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
   box-shadow: 4px 4px 0 #000;
   font-family: var(--sw-font-display, Silkscreen, monospace);
   text-align: center;
-  color: var(--sw-text-primary, #f0e8d8);
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .loot-confirm__title {
@@ -171,7 +171,7 @@
   font-size: var(--sw-text-base);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #fcd34d;
+  color: var(--sw-rust-light, #c2410c);
 }
 
 .loot-confirm__body {
@@ -179,7 +179,7 @@
   font-size: var(--sw-text-sm);
   font-family: var(--sw-font-body, VT323, monospace);
   line-height: 1.4;
-  color: var(--sw-text-secondary, #ccc);
+  color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .loot-confirm__actions {
@@ -204,8 +204,8 @@
 }
 
 .loot-confirm__btn--cancel {
-  background: #3f3f46;
-  color: #e4e4e7;
+  background: var(--sw-metal, #2d3d4a);
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .loot-confirm__btn--leave {
@@ -215,7 +215,8 @@
 }
 
 .loot-confirm__btn--cancel:hover {
-  background: #52525b;
+  background: var(--sw-abyss, #1a2633);
+  border-color: var(--sw-rust-border, rgba(154, 52, 18, 0.45));
 }
 
 .loot-confirm__btn--leave:hover {
@@ -239,21 +240,69 @@
   }
 }
 
+/* Empty spoils — mysterious voice, not "No items" */
+.loot__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--sw-space-10) var(--sw-space-6);
+  border: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
+  border-radius: var(--sw-radius-sm);
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(26, 38, 51, 0.4) 0%, transparent 70%),
+    rgba(5, 6, 8, 0.7);
+}
+
+.loot__empty-title {
+  margin: 0 0 var(--sw-space-2);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-sm);
+  letter-spacing: var(--sw-tracking-wide);
+  text-transform: uppercase;
+  color: var(--sw-bone, #e8e4dc);
+}
+
+.loot__empty-body {
+  margin: 0;
+  font-size: var(--sw-text-xs);
+  font-style: italic;
+  color: var(--sw-fog, #8a9199);
+  line-height: 1.45;
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+.loot-card:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+}
+
 /* ===========================================
    Item Card  —  pixel-arcade pattern
    =========================================== */
 
 .loot-card {
-  background: var(--sw-bg-secondary);
+  /* Void glass product plate — asset-forward cards */
+  background:
+    linear-gradient(165deg, rgba(22, 26, 36, 0.92) 0%, rgba(10, 11, 16, 0.96) 100%);
   border: 2px solid var(--sw-frame-soft);
   border-radius: var(--sw-radius-sm);
-  padding: var(--sw-space-6);
+  padding: var(--sw-space-5);
   display: flex;
   flex-direction: column;
-  gap: var(--sw-space-4);
+  gap: var(--sw-space-3);
   cursor: default;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast);
-  box-shadow: var(--sw-pix-shadow-sm);
+  box-shadow:
+    var(--sw-pix-shadow-sm),
+    0 0 18px rgba(125, 211, 252, 0.04);
+  overflow: visible;
+}
+
+.loot-card .item-tile__visual {
+  width: 100%;
+  max-width: 8.5rem;
+  height: 7rem;
+  margin-inline: auto;
 }
 
 .loot-card:hover {
@@ -305,14 +354,24 @@
 
 .loot-card__type {
   font-size: var(--sw-text-2xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-fog, #8a9199);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-widest);
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
-/* Rarity Name Colors */
-.loot-card__name--common   { color: var(--sw-text-tertiary); }
+.loot-card__type-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+/* Rarity Name Colors — fog quiet → rust heat */
+.loot-card__name--broken   { color: var(--sw-rarity-broken); }
+.loot-card__name--common   { color: var(--sw-rarity-common); }
 .loot-card__name--rare     { color: var(--sw-rarity-rare); }
 .loot-card__name--epic     { color: var(--sw-rarity-epic); }
 .loot-card__name--legendary { color: var(--sw-rarity-legendary); }
@@ -456,14 +515,15 @@
 }
 
 .loot-card__btn--equip {
-  background: var(--sw-bg-primary);
-  border-color: var(--sw-glass-border);
-  color: var(--sw-text-tertiary);
+  background: var(--sw-void, #050608);
+  border-color: var(--sw-rust-border, rgba(154, 52, 18, 0.45));
+  color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .loot-card__btn--equip:hover:not(:disabled) {
-  background: var(--sw-bg-tertiary);
-  color: var(--sw-text-secondary);
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.18));
+  color: var(--sw-bone, #e8e4d9);
+  border-color: var(--sw-rust, #a65d3f);
 }
 
 .loot-card__btn--store {
@@ -481,9 +541,9 @@
 }
 
 .loot-card__btn--store-disabled {
-  background: var(--sw-bg-primary);
-  border-color: var(--sw-glass-border);
-  color: var(--sw-text-muted);
+  background: var(--sw-void, #050608);
+  border-color: rgba(45, 61, 74, 0.55);
+  color: var(--sw-bone-muted, #7a766c);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -491,13 +551,14 @@
 }
 
 .loot-card__btn--sell {
-  background: var(--sw-bg-primary);
-  border-color: var(--sw-glass-border);
-  color: var(--sw-text-muted);
+  background: var(--sw-void, #050608);
+  border-color: rgba(45, 61, 74, 0.55);
+  color: var(--sw-bone-muted, #7a766c);
 }
 
 .loot-card__btn--sell:hover:not(:disabled) {
   color: var(--sw-rarity-legendary);
+  border-color: var(--sw-rust-border, rgba(154, 52, 18, 0.45));
 }
 
 .loot-card__btn--learn {
@@ -531,19 +592,20 @@
 
 .loot-card__btn--replace {
   padding: var(--sw-space-1);
-  background: var(--sw-bg-primary);
-  border: 1px solid var(--sw-glass-border);
+  background: var(--sw-void, #050608);
+  border: 1px solid rgba(45, 61, 74, 0.55);
   font-size: var(--sw-text-2xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
   text-transform: uppercase;
   cursor: pointer;
   border-radius: var(--sw-radius-sm);
-  transition: color var(--sw-transition-base);
+  transition: color var(--sw-transition-base), border-color var(--sw-transition-base);
   font-family: var(--sw-font-mono);
 }
 
 .loot-card__btn--replace:hover:not(:disabled) {
   color: var(--sw-rarity-cursed);
+  border-color: var(--sw-rarity-cursed);
 }
 
 /* ===========================================
@@ -555,7 +617,7 @@
 }
 
 .loot__leave-btn {
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
   font-size: var(--sw-text-xs);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-widest);
@@ -568,8 +630,8 @@
 }
 
 .loot__leave-btn:hover {
-  color: var(--sw-text-tertiary);
-  border-bottom-color: var(--sw-text-muted);
+  color: var(--sw-bone-dim, #b8b4a8);
+  border-bottom-color: var(--sw-rust-border, rgba(154, 52, 18, 0.45));
 }
 
 /* Additional helper classes */

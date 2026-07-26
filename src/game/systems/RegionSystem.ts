@@ -55,7 +55,7 @@ import {
   logCardDraw,
   logCardDrawComplete,
 } from '../utils/explorationDebug';
-import { generateBranchingFloorFromConfig } from './LocationSystem';
+import { generateBranchingFloorFromConfig, ensureLocationFlagActivities } from './LocationSystem';
 import { formatLocationTerrainEffectLines } from './LocationTerrainSystem';
 
 // ============================================================================
@@ -191,7 +191,7 @@ export function getLocationActivities(location: Location): LocationActivities {
     infoGathering: false,
   };
 
-  // Check location flags for activities
+  // R1-012: flagged amenities are injected into the floor — show as present ('normal').
   if (location.flags.isBoss) activities.eliteChallenge = 'normal';
   if (location.flags.hasMerchant) activities.merchant = 'normal';
   if (location.flags.hasTraining) activities.training = 'normal';
@@ -593,7 +593,8 @@ export function locationToBranchingFloor(region: Region, player?: Player): Branc
 
   const effectiveFloor = dangerToFloor(location.dangerLevel, region.baseDifficulty);
 
-  const floor = generateBranchingFloorFromConfig({
+  const preferredEventIds = location.tiedStoryEvents;
+  let floor = generateBranchingFloorFromConfig({
     floor: effectiveFloor,
     arc: region.arc,
     biome: location.biome || location.name,
@@ -605,7 +606,7 @@ export function locationToBranchingFloor(region: Region, player?: Player): Branc
     initialIntel: 0,
     player,
     // T-033: prefer location story hooks when generating room events
-    preferredEventIds: location.tiedStoryEvents,
+    preferredEventIds,
     // T-056: location enemy pool for combat theming
     enemyPool: location.enemyPool,
     // T-059: loot table bias for treasure/merchant drops
@@ -617,11 +618,38 @@ export function locationToBranchingFloor(region: Region, player?: Player): Branc
     lootTheme: region.lootTheme,
   });
 
+  // R1-012 / R1-007: honor location amenity flags + boss/story event guarantee
+  floor = ensureLocationFlagActivities(
+    floor,
+    {
+      hasMerchant: location.flags.hasMerchant,
+      hasRest: location.flags.hasRest,
+      hasTraining: location.flags.hasTraining,
+      // R1-007/R1-013: force preferred story beat when location authors tiedStoryEvents
+      ensureStoryEvent: Boolean(preferredEventIds && preferredEventIds.length > 0),
+    },
+    {
+      difficulty: region.baseDifficulty,
+      arc: region.arc,
+      player,
+      preferredEventIds,
+      lootTable: location.lootTable,
+      lootTheme: region.lootTheme,
+    },
+  );
+
   // T-046: ambient flavor for location map header + enter log
   const atmosphereFlavor = pickAtmosphereFlavor(location) ?? undefined;
+  // A4: revisit scar for LocationMap chip + enter log (location already completed)
+  const isRevisit = Boolean(location.isCompleted);
+  // A4 wave2: veiled route chip (no new unlock systems — pass-through of authored flags)
+  const isSecret =
+    Boolean(location.flags.isSecret) || location.type === LocationType.SECRET;
   return {
     ...floor,
     ...(atmosphereFlavor ? { atmosphereFlavor } : {}),
+    ...(isRevisit ? { isRevisit: true } : {}),
+    ...(isSecret ? { isSecret: true } : {}),
     enemyPool: location.enemyPool,
     lootTable: location.lootTable,
     terrainEffects: location.terrainEffects,
@@ -738,14 +766,21 @@ function locationMatchesConfigOrId(location: Location, configOrFullId: string): 
 /**
  * When a location is completed, discover secret locations linked by SECRET paths
  * listed on that location's secretPaths.
+ *
+ * R1-016: also returns unlockCondition.requirement strings so callers can set
+ * matching eventFlags (path unlock used to skip flags that combat/story check).
  */
 export function discoverSecretsFromCompletedLocation(
   region: Region,
   completedLocationId: string,
-): { region: Region; newlyDiscovered: string[] } {
+): {
+  region: Region;
+  newlyDiscovered: string[];
+  unlockedRequirements: string[];
+} {
   const completed = region.locations.find((l) => l.id === completedLocationId);
   if (!completed?.secretPaths?.length) {
-    return { region, newlyDiscovered: [] };
+    return { region, newlyDiscovered: [], unlockedRequirements: [] };
   }
 
   const targetConfigIds = new Set<string>();
@@ -756,10 +791,11 @@ export function discoverSecretsFromCompletedLocation(
     }
   }
   if (targetConfigIds.size === 0) {
-    return { region, newlyDiscovered: [] };
+    return { region, newlyDiscovered: [], unlockedRequirements: [] };
   }
 
   const newlyDiscovered: string[] = [];
+  const unlockedRequirements: string[] = [];
   const discoveredSecretIds = [...region.discoveredSecretIds];
   const locations = region.locations.map((l) => {
     const isTarget = [...targetConfigIds].some((cfg) => locationMatchesConfigOrId(l, cfg));
@@ -770,16 +806,21 @@ export function discoverSecretsFromCompletedLocation(
     if (!discoveredSecretIds.includes(l.id)) {
       discoveredSecretIds.push(l.id);
     }
+    const req = l.unlockCondition?.requirement;
+    if (typeof req === 'string' && req.length > 0 && !unlockedRequirements.includes(req)) {
+      unlockedRequirements.push(req);
+    }
     return { ...l, isDiscovered: true, isAccessible: true };
   });
 
   if (newlyDiscovered.length === 0) {
-    return { region, newlyDiscovered: [] };
+    return { region, newlyDiscovered: [], unlockedRequirements: [] };
   }
 
   return {
     region: { ...region, locations, discoveredSecretIds },
     newlyDiscovered,
+    unlockedRequirements,
   };
 }
 
@@ -927,7 +968,7 @@ function getLocationTypeLabel(type: LocationType): string {
     [LocationType.WILDERNESS]: 'Wilderness',
     [LocationType.STRONGHOLD]: 'Stronghold',
     [LocationType.LANDMARK]: 'Landmark',
-    [LocationType.SECRET]: 'Secret Area',
+    [LocationType.SECRET]: 'Veiled Route',
     [LocationType.BOSS]: 'Boss Lair',
   };
   return labels[type] || 'Unknown';
@@ -941,8 +982,53 @@ function getLocationTypeLabel(type: LocationType): string {
  * Humanize atmosphere event ids (snake_case flavor tags, not GameEvent ids).
  * Exported for unit tests.
  */
+/** R1-010: sober flavor for Waves atmosphere tags (not GameEvents). */
+const ATMOSPHERE_PROSE: Record<string, string> = {
+  suspicious_cargo: 'Crates sweat salt. No one claims the ink on the manifests.',
+  overheard_conversation: 'Two voices under the pier: names, prices, a child as collateral.',
+  dock_brawl: 'Knuckles on wet wood. The fight ends before the watch arrives.',
+  washed_up_treasure: 'Something glints in the foam — then the tide takes interest.',
+  stranded_sailor: 'A man without a ship watches the mist like it still owes him.',
+  ghost_ship_sighting: 'A hull without lanterns slides past the horizon and is gone.',
+  animal_attack: 'Something large moved between the trunks. Blood on the needles.',
+  hidden_cache: 'A cache buried shallow — someone left in a hurry.',
+  bandit_camp: 'Ash rings and boot prints. They were here last night.',
+  hidden_stash: 'Oilcloth and coin. Smugglers keep better books than the village.',
+  cave_in: 'Dust falls from the ceiling. The mountain is thinking about it.',
+  smuggler_deal: 'Hands change under a tarp. Nobody smiles.',
+  villager_plea: 'A mother counts coins that will never be enough.',
+  hidden_resistance: 'Someone scrapes a kanji into a post: not yet, not broken.',
+  tax_collection: 'Gato’s men leave with more than coin. Quiet doors stay shut.',
+  campfire_tales: 'Smoke tastes of fish and fear. The stories stop when you sit.',
+  river_crossing: 'The rope is slick. One misstep and the current keeps you.',
+  supply_trade: 'Rations for a rumor. Fair enough in this weather.',
+  trapped_air_pocket: 'The wreck holds a bubble of old breath. It won’t last.',
+  spectral_captain: 'A wet coat with no man inside still points the way below.',
+  treasure_cache: 'Gold is quiet. The lock is not.',
+  bridge_sabotage: 'Sawdust and cut ropes. Someone wants the span to fail.',
+  worker_strike: 'Hammers rest. Hunger does not.',
+  gato_threat: 'A sealed notice: delay, and the pier burns.',
+  prisoner_rescue: 'Iron on wrists. Eyes that already left this country.',
+  supply_raid: 'The warehouse door hangs open. Fresh footprints lead inland.',
+  commander_duel: 'A circle of men. Two blades. No referee but the fog.',
+  ghostly_wailing: 'The manor sings when the wind finds the broken glass.',
+  hidden_passage: 'Wallpaper peels around a seam that should not exist.',
+  noble_treasure: 'Dust on silver. A family name nobody uses anymore.',
+  smuggler_meeting: 'Lanterns low. Maps of channels the coastguard never charts.',
+  rare_cargo: 'Something sealed in wax that hums under your palm.',
+  sea_monster: 'The water bulges wrong. Then it is flat again.',
+  dark_ritual: 'Salt lines and old blood. The shrine is not empty.',
+  forbidden_knowledge: 'A scroll that stains the gloves black.',
+  ancient_curse: 'Your name feels heavier after you speak it here.',
+  gato_speech: 'Greed wearing a smile. The room applauds on cue.',
+  servant_whispers: 'In the kitchens they talk about who did not come back.',
+  display_of_power: 'A body left where the path narrows. Message received.',
+};
+
 export function humanizeAtmosphereEventId(id: string): string {
-  const cleaned = id.trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  const key = id.trim().toLowerCase();
+  if (ATMOSPHERE_PROSE[key]) return ATMOSPHERE_PROSE[key];
+  const cleaned = key.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
   if (!cleaned) return '';
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
@@ -959,20 +1045,27 @@ export function pickAtmosphereFlavor(
   const idx = Math.min(events.length - 1, Math.floor(rng() * events.length));
   const phrase = humanizeAtmosphereEventId(events[idx]!);
   if (!phrase) return null;
+  // Prose entries stand alone; fallback titles keep a light prefix
+  if (ATMOSPHERE_PROSE[events[idx]!.trim().toLowerCase()]) return phrase;
   return `Atmosphere: ${phrase}`;
 }
 
 /**
  * Determine the special feature to display for a location at FULL intel.
  * Returns the highest priority feature.
+ *
+ * R1-012: Merchant / Rest / Training flags are guaranteed on the location floor
+ * via ensureLocationFlagActivities — UI can state them as present (not "May have").
  */
 function determineSpecialFeature(location: Location): string | null {
   // Priority order for special features
   if (location.flags.isBoss) return 'REGION BOSS';
-  if (location.flags.isSecret) return 'SECRET AREA';
-  if (location.flags.hasMerchant) return 'Merchant Available';
-  if (location.flags.hasTraining) return 'Training Grounds';
-  if (location.flags.hasRest) return 'Rest Point';
+  // Veiled / unmarked — mysterious without inventing new systems
+  if (location.flags.isSecret) return 'Veiled Route';
+  if (location.type === LocationType.SECRET) return 'Unmarked Path';
+  if (location.flags.hasMerchant) return 'Merchant';
+  if (location.flags.hasTraining) return 'Training Ground';
+  if (location.flags.hasRest) return 'Safe Rest';
   if (location.tiedStoryEvents && location.tiedStoryEvents.length > 0) return 'Story Event';
   return null;
 }
@@ -988,7 +1081,7 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
     case IntelRevealLevel.NONE:
       return {
         name: '???',
-        subtitle: 'Unknown Territory',
+        subtitle: 'Signal Fogged',
         dangerLevel: null,
         locationType: null,
         specialFeature: null,
@@ -997,7 +1090,9 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
         wealthLevel: null,
         activities: null,
         isBoss: false,
-        isSecret: false,
+        // Veiled signal under fog (name stays sealed) — parity PARTIAL/FULL + UI chips
+        isSecret:
+          location.type === LocationType.SECRET || Boolean(location.flags.isSecret),
         minRooms: null,
         description: null,
         atmosphereLine: null,
@@ -1016,7 +1111,7 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
         wealthLevel: location.wealthLevel,
         activities: getLocationActivities(location),
         isBoss: location.type === LocationType.BOSS,
-        isSecret: location.type === LocationType.SECRET,
+        isSecret: location.type === LocationType.SECRET || Boolean(location.flags.isSecret),
         minRooms: location.minRooms,
         // T-047: authored prose visible once name is known
         description: location.description || null,
@@ -1036,7 +1131,7 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
         wealthLevel: location.wealthLevel,
         activities: getLocationActivities(location),
         isBoss: location.type === LocationType.BOSS,
-        isSecret: location.type === LocationType.SECRET,
+        isSecret: location.type === LocationType.SECRET || Boolean(location.flags.isSecret),
         minRooms: location.minRooms,
         description: location.description || null,
         // FULL intel also surfaces atmosphere flavor (T-046 helper)
@@ -1057,7 +1152,8 @@ export function getCardDisplayInfo(card: LocationCard): CardDisplayInfo {
         wealthLevel: null,
         activities: null,
         isBoss: false,
-        isSecret: false,
+        isSecret:
+          location.type === LocationType.SECRET || Boolean(location.flags.isSecret),
         minRooms: null,
         description: null,
         atmosphereLine: null,
@@ -1086,7 +1182,7 @@ export function drawLocationCards(
   logCardDrawStart(region.id, count, revealedCount);
   // Calculate progress percentage
   const progressPercent = region.totalLocations > 0
-    ? (region.locationsCompleted / region.totalLocations) * 100
+    ? Math.min(100, Math.round((region.locationsCompleted / region.totalLocations) * 100))
     : 0;
 
   const tierWeights = getTierWeights(progressPercent);
