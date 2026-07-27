@@ -809,8 +809,8 @@ const Merchant: React.FC<MerchantProps> = ({
         />
       )}
 
-      {/* NPC Presence — cinematic merchant plate */}
-      <header className="merchant__header">
+      {/* Top HUD: NPC left · identity center · purse right — no ornate bar */}
+      <header className="merchant__top">
         <div className="merchant__npc">
           <div className="merchant__npc-frame">
             <ArtIcon
@@ -820,125 +820,103 @@ const Merchant: React.FC<MerchantProps> = ({
               className="merchant__npc-art"
             />
           </div>
-          <div className="merchant__npc-nameplate">
-            <span className="merchant__npc-role">TRAVELING MERCHANT</span>
-            {discountPercent > 0 && (
-              <span className="merchant__discount-badge">{discountPercent}% OFF!</span>
-            )}
-          </div>
-          <p className="merchant__npc-quote">
-            {leanEconomy
-              ? '"Coin is thin in Wave Country. Spend carefully — or walk hungry."'
-              : '"From the far corners of the shinobi world, I bring only the finest."'}
-          </p>
-          {/* T-090: stock already biases toward region lootTheme — surface it */}
-          {lootTheme && (
-            <div
-              className="merchant__theme"
-              aria-label="Region shop bias"
-              title="This shop's stock leans toward the region theme"
-            >
-              {lootTheme.primaryElement && (
-                <span className="merchant__theme-chip merchant__theme-chip--affinity">
-                  Affinity {lootTheme.primaryElement}
-                </span>
-              )}
-              {lootTheme.equipmentFocus?.length > 0 && (
-                <span className="merchant__theme-chip merchant__theme-chip--focus">
-                  Focus{' '}
-                  {lootTheme.equipmentFocus
-                    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                    .join(' · ')}
-                </span>
-              )}
-              {lootTheme.goldMultiplier !== 1 && (
-                <span
-                  className={`merchant__theme-chip merchant__theme-chip--gold ${
-                    leanEconomy ? 'merchant__theme-chip--lean' : ''
-                  }`}
-                  title={
-                    leanEconomy
-                      ? 'Lean region economy — fewer ryo from drops; every purchase is a risk'
-                      : 'Region ryo multiplier'
-                  }
-                >
-                  Ryo ×{lootTheme.goldMultiplier}
-                  {leanEconomy ? ' · Lean' : ''}
-                </span>
+          <div className="merchant__npc-meta">
+            <div className="merchant__npc-nameplate">
+              <span className="merchant__npc-role">Traveling Merchant</span>
+              {discountPercent > 0 && (
+                <span className="merchant__discount-badge">{discountPercent}% OFF</span>
               )}
             </div>
-          )}
-          {leanEconomy && (
-            <p className="merchant__lean-note" role="note">
-              Wave poverty: prices hit hard. Check shortfall before you buy.
+            <p className="merchant__npc-quote">
+              {leanEconomy
+                ? 'Coin is thin here. Spend carefully — or walk hungry.'
+                : 'Finest wares from the far corners of the shinobi world.'}
             </p>
-          )}
+            {lootTheme && (
+              <div className="merchant__theme" aria-label="Region shop bias">
+                {lootTheme.primaryElement && (
+                  <span className="merchant__theme-chip merchant__theme-chip--affinity">
+                    Affinity {lootTheme.primaryElement}
+                  </span>
+                )}
+                {lootTheme.equipmentFocus?.length > 0 && (
+                  <span className="merchant__theme-chip merchant__theme-chip--focus">
+                    Focus{' '}
+                    {lootTheme.equipmentFocus
+                      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+                      .join(' · ')}
+                  </span>
+                )}
+                {lootTheme.goldMultiplier !== 1 && (
+                  <span
+                    className={`merchant__theme-chip merchant__theme-chip--gold ${
+                      leanEconomy ? 'merchant__theme-chip--lean' : ''
+                    }`}
+                  >
+                    Ryo ×{lootTheme.goldMultiplier}
+                    {leanEconomy ? ' · Lean' : ''}
+                  </span>
+                )}
+              </div>
+            )}
+            {leanEconomy && (
+              <p className="merchant__lean-note" role="note">
+                Lean economy — check shortfall before you buy.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="merchant__hud">
+          <RyoDisplay current={player.ryo} previewCost={selectedPrice} />
+          <MerchantStatus
+            quality={player.treasureQuality}
+            slots={player.merchantSlots}
+            maxSlots={MAX_MERCHANT_SLOTS}
+          />
         </div>
       </header>
 
-      {/* Resources Bar */}
-      <div className="merchant__resources sw-panel--ornate">
-        {/* Gold corner flourishes */}
-        <div className="sw-panel__flourish sw-panel__flourish--tl">
-          <span className="sw-panel__flourish-curl" />
-          <span className="sw-panel__flourish-line" />
-          <span className="sw-panel__flourish-line-v" />
+      {/* Services + leave on one tool strip */}
+      <div className="merchant__toolbar">
+        <div className="merchant__services">
+          <ServiceButton
+            variant="reroll"
+            cost={rerollCost}
+            label="Reroll"
+            onClick={onReroll}
+            disabled={isProcessing || player.ryo < rerollCost}
+          />
+          {player.merchantSlots < MAX_MERCHANT_SLOTS && (
+            <ServiceButton
+              variant="slot"
+              cost={slotCost}
+              label="+1 Slot"
+              onClick={onBuySlot}
+              disabled={isProcessing || player.ryo < slotCost}
+            />
+          )}
+          {player.treasureQuality !== TreasureQuality.RARE && (
+            <ServiceButton
+              variant="quality"
+              cost={qualityCost}
+              label="Quality ↑"
+              onClick={onUpgradeQuality}
+              disabled={isProcessing || player.ryo < qualityCost}
+            />
+          )}
         </div>
-        <div className="sw-panel__flourish sw-panel__flourish--tr">
-          <span className="sw-panel__flourish-curl" />
-          <span className="sw-panel__flourish-line" />
-          <span className="sw-panel__flourish-line-v" />
-        </div>
-        <div className="sw-panel__flourish sw-panel__flourish--bl">
-          <span className="sw-panel__flourish-curl" />
-          <span className="sw-panel__flourish-line" />
-          <span className="sw-panel__flourish-line-v" />
-        </div>
-        <div className="sw-panel__flourish sw-panel__flourish--br">
-          <span className="sw-panel__flourish-curl" />
-          <span className="sw-panel__flourish-line" />
-          <span className="sw-panel__flourish-line-v" />
-        </div>
-
-        {/* Content */}
-        <RyoDisplay current={player.ryo} previewCost={selectedPrice} />
-        <MerchantStatus
-          quality={player.treasureQuality}
-          slots={player.merchantSlots}
-          maxSlots={MAX_MERCHANT_SLOTS}
-        />
+        <button
+          type="button"
+          className="merchant__leave-button"
+          onClick={onLeave}
+        >
+          Leave shop
+          <span className="sw-shortcut">Esc</span>
+        </button>
       </div>
 
-      {/* Services Panel */}
-      <div className="merchant__services">
-        <ServiceButton
-          variant="reroll"
-          cost={rerollCost}
-          label="Reroll"
-          onClick={onReroll}
-          disabled={isProcessing || player.ryo < rerollCost}
-        />
-        {player.merchantSlots < MAX_MERCHANT_SLOTS && (
-          <ServiceButton
-            variant="slot"
-            cost={slotCost}
-            label="+1 Slot"
-            onClick={onBuySlot}
-            disabled={isProcessing || player.ryo < slotCost}
-          />
-        )}
-        {player.treasureQuality !== TreasureQuality.RARE && (
-          <ServiceButton
-            variant="quality"
-            cost={qualityCost}
-            label="Quality ↑"
-            onClick={onUpgradeQuality}
-            disabled={isProcessing || player.ryo < qualityCost}
-          />
-        )}
-      </div>
-
-      {/* Content Area */}
+      {/* Wares — primary stage */}
       {merchantItems.length === 0 ? (
         <div className="merchant__empty" role="status">
           <p className="merchant__empty-title">The cart is bare</p>
@@ -952,7 +930,6 @@ const Merchant: React.FC<MerchantProps> = ({
             selectedItem ? 'merchant__content--with-preview' : ''
           }`}
         >
-          {/* Item Grid */}
           <div
             className={`item-grid ${
               selectedItem ? 'item-grid--with-selection' : ''
@@ -985,7 +962,6 @@ const Merchant: React.FC<MerchantProps> = ({
             })}
           </div>
 
-          {/* Preview Panel */}
           {selectedItem && (
             <PreviewPanel
               item={selectedItem}
@@ -1006,18 +982,6 @@ const Merchant: React.FC<MerchantProps> = ({
           )}
         </div>
       )}
-
-      {/* Leave Button */}
-      <div className="merchant__leave">
-        <button
-          type="button"
-          className="merchant__leave-button"
-          onClick={onLeave}
-        >
-          Leave shop
-          <span className="sw-shortcut">Esc</span>
-        </button>
-      </div>
 
       {/* T-055: purchase success toast */}
       {purchaseToast && (

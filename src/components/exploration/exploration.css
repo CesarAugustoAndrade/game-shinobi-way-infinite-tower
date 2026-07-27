@@ -1079,7 +1079,7 @@
 
 .location-map {
   position: relative;
-  /* Full-bleed stage: rooms own the center column, not a postcard max-width */
+  /* Full-bleed to yellow viewscreen frame — no inset postcard panel */
   width: 100%;
   max-width: none;
   margin: 0;
@@ -1095,7 +1095,8 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.45);
+  /* Soft edge only — do not draw a second dark frame inside the yellow bezel */
+  box-shadow: none;
 }
 
 /* Arc-based void/abyss fallbacks (under biome / map plates) */
@@ -1131,13 +1132,24 @@
   opacity: 0.85;
 }
 
+/*
+ * HUD-on-film: no solid scrim bars. Text rides the painted background edge-to-edge
+ * (to the yellow viewscreen frame). Soft text shadow only for readability.
+ */
 .location-map__header {
   position: relative;
   z-index: 2;
   flex: 0 0 auto;
-  padding: var(--sw-space-3) var(--sw-space-4);
-  border-bottom: 2px solid var(--sw-frame-soft);
-  background: var(--sw-scrim);
+  padding: var(--sw-space-2) var(--sw-space-4) var(--sw-space-1);
+  border-bottom: none;
+  background: transparent;
+  /* faint top fade only — not a panel box */
+  background-image: linear-gradient(
+    180deg,
+    rgba(5, 6, 8, 0.55) 0%,
+    rgba(5, 6, 8, 0.12) 70%,
+    transparent 100%
+  );
 }
 
 .location-map__header-content {
@@ -1166,10 +1178,13 @@
 .location-map__title {
   font-size: var(--sw-text-xl);
   font-family: var(--sw-font-serif);
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone, #e8e4dc);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.9),
+    0 2px 12px rgba(0, 0, 0, 0.95),
+    0 0 20px rgba(0, 0, 0, 0.7);
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -1240,6 +1255,7 @@
   color: var(--sw-text-muted, #a1a1aa);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 /* T-046: ambient atmosphere flavor under biome title */
@@ -1250,6 +1266,7 @@
   color: #c4b5fd;
   max-width: 28rem;
   line-height: 1.35;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95);
 }
 
 /* T-074: active location terrain while exploring */
@@ -1257,9 +1274,10 @@
   margin: 4px 0 0;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #8a9199;
+  color: #b8bcc2;
   max-width: 32rem;
   line-height: 1.35;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 /* T-080: room terrain visibility foresight */
@@ -1267,9 +1285,10 @@
   margin: 4px 0 0;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #94a3b8;
+  color: #cbd5e1;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 .location-map__sight-fog {
@@ -1283,9 +1302,10 @@
   margin: 4px 0 0;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #94a3b8;
+  color: #cbd5e1;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 .location-map__secrets--pos {
@@ -1303,9 +1323,10 @@
   margin: 4px 0 0;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #94a3b8;
+  color: #cbd5e1;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 .location-map__pace--slow {
@@ -1347,7 +1368,8 @@
 
 .location-map__stat {
   font-size: var(--sw-text-xs);
-  color: var(--sw-text-tertiary);
+  color: var(--sw-bone-dim, #b8b4a8);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 .location-map__intel {
@@ -1385,16 +1407,42 @@
 
 .location-map__hint {
   font-size: 10px;
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-dim, #b8b4a8);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
+}
+
+/* Bottom-right HUD: coach + keyboard (selected room panel remains left) */
+.location-map__hud-right {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: var(--sw-space-1);
+  padding: var(--sw-space-2) var(--sw-space-4) var(--sw-space-3);
+  margin-left: auto;
+  max-width: min(28rem, 92%);
+  align-self: flex-end;
+  text-align: right;
+  background: transparent;
+  background-image: linear-gradient(
+    270deg,
+    rgba(5, 6, 8, 0.45) 0%,
+    rgba(5, 6, 8, 0.12) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
 .location-map__coach {
   position: relative;
   z-index: 2;
-  border-top: 2px solid var(--sw-frame-soft);
-  padding: var(--sw-space-3) var(--sw-space-4);
-  background: rgba(0, 0, 0, 0.45);
-  text-align: center;
+  border-top: none;
+  padding: 0;
+  background: transparent;
+  text-align: right;
+  width: 100%;
 }
 
 .location-map__coach-text {
@@ -1403,6 +1451,9 @@
   line-height: 1.4;
   /* Bone instrument readout — clear next action, not candy gold */
   color: #e8e4dc;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.95),
+    0 2px 10px rgba(0, 0, 0, 0.9);
 }
 
 .location-map__instructions {
@@ -1410,14 +1461,16 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: var(--sw-space-2);
-  padding: var(--sw-space-2) var(--sw-space-4);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0;
+  border-top: none;
   font-size: 11px;
-  color: var(--sw-text-muted);
-  background: rgba(0, 0, 0, 0.35);
+  color: var(--sw-bone-dim, #b8b4a8);
+  background: transparent;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
+  width: 100%;
 }
 
 .location-map__key {
@@ -1436,47 +1489,50 @@
   margin: 0 0.15rem;
 }
 
-/* Map area — fills remaining stage between header and selected/coach strips */
+/* Map area — board pinned high under header (not vertically centered) */
 .location-map__area {
   flex: 1 1 auto;
   position: relative;
   z-index: 2;
-  padding: var(--sw-space-2) var(--sw-space-3);
+  padding: 0 var(--sw-space-3) var(--sw-space-2);
   min-height: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
 }
 
 .location-map__rooms {
   position: relative;
   z-index: 10;
-  flex: 1 1 auto;
+  flex: 0 0 auto; /* size to content; never fill/center the stage */
   width: 100%;
-  height: 100%;
+  height: auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-evenly;
-  padding: var(--sw-space-3) 0;
+  justify-content: flex-start;
+  padding: 0;
+  margin: 0;
 }
 
 /*
- * Mission diamond — full-bleed board (not an inset postcard).
- * Foreshortened far row + grounded you-are-here; path choice, not spreadsheet.
+ * Mission diamond — packed tight under the title strip.
  */
 .location-map__rooms--diamond {
-  gap: clamp(0.75rem, 2.5vh, 1.75rem);
-  padding: clamp(0.5rem, 1.5vh, 1.25rem) clamp(0.75rem, 3vw, 2rem);
+  gap: clamp(0.4rem, 1.4vh, 0.9rem);
+  padding: 0 clamp(0.75rem, 3vw, 2rem) 0;
   border: none;
   border-radius: 0;
   width: 100%;
-  height: 100%;
+  height: auto;
+  justify-content: flex-start;
+  /* Nudge board up toward the location title */
+  margin-top: clamp(-0.5rem, -1.5vh, 0);
   box-sizing: border-box;
-  background:
-    radial-gradient(ellipse 70% 55% at 50% 78%, rgba(166, 93, 63, 0.05), transparent 55%),
-    linear-gradient(180deg, rgba(5, 6, 8, 0.08) 0%, rgba(5, 6, 8, 0.28) 100%);
+  background: transparent;
   box-shadow: none;
 }
 
@@ -1588,18 +1644,24 @@
   opacity: 0.65;
 }
 
-/* Selected room panel */
+/* Selected room — text on film, no solid panel box */
 .location-map__selected {
   position: relative;
   z-index: 2;
-  border-top: 2px solid var(--sw-frame-soft);
-  padding: var(--sw-space-4);
-  background: var(--sw-scrim);
+  border-top: none;
+  padding: var(--sw-space-3) var(--sw-space-4);
+  background: transparent;
+  background-image: linear-gradient(
+    0deg,
+    rgba(5, 6, 8, 0.62) 0%,
+    rgba(5, 6, 8, 0.2) 65%,
+    transparent 100%
+  );
 }
 
 .location-map__selected-content {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--sw-space-3);
   flex-wrap: wrap;
@@ -1617,28 +1679,33 @@
 .location-map__selected-name {
   font-size: var(--sw-text-lg);
   font-weight: 700;
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone, #e8e4dc);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.95),
+    0 2px 12px rgba(0, 0, 0, 0.9);
 }
 
 .location-map__selected-desc {
   font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
+  color: #c4c0b4;
   margin-top: var(--sw-space-1);
   overflow-wrap: anywhere;
   word-break: break-word;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95);
+  max-width: 36rem;
 }
 
-/* T-084: selected room terrain foresight */
+/* T-084: selected room terrain foresight — chips only, no opaque plate */
 .location-map__selected-terrain {
   margin-top: var(--sw-space-2);
-  padding: var(--sw-space-2);
-  border: 2px solid #000;
-  background: rgba(0, 0, 0, 0.35);
-  box-shadow: 2px 2px 0 #000;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .location-map__selected-terrain-name {

@@ -94,6 +94,56 @@ export function useInventoryHandlers(
   const droppedSkillRef = useRef(droppedSkill);
   droppedSkillRef.current = droppedSkill;
   /**
+   * Sync pile mirror. Filtered by claimedLootIds so a re-render with stale
+   * droppedItems cannot resurrect a spoil already taken (infinite equip/store).
+   */
+  const claimedLootIdsRef = useRef<Set<string>>(new Set());
+  const droppedItemsRef = useRef(droppedItems);
+  // Keep mirror in sync but never re-surface already-claimed ids
+  droppedItemsRef.current = droppedItems.filter(
+    (i) => !claimedLootIdsRef.current.has(i.id),
+  );
+  /**
+   * Bag / equipment mutations that destroy an instance (sell, craft materials).
+   * bagHasItem alone re-reads lastRendered until commit — same-tick double click
+   * sold twice or crafted twice (double ryo / double charge). Claim ids before
+   * functional write (parity LOOT). Unique instance ids stay claimed after success.
+   */
+  const claimedInventoryItemIdsRef = useRef(new Set<string>());
+
+  const claimInventoryItemIds = (ids: string[]): boolean => {
+    if (ids.some((id) => claimedInventoryItemIdsRef.current.has(id))) return false;
+    for (const id of ids) claimedInventoryItemIdsRef.current.add(id);
+    return true;
+  };
+  const releaseInventoryItemIds = (ids: string[]) => {
+    for (const id of ids) claimedInventoryItemIdsRef.current.delete(id);
+  };
+  /**
+   * Equipment panel actions (unequip / disassemble / synth-from-equip).
+   * Slot id checks alone re-read lastRendered — same-tick double unequip/disassemble
+   * cloned the instance into the bag (item dupe / double component). Key = slot+itemId;
+   * free on fail only (success consumes that equip occupancy).
+   */
+  const claimedEquipActionKeysRef = useRef(new Set<string>());
+  const equipActionKey = (slot: EquipmentSlot, itemId: string) => `${slot}::${itemId}`;
+  const claimEquipAction = (slot: EquipmentSlot, itemId: string): boolean => {
+    const key = equipActionKey(slot, itemId);
+    if (claimedEquipActionKeysRef.current.has(key)) return false;
+    claimedEquipActionKeysRef.current.add(key);
+    return true;
+  };
+  const releaseEquipAction = (slot: EquipmentSlot, itemId: string) => {
+    claimedEquipActionKeysRef.current.delete(equipActionKey(slot, itemId));
+  };
+  /** Clear stale occupancy claims when a new piece is worn on the slot (re-unequip allowed). */
+  const releaseEquipActionsForSlot = (slot: EquipmentSlot) => {
+    const prefix = `${slot}::`;
+    for (const key of [...claimedEquipActionKeysRef.current]) {
+      if (key.startsWith(prefix)) claimedEquipActionKeysRef.current.delete(key);
+    }
+  };
+  /**
    * One-shot LOOT exit — Leave All, Learn (empty pile), and delayed finish claim
    * can all call returnToMap in the same breath (confirm abandon + Learn, or
    * finish settle + Leave). Double returnToMap re-chains activities / double
@@ -104,46 +154,60 @@ export function useInventoryHandlers(
   /** Re-arm when LOOT scene opens for a new pile. */
   const rearmLootExit = useCallback(() => {
     lootExitLockRef.current = false;
-  }, []);
+    claimedLootIdsRef.current.clear();
+    lootClaimLockRef.current = false;
+    // Prior visit must not leave isProcessingLoot true (blocks merchant buy / LOOT claim)
+    setIsProcessingLoot(false);
+  }, [setIsProcessingLoot]);
 
   /** Leave LOOT at most once per visit. */
   const exitLootOnce = useCallback(() => {
     if (lootExitLockRef.current) return;
     lootExitLockRef.current = true;
+    lootClaimLockRef.current = false;
+    setIsProcessingLoot(false);
     returnToMap();
-  }, [returnToMap]);
+  }, [returnToMap, setIsProcessingLoot]);
 
   /**
-   * Pull one drop off the pile immediately (functional) so the card cannot be
-   * re-claimed. Returns remaining count after claim, or null if missing.
+   * Atomically claim a spoil: mark id claimed + remove from pile.
+   * Returns remaining unclaimed count, or null if already taken / missing.
    */
   const claimFromLootPile = useCallback((itemId: string): number | null => {
-    let remaining: number | null = null;
-    setDroppedItems(prev => {
-      if (!prev.some(i => i.id === itemId)) {
-        remaining = null;
-        return prev;
-      }
-      const next = prev.filter(i => i.id !== itemId);
-      remaining = next.length;
-      return next;
-    });
-    return remaining;
+    if (claimedLootIdsRef.current.has(itemId)) return null;
+    const prev = droppedItemsRef.current;
+    if (!prev.some((i) => i.id === itemId)) return null;
+    claimedLootIdsRef.current.add(itemId);
+    const next = prev.filter((i) => i.id !== itemId);
+    droppedItemsRef.current = next;
+    // Strip any stale copies of this id from React state too
+    setDroppedItems((state) =>
+      state.filter((i) => i.id !== itemId && !claimedLootIdsRef.current.has(i.id)),
+    );
+    return next.length;
   }, [setDroppedItems]);
 
-  /** Put a failed claim back on the pile (equip/store aborted after pull). */
+  /** Undo claim when equip/store fails after pull. */
   const restoreToLootPile = useCallback((item: Item) => {
-    setDroppedItems(prev =>
-      prev.some(i => i.id === item.id) ? prev : [...prev, item]
+    claimedLootIdsRef.current.delete(item.id);
+    if (droppedItemsRef.current.some((i) => i.id === item.id)) return;
+    const next = [...droppedItemsRef.current, item];
+    droppedItemsRef.current = next;
+    setDroppedItems((state) =>
+      state.some((i) => i.id === item.id) ? state : [...state, item],
     );
   }, [setDroppedItems]);
 
-  /** Release loot mutex; leave LOOT only when pile+skill are empty after a real claim. */
+  /**
+   * Release loot mutex; leave LOOT when pile+skill empty.
+   * Defer exit one tick so setPlayer(equipment) is not racing returnToMap.
+   */
   const settleLootClaim = useCallback((remainingAfterClaim: number) => {
     setIsProcessingLoot(false);
     lootClaimLockRef.current = false;
     if (remainingAfterClaim === 0 && !droppedSkillRef.current) {
-      exitLootOnce();
+      // Defer: equip/bag writes must land before LOOT teardown / activity chain
+      setTimeout(() => exitLootOnce(), 0);
     }
   }, [setIsProcessingLoot, exitLootOnce]);
 
@@ -153,7 +217,7 @@ export function useInventoryHandlers(
     lootClaimLockRef.current = true;
     setIsProcessingLoot(true);
 
-    // Claim pile first so Equip cannot multi-fill every empty slot with one drop
+    // Claim FIRST — one spoil, one action (blocks infinite equip/store)
     const remainingAfter = claimFromLootPile(item.id);
     if (remainingAfter === null) {
       lootClaimLockRef.current = false;
@@ -161,8 +225,7 @@ export function useInventoryHandlers(
       return;
     }
 
-    // Functional equip on latest player (bag space for swap can change mid-frame)
-    type EquipOut = 'ok' | 'fail' | 'missing' | 'noprev';
+    type EquipOut = 'ok' | 'fail' | 'noprev';
     const box: { o: EquipOut; reason?: string; replacedName?: string } = { o: 'noprev' };
 
     setPlayer(prev => {
@@ -213,14 +276,23 @@ export function useInventoryHandlers(
     }
 
     const price = getSellPrice(item);
+    // Functional grant — restore spoil if player vanished mid-claim (parity equip/store)
+    let granted = false;
     setPlayer(prev => {
       if (!prev) return null;
+      granted = true;
       // Loot sell: grant ryo only (item is not in bag yet)
       return { ...prev, ryo: prev.ryo + price };
     });
+    if (!granted) {
+      restoreToLootPile(item);
+      lootClaimLockRef.current = false;
+      setIsProcessingLoot(false);
+      return;
+    }
     addLog(`Sold ${item.name} for ${price} Ryō.`, 'loot');
     settleLootClaim(remainingAfter);
-  }, [player, isProcessingLoot, setPlayer, addLog, setIsProcessingLoot, claimFromLootPile, settleLootClaim]);
+  }, [player, isProcessingLoot, setPlayer, addLog, setIsProcessingLoot, claimFromLootPile, restoreToLootPile, settleLootClaim]);
 
   // Store item in bag instead of equipping
   const storeToBag = useCallback((item: Item) => {
@@ -232,6 +304,7 @@ export function useInventoryHandlers(
     lootClaimLockRef.current = true;
     setIsProcessingLoot(true);
 
+    // Claim FIRST — one spoil cannot fill the bag repeatedly
     const remainingAfter = claimFromLootPile(item.id);
     if (remainingAfter === null) {
       lootClaimLockRef.current = false;
@@ -270,9 +343,12 @@ export function useInventoryHandlers(
   /**
    * Sell component from bag.
    * T-058: returns sell price on success for UI toast (null on fail).
-   * Only grants ryo if the item is still present on the latest prev bag (double-sell guard).
+   * Claim id first — bagHasItem alone is not enough for same-tick double sell.
+   * Only grants ryo if the item is still present on the latest prev bag.
    */
   const sellComponent = useCallback((item: Item): number | null => {
+    if (!claimInventoryItemIds([item.id])) return null;
+
     let soldValue: number | null = null;
     setPlayer(prev => {
       if (!prev) return null;
@@ -285,7 +361,10 @@ export function useInventoryHandlers(
         bag: prev.bag.map(c => c?.id === item.id ? null : c)
       };
     });
-    if (soldValue === null) return null;
+    if (soldValue === null) {
+      releaseInventoryItemIds([item.id]);
+      return null;
+    }
     addLog(`Sold ${item.name} for ${soldValue} Ryō.`, 'loot');
     setSelectedComponent(null);
     return soldValue;
@@ -297,7 +376,12 @@ export function useInventoryHandlers(
    * Requires bag membership on latest prev; aborts if item is already gone.
    */
   const equipFromBag = useCallback((item: Item): { replacedName?: string } | null => {
-    type Outcome = { kind: 'missing' } | { kind: 'fail'; reason?: string } | { kind: 'ok'; summary: { replacedName?: string } };
+    type Outcome = {
+      kind: 'missing' | 'fail' | 'ok';
+      reason?: string;
+      summary?: { replacedName?: string };
+      equippedSlot?: EquipmentSlot;
+    };
     // Mutable box so TS control-flow sees assignments inside setPlayer updater
     const box: { outcome: Outcome } = { outcome: { kind: 'missing' } };
 
@@ -323,9 +407,18 @@ export function useInventoryHandlers(
         box.outcome = { kind: 'fail', reason: result.reason };
         return prev;
       }
+      // Resolve slot for occupancy re-arm (so a later unequip of this piece is allowed)
+      let equippedSlot: EquipmentSlot | undefined;
+      for (const s of Object.values(EquipmentSlot) as EquipmentSlot[]) {
+        if (result.player.equipment[s]?.id === item.id) {
+          equippedSlot = s;
+          break;
+        }
+      }
       box.outcome = {
         kind: 'ok',
-        summary: result.replacedItem ? { replacedName: result.replacedItem.name } : {}
+        summary: result.replacedItem ? { replacedName: result.replacedItem.name } : {},
+        equippedSlot,
       };
       return result.player;
     });
@@ -339,13 +432,16 @@ export function useInventoryHandlers(
       addLog(outcome.reason || 'Cannot equip item.', 'danger');
       return null;
     }
-    if (outcome.summary.replacedName) {
+    if (outcome.equippedSlot) {
+      releaseEquipActionsForSlot(outcome.equippedSlot);
+    }
+    if (outcome.summary?.replacedName) {
       addLog(`Equipped ${item.name}. ${outcome.summary.replacedName} moved to bag.`, 'loot');
     } else {
       addLog(`Equipped ${item.name} from bag.`, 'loot');
     }
     setSelectedComponent(null);
-    return outcome.summary;
+    return outcome.summary ?? {};
   }, [setPlayer, addLog, setSelectedComponent]);
 
   /**
@@ -360,9 +456,12 @@ export function useInventoryHandlers(
    */
   const handleSynthesize = useCallback((compA: Item, compB: Item): Item | null => {
     if (!player) return null;
+    // Claim materials first — same-tick partner double-click re-ran craft (double ryo/product)
+    if (!claimInventoryItemIds([compA.id, compB.id])) return null;
 
     const combo = getCraftCombination(compA, compB);
     if (!combo) {
+      releaseInventoryItemIds([compA.id, compB.id]);
       if (
         compA.isComponent &&
         compB.isComponent &&
@@ -389,6 +488,7 @@ export function useInventoryHandlers(
     const actionName = combo.actionName;
 
     if (!result.success || !result.item) {
+      releaseInventoryItemIds([compA.id, compB.id]);
       addLog(result.reason || 'These items cannot be combined.', 'danger');
       return null;
     }
@@ -412,20 +512,19 @@ export function useInventoryHandlers(
       return applied.player;
     });
 
-    if (craftBox.o === 'missing') {
-      addLog('Materials no longer in bag.', 'danger');
+    if (craftBox.o !== 'ok') {
+      releaseInventoryItemIds([compA.id, compB.id]);
+      if (craftBox.o === 'missing') {
+        addLog('Materials no longer in bag.', 'danger');
+      } else if (craftBox.o === 'ryo') {
+        addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
+      } else if (craftBox.o === 'space') {
+        addLog('No bag space for crafted item.', 'danger');
+      }
       return null;
     }
-    if (craftBox.o === 'ryo') {
-      addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
-      return null;
-    }
-    if (craftBox.o === 'space') {
-      addLog('No bag space for crafted item.', 'danger');
-      return null;
-    }
-    if (craftBox.o !== 'ok') return null;
 
+    // Materials consumed — leave ids claimed (unique instances)
     addLog(`${actionName} ${product.name} for ${cost} Ryō!`, 'gain');
     setSelectedComponent(null);
     return product;
@@ -434,10 +533,12 @@ export function useInventoryHandlers(
   // Upgrade two BROKEN components (same type) into a COMMON component
   const handleUpgradeComponent = useCallback((compA: Item, compB: Item) => {
     if (!player) return;
+    if (!claimInventoryItemIds([compA.id, compB.id])) return;
 
     const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
     const result = upgradeComponent(compA, compB, effectiveFloor);
     if (!result.success || !result.item) {
+      releaseInventoryItemIds([compA.id, compB.id]);
       addLog(result.reason || 'These components cannot be upgraded.', 'danger');
       return;
     }
@@ -461,19 +562,17 @@ export function useInventoryHandlers(
       return applied.player;
     });
 
-    if (craftBox.o === 'missing') {
-      addLog('Materials no longer in bag.', 'danger');
+    if (craftBox.o !== 'ok') {
+      releaseInventoryItemIds([compA.id, compB.id]);
+      if (craftBox.o === 'missing') {
+        addLog('Materials no longer in bag.', 'danger');
+      } else if (craftBox.o === 'ryo') {
+        addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
+      } else if (craftBox.o === 'space') {
+        addLog('No bag space for upgraded item.', 'danger');
+      }
       return;
     }
-    if (craftBox.o === 'ryo') {
-      addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
-      return;
-    }
-    if (craftBox.o === 'space') {
-      addLog('No bag space for upgraded item.', 'danger');
-      return;
-    }
-    if (craftBox.o !== 'ok') return;
 
     addLog(`Upgraded to ${product.name} for ${cost} Ryō!`, 'gain');
     setSelectedComponent(null);
@@ -482,10 +581,12 @@ export function useInventoryHandlers(
   // Upgrade two RARE artifacts (same type) into an EPIC artifact
   const handleUpgradeArtifact = useCallback((artifactA: Item, artifactB: Item) => {
     if (!player) return;
+    if (!claimInventoryItemIds([artifactA.id, artifactB.id])) return;
 
     const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
     const result = upgradeArtifact(artifactA, artifactB, effectiveFloor);
     if (!result.success || !result.item) {
+      releaseInventoryItemIds([artifactA.id, artifactB.id]);
       addLog(result.reason || 'These artifacts cannot be upgraded.', 'danger');
       return;
     }
@@ -509,19 +610,17 @@ export function useInventoryHandlers(
       return applied.player;
     });
 
-    if (craftBox.o === 'missing') {
-      addLog('Materials no longer in bag.', 'danger');
+    if (craftBox.o !== 'ok') {
+      releaseInventoryItemIds([artifactA.id, artifactB.id]);
+      if (craftBox.o === 'missing') {
+        addLog('Materials no longer in bag.', 'danger');
+      } else if (craftBox.o === 'ryo') {
+        addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
+      } else if (craftBox.o === 'space') {
+        addLog('No bag space for forged item.', 'danger');
+      }
       return;
     }
-    if (craftBox.o === 'ryo') {
-      addLog(`Not enough Ryō! Need ${cost} Ryō.`, 'danger');
-      return;
-    }
-    if (craftBox.o === 'space') {
-      addLog('No bag space for forged item.', 'danger');
-      return;
-    }
-    if (craftBox.o !== 'ok') return;
 
     addLog(`Forged ${product.name} for ${cost} Ryō!`, 'gain');
     setSelectedComponent(null);
@@ -530,9 +629,18 @@ export function useInventoryHandlers(
   /**
    * Sell equipped item directly from equipment panel.
    * T-062: returns sell price on success for UI toast (null on fail).
+   * Claim id first — slot id check alone can double-pay same-tick (parity bag sell).
    * Only grants ryo if the slot still holds that item on latest prev.
    */
   const sellEquipped = useCallback((slot: EquipmentSlot, item: Item): number | null => {
+    // Equip-occupancy claim (blocks sell×2 / sell+unequip race on same piece)
+    if (!claimEquipAction(slot, item.id)) return null;
+    // Also mark instance destroyed so bag sell cannot re-pay if it races into bag
+    if (!claimInventoryItemIds([item.id])) {
+      releaseEquipAction(slot, item.id);
+      return null;
+    }
+
     let soldValue: number | null = null;
     setPlayer(prev => {
       if (!prev) return null;
@@ -545,7 +653,11 @@ export function useInventoryHandlers(
         equipment: { ...prev.equipment, [slot]: null }
       };
     });
-    if (soldValue === null) return null;
+    if (soldValue === null) {
+      releaseEquipAction(slot, item.id);
+      releaseInventoryItemIds([item.id]);
+      return null;
+    }
     addLog(`Sold ${item.name} for ${soldValue} Ryō.`, 'loot');
     return soldValue;
   }, [setPlayer, addLog]);
@@ -553,8 +665,11 @@ export function useInventoryHandlers(
   /**
    * Unequip item to bag (both components and artifacts).
    * T-067: returns true on success for UI toast (false on fail).
+   * Claim equip occupancy first — slot check alone can dupe into bag same-tick.
    */
   const unequipToBag = useCallback((slot: EquipmentSlot, item: Item): boolean => {
+    if (!claimEquipAction(slot, item.id)) return false;
+
     type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
     const outBox: { o: Outcome } = { o: 'noprev' };
 
@@ -582,11 +697,13 @@ export function useInventoryHandlers(
       };
     });
 
-    if (outBox.o === 'full') {
-      addLog('Bag is full!', 'danger');
+    if (outBox.o !== 'ok') {
+      releaseEquipAction(slot, item.id);
+      if (outBox.o === 'full') {
+        addLog('Bag is full!', 'danger');
+      }
       return false;
     }
-    if (outBox.o !== 'ok') return false;
     addLog(`Moved ${item.name} to bag.`, 'info');
     return true;
   }, [setPlayer, addLog]);
@@ -594,9 +711,12 @@ export function useInventoryHandlers(
   /**
    * Unequip component into bag and select it for synthesis.
    * Returns true when bag received the piece (Bag must arm synthesisMode via session token).
+   * Claim equip occupancy first (parity unequip — no double bag inject).
    */
   const startSynthesisEquipped = useCallback((slot: EquipmentSlot, item: Item): boolean => {
     if (!item.isComponent) return false;
+    if (!claimEquipAction(slot, item.id)) return false;
+
     type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
     const outBox: { o: Outcome } = { o: 'noprev' };
 
@@ -624,11 +744,13 @@ export function useInventoryHandlers(
       };
     });
 
-    if (outBox.o === 'full') {
-      addLog('Bag is full!', 'danger');
+    if (outBox.o !== 'ok') {
+      releaseEquipAction(slot, item.id);
+      if (outBox.o === 'full') {
+        addLog('Bag is full!', 'danger');
+      }
       return false;
     }
-    if (outBox.o !== 'ok') return false;
     setSelectedComponent(item);
     if (item.rarity === Rarity.BROKEN) {
       addLog(`Select a matching Broken component to upgrade ${item.name}.`, 'info');
@@ -641,12 +763,15 @@ export function useInventoryHandlers(
   /**
    * Disassemble artifact into a component.
    * T-069: returns the recovered component on success for UI toast (null on fail).
+   * Claim equip occupancy first — same-tick double click yielded two components.
    */
   const handleDisassembleEquipped = useCallback((slot: EquipmentSlot, item: Item): Item | null => {
     if (item.isComponent || !item.recipe) return null;
+    if (!claimEquipAction(slot, item.id)) return null;
 
     const component = disassemble(item);
     if (!component) {
+      releaseEquipAction(slot, item.id);
       addLog('Cannot disassemble this item.', 'danger');
       return null;
     }
@@ -678,11 +803,13 @@ export function useInventoryHandlers(
       };
     });
 
-    if (outBox.o === 'full') {
-      addLog('Not enough bag space for component!', 'danger');
+    if (outBox.o !== 'ok') {
+      releaseEquipAction(slot, item.id);
+      if (outBox.o === 'full') {
+        addLog('Not enough bag space for component!', 'danger');
+      }
       return null;
     }
-    if (outBox.o !== 'ok') return null;
     addLog(`Disassembled ${item.name} into ${component.name}!`, 'loot');
     return component;
   }, [setPlayer, addLog]);
@@ -740,6 +867,8 @@ export function useInventoryHandlers(
       return;
     }
     if (!didEquip) return;
+    // Re-arm unequip for this slot after a fresh equip (prior sell/unequip claim would stick)
+    releaseEquipActionsForSlot(targetSlot);
     if (swappedName) {
       addLog(`Swapped ${item.name} with ${swappedName}.`, 'info');
     } else {
@@ -750,6 +879,8 @@ export function useInventoryHandlers(
 
   // Unequip item from equipment to bag via drag
   const dragEquipToBag = useCallback((item: Item, slot: EquipmentSlot, targetBagIndex?: number) => {
+    if (!claimEquipAction(slot, item.id)) return;
+
     type Outcome = 'ok' | 'full' | 'missing' | 'swapped' | 'noprev';
     const outBox: { o: Outcome } = { o: 'noprev' };
     let swappedName: string | null = null;
@@ -792,10 +923,14 @@ export function useInventoryHandlers(
       };
     });
 
-    if (outBox.o === 'full') {
-      addLog('Bag is full!', 'danger');
+    if (outBox.o === 'full' || outBox.o === 'missing' || outBox.o === 'noprev') {
+      releaseEquipAction(slot, item.id);
+      if (outBox.o === 'full') {
+        addLog('Bag is full!', 'danger');
+      }
       return;
     }
+    // swapped / ok — equip occupancy consumed (re-equip to slot re-arms via dragBagToEquip)
     if (outBox.o === 'swapped' && swappedName) {
       addLog(`Swapped ${item.name} with ${swappedName}.`, 'info');
       return;

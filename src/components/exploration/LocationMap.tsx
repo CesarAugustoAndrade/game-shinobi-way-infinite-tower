@@ -672,24 +672,24 @@ const LocationMap: React.FC<LocationMapProps> = ({
         </div>
       )}
 
-      {/* Always-on next-action coach (StS clarity) */}
-      <div className="location-map__coach" role="status">
-        <p className="location-map__coach-text">{nextActionCoach}</p>
-      </div>
-
-      {/* Keyboard strip */}
-      <div className="location-map__instructions">
-        {floorComplete ? (
-          <>
-            <span className="location-map__key">Space</span> / <span className="location-map__key">Enter</span> return to region
-          </>
-        ) : (
-          <>
-            <span className="location-map__key">1–2</span> choose path
-            <span className="location-map__sep">♦</span>
-            <span className="location-map__key">Space</span> / <span className="location-map__key">Enter</span> enter room
-          </>
-        )}
+      {/* Coach + keys — right dock (selected room stays left) */}
+      <div className="location-map__hud-right">
+        <div className="location-map__coach" role="status">
+          <p className="location-map__coach-text">{nextActionCoach}</p>
+        </div>
+        <div className="location-map__instructions">
+          {floorComplete ? (
+            <>
+              <span className="location-map__key">Space</span> / <span className="location-map__key">Enter</span> return to region
+            </>
+          ) : (
+            <>
+              <span className="location-map__key">1–2</span> choose path
+              <span className="location-map__sep">♦</span>
+              <span className="location-map__key">Space</span> / <span className="location-map__key">Enter</span> enter room
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

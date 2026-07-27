@@ -233,6 +233,25 @@ const App: React.FC = () => {
   const returnToMapRef = useRef<() => void>(() => {});
   /** Blocks same-tick double Continue on RewardModal (Space hold / Enter+click). */
   const rewardCloseLockRef = useRef(false);
+  /**
+   * Dice / Rest / Intel Continue — UI closedRef is primary; setState consume alone still
+   * re-reads lastRendered until commit (double returnToMap / chain / hunt-reward stage).
+   * Parent ref belt (parity rewardCloseLockRef / completeExecuteLockRef). Rearm when panel opens.
+   */
+  const diceContinueLockRef = useRef(false);
+  const restContinueLockRef = useRef(false);
+  const intelContinueLockRef = useRef(false);
+  /**
+   * LOOT Learn/Upgrade — setDroppedSkill consume alone re-reads lastRendered until
+   * commit, so same-tick double click double-upgraded level/damageMult. Rearm on LOOT open.
+   */
+  const lootSkillClaimLockRef = useRef(false);
+  /**
+   * Approach Engage — UI commitLockRef alone still left parent able to double-apply
+   * approach costs / startCombat / skip-completeActivity if both paths hit before unmount.
+   * Rearm when approach overlay opens.
+   */
+  const approachEngageLockRef = useRef(false);
 
   // --- Shared Combat/Exploration State ---
   // This hook owns state needed by both useCombat and useExploration
@@ -735,26 +754,58 @@ const App: React.FC = () => {
     if (interludeMeta) interludeBoonLockRef.current = false;
   }, [interludeMeta]);
 
-  /** T-023: apply interlude boon and spawn next campaign region. */
+  /**
+   * T-023: apply interlude boon and spawn next campaign region.
+   * Returns false only when nothing was staged so Interlude UI can re-arm boonLockRef
+   * (UI locks before calling us — silent no-op left confirm dead forever).
+   */
   const handleInterludeBoon = useCallback(
-    (boon: CampaignBoon) => {
-      if (interludeBoonLockRef.current) return;
-      if (!interludeMeta || !player) return;
+    (boon: CampaignBoon): boolean => {
+      if (interludeBoonLockRef.current) return false;
       interludeBoonLockRef.current = true;
 
-      const nextEntry = getCampaignEntry(interludeMeta.nextIndex);
-      const config = nextEntry?.config;
-      if (!config) {
-        setPlayer((p) => (p ? applyCampaignBoon(p, boon) : p));
-        setInterludeMeta(null);
-        setInterludeBoons([]);
-        setGameState(GameState.VICTORY);
-        return;
-      }
+      // Consume staging first — always leave INTERLUDE after UI confirm committed
+      const box: {
+        meta: {
+          title: string;
+          body: string;
+          regionName: string;
+          nextRegionName: string;
+          nextIndex: number;
+          nextLootTheme?: import('./game/types').RegionLootTheme | null;
+        } | null;
+        healed: Player | null;
+      } = { meta: null, healed: null };
+      setInterludeMeta((prev) => {
+        if (!prev) return null;
+        box.meta = prev;
+        return null;
+      });
+      setInterludeBoons([]);
 
-      const healed = applyCampaignBoon(player, boon);
-      setPlayer(healed);
-      setCampaignRegionIndex(interludeMeta.nextIndex);
+      if (!box.meta) {
+        interludeBoonLockRef.current = false;
+        return false;
+      }
+      const meta = box.meta;
+
+      const nextEntry = getCampaignEntry(meta.nextIndex);
+      const config = nextEntry?.config;
+
+      // Functional apply on latest player (never gate leave on closure player)
+      setPlayer((p) => {
+        if (!p) return null;
+        box.healed = applyCampaignBoon(p, boon);
+        return box.healed;
+      });
+
+      if (!config || !box.healed) {
+        setGameState(GameState.VICTORY);
+        return true;
+      }
+      const healed = box.healed;
+
+      setCampaignRegionIndex(meta.nextIndex);
 
       const nextRegion = generateRegion(config, difficulty, healed);
       setRegion(nextRegion);
@@ -779,13 +830,12 @@ const App: React.FC = () => {
       setDrawnCards(initialCards);
       setSelectedCardIndex(null);
       setCurrentIntel(INITIAL_INTEL);
-      setInterludeBoons([]);
-      setInterludeMeta(null);
 
       addLog(`Boon chosen: ${boon.title}. Entering ${config.name}…`, 'gain');
       setGameState(GameState.REGION_MAP);
+      return true;
     },
-    [interludeMeta, player, difficulty, addLog],
+    [difficulty, addLog],
   );
 
   // Auto-skip character selection if feature flag is enabled
@@ -892,6 +942,12 @@ const App: React.FC = () => {
       setGameState(exploreFallback);
       return;
     }
+    // INTERLUDE only mounts when meta is set — orphan shell is blank main layout
+    if (gameState === GameState.INTERLUDE && !interludeMeta) {
+      setInterludeBoons([]);
+      setGameState(GameState.REGION_MAP);
+      return;
+    }
     // Empty LOOT pile with no skill drop — blank leave-only shell (desync belt).
     // Must use returnToMap (not bare setGameState): floor-complete meta + multi-activity
     // chain only run there. Bare exploreFallback left exit rooms stuck without
@@ -921,6 +977,7 @@ const App: React.FC = () => {
     eliteChallengeData,
     currentTreasure,
     treasureHuntReward,
+    interludeMeta,
     droppedItems.length,
     droppedSkill,
     isProcessingLoot,
@@ -968,18 +1025,32 @@ const App: React.FC = () => {
     addLog('You leave the room without fighting.', 'info');
   };
 
+  // New approach overlay → allow Engage again (cancel / re-open after failed engage)
+  useEffect(() => {
+    if (showApproachSelector) {
+      approachEngageLockRef.current = false;
+    }
+  }, [showApproachSelector]);
+
   // Handle approach selection for BRANCHING exploration combat (also works for region mode)
   const handleBranchingApproachSelect = (approach: ApproachType) => {
     // Allow either branchingFloor OR region mode.
     // Must always dismiss the approach overlay on failure: ApproachSelector sets
     // commitLockRef before calling us — silent return leaves "Engaging…" forever.
+    // Parent ref belt: UI commitLock alone can still double-fire costs/startCombat
+    // if two Engage paths land before unmount (Enter+click / remount residue).
+    if (approachEngageLockRef.current) {
+      // Prior engage already committed — dismiss so UI is not stuck "Engaging…"
+      // (parity failed-gate dismiss; remount residue / re-open before re-arm).
+      setShowApproachSelector(false);
+      return;
+    }
     if (!player || !playerStats || !selectedBranchingRoom || (!branchingFloor && !region)) {
       setShowApproachSelector(false);
       setEnemy(null);
       addLog('The moment passes — nothing left to engage.', 'info');
       return;
     }
-    logModalClose('ApproachSelector', `selected: ${approach}`);
 
     // Check for elite challenge first, then regular combat
     // IMPORTANT: If enemy is already set (e.g., Treasure Guardian), use that instead.
@@ -999,6 +1070,10 @@ const App: React.FC = () => {
       addLog('The enemy has already fled.', 'info');
       return;
     }
+
+    // Lock after validation — failed gates leave overlay free for another Engage
+    approachEngageLockRef.current = true;
+    logModalClose('ApproachSelector', `selected: ${approach}`);
 
     const terrain = TERRAIN_DEFINITIONS[selectedBranchingRoom.terrain];
     // T-063: location terrainEffects stealth_bonus stacks with room stealth
@@ -1132,6 +1207,7 @@ const App: React.FC = () => {
   useLayoutEffect(() => {
     if (gameState === GameState.LOOT) {
       rearmLootExit();
+      lootSkillClaimLockRef.current = false;
     }
   }, [gameState, rearmLootExit]);
 
@@ -1174,6 +1250,57 @@ const App: React.FC = () => {
     }
   }, [combatReward]);
 
+  // New dice / rest / intel panel → allow one Continue again
+  useEffect(() => {
+    if (diceRollResult) diceContinueLockRef.current = false;
+  }, [diceRollResult]);
+  useEffect(() => {
+    if (restResult) restContinueLockRef.current = false;
+  }, [restResult]);
+  useEffect(() => {
+    if (intelResult) intelContinueLockRef.current = false;
+  }, [intelResult]);
+
+  const handleIntelResultClose = useCallback(() => {
+    if (intelContinueLockRef.current) return;
+    intelContinueLockRef.current = true;
+    let had = false;
+    setIntelResult((prev) => {
+      if (!prev) return null;
+      had = true;
+      return null;
+    });
+    if (!had) {
+      intelContinueLockRef.current = false;
+      return;
+    }
+    // Activity already completeActivity'd — chain next room activity or finish floor
+    returnToMap();
+  }, [returnToMap]);
+
+  const handleRestResultClose = useCallback(() => {
+    if (restContinueLockRef.current) return;
+    restContinueLockRef.current = true;
+    let had = false;
+    setRestResult((prev) => {
+      if (!prev) return null;
+      had = true;
+      return null;
+    });
+    if (!had) {
+      restContinueLockRef.current = false;
+      return;
+    }
+    // Rest already completeActivity'd + setFloor — returnToMap for chain / floor complete
+    returnToMap();
+  }, [returnToMap]);
+
+  const handleDiceContinueOnce = useCallback(() => {
+    if (diceContinueLockRef.current) return;
+    diceContinueLockRef.current = true;
+    handleDiceResultContinue();
+  }, [handleDiceResultContinue]);
+
   // Close reward modal - check for pending artifact from elite challenge,
   // or component drops from normal combat victories.
   const handleRewardClose = () => {
@@ -1181,12 +1308,18 @@ const App: React.FC = () => {
     // (setState consume alone re-reads lastRendered until commit)
     if (rewardCloseLockRef.current) return;
     if (!combatReward) return;
+    // Capture loot intent before nulling reward (droppedItems alone can lag / desync)
+    const continuesToLoot = Boolean(combatReward.continuesToLoot);
+    const lootPreviews = combatReward.lootPreviews ?? [];
     rewardCloseLockRef.current = true;
     setCombatReward(null);
 
     logRewardModal('close');
     const artifact = pendingArtifact;
     const hasCombatDrops = droppedItems.length > 0;
+    // Prefer live pile; fall back to victory previews so Continue never skips claim
+    const pendingLoot =
+      hasCombatDrops ? droppedItems : continuesToLoot && lootPreviews.length > 0 ? lootPreviews : [];
     // Treasure Guardian victory stages diceRollResult + combatReward together.
     // Dice owns the post-reward map return — do not returnToMap here or floor-complete
     // / activity chain runs twice (reward Continue then dice Continue).
@@ -1195,7 +1328,7 @@ const App: React.FC = () => {
       'RewardModal',
       artifact
         ? 'showing loot'
-        : hasCombatDrops
+        : pendingLoot.length > 0
           ? 'showing combat loot'
           : hasPendingDice
             ? 'dice result next'
@@ -1211,10 +1344,15 @@ const App: React.FC = () => {
       setPendingArtifact(null);
       addLog('The artifact guardian has fallen! Claim your prize.', 'loot');
       setGameState(GameState.LOOT);
-    } else if (hasCombatDrops) {
+    } else if (pendingLoot.length > 0) {
       logFlowCheckpoint('Combat loot found - showing LOOT screen', {
-        items: droppedItems.map(i => i.name),
+        items: pendingLoot.map(i => i.name),
       });
+      // Restage pile if state was empty but victory still owed a claim
+      if (!hasCombatDrops) {
+        setDroppedItems(pendingLoot);
+        setDroppedSkill(null);
+      }
       logStateChange('LOCATION_EXPLORE', 'LOOT', 'combat drop');
       setGameState(GameState.LOOT);
     } else if (hasPendingDice) {
@@ -1229,6 +1367,8 @@ const App: React.FC = () => {
 
   const learnSkill = (skill: Skill, slotIndex?: number) => {
     if (!player || !playerStats || isProcessingLoot) return;
+    // Ref first — setDroppedSkill consume re-reads lastRendered until commit
+    if (lootSkillClaimLockRef.current) return;
     // Already claimed this skill drop
     if (!droppedSkill || droppedSkill.id !== skill.id) return;
 
@@ -1244,6 +1384,9 @@ const App: React.FC = () => {
       return;
     }
 
+    // Lock before consume (same-tick double Upgrade cannot re-enter)
+    lootSkillClaimLockRef.current = true;
+
     // Consume drop first (blocks double-learn / double-upgrade on rapid click)
     let claimed = false;
     setDroppedSkill(prev => {
@@ -1251,7 +1394,10 @@ const App: React.FC = () => {
       claimed = true;
       return null;
     });
-    if (!claimed) return;
+    if (!claimed) {
+      lootSkillClaimLockRef.current = false;
+      return;
+    }
 
     type LearnKind = 'upgrade' | 'replace' | 'learn' | 'fail';
     const box: { kind: LearnKind; detail?: string; level?: number } = { kind: 'fail' };
@@ -1299,12 +1445,19 @@ const App: React.FC = () => {
     } else {
       // Restore drop if apply failed (rare capacity race)
       setDroppedSkill(skill);
+      lootSkillClaimLockRef.current = false;
       return;
     }
 
     // Stay on LOOT if items remain; only leave when pile is empty.
+    // Read latest pile via setState (closure droppedItems can lag mid-claim settle).
     // Share exit mutex with Leave All / finish claim (no double returnToMap).
-    if (droppedItems.length === 0) {
+    let pileEmpty = droppedItems.length === 0;
+    setDroppedItems(prev => {
+      pileEmpty = prev.length === 0;
+      return prev;
+    });
+    if (pileEmpty) {
       exitLootOnce();
     }
   };
@@ -1928,18 +2081,7 @@ const App: React.FC = () => {
       {intelResult && (
         <IntelResultModal
           result={intelResult}
-          onClose={() => {
-            // Consume first — blocks double Continue (double returnToMap / chain)
-            let had = false;
-            setIntelResult((prev) => {
-              if (!prev) return null;
-              had = true;
-              return null;
-            });
-            if (!had) return;
-            // Activity already completeActivity'd — chain next room activity or finish floor
-            returnToMap();
-          }}
+          onClose={handleIntelResultClose}
         />
       )}
 
@@ -1947,20 +2089,7 @@ const App: React.FC = () => {
       {restResult && (
         <RestResultModal
           result={restResult}
-          onClose={() => {
-            // Consume first — blocks double Continue (double returnToMap / chain)
-            let had = false;
-            setRestResult((prev) => {
-              if (!prev) return null;
-              had = true;
-              return null;
-            });
-            if (!had) return;
-            // Rest already completeActivity'd + setFloor in useActivityHandler.
-            // Must returnToMap so multi-activity rooms chain and exit-room rest
-            // can fire location complete (was soft-stall if only clearing modal).
-            returnToMap();
-          }}
+          onClose={handleRestResultClose}
         />
       )}
 
@@ -2059,7 +2188,7 @@ const App: React.FC = () => {
       {diceRollResult && !combatReward && (
         <DiceRollResultModal
           result={diceRollResult}
-          onContinue={handleDiceResultContinue}
+          onContinue={handleDiceContinueOnce}
         />
       )}
     </div>

@@ -35,7 +35,8 @@ interface InterludeProps {
    * T-095: next region's lootTheme so boon pick is honest about upcoming Focus.
    */
   nextLootTheme?: RegionLootTheme | null;
-  onChooseBoon: (boon: CampaignBoon) => void;
+  /** false = nothing staged — re-arm confirm so boon pick is not dead forever */
+  onChooseBoon: (boon: CampaignBoon) => boolean | void;
   background?: string;
 }
 
@@ -94,8 +95,12 @@ const Interlude: React.FC<InterludeProps> = ({
     if (selected == null || boonLockRef.current) return;
     const boon = boons[selected];
     if (!boon) return;
+    // Lock first (same-tick Enter+click) — parent returns false if meta was already gone
     boonLockRef.current = true;
-    onChooseBoon(boon);
+    const applied = onChooseBoon(boon);
+    if (applied === false) {
+      boonLockRef.current = false;
+    }
   }, [selected, boons, onChooseBoon]);
 
   useEffect(() => {

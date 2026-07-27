@@ -11,6 +11,7 @@ import {
 import {
   checkRequirements,
   checkEventCost,
+  checkEventFlags,
   getAvailableChoices,
 } from '../../game/systems/EventSystem';
 import { applyVisibilityToIntelGain } from '../../game/systems/LocationTerrainSystem';
@@ -23,7 +24,8 @@ import './Event.css';
 
 interface EventProps {
   activeEvent: GameEvent;
-  onChoice: (choice: EventChoice) => void;
+  /** false = gate failed / ignored — re-arm confirm so choices are not dead forever */
+  onChoice: (choice: EventChoice) => boolean | void;
   player?: Player | null;
   playerStats?: CharacterStats | null;
   /** T-011: true when this event was reached by chaining from a prior outcome. */
@@ -426,15 +428,21 @@ const Event: React.FC<EventProps> = ({
 
   const handleConfirm = useCallback((choice: EventChoice) => {
     if (choiceLockRef.current || choiceLocked) return;
+    // Lock first (same-tick Enter+click) — parent returns false on failed gate so we re-arm
     choiceLockRef.current = true;
     setChoiceLocked(true);
-    onChoice(choice);
+    const applied = onChoice(choice);
+    if (applied === false) {
+      choiceLockRef.current = false;
+      setChoiceLocked(false);
+    }
   }, [choiceLocked, onChoice]);
 
   const isChoiceAvailable = useCallback(
     (choice: EventChoice) => {
       if (!player || choiceLocked || choiceLockRef.current) return false;
       return (
+        checkEventFlags(player, choice.requiresFlags, choice.excludesFlags) &&
         checkRequirements(player, choice.requirements, playerStats) &&
         checkEventCost(player, choice.costs)
       );

@@ -13,34 +13,42 @@
 
 .merchant {
   width: 100%;
-  max-width: 72rem;
-  padding: var(--sw-space-6);
+  max-width: none;
+  min-height: 100%;
+  padding: var(--sw-space-4) var(--sw-space-5);
   display: flex;
   flex-direction: column;
-  gap: var(--sw-space-5);
+  gap: var(--sw-space-4);
+  box-sizing: border-box;
 }
 
 /* ===========================================
-   Header / NPC Presence
+   Top HUD — NPC + meta left, purse right (no ornate bar)
    =========================================== */
 
-.merchant__header {
-  text-align: center;
-  margin-bottom: var(--sw-space-2);
+.merchant__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sw-space-4);
+  flex-wrap: wrap;
+  width: 100%;
 }
 
-/* NPC character portrait block — mirrors the enemy info panel from combat */
 .merchant__npc {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-direction: row;
+  align-items: flex-start;
   gap: var(--sw-space-3);
+  min-width: 0;
+  flex: 1 1 16rem;
 }
 
 .merchant__npc-frame {
-  width: 112px;
-  height: 112px;
-  border: 2px solid var(--sw-accent-dim);
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.55));
   border-radius: var(--sw-radius-sm);
   background:
     radial-gradient(ellipse at 50% 40%, rgba(56, 72, 96, 0.28) 0%, transparent 70%),
@@ -49,11 +57,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow:
-    var(--sw-pix-shadow-lg),
-    0 0 28px rgba(125, 211, 252, 0.12),
-    0 0 24px rgba(245, 158, 11, 0.12),
-    inset 0 0 12px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
 .merchant__npc-frame img,
@@ -64,17 +68,19 @@
 }
 
 .merchant__npc-icon {
-  font-size: 3rem;
+  font-size: 2rem;
   line-height: 1;
-  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.4));
 }
 
 .merchant--lean .merchant__npc-frame {
   border-color: rgba(161, 98, 7, 0.75);
-  box-shadow:
-    var(--sw-pix-shadow-lg),
-    0 0 22px rgba(251, 191, 36, 0.12),
-    inset 0 0 14px rgba(0, 0, 0, 0.55);
+}
+
+.merchant__npc-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .merchant__lean-note {
@@ -85,7 +91,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #fcd34d;
-  opacity: 0.9;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 .merchant__theme-chip--lean {
@@ -97,29 +103,35 @@
 .merchant__npc-nameplate {
   display: flex;
   align-items: center;
-  gap: var(--sw-space-3);
+  flex-wrap: wrap;
+  gap: var(--sw-space-2);
 }
 
 .merchant__npc-role {
-  font-family: var(--sw-font-serif);
+  font-family: var(--sw-font-display, Silkscreen, monospace);
   font-size: var(--sw-text-sm);
-  letter-spacing: var(--sw-tracking-ultra);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--sw-accent-tertiary);
+  color: var(--sw-bone, #e8e4dc);
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.95),
+    0 2px 10px rgba(0, 0, 0, 0.85);
 }
 
 .merchant__npc-quote {
+  margin: 0;
   font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-dim, #b8b4a8);
   font-style: italic;
-  max-width: 28rem;
+  max-width: 32rem;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 /* T-090: region lootTheme identity (stock already biased T-070) */
 .merchant__theme {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 6px;
   max-width: 32rem;
   margin-top: 2px;
@@ -131,10 +143,10 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 3px 8px;
-  border: 2px solid #000;
+  border: 1px solid rgba(45, 61, 74, 0.75);
   box-shadow: 2px 2px 0 #000;
   color: #e2e8f0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(5, 6, 8, 0.55);
 }
 
 .merchant__theme-chip--affinity {
@@ -150,6 +162,16 @@
 .merchant__theme-chip--gold {
   color: #fcd34d;
   border-color: #a16207;
+}
+
+/* Purse + quality/slots — floating text, no panel chrome */
+.merchant__hud {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sw-space-2);
+  flex: 0 0 auto;
+  text-align: right;
 }
 
 /* T-091: per-item Focus match cues */
@@ -213,17 +235,6 @@
   vertical-align: middle;
 }
 
-/* ===========================================
-   Resources Bar
-   =========================================== */
-
-.merchant__resources {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sw-space-8);
-}
-
 .ryo-display {
   display: flex;
   align-items: center;
@@ -232,12 +243,14 @@
 
 .ryo-display__icon {
   color: var(--sw-accent-tertiary);
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.9));
 }
 
 .ryo-display__amount {
   font-family: var(--sw-font-mono);
-  font-size: var(--sw-text-base);
+  font-size: var(--sw-text-lg);
   color: var(--sw-accent-tertiary);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.95);
 }
 
 .ryo-display__preview {
@@ -264,27 +277,40 @@
 .merchant-status {
   display: flex;
   align-items: center;
-  gap: var(--sw-space-4);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--sw-space-3);
   font-size: var(--sw-text-2xs);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-widest);
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-dim, #b8b4a8);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
 }
 
 .merchant-status__value {
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone, #e8e4dc);
   font-family: var(--sw-font-mono);
 }
 
 /* ===========================================
-   Services Panel
+   Toolbar — services left, leave right
    =========================================== */
+
+.merchant__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sw-space-3);
+  flex-wrap: wrap;
+  width: 100%;
+}
 
 .merchant__services {
   display: flex;
-  justify-content: center;
-  gap: var(--sw-space-3);
+  justify-content: flex-start;
+  gap: var(--sw-space-2);
   flex-wrap: wrap;
+  flex: 1 1 auto;
 }
 
 .service-button {
@@ -354,8 +380,11 @@
 
 .merchant__content {
   display: flex;
-  gap: var(--sw-space-6);
-  min-height: 400px;
+  gap: var(--sw-space-5);
+  min-height: 0;
+  flex: 1 1 auto;
+  width: 100%;
+  align-items: flex-start;
 }
 
 /* ===========================================
@@ -390,8 +419,8 @@
     border-color var(--sw-transition-base);
   display: flex;
   flex-direction: column;
-  /* visible so the item-tile tooltip can pop above the card (T-018 a3) */
-  overflow: visible;
+  /* Contain in-card tooltip overlay */
+  overflow: hidden;
   background:
     linear-gradient(165deg, rgba(22, 26, 36, 0.95) 0%, rgba(10, 11, 16, 0.98) 100%);
   box-shadow: 4px 4px 0 0 var(--sw-hard);
@@ -404,12 +433,53 @@
   margin-inline: auto;
 }
 
-/* Selected card: the PreviewPanel already shows full details — hide the
-   hover/focus tooltip to avoid duplicated info. */
+/* ============================================================
+   In-card tooltip overlay (same pattern as Sealed Vault tiles)
+   ============================================================ */
+.item-card.item-tile > .item-tile__tooltip {
+  left: 6px;
+  right: 6px;
+  top: 6px;
+  bottom: 6px;
+  width: auto;
+  max-height: none;
+  transform: none !important;
+  z-index: 30;
+  display: none;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: none;
+  overflow-y: auto;
+  background: rgba(5, 6, 8, 0.96);
+  border: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.75));
+  box-shadow: var(--sw-pix-shadow-lg, 6px 6px 0 0 var(--sw-hard));
+  border-radius: var(--sw-radius-sm);
+}
+
+.item-card.item-tile:hover > .item-tile__tooltip,
+.item-card.item-tile:focus-within > .item-tile__tooltip,
+.item-card.item-tile.item-tile--tooltip-below:hover > .item-tile__tooltip,
+.item-card.item-tile.item-tile--tooltip-below:focus-within > .item-tile__tooltip {
+  display: block;
+  transform: none !important;
+}
+
+.item-card.item-tile > .item-tile__tooltip::after {
+  display: none;
+}
+
+.item-card.item-tile:hover,
+.item-card.item-tile:focus-within {
+  z-index: var(--sw-z-popover, 40);
+  overflow: hidden;
+}
+
+/* Selected / dimmed: no overlay tooltip */
 .item-card--selected.item-tile:hover > .item-tile__tooltip,
-.item-card--selected.item-tile:focus-within > .item-tile__tooltip {
-  opacity: 0;
-  visibility: hidden;
+.item-card--selected.item-tile:focus-within > .item-tile__tooltip,
+.item-card--dimmed.item-tile:hover > .item-tile__tooltip,
+.item-card--dimmed.item-tile:focus-within > .item-tile__tooltip {
+  display: none !important;
 }
 
 /* Rarity-specific border colors */
@@ -1002,29 +1072,24 @@
   outline-offset: 2px;
 }
 
-/* ===========================================
-   Leave Button
-   =========================================== */
-
-.merchant__leave {
-  text-align: center;
-  margin-top: var(--sw-space-2);
-}
-
+/* Leave — sits on the toolbar (right) */
 .merchant__leave-button {
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-dim, #b8b4a8);
   font-size: var(--sw-text-xs);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-widest);
   background: transparent;
-  border: none;
+  border: 1px solid rgba(45, 61, 74, 0.65);
   cursor: pointer;
-  padding: var(--sw-space-2) var(--sw-space-4);
-  transition: color var(--sw-transition-base);
+  padding: var(--sw-space-2) var(--sw-space-3);
+  transition: color var(--sw-transition-base), border-color var(--sw-transition-base);
+  flex-shrink: 0;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
 
 .merchant__leave-button:hover {
-  color: var(--sw-text-tertiary);
+  color: var(--sw-bone, #e8e4dc);
+  border-color: var(--sw-rust-border, rgba(154, 52, 18, 0.55));
 }
 
 /* ===========================================
@@ -1099,9 +1164,23 @@
     gap: var(--sw-space-4);
   }
 
-  .merchant__resources {
+  .merchant__top {
     flex-direction: column;
-    gap: var(--sw-space-3);
+    align-items: stretch;
+  }
+
+  .merchant__hud {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .merchant-status {
+    justify-content: flex-start;
+  }
+
+  .merchant__toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .merchant__services {
@@ -1111,6 +1190,11 @@
 
   .service-button {
     justify-content: center;
+  }
+
+  .merchant__leave-button {
+    width: 100%;
+    text-align: center;
   }
 }
 

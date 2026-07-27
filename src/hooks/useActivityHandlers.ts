@@ -150,6 +150,17 @@ export function useActivityHandlers(
    * until React commits, so two events in one frame both see the challenge.
    */
   const eliteResolveLockRef = useRef(false);
+  /**
+   * Training complete/skip share one session lock — setTrainingData consume alone
+   * re-reads lastRendered until commit (Esc + click Skip, or Skip ×2) double
+   * completeActivity / returnToMapActivityComplete.
+   */
+  const trainingSessionLockRef = useRef(false);
+  /**
+   * Scroll learn/skip share one session lock (same class as training).
+   * Browse keys Space/Enter/Esc all call skip without a UI ref.
+   */
+  const scrollSessionLockRef = useRef(false);
 
   // New elite prompt → allow Fight/Escape again
   useEffect(() => {
@@ -165,9 +176,23 @@ export function useActivityHandlers(
     }
   }, [selectedBranchingRoom?.id]);
 
+  // New training / scroll session → re-arm complete+skip
+  useEffect(() => {
+    if (trainingData) {
+      trainingSessionLockRef.current = false;
+    }
+  }, [trainingData]);
+
+  useEffect(() => {
+    if (scrollDiscoveryData) {
+      scrollSessionLockRef.current = false;
+    }
+  }, [scrollDiscoveryData]);
+
   /**
    * Buy merchant item into bag.
    * T-055: returns paid price on success so UI can show purchase juice (null on fail).
+   * Pattern: lock → claim stock once (by id) → charge bag → never re-apply same listing.
    * Functional setPlayer + ref mutex avoid double-click races that overwrite bag slots.
    */
   const buyItem = useCallback((item: Item): number | null => {
@@ -189,6 +214,25 @@ export function useActivityHandlers(
     merchantLockRef.current = true;
     const buyEpoch = ++merchantLockEpochRef.current;
     setIsProcessingLoot(true);
+
+    const unlock = () => {
+      if (merchantLockEpochRef.current !== buyEpoch) return;
+      merchantLockRef.current = false;
+      setIsProcessingLoot(false);
+    };
+
+    // Claim stock FIRST — one listing, one purchase (stale card / double path cannot re-buy)
+    let stockClaimed = false;
+    setMerchantItems((prev) => {
+      if (!prev.some((i) => i.id === item.id)) return prev;
+      stockClaimed = true;
+      return prev.filter((i) => i.id !== item.id);
+    });
+    if (!stockClaimed) {
+      unlock();
+      return null;
+    }
+
     type BuyOutcome = 'ok' | 'ryo' | 'full' | 'noprev';
     const box: { o: BuyOutcome } = { o: 'noprev' };
 
@@ -212,29 +256,21 @@ export function useActivityHandlers(
       return { ...prev, ryo: prev.ryo - price, bag: newBag };
     });
 
-    const unlock = () => {
-      if (merchantLockEpochRef.current !== buyEpoch) return;
-      merchantLockRef.current = false;
-      setIsProcessingLoot(false);
-    };
-
-    if (box.o === 'ryo') {
-      unlock();
-      addLog(`Purse runs short — need ${price} Ryō.`, 'danger');
-      return null;
-    }
-    if (box.o === 'full') {
-      unlock();
-      addLog('Bag is full! Equip or sell items to make room.', 'danger');
-      return null;
-    }
     if (box.o !== 'ok') {
+      // Restore listing so a failed pay/bag race does not soft-delete stock
+      setMerchantItems((prev) =>
+        prev.some((i) => i.id === item.id) ? prev : [...prev, item],
+      );
       unlock();
+      if (box.o === 'ryo') {
+        addLog(`Purse runs short — need ${price} Ryō.`, 'danger');
+      } else if (box.o === 'full') {
+        addLog('Bag is full! Equip or sell items to make room.', 'danger');
+      }
       return null;
     }
 
     addLog(`Bought ${item.name} for ${price} Ryō. Added to bag.`, 'loot');
-    setMerchantItems((prev) => prev.filter((i) => i.id !== item.id));
     setTimeout(unlock, 100);
     return price;
   }, [player, isProcessingLoot, merchantDiscount, addLog, setPlayer, setMerchantItems, setIsProcessingLoot]);
@@ -439,58 +475,81 @@ export function useActivityHandlers(
   }, [player, isProcessingLoot, setPlayer, setIsProcessingLoot, addLog]);
 
   const handleTrainingComplete = useCallback((stat: PrimaryStat, intensity: TrainingIntensity) => {
-    if (!trainingData || !player || !selectedBranchingRoom) return;
-    if (!branchingFloor && !region) return;
+    // Ref first — UI resultContinueLock already true when Continue fires; any early-return
+    // without consuming session leaves TRAINING stuck (result cleared, train re-entry blocked).
+    if (trainingSessionLockRef.current) return;
+    if (!trainingData) return;
 
-    const option = trainingData.options.find((o: any) => o.stat === stat);
-    if (!option) return;
+    // Snapshot regimen before consume (stat/intensity may not match if data raced)
+    const session = trainingData;
+    const option = session.options.find((o: any) => o.stat === stat);
+    const intensityData = option?.intensities?.[intensity];
 
-    const { cost, gain } = option.intensities[intensity];
-    const statKey = stat.toLowerCase() as keyof typeof player.primaryStats;
+    // Prefer selected room; fall back to floor current (lost pointer must not soft-lock TRAINING)
+    const roomId =
+      selectedBranchingRoom?.id ??
+      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined);
 
-    // Mirror Training UI affordability (must keep >0 HP; chakra fully spendable)
-    if (player.currentHp <= cost.hp || player.currentChakra < cost.chakra) {
-      addLog('Not enough HP or Chakra for that training intensity.', 'danger');
-      return;
-    }
+    trainingSessionLockRef.current = true;
 
-    // Consume session after validation — blocks double Continue (multi-stat / multi cost)
+    // Consume session first — always leave TRAINING after UI Continue committed
+    // (never gate leave on option/floor presence — UI lock already fired).
     let claimed = false;
     setTrainingData((prev: typeof trainingData) => {
       if (!prev) return null;
       claimed = true;
       return null;
     });
-    if (!claimed) return;
+    if (!claimed) {
+      trainingSessionLockRef.current = false;
+      return;
+    }
 
-    setPlayer(p => {
-      if (!p) return null;
-      if (p.currentHp <= cost.hp || p.currentChakra < cost.chakra) return p;
-      return {
-        ...p,
-        currentHp: Math.max(1, p.currentHp - cost.hp),
-        currentChakra: Math.max(0, p.currentChakra - cost.chakra),
-        primaryStats: {
-          ...p.primaryStats,
-          [statKey]: p.primaryStats[statKey] + gain
-        }
-      };
-    });
+    if (intensityData) {
+      const { cost, gain } = intensityData;
+      const statKey = String(stat).toLowerCase() as keyof Player['primaryStats'];
 
-    const intensityLabel = intensity.charAt(0).toUpperCase() + intensity.slice(1);
-    addLog(`${intensityLabel} training complete! ${stat} +${gain}`, 'gain');
+      // Functional apply on latest player (affordability may race; still exit room)
+      let applied = false;
+      setPlayer(p => {
+        if (!p) return null;
+        if (p.currentHp <= cost.hp || p.currentChakra < cost.chakra) return p;
+        applied = true;
+        return {
+          ...p,
+          currentHp: Math.max(1, p.currentHp - cost.hp),
+          currentChakra: Math.max(0, p.currentChakra - cost.chakra),
+          primaryStats: {
+            ...p.primaryStats,
+            [statKey]: p.primaryStats[statKey] + gain
+          }
+        };
+      });
 
-    logActivityComplete(selectedBranchingRoom.id, 'training');
+      const intensityLabel = intensity.charAt(0).toUpperCase() + intensity.slice(1);
+      if (applied) {
+        addLog(`${intensityLabel} training complete! ${stat} +${gain}`, 'gain');
+      } else {
+        addLog('Training faltered — not enough HP or Chakra.', 'danger');
+      }
+    } else {
+      addLog('Training regimen no longer available.', 'danger');
+    }
+
+    if (roomId) {
+      logActivityComplete(roomId, 'training');
+    }
     logStateChange('TRAINING', 'LOCATION_EXPLORE|REGION_MAP', 'training complete');
 
-    if (branchingFloor) {
-      const updatedFloor = completeActivity(branchingFloor, selectedBranchingRoom.id, 'training');
+    if (branchingFloor && roomId) {
+      const updatedFloor = completeActivity(branchingFloor, roomId, 'training');
       setBranchingFloor(updatedFloor);
     }
 
     let updatedLocationFloor: BranchingFloor | undefined;
-    if (locationFloor && region) {
-      updatedLocationFloor = completeActivity(locationFloor, selectedBranchingRoom.id, 'training');
+    if (locationFloor && region && roomId) {
+      updatedLocationFloor = completeActivity(locationFloor, roomId, 'training');
       setLocationFloor(updatedLocationFloor);
     }
 
@@ -503,9 +562,13 @@ export function useActivityHandlers(
       setSelectedBranchingRoom(null);
       setGameState(GameState.REGION_MAP);
     }
-  }, [trainingData, player, selectedBranchingRoom, branchingFloor, region, locationFloor, setPlayer, setBranchingFloor, setLocationFloor, setTrainingData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
+  }, [trainingData, selectedBranchingRoom, branchingFloor, region, locationFloor, setPlayer, setBranchingFloor, setLocationFloor, setTrainingData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
 
   const handleTrainingSkip = useCallback(() => {
+    // Ref first — Esc + click Skip same tick both saw trainingData
+    if (trainingSessionLockRef.current) return;
+    trainingSessionLockRef.current = true;
+
     // Consume session so skip cannot double-complete the room
     let hadSession = false;
     setTrainingData((prev: typeof trainingData) => {
@@ -513,7 +576,10 @@ export function useActivityHandlers(
       hadSession = true;
       return null;
     });
-    if (!hadSession) return;
+    if (!hadSession) {
+      trainingSessionLockRef.current = false;
+      return;
+    }
 
     // Prefer selected room; fall back to floor current (desync / chain race)
     const roomId =
@@ -550,82 +616,111 @@ export function useActivityHandlers(
   }, [branchingFloor, selectedBranchingRoom, locationFloor, region, setBranchingFloor, setLocationFloor, setTrainingData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
 
   const handleLearnScroll = useCallback((skill: Skill, slotIndex?: number) => {
-    if (!scrollDiscoveryData || !player || !selectedBranchingRoom || !playerStats) return;
-    if (!branchingFloor && !region) return;
+    // Ref first — UI resultContinueLock already true on Continue; early-return without
+    // consuming session leaves SCROLL stuck (result cleared, re-learn blocked).
+    if (scrollSessionLockRef.current) return;
+    if (!scrollDiscoveryData) return;
 
     const chakraCost = scrollDiscoveryData.cost?.chakra || 0;
 
-    if (player.currentChakra < chakraCost) {
-      addLog('Not enough chakra to study the scroll!', 'danger');
-      return;
-    }
+    // Prefer selected room; fall back to floor current (lost pointer must not soft-lock SCROLL)
+    const roomId =
+      selectedBranchingRoom?.id ??
+      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined);
 
-    const checkResult = canLearnSkill(
-      skill,
-      playerStats.effectivePrimary.intelligence,
-      player.level,
-      player.clan
-    );
+    scrollSessionLockRef.current = true;
 
-    if (!checkResult.canLearn) {
-      addLog(`Cannot learn ${skill.name}: ${checkResult.reason}`, 'danger');
-      return;
-    }
-
-    const existingIndex = player.skills.findIndex(s => s.id === skill.id);
-    const canUpgrade = existingIndex !== -1;
-    const canReplace = slotIndex !== undefined && slotIndex >= 0;
-    const canAdd = player.skills.length < 4;
-    if (!canUpgrade && !canReplace && !canAdd) {
-      addLog('Skill slots full — choose a skill to replace first.', 'danger');
-      return;
-    }
-
-    // Consume after validation — blocks double Continue (double learn / double chakra)
+    // Consume session first — always leave SCROLL after UI Continue committed
+    // (never gate leave on floor presence — UI lock already fired).
     let claimed = false;
     setScrollDiscoveryData((prev: typeof scrollDiscoveryData) => {
       if (!prev) return null;
       claimed = true;
       return null;
     });
-    if (!claimed) return;
-
-    let updatedPlayer = { ...player, currentChakra: player.currentChakra - chakraCost };
-
-    if (canUpgrade) {
-      const existing = updatedPlayer.skills[existingIndex];
-      const currentLevel = existing.level || 1;
-      const growth = skill.damageMult * 0.2;
-      updatedPlayer.skills = [...updatedPlayer.skills];
-      updatedPlayer.skills[existingIndex] = {
-        ...existing,
-        level: currentLevel + 1,
-        damageMult: existing.damageMult + growth
-      };
-      addLog(`Upgraded ${skill.name} to Level ${currentLevel + 1}!`, 'gain');
-    } else if (canReplace) {
-      const forgotten = updatedPlayer.skills[slotIndex!];
-      updatedPlayer.skills = [...updatedPlayer.skills];
-      updatedPlayer.skills[slotIndex!] = { ...skill, level: 1 };
-      addLog(`Forgot ${forgotten.name} to learn ${skill.name}!`, 'loot');
-    } else {
-      updatedPlayer.skills = [...updatedPlayer.skills, { ...skill, level: 1 }];
-      addLog(`Learned ${skill.name}!`, 'gain');
+    if (!claimed) {
+      scrollSessionLockRef.current = false;
+      return;
     }
 
-    setPlayer(updatedPlayer);
+    // Functional learn on latest player (chakra / capacity may race; still exit room)
+    type LearnOut = 'upgrade' | 'replace' | 'learn' | 'fail';
+    const box: { o: LearnOut; detail?: string; level?: number } = { o: 'fail' };
 
-    logActivityComplete(selectedBranchingRoom.id, 'scrollDiscovery');
+    setPlayer(p => {
+      if (!p) return null;
+      if (p.currentChakra < chakraCost) return p;
+
+      if (playerStats) {
+        const checkResult = canLearnSkill(
+          skill,
+          playerStats.effectivePrimary.intelligence,
+          p.level,
+          p.clan
+        );
+        if (!checkResult.canLearn) return p;
+      }
+
+      const newSkills = [...p.skills];
+      const existingIndex = newSkills.findIndex(s => s.id === skill.id);
+      let nextSkills = newSkills;
+
+      if (existingIndex !== -1) {
+        const existing = nextSkills[existingIndex];
+        const currentLevel = existing.level || 1;
+        const growth = skill.damageMult * 0.2;
+        nextSkills = [...nextSkills];
+        nextSkills[existingIndex] = {
+          ...existing,
+          level: currentLevel + 1,
+          damageMult: existing.damageMult + growth
+        };
+        box.o = 'upgrade';
+        box.detail = existing.name;
+        box.level = currentLevel + 1;
+      } else if (slotIndex !== undefined && nextSkills[slotIndex]) {
+        box.o = 'replace';
+        box.detail = nextSkills[slotIndex].name;
+        nextSkills = [...nextSkills];
+        nextSkills[slotIndex] = { ...skill, level: 1 };
+      } else if (nextSkills.length < 4) {
+        nextSkills = [...nextSkills, { ...skill, level: 1 }];
+        box.o = 'learn';
+      } else {
+        return p;
+      }
+
+      return {
+        ...p,
+        currentChakra: p.currentChakra - chakraCost,
+        skills: nextSkills,
+      };
+    });
+
+    if (box.o === 'upgrade') {
+      addLog(`Upgraded ${skill.name} to Level ${box.level}!`, 'gain');
+    } else if (box.o === 'replace') {
+      addLog(`Forgot ${box.detail} to learn ${skill.name}!`, 'loot');
+    } else if (box.o === 'learn') {
+      addLog(`Learned ${skill.name}!`, 'gain');
+    } else {
+      addLog('Could not learn from the scroll — requirements or capacity blocked it.', 'danger');
+    }
+
+    if (roomId) {
+      logActivityComplete(roomId, 'scrollDiscovery');
+    }
     logStateChange('SCROLL_DISCOVERY', 'LOCATION_EXPLORE|REGION_MAP', 'scroll learned');
 
-    if (branchingFloor) {
-      const updatedFloor = completeActivity(branchingFloor, selectedBranchingRoom.id, 'scrollDiscovery');
+    if (branchingFloor && roomId) {
+      const updatedFloor = completeActivity(branchingFloor, roomId, 'scrollDiscovery');
       setBranchingFloor(updatedFloor);
     }
 
     let updatedLocationFloor: BranchingFloor | undefined;
-    if (locationFloor && region) {
-      updatedLocationFloor = completeActivity(locationFloor, selectedBranchingRoom.id, 'scrollDiscovery');
+    if (locationFloor && region && roomId) {
+      updatedLocationFloor = completeActivity(locationFloor, roomId, 'scrollDiscovery');
       setLocationFloor(updatedLocationFloor);
     }
 
@@ -638,16 +733,23 @@ export function useActivityHandlers(
       setSelectedBranchingRoom(null);
       setGameState(GameState.REGION_MAP);
     }
-  }, [scrollDiscoveryData, player, selectedBranchingRoom, playerStats, branchingFloor, region, locationFloor, setPlayer, setBranchingFloor, setLocationFloor, setScrollDiscoveryData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
+  }, [scrollDiscoveryData, playerStats, selectedBranchingRoom, branchingFloor, region, locationFloor, setPlayer, setBranchingFloor, setLocationFloor, setScrollDiscoveryData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
 
   const handleScrollDiscoverySkip = useCallback(() => {
+    // Ref first — Space/Enter/Esc all call skip; setState consume alone is not enough
+    if (scrollSessionLockRef.current) return;
+    scrollSessionLockRef.current = true;
+
     let hadSession = false;
     setScrollDiscoveryData((prev: typeof scrollDiscoveryData) => {
       if (!prev) return null;
       hadSession = true;
       return null;
     });
-    if (!hadSession) return;
+    if (!hadSession) {
+      scrollSessionLockRef.current = false;
+      return;
+    }
 
     const roomId =
       selectedBranchingRoom?.id ??
@@ -778,6 +880,12 @@ export function useActivityHandlers(
    * gate and chain hops.
    */
   const eventChoiceLockRef = useRef(false);
+  /**
+   * Event outcome Continue — UI closedRef alone still left setState consume able to
+   * re-read lastRendered (double intel + completeActivity + returnToMapActivityComplete).
+   * Parent ref belt (parity dice/rest/intel continue locks). Rearm when outcome opens.
+   */
+  const eventOutcomeCloseLockRef = useRef(false);
 
   useEffect(() => {
     if (activeEvent) {
@@ -785,20 +893,31 @@ export function useActivityHandlers(
     }
   }, [activeEvent]);
 
-  const handleEventChoice = useCallback((choice: EventChoice) => {
-    if (!player || !playerStats) return;
+  useEffect(() => {
+    if (eventOutcome) {
+      eventOutcomeCloseLockRef.current = false;
+    }
+  }, [eventOutcome]);
+
+  /**
+   * Returns true when the choice was applied (event leaves / outcome opens).
+   * Returns false on early gate / failed resolve so Event UI can re-arm choiceLockRef
+   * (UI locks before calling us — silent false without re-arm = permanent dead choices).
+   */
+  const handleEventChoice = useCallback((choice: EventChoice): boolean => {
+    if (!player || !playerStats) return false;
     // Outcome already open — ignore re-clicks on event choices
-    if (eventOutcome) return;
-    if (eventChoiceLockRef.current) return;
+    if (eventOutcome) return false;
+    if (eventChoiceLockRef.current) return false;
     eventChoiceLockRef.current = true;
 
     const result = resolveEventChoice(player, choice, playerStats);
 
     if (!result.success) {
-      // Failed gate (cost/req) — allow another pick
+      // Failed gate (cost/req/flags) — allow another pick (parent + UI re-arm via false)
       eventChoiceLockRef.current = false;
       addLog(result.message, 'danger');
-      return;
+      return false;
     }
 
     // Track the player state that reflects this choice's outcome (HP/chakra/
@@ -983,7 +1102,7 @@ export function useActivityHandlers(
           setGameState(GameState.GAME_OVER);
         }
       }
-      return;
+      return true;
     }
 
     // Resolve which room owns this event (selected room wins — more reliable than currentRoomId alone)
@@ -1014,7 +1133,7 @@ export function useActivityHandlers(
         });
         setActiveEvent(null);
         setGameState(GameState.LOCATION_EXPLORE);
-        return;
+        return true;
       }
       // Legacy branching explorer has no result panel — hop directly.
       const nextEvent = EVENTS.find(e => e.id === result.nextEventId);
@@ -1024,7 +1143,7 @@ export function useActivityHandlers(
         setCameFromChain(true);
         setActiveEvent(nextEvent);
         setGameState(GameState.EVENT);
-        return;
+        return true;
       }
     }
 
@@ -1043,7 +1162,7 @@ export function useActivityHandlers(
       } else {
         setGameState(GameState.REGION_MAP);
       }
-      return;
+      return true;
     }
 
     // No outcome panel — mark event consumed immediately so it cannot re-open
@@ -1053,7 +1172,7 @@ export function useActivityHandlers(
       const updatedFloor = completeActivity(locationFloor, eventRoomId, 'event');
       setLocationFloor(updatedFloor);
       returnToMapActivityComplete(updatedFloor);
-      return;
+      return true;
     }
     if (eventRoomId && branchingFloor) {
       logActivityComplete(eventRoomId, 'event');
@@ -1065,10 +1184,15 @@ export function useActivityHandlers(
     } else {
       setGameState(GameState.REGION_MAP);
     }
-  }, [player, playerStats, currentDangerLevel, difficulty, region, locationFloor, branchingFloor, selectedBranchingRoom, eventOutcome, setPlayer, setRegion, setLocationFloor, setBranchingFloor, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, addLog, checkLevelUp, handleCombatVictory, startCombat, returnToMapActivityComplete]);
+    return true;
+  }, [player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty, region, locationFloor, branchingFloor, selectedBranchingRoom, currentLocation, eventOutcome, setPlayer, setRegion, setLocationFloor, setBranchingFloor, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, addLog, checkLevelUp, handleCombatVictory, startCombat, returnToMapActivityComplete]);
 
   const handleEventOutcomeClose = useCallback(() => {
     logModalClose('EventOutcomeModal');
+
+    // Ref first — setState consume alone re-reads lastRendered until commit
+    if (eventOutcomeCloseLockRef.current) return;
+    eventOutcomeCloseLockRef.current = true;
 
     // Consume outcome first — blocks double Continue (double intel / double complete)
     const box: {
@@ -1086,7 +1210,10 @@ export function useActivityHandlers(
       box.outcome = prev;
       return null;
     });
-    if (!box.outcome) return;
+    if (!box.outcome) {
+      eventOutcomeCloseLockRef.current = false;
+      return;
+    }
 
     const closed = box.outcome;
 
