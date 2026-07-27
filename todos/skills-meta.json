@@ -1,0 +1,803 @@
+[
+  {
+    "id": "basic_atk",
+    "name": "Taijutsu",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "shuriken",
+    "name": "Shuriken",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "mud_wall",
+    "name": "Mud Wall",
+    "dmg": "ELEMENTAL",
+    "el": "EARTH",
+    "action": "SIDE"
+  },
+  {
+    "id": "phoenix_flower",
+    "name": "Phoenix Flower",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "SIDE"
+  },
+  {
+    "id": "kawarimi",
+    "name": "Body Replacement",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "bunshin",
+    "name": "Clone Technique",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "henge",
+    "name": "Transformation",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "shunshin",
+    "name": "Body Flicker",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "kai",
+    "name": "Release",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "leaf_whirlwind",
+    "name": "Leaf Whirlwind",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "dynamic_entry",
+    "name": "Dynamic Entry",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "rising_wind",
+    "name": "Leaf Rising Wind",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "strong_fist",
+    "name": "Strong Fist Combo",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "sweeping_kick",
+    "name": "Sweeping Kick",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "elbow_strike",
+    "name": "Elbow Strike",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "feint_strike",
+    "name": "Feint Strike",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "counter_stance",
+    "name": "Counter Stance",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "dancing_leaf",
+    "name": "Shadow of Dancing Leaf",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "focused_breathing",
+    "name": "Focused Breathing",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "kunai_slash",
+    "name": "Kunai Slash",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "kunai_throw",
+    "name": "Kunai Throw",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "shuriken_barrage",
+    "name": "Shuriken Barrage",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "windmill_shuriken",
+    "name": "Windmill Shuriken",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "senbon",
+    "name": "Senbon Needle",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "senbon_rain",
+    "name": "Senbon Rain",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "explosive_tag",
+    "name": "Explosive Tag",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "MAIN"
+  },
+  {
+    "id": "explosive_barrage",
+    "name": "Explosive Barrage",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "MAIN"
+  },
+  {
+    "id": "sword_slash",
+    "name": "Sword Slash",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "iaido",
+    "name": "Iaido",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "wire_setup",
+    "name": "Wire Trap Setup",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "poison_coat",
+    "name": "Poison Coat",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "smoke_bomb",
+    "name": "Smoke Bomb",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "flash_bomb",
+    "name": "Flash Bomb",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "analyze",
+    "name": "Analyze Enemy",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "brace",
+    "name": "Brace",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "cloak_invis",
+    "name": "Cloak of Invisibility",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "basic_medical",
+    "name": "Basic Medical Jutsu",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "focused_stance",
+    "name": "Focused Stance",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "TOGGLE"
+  },
+  {
+    "id": "defensive_posture",
+    "name": "Defensive Posture",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "TOGGLE"
+  },
+  {
+    "id": "aggressive_stance",
+    "name": "Aggressive Stance",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "TOGGLE"
+  },
+  {
+    "id": "weapon_proficiency",
+    "name": "Weapon Proficiency",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "PASSIVE"
+  },
+  {
+    "id": "taijutsu_training",
+    "name": "Taijutsu Training",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "PASSIVE"
+  },
+  {
+    "id": "quick_reflexes",
+    "name": "Quick Reflexes",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "PASSIVE"
+  },
+  {
+    "id": "iron_body",
+    "name": "Iron Body",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "PASSIVE"
+  },
+  {
+    "id": "chakra_reserves",
+    "name": "Chakra Reserves",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "PASSIVE"
+  },
+  {
+    "id": "mental_fortitude",
+    "name": "Mental Fortitude",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "PASSIVE"
+  },
+  {
+    "id": "precision",
+    "name": "Precision",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "PASSIVE"
+  },
+  {
+    "id": "fire_affinity",
+    "name": "Fire Affinity",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "PASSIVE"
+  },
+  {
+    "id": "air_palm",
+    "name": "Air Palm",
+    "dmg": "PHYSICAL",
+    "el": "WIND",
+    "action": "MAIN"
+  },
+  {
+    "id": "rasengan",
+    "name": "Rasengan",
+    "dmg": "ELEMENTAL",
+    "el": "WIND",
+    "action": "MAIN"
+  },
+  {
+    "id": "fireball",
+    "name": "Fireball Jutsu",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "MAIN"
+  },
+  {
+    "id": "kaiten",
+    "name": "8 Trigrams Rotation",
+    "dmg": "ELEMENTAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "byakugan",
+    "name": "Byakugan",
+    "dmg": "MENTAL",
+    "el": "PHYSICAL",
+    "action": "TOGGLE"
+  },
+  {
+    "id": "gentle_fist",
+    "name": "Gentle Fist",
+    "dmg": "TRUE",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "sharingan_2",
+    "name": "Sharingan (2-Tomoe)",
+    "dmg": "PHYSICAL",
+    "el": "FIRE",
+    "action": "TOGGLE"
+  },
+  {
+    "id": "water_prison",
+    "name": "Water Prison",
+    "dmg": "ELEMENTAL",
+    "el": "WATER",
+    "action": "MAIN"
+  },
+  {
+    "id": "suijinheki",
+    "name": "Water Wall",
+    "dmg": "ELEMENTAL",
+    "el": "WATER",
+    "action": "SIDE"
+  },
+  {
+    "id": "hell_viewing",
+    "name": "Hell Viewing Technique",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "mind_destruction",
+    "name": "Mind Body Disturbance",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "image": "/assets/skill_mind_body_disturbing.png"
+  },
+  {
+    "id": "dragon_flame",
+    "name": "Dragon Flame Bomb",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "MAIN"
+  },
+  {
+    "id": "hidden_mist",
+    "name": "Hidden Mist Jutsu",
+    "dmg": "ELEMENTAL",
+    "el": "WATER",
+    "action": "MAIN"
+  },
+  {
+    "id": "water_clone",
+    "name": "Water Clone Jutsu",
+    "dmg": "ELEMENTAL",
+    "el": "WATER",
+    "action": "MAIN"
+  },
+  {
+    "id": "lightning_ball",
+    "name": "Lightning Ball",
+    "dmg": "ELEMENTAL",
+    "el": "LIGHTNING",
+    "action": "MAIN"
+  },
+  {
+    "id": "earth_decapitation",
+    "name": "Inner Decapitation",
+    "dmg": "ELEMENTAL",
+    "el": "EARTH",
+    "action": "MAIN"
+  },
+  {
+    "id": "great_breakthrough",
+    "name": "Great Breakthrough",
+    "dmg": "ELEMENTAL",
+    "el": "WIND",
+    "action": "MAIN"
+  },
+  {
+    "id": "air_bullet",
+    "name": "Air Bullet",
+    "dmg": "ELEMENTAL",
+    "el": "WIND",
+    "action": "MAIN"
+  },
+  {
+    "id": "fang_over_fang",
+    "name": "Fang Over Fang",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "mind_transfer",
+    "name": "Mind Transfer Jutsu",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "shadow_possession",
+    "name": "Shadow Possession",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "bug_swarm",
+    "name": "Parasitic Insects",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "expansion",
+    "name": "Expansion Jutsu",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "64_palms",
+    "name": "8 Trigrams 64 Palms",
+    "dmg": "TRUE",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "sand_burial",
+    "name": "Sand Burial",
+    "dmg": "ELEMENTAL",
+    "el": "EARTH",
+    "action": "MAIN"
+  },
+  {
+    "id": "curse_mark_1",
+    "name": "Curse Mark Stage 1",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "TOGGLE"
+  },
+  {
+    "id": "sand_shield",
+    "name": "Sand Shield",
+    "dmg": "ELEMENTAL",
+    "el": "EARTH",
+    "action": "SIDE"
+  },
+  {
+    "id": "sharingan_predict",
+    "name": "Sharingan: Predict",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "byakugan_scan",
+    "name": "Tenketsu Scan",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "summon_gamabunta",
+    "name": "Summoning: Gamabunta",
+    "dmg": "ELEMENTAL",
+    "el": "WATER",
+    "action": "MAIN"
+  },
+  {
+    "id": "summon_manda",
+    "name": "Summoning: Manda",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "puppet_crow",
+    "name": "Puppet: Crow",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "shadow_clone",
+    "name": "Shadow Clone Jutsu",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "primary_lotus",
+    "name": "Primary Lotus",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "image": "/assets/skill_primary_lotus.png"
+  },
+  {
+    "id": "chidori",
+    "name": "Chidori",
+    "dmg": "ELEMENTAL",
+    "el": "LIGHTNING",
+    "action": "MAIN",
+    "image": "/assets/skill_chidori.png"
+  },
+  {
+    "id": "chidori_stream",
+    "name": "Chidori Stream",
+    "dmg": "ELEMENTAL",
+    "el": "LIGHTNING",
+    "action": "MAIN"
+  },
+  {
+    "id": "sand_coffin",
+    "name": "Sand Coffin",
+    "dmg": "ELEMENTAL",
+    "el": "EARTH",
+    "action": "MAIN"
+  },
+  {
+    "id": "water_dragon",
+    "name": "Water Dragon Jutsu",
+    "dmg": "ELEMENTAL",
+    "el": "WATER",
+    "action": "MAIN"
+  },
+  {
+    "id": "ice_mirrors",
+    "name": "Demonic Ice Mirrors",
+    "dmg": "ELEMENTAL",
+    "el": "WATER",
+    "action": "MAIN"
+  },
+  {
+    "id": "false_surroundings",
+    "name": "False Surroundings",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "temple_nirvana",
+    "name": "Temple of Nirvana",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "hidden_lotus",
+    "name": "Hidden Lotus",
+    "dmg": "TRUE",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "water_vortex",
+    "name": "Giant Water Vortex",
+    "dmg": "ELEMENTAL",
+    "el": "WATER",
+    "action": "MAIN"
+  },
+  {
+    "id": "clone_explosion",
+    "name": "Clone Great Explosion",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "MAIN"
+  },
+  {
+    "id": "1000_years",
+    "name": "1000 Years of Death",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "gate_of_life",
+    "name": "Gate of Life (3rd Gate)",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "TOGGLE"
+  },
+  {
+    "id": "curse_mark_2",
+    "name": "Curse Mark Stage 2",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "TOGGLE"
+  },
+  {
+    "id": "curse_surge",
+    "name": "Curse Mark Surge",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "gate_prep",
+    "name": "Gate Release Prep",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "killing_intent",
+    "name": "Killing Intent",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "SIDE"
+  },
+  {
+    "id": "demon_slash",
+    "name": "Demon Slash",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "bone_drill",
+    "name": "Dance of Clematis",
+    "dmg": "TRUE",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "poison_fog",
+    "name": "Ibuse Poison Fog",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "MAIN"
+  },
+  {
+    "id": "tsukuyomi",
+    "name": "Tsukuyomi",
+    "dmg": "TRUE",
+    "el": "MENTAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "reaper_death_seal",
+    "name": "Reaper Death Seal",
+    "dmg": "TRUE",
+    "el": "MENTAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "edo_tensei",
+    "name": "Edo Tensei",
+    "dmg": "MENTAL",
+    "el": "MENTAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "gate_of_limit",
+    "name": "Gate of Limit (5th Gate)",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "shukaku_arm",
+    "name": "Shukaku Arm",
+    "dmg": "ELEMENTAL",
+    "el": "EARTH",
+    "action": "MAIN"
+  },
+  {
+    "id": "copy_jutsu",
+    "name": "Sharingan: Copy",
+    "dmg": "PHYSICAL",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "c4_karura",
+    "name": "C4 Karura",
+    "dmg": "TRUE",
+    "el": "EARTH",
+    "action": "MAIN"
+  },
+  {
+    "id": "rasenshuriken",
+    "name": "Rasenshuriken",
+    "dmg": "TRUE",
+    "el": "WIND",
+    "action": "MAIN"
+  },
+  {
+    "id": "amaterasu",
+    "name": "Amaterasu",
+    "dmg": "ELEMENTAL",
+    "el": "FIRE",
+    "action": "MAIN"
+  },
+  {
+    "id": "kirin",
+    "name": "Kirin",
+    "dmg": "ELEMENTAL",
+    "el": "LIGHTNING",
+    "action": "MAIN"
+  },
+  {
+    "id": "shinra_tensei",
+    "name": "Shinra Tensei",
+    "dmg": "TRUE",
+    "el": "WIND",
+    "action": "MAIN"
+  },
+  {
+    "id": "kamui_impact",
+    "name": "Kamui",
+    "dmg": "TRUE",
+    "el": "PHYSICAL",
+    "action": "MAIN"
+  },
+  {
+    "id": "tengai_shinsei",
+    "name": "Tengai Shinsei",
+    "dmg": "TRUE",
+    "el": "EARTH",
+    "action": "MAIN"
+  }
+]
