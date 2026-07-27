@@ -10,6 +10,12 @@ interface CinematicViewscreenProps {
    * When provided, rendered WITHOUT the all-edges fade mask so the
    * pre-isolated ninja composites cleanly against the background.
    * Chakra aura drop-shadow is applied to cutout sprites only.
+   *
+   * Path convention (Combat.tsx): portrait `/assets/enemy_<id>.png`
+   * → cutout `/assets/enemy_cut_<id>.png` via string replace.
+   * Generic for any NEW enemy_* A3 adds — no per-id hardcodes.
+   * Skips paths already under enemy_cut_ (no double rewrite).
+   * onError falls back to portrait; missing cut file = portrait mask.
    */
   enemyCutout?: string;
   /** Location biome background — Lámina 1 (lejana, opaca).
@@ -41,7 +47,7 @@ interface CinematicViewscreenProps {
    */
   foregroundImage?: string;
   /**
-   * RGBA color string for the chakra aura drop-shadow applied to the cutout sprite.
+   * RGBA color string for the chakra aura drop-shadow applied to the enemy cutout sprite.
    * E.g. "rgba(239, 68, 68, 0.65)" for Fire affinity.
    * Derived in Combat.tsx from ELEMENT_COLORS[enemy.element].
    * Only applied when enemyCutout is active; ignored for portrait fallback.
@@ -54,6 +60,21 @@ interface CinematicViewscreenProps {
   floatingPanel?: React.ReactNode;
   /** Brief hit-flash juice on the enemy sprite when damage lands. */
   hitFlash?: boolean;
+  /**
+   * Darkest Dungeon-style intent label near the cutout (in addition to panel telegraph).
+   * Pass enemy.intendedSkillName — compact chip only; omit when empty.
+   */
+  intentLabel?: string;
+}
+
+/**
+ * Instantly hide a failed layer before React re-renders — prevents one-frame
+ * broken-image icon flash on 404 / decode errors (esp. mid/fg láminas).
+ */
+function hideFailedLayer(el: HTMLImageElement | null) {
+  if (!el) return;
+  el.style.opacity = '0';
+  el.style.visibility = 'hidden';
 }
 
 /**
@@ -64,14 +85,14 @@ interface CinematicViewscreenProps {
  *   1  – Middleground image (Lámina 2: optional, medium drift, pixelated)
  *   2  – Dark gradient overlay (depth + bottom darkening)
  *   3  – Vignette (radial edge darkening)
- *   4  – Scanlines FX (always visible)
- *   5  – CRT frame (optional, controlled by FeatureFlags.ENABLE_CRT_OVERLAY)
- *        Spherical curvature illusion via inset box-shadow.
- *  10  – Enemy sprite (right-anchored, bottom-anchored)
+ *  10  – Enemy sprite only (center-right focal foe; no player hero on stage)
  *        · --cutout variant: pre-isolated transparent PNG + chakra aura drop-shadow
  *        · --portrait variant: radial fade mask, no aura
  *  11  – Foreground image (Lámina 3: optional, faster drift, occludes enemy bottom)
- *  20  – Floating enemy info panel (left overlay)
+ *  25  – Scanlines FX (sit above character sprites)
+ *  26  – CRT frame (optional, controlled by FeatureFlags.ENABLE_CRT_OVERLAY)
+ *        Spherical curvature illusion via inset box-shadow.
+ *  30  – Floating enemy info panel (left overlay, above CRT overlay)
  *
  * Parallax: all three lámina images use ambient CSS animation (translateX loop,
  * different durations, NO JS). Disabled via @media (prefers-reduced-motion).
@@ -81,6 +102,9 @@ interface CinematicViewscreenProps {
  *   - backgroundImage errors → same CSS gradient (onError hides img).
  *   - No midgroundImage / no foregroundImage → layers simply absent (no 404).
  *   - midgroundImage / foregroundImage errors → silently hidden.
+ *   - Layers stay opacity:0 + visibility:hidden until onLoad (no broken-image flash).
+ *   - Ready/error are path-gated (not useEffect) so path changes never flash
+ *     a prior layer's --ready opacity for one paint.
  *   - enemyCutout errors → falls back to enemyImage portrait with mask.
  */
 export const CinematicViewscreen: React.FC<CinematicViewscreenProps> = ({
@@ -92,42 +116,72 @@ export const CinematicViewscreen: React.FC<CinematicViewscreenProps> = ({
   chakraAuraColor,
   floatingPanel,
   hitFlash = false,
+  intentLabel,
 }) => {
-  const [bgError, setBgError] = useState(false);
-  const [midError, setMidError] = useState(false);
-  const [fgError, setFgError] = useState(false);
-  const [cutoutError, setCutoutError] = useState(false);
+  // Path-gated ready/error: only the path that loaded/failed counts.
+  // Avoids one-frame flash when props change before useEffect can reset flags.
+  const [bgReadyPath, setBgReadyPath] = useState<string | null>(null);
+  const [bgErrorPath, setBgErrorPath] = useState<string | null>(null);
+  const [midReadyPath, setMidReadyPath] = useState<string | null>(null);
+  const [midErrorPath, setMidErrorPath] = useState<string | null>(null);
+  const [fgReadyPath, setFgReadyPath] = useState<string | null>(null);
+  const [fgErrorPath, setFgErrorPath] = useState<string | null>(null);
+  const [cutoutReadyPath, setCutoutReadyPath] = useState<string | null>(null);
+  const [cutoutErrorPath, setCutoutErrorPath] = useState<string | null>(null);
+
+  const bgReady = Boolean(backgroundImage && bgReadyPath === backgroundImage);
+  const bgError = Boolean(backgroundImage && bgErrorPath === backgroundImage);
+  const midReady = Boolean(midgroundImage && midReadyPath === midgroundImage);
+  const midError = Boolean(midgroundImage && midErrorPath === midgroundImage);
+  const fgReady = Boolean(foregroundImage && fgReadyPath === foregroundImage);
+  const fgError = Boolean(foregroundImage && fgErrorPath === foregroundImage);
+  const cutoutReady = Boolean(enemyCutout && cutoutReadyPath === enemyCutout);
+  const cutoutError = Boolean(enemyCutout && cutoutErrorPath === enemyCutout);
 
   // Decide which enemy source to use
-  const useCutout = enemyCutout && !cutoutError;
-  const usePortrait = !useCutout && enemyImage;
+  const useCutout = Boolean(enemyCutout && !cutoutError);
+  const usePortrait = !useCutout && Boolean(enemyImage);
 
   // Build chakra aura style for cutout only
   const cutoutStyle: React.CSSProperties = useCutout && chakraAuraColor
     ? ({ '--chakra-aura': chakraAuraColor } as React.CSSProperties)
     : {};
 
+  const showIntent = Boolean(intentLabel && intentLabel.trim());
+
   return (
     <div className="cinematic">
       {/* Layer 0: Location biome background — Lámina 1 (slow ambient parallax) */}
       {backgroundImage && !bgError && (
         <img
+          key={`bg:${backgroundImage}`}
           src={backgroundImage}
           alt=""
-          className="cinematic__bg-img"
+          className={`cinematic__bg-img${bgReady ? ' cinematic__bg-img--ready' : ''}`}
           aria-hidden="true"
-          onError={() => setBgError(true)}
+          decoding="async"
+          onLoad={() => setBgReadyPath(backgroundImage)}
+          onError={(e) => {
+            hideFailedLayer(e.currentTarget);
+            setBgErrorPath(backgroundImage);
+          }}
         />
       )}
 
       {/* Layer 1: Middleground — Lámina 2 (optional; medium parallax drift) */}
       {midgroundImage && !midError && (
         <img
+          key={`mid:${midgroundImage}`}
           src={midgroundImage}
           alt=""
-          className="cinematic__mid-img"
+          className={`cinematic__mid-img${midReady ? ' cinematic__mid-img--ready' : ''}`}
           aria-hidden="true"
-          onError={() => setMidError(true)}
+          decoding="async"
+          onLoad={() => setMidReadyPath(midgroundImage)}
+          onError={(e) => {
+            hideFailedLayer(e.currentTarget);
+            setMidErrorPath(midgroundImage);
+          }}
         />
       )}
 
@@ -137,46 +191,92 @@ export const CinematicViewscreen: React.FC<CinematicViewscreenProps> = ({
       {/* Layer 3: Vignette */}
       <div className="cinematic__vignette" aria-hidden="true" />
 
-      {/* Layer 4: Scanlines FX */}
-      <div className="cinematic__scanlines" aria-hidden="true" />
+      {/* Layer 4: Mist floor — grounds the sole vertical (enemy) in fog */}
+      <div className="cinematic__mist-floor" aria-hidden="true" />
 
-      {/* Layer 5: CRT frame — spherical screen curvature (feature-flagged) */}
-      {FeatureFlags.ENABLE_CRT_OVERLAY && (
-        <div className="cinematic__crt-frame" aria-hidden="true" />
-      )}
+      {/* Layer 10: Enemy stage subject — cutout preferred, portrait fallback */}
+      <div
+        className={`cinematic__enemy-stage${hitFlash ? ' cinematic__enemy-stage--hit' : ''}`}
+        aria-hidden={!useCutout && !usePortrait}
+      >
+        {/* Ground shadow under foe — contact with mist floor */}
+        {(useCutout || usePortrait) && (
+          <div className="cinematic__enemy-shadow" aria-hidden="true" />
+        )}
 
-      {/* Layer 10a: Transparent cutout sprite — no mask, right-anchored, bottom */}
-      {useCutout && (
-        <img
-          src={enemyCutout}
-          alt="Enemy"
-          className={`cinematic__enemy-sprite cinematic__enemy-sprite--cutout${hitFlash ? ' cinematic__enemy-sprite--hit' : ''}`}
-          style={cutoutStyle}
-          onError={() => setCutoutError(true)}
-        />
-      )}
+        {/* DD-style intent chip near cutout (panel telegraph remains primary) */}
+        {showIntent && (
+          <div
+            className="cinematic__intent"
+            role="status"
+            aria-live="polite"
+            aria-label={`Next action: ${intentLabel}`}
+          >
+            <span className="cinematic__intent-icon" aria-hidden="true">⚔</span>
+            <span className="cinematic__intent-text">{intentLabel}</span>
+          </div>
+        )}
 
-      {/* Layer 10b: Portrait with all-edges blend mask — right-anchored, bottom */}
-      {usePortrait && (
-        <img
-          src={enemyImage}
-          alt="Enemy"
-          className={`cinematic__enemy-sprite cinematic__enemy-sprite--portrait${hitFlash ? ' cinematic__enemy-sprite--hit' : ''}`}
-        />
-      )}
+        {useCutout && (
+          <img
+            key={`cut:${enemyCutout}`}
+            src={enemyCutout}
+            alt="Enemy"
+            className={[
+              'cinematic__enemy-sprite',
+              'cinematic__enemy-sprite--cutout',
+              cutoutReady ? 'cinematic__enemy-sprite--ready' : '',
+              hitFlash ? 'cinematic__enemy-sprite--hit' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={cutoutStyle}
+            decoding="async"
+            onLoad={() => setCutoutReadyPath(enemyCutout ?? null)}
+            onError={(e) => {
+              hideFailedLayer(e.currentTarget);
+              setCutoutErrorPath(enemyCutout ?? null);
+            }}
+          />
+        )}
+
+        {usePortrait && (
+          <img
+            key={`por:${enemyImage}`}
+            src={enemyImage}
+            alt="Enemy"
+            className={`cinematic__enemy-sprite cinematic__enemy-sprite--portrait${hitFlash ? ' cinematic__enemy-sprite--hit' : ''}`}
+            decoding="async"
+          />
+        )}
+      </div>
 
       {/* Layer 11: Foreground — Lámina 3 (optional; faster drift; occludes enemy) */}
       {foregroundImage && !fgError && (
         <img
+          key={`fg:${foregroundImage}`}
           src={foregroundImage}
           alt=""
-          className="cinematic__fg-img"
+          className={`cinematic__fg-img${fgReady ? ' cinematic__fg-img--ready' : ''}`}
           aria-hidden="true"
-          onError={() => setFgError(true)}
+          decoding="async"
+          onLoad={() => setFgReadyPath(foregroundImage)}
+          onError={(e) => {
+            hideFailedLayer(e.currentTarget);
+            setFgErrorPath(foregroundImage);
+          }}
         />
       )}
 
-      {/* Layer 20: Floating info panel — left overlay */}
+      {/* Layer 25: Scanlines FX (sit above sprites per TASK-R10) */}
+      <div className="cinematic__scanlines" aria-hidden="true" />
+
+      {/* Layer 26: CRT frame — spherical screen curvature (feature-flagged per TASK-R10) */}
+      {FeatureFlags.ENABLE_CRT_OVERLAY && (
+        <div className="cinematic__crt-frame" aria-hidden="true" />
+      )}
+
+      {/* Layer 30: Floating info panel — left overlay */}
       {floatingPanel && (
         <div className="cinematic__panel-slot" aria-label="Enemy information">
           {floatingPanel}

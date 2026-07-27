@@ -21,13 +21,14 @@ import {
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import { MERCHANT } from '../../game/config';
 import { calculateMerchantRerollCost } from '../../game/systems/ScalingSystem';
-import { resolveItemArt } from '../../game/constants/artRegistry';
+import { resolveItemArt, getActivityArt } from '../../game/constants/artRegistry';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import ArtIcon from '../../components/shared/ArtIcon';
 import {
   itemMatchesEquipmentFocus,
   isFocusStat,
 } from '../../game/utils/itemFocusMatch';
+import { alignItemTileTooltip } from '../../utils/itemTileTooltip';
 import './Merchant.css';
 
 interface MerchantProps {
@@ -207,31 +208,46 @@ interface ItemCardProps {
   item: Item;
   price: number;
   affordable: boolean;
+  /** Ryo shortfall when unaffordable (Waves poverty readability). */
+  shortfall: number;
+  /** True when bag has no free slot — buy would soft-fail. */
+  bagFull: boolean;
+  playerRyo: number;
   statComparisons: Record<string, StatComparison>;
   isSelected: boolean;
   isDimmed: boolean;
   discountPercent: number;
   onSelect: () => void;
   onBuy: () => void;
+  isProcessing?: boolean;
   /** T-091: region equipmentFocus for badge */
   equipmentFocus?: string[] | null;
+  /** Region economy lean (goldMultiplier < 1). */
+  leanEconomy?: boolean;
 }
 
 const ItemCard: React.FC<ItemCardProps> = ({
   item,
   price,
   affordable,
+  shortfall,
+  bagFull,
+  playerRyo,
   statComparisons,
   isSelected,
   isDimmed,
   discountPercent,
   onSelect,
   onBuy,
+  isProcessing = false,
   equipmentFocus = null,
+  leanEconomy = false,
 }) => {
   const rarityClass = getRarityClass(item.rarity);
   const rarityLabel = getRarityLabel(item.rarity);
   const isFocusItem = itemMatchesEquipmentFocus(item, equipmentFocus);
+  const canBuy = affordable && !bagFull && !isProcessing;
+  const afterBuy = canBuy ? playerRyo - price : null;
 
   const handleClick = useCallback(() => {
     onSelect();
@@ -239,22 +255,29 @@ const ItemCard: React.FC<ItemCardProps> = ({
 
   const handleBuy = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (affordable) {
+    if (canBuy) {
       onBuy();
     }
-  }, [affordable, onBuy]);
+  }, [canBuy, onBuy]);
 
   return (
     <div
       className={`item-card item-tile item-card--${rarityClass} ${
         isSelected ? 'item-card--selected' : ''
       } ${isDimmed ? 'item-card--dimmed' : ''} ${
-        !affordable ? 'item-card--unaffordable' : ''
+        !affordable || bagFull ? 'item-card--unaffordable' : ''
       }`}
       onClick={handleClick}
       role="button"
       tabIndex={isDimmed ? -1 : 0}
-      onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+      onMouseEnter={(e) => alignItemTileTooltip(e.currentTarget)}
+      onFocus={(e) => alignItemTileTooltip(e.currentTarget)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
     >
       {/* Detail tooltip — hover / keyboard focus. Hidden while the card is
           selected (the PreviewPanel already shows the full details). */}
@@ -290,6 +313,35 @@ const ItemCard: React.FC<ItemCardProps> = ({
               </div>
             ))}
         </div>
+        <div className="item-tooltip__section">
+          <div className="item-tooltip__row">
+            <span className="item-tooltip__label">Price</span>
+            <span className={affordable && !bagFull ? 'item-tooltip__value' : 'item-tooltip__delta--negative'}>
+              {price} Ryo
+            </span>
+          </div>
+          {!affordable && shortfall > 0 && (
+            <div className="item-tooltip__row">
+              <span className="item-tooltip__label">Purse</span>
+              <span className="item-tooltip__delta--negative">short {shortfall}</span>
+            </div>
+          )}
+          {bagFull && (
+            <div className="item-tooltip__row">
+              <span className="item-tooltip__label">Bag</span>
+              <span className="item-tooltip__delta--negative">full — free a pocket</span>
+            </div>
+          )}
+          {canBuy && afterBuy !== null && (
+            <div className="item-tooltip__row">
+              <span className="item-tooltip__label">After</span>
+              <span className="item-tooltip__value">{afterBuy} Ryo</span>
+            </div>
+          )}
+          {leanEconomy && (
+            <div className="item-tooltip__synth">Wave Country · lean ryo economy</div>
+          )}
+        </div>
       </div>
 
       {/* Frame overlay */}
@@ -314,19 +366,25 @@ const ItemCard: React.FC<ItemCardProps> = ({
                 Focus
               </span>
             )}
-            <span className="item-card__afford-indicator">
-              {affordable ? (
-                <CheckCircle size={14} className="text-green-500" />
+            <span
+              className={`item-card__afford-indicator ${
+                canBuy
+                  ? 'item-card__afford-indicator--ok'
+                  : 'item-card__afford-indicator--risk'
+              }`}
+            >
+              {canBuy ? (
+                <CheckCircle size={14} />
               ) : (
-                <AlertTriangle size={14} className="text-red-500" />
+                <AlertTriangle size={14} />
               )}
             </span>
           </span>
         </div>
 
-        {/* The item IS the asset — big visual, PNG-ready slot */}
+        {/* The item IS the asset */}
         <div className="item-tile__visual" aria-hidden="true">
-          <ArtIcon art={resolveItemArt(item)} size="lg" />
+          <ArtIcon art={resolveItemArt(item)} size="fill" title={item.name} />
         </div>
 
         {/* Item Info */}
@@ -336,12 +394,12 @@ const ItemCard: React.FC<ItemCardProps> = ({
           </h3>
         </div>
 
-        {/* Footer */}
+        {/* Footer — price + risk readable for Waves poverty */}
         <div className="item-card__footer">
           <div className="item-card__price">
             <span
               className={`item-card__price-current ${
-                affordable
+                canBuy
                   ? 'item-card__price-current--affordable'
                   : 'item-card__price-current--unaffordable'
               }`}
@@ -353,16 +411,31 @@ const ItemCard: React.FC<ItemCardProps> = ({
                 {Math.floor(item.value * MERCHANT.ITEM_PRICE_MULTIPLIER)}
               </span>
             )}
+            {bagFull && (
+              <div className="item-card__price-shortfall" title="Bag has no free slots">
+                Bag full
+              </div>
+            )}
+            {!bagFull && !affordable && shortfall > 0 && (
+              <div className="item-card__price-shortfall" title="Ryo shortfall">
+                Purse short {shortfall}
+              </div>
+            )}
+            {canBuy && afterBuy !== null && afterBuy < price && leanEconomy && (
+              <div className="item-card__price-after" title="Ryo remaining after purchase">
+                → {afterBuy} left
+              </div>
+            )}
           </div>
           <button
             type="button"
             className={`item-card__buy-button ${
-              affordable ? 'item-card__buy-button--affordable' : 'item-card__buy-button--unaffordable'
+              canBuy ? 'item-card__buy-button--affordable' : 'item-card__buy-button--unaffordable'
             }`}
             onClick={handleBuy}
-            disabled={!affordable}
+            disabled={!canBuy}
           >
-            BUY
+            {bagFull ? 'BAG FULL' : affordable ? (isProcessing ? '…' : 'BUY') : 'THIN PURSE'}
           </button>
         </div>
       </div>
@@ -378,6 +451,9 @@ interface PreviewPanelProps {
   item: Item;
   price: number;
   affordable: boolean;
+  shortfall: number;
+  bagFull: boolean;
+  playerRyo: number;
   statComparisons: Record<string, StatComparison>;
   discountPercent: number;
   equippedItemName: string | null;
@@ -386,12 +462,16 @@ interface PreviewPanelProps {
   isProcessing: boolean;
   /** T-091 */
   equipmentFocus?: string[] | null;
+  leanEconomy?: boolean;
 }
 
 const PreviewPanel: React.FC<PreviewPanelProps> = ({
   item,
   price,
   affordable,
+  shortfall,
+  bagFull,
+  playerRyo,
   statComparisons,
   discountPercent,
   equippedItemName,
@@ -399,16 +479,22 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
   onCancel,
   isProcessing,
   equipmentFocus = null,
+  leanEconomy = false,
 }) => {
   const rarityClass = getRarityClass(item.rarity);
   const rarityLabel = getRarityLabel(item.rarity);
   const isFocusItem = itemMatchesEquipmentFocus(item, equipmentFocus);
+  const canBuy = affordable && !bagFull && !isProcessing;
+  const afterBuy = canBuy ? playerRyo - price : null;
 
   return (
     <div className="preview-panel">
-      {/* Header */}
+      {/* Header — asset first */}
       <div className="preview-panel__header">
         <div className="preview-panel__label">Item Preview</div>
+        <div className="item-tile__visual item-tile__visual--hero preview-panel__art" aria-hidden="true">
+          <ArtIcon art={resolveItemArt(item)} size="fill" title={item.name} />
+        </div>
         <div className={`preview-panel__rarity item-card__name--${rarityClass}`}>
           {rarityLabel}
           {isFocusItem && (
@@ -467,16 +553,20 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
             </div>
           ))}
         <div className="preview-panel__currently">
-          Currently: {equippedItemName || '(Empty Slot)'}
+          Currently: {equippedItemName || '— vacant groove —'}
         </div>
       </div>
 
-      {/* Price */}
-      <div className="preview-panel__price">
+      {/* Price + risk (Waves poverty) */}
+      <div
+        className={`preview-panel__price ${
+          !affordable || bagFull ? 'preview-panel__price--risk' : ''
+        }`}
+      >
         <div className="preview-panel__price-label">Price</div>
         <span
           className={`preview-panel__price-value ${
-            affordable
+            canBuy
               ? 'preview-panel__price-value--affordable'
               : 'preview-panel__price-value--unaffordable'
           }`}
@@ -493,6 +583,22 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
             </div>
           </>
         )}
+        {canBuy && afterBuy !== null && (
+          <div className="preview-panel__price-after">
+            Purse after: <strong>{afterBuy}</strong> Ryo
+          </div>
+        )}
+        {bagFull && (
+          <div className="preview-panel__price-shortfall">
+            Bag is full — equip or sell a piece before buying
+          </div>
+        )}
+        {!bagFull && !affordable && shortfall > 0 && (
+          <div className="preview-panel__price-shortfall">
+            Purse runs short — need <strong>{shortfall}</strong> more Ryo
+            {leanEconomy && <span className="preview-panel__lean"> · lean region</span>}
+          </div>
+        )}
       </div>
 
       {/* Actions */}
@@ -501,10 +607,18 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
           type="button"
           className="preview-panel__confirm"
           onClick={onConfirm}
-          disabled={!affordable || isProcessing}
+          disabled={!canBuy}
         >
           <Sparkles size={16} />
-          <span>{affordable ? 'Confirm Purchase' : 'Cannot Afford'}</span>
+          <span>
+            {bagFull
+              ? 'Bag full'
+              : affordable
+                ? isProcessing
+                  ? 'Purchasing…'
+                  : 'Confirm Purchase'
+                : 'Purse too thin'}
+          </span>
         </button>
         <button type="button" className="preview-panel__cancel" onClick={onCancel}>
           Cancel
@@ -649,22 +763,25 @@ const Merchant: React.FC<MerchantProps> = ({
     return () => clearTimeout(t);
   }, [purchaseToast]);
 
-  // ESC: dismiss toast, else close selection
+  // ESC: dismiss toast → close selection → leave shop (R1 friction)
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (purchaseToast) {
-          setPurchaseToast(null);
-          return;
-        }
-        if (selectedItemId) {
-          setSelectedItemId(null);
-        }
+      if (e.key !== 'Escape') return;
+      if (e.repeat) return;
+      e.preventDefault();
+      if (purchaseToast) {
+        setPurchaseToast(null);
+        return;
       }
+      if (selectedItemId) {
+        setSelectedItemId(null);
+        return;
+      }
+      onLeave();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [selectedItemId, purchaseToast]);
+  }, [selectedItemId, purchaseToast, onLeave]);
 
   if (!player) {
     return null;
@@ -676,9 +793,13 @@ const Merchant: React.FC<MerchantProps> = ({
       ? MERCHANT.QUALITY_UPGRADE_COSTS.COMMON
       : MERCHANT.QUALITY_UPGRADE_COSTS.RARE;
 
+  const leanEconomy = Boolean(lootTheme && lootTheme.goldMultiplier < 1);
+  const merchantArt = getActivityArt('merchant');
+  const bagFull = !player.bag.some((s) => s === null);
+
   return (
     <SceneBackdrop background={background}>
-    <div className="merchant">
+    <div className={`merchant ${leanEconomy ? 'merchant--lean' : ''}`}>
       {/* Mobile bottom-sheet backdrop */}
       {selectedItem && (
         <div
@@ -688,12 +809,16 @@ const Merchant: React.FC<MerchantProps> = ({
         />
       )}
 
-      {/* NPC Presence — Merchant character panel */}
+      {/* NPC Presence — cinematic merchant plate */}
       <header className="merchant__header">
-        {/* Portrait frame */}
         <div className="merchant__npc">
           <div className="merchant__npc-frame">
-            <span className="merchant__npc-icon" role="img" aria-label="Merchant">🏪</span>
+            <ArtIcon
+              art={merchantArt}
+              size="fill"
+              title="Traveling Merchant"
+              className="merchant__npc-art"
+            />
           </div>
           <div className="merchant__npc-nameplate">
             <span className="merchant__npc-role">TRAVELING MERCHANT</span>
@@ -702,7 +827,9 @@ const Merchant: React.FC<MerchantProps> = ({
             )}
           </div>
           <p className="merchant__npc-quote">
-            "From the far corners of the shinobi world, I bring only the finest."
+            {leanEconomy
+              ? '"Coin is thin in Wave Country. Spend carefully — or walk hungry."'
+              : '"From the far corners of the shinobi world, I bring only the finest."'}
           </p>
           {/* T-090: stock already biases toward region lootTheme — surface it */}
           {lootTheme && (
@@ -725,11 +852,26 @@ const Merchant: React.FC<MerchantProps> = ({
                 </span>
               )}
               {lootTheme.goldMultiplier !== 1 && (
-                <span className="merchant__theme-chip merchant__theme-chip--gold">
+                <span
+                  className={`merchant__theme-chip merchant__theme-chip--gold ${
+                    leanEconomy ? 'merchant__theme-chip--lean' : ''
+                  }`}
+                  title={
+                    leanEconomy
+                      ? 'Lean region economy — fewer ryo from drops; every purchase is a risk'
+                      : 'Region ryo multiplier'
+                  }
+                >
                   Ryo ×{lootTheme.goldMultiplier}
+                  {leanEconomy ? ' · Lean' : ''}
                 </span>
               )}
             </div>
+          )}
+          {leanEconomy && (
+            <p className="merchant__lean-note" role="note">
+              Wave poverty: prices hit hard. Check shortfall before you buy.
+            </p>
           )}
         </div>
       </header>
@@ -798,8 +940,11 @@ const Merchant: React.FC<MerchantProps> = ({
 
       {/* Content Area */}
       {merchantItems.length === 0 ? (
-        <div className="merchant__empty">
-          The merchant has nothing left to sell.
+        <div className="merchant__empty" role="status">
+          <p className="merchant__empty-title">The cart is bare</p>
+          <p className="merchant__empty-body">
+            Dust settles where wares once waited. Reroll the stock — or walk on into the mist.
+          </p>
         </div>
       ) : (
         <div
@@ -813,21 +958,31 @@ const Merchant: React.FC<MerchantProps> = ({
               selectedItem ? 'item-grid--with-selection' : ''
             }`}
           >
-            {merchantItems.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                price={getPrice(item)}
-                affordable={canAfford(item)}
-                statComparisons={getStatComparisons(item)}
-                isSelected={selectedItemId === item.id}
-                isDimmed={selectedItemId !== null && selectedItemId !== item.id}
-                discountPercent={discountPercent}
-                onSelect={() => handleSelect(item.id)}
-                onBuy={() => tryBuy(item)}
-                equipmentFocus={lootTheme?.equipmentFocus}
-              />
-            ))}
+            {merchantItems.map((item) => {
+              const price = getPrice(item);
+              const affordable = canAfford(item);
+              const shortfall = affordable ? 0 : Math.max(0, price - player.ryo);
+              return (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  price={price}
+                  affordable={affordable}
+                  shortfall={shortfall}
+                  bagFull={bagFull}
+                  playerRyo={player.ryo}
+                  statComparisons={getStatComparisons(item)}
+                  isSelected={selectedItemId === item.id}
+                  isDimmed={selectedItemId !== null && selectedItemId !== item.id}
+                  discountPercent={discountPercent}
+                  onSelect={() => handleSelect(item.id)}
+                  onBuy={() => tryBuy(item)}
+                  isProcessing={isProcessing}
+                  equipmentFocus={lootTheme?.equipmentFocus}
+                  leanEconomy={leanEconomy}
+                />
+              );
+            })}
           </div>
 
           {/* Preview Panel */}
@@ -836,6 +991,9 @@ const Merchant: React.FC<MerchantProps> = ({
               item={selectedItem}
               price={getPrice(selectedItem)}
               affordable={canAfford(selectedItem)}
+              shortfall={Math.max(0, getPrice(selectedItem) - player.ryo)}
+              bagFull={bagFull}
+              playerRyo={player.ryo}
               statComparisons={getStatComparisons(selectedItem)}
               discountPercent={discountPercent}
               equippedItemName={getEquippedItemName(selectedItem)}
@@ -843,6 +1001,7 @@ const Merchant: React.FC<MerchantProps> = ({
               onCancel={handleCancel}
               isProcessing={isProcessing}
               equipmentFocus={lootTheme?.equipmentFocus}
+              leanEconomy={leanEconomy}
             />
           )}
         </div>
@@ -855,7 +1014,8 @@ const Merchant: React.FC<MerchantProps> = ({
           className="merchant__leave-button"
           onClick={onLeave}
         >
-          Leave the Merchant's Cart
+          Leave shop
+          <span className="sw-shortcut">Esc</span>
         </button>
       </div>
 
@@ -869,7 +1029,7 @@ const Merchant: React.FC<MerchantProps> = ({
           <div className="merchant-toast__panel">
             <ArtIcon
               art={resolveItemArt(purchaseToast.item)}
-              size="md"
+              size="lg"
               className="merchant-toast__art"
               title={purchaseToast.item.name}
             />

@@ -1,24 +1,26 @@
 /**
  * EventResultModal Styles (T-011)
- * Pixel-arcade outcome panel: blocky frame, hard shadow (no blur),
- * Silkscreen chrome + VT323 body. Palette scoped to .event-result.
+ * Void chassis — bone chrome, rust heat (matches Rest/Intel/Dice/Reward family).
+ * Outcome tones keep functional up/down/curse signal only.
  */
 
 @import '../../styles/design-system/index.css';
 
 .event-result {
-  /* ── Approved event palette (scene-scoped tokens) ── */
-  --ev-panel: #141924;
-  --ev-border: #2b3242;
-  --ev-hard: #05070c;
-  --ev-title: #eef2f8;
-  --ev-body: #aeb9c8;
-  --ev-gold: #f2b134;
+  /* ── Void chassis tokens (scene-scoped) ── */
+  --ev-panel-top: var(--sw-abyss, #1a2633);
+  --ev-panel-bot: var(--sw-void, #050608);
+  --ev-border: var(--sw-metal, #2d3d4a);
+  --ev-hard: var(--sw-void, #050608);
+  --ev-title: var(--sw-bone, #e8e4dc);
+  --ev-body: var(--sw-bone-dim, #b8b4a8);
+  --ev-heat: var(--sw-rust, #a65d3f);
+  --ev-heat-light: var(--sw-rust-light, #c47a52);
   --ev-up: #43c26a;
   --ev-down: #e6483f;
   --ev-curse: #a95cff;
-  --ev-flag: #f2b134;
-  --ev-neutral: #5b6575;
+  --ev-flag: var(--sw-rust-light, #c47a52);
+  --ev-neutral: var(--sw-fog, #8a9199);
 
   position: fixed;
   inset: 0;
@@ -27,7 +29,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--sw-space-4);
-  background: rgba(3, 5, 10, 0.62);
+  background: rgba(5, 6, 8, 0.72);
   animation: sw-fade-in 0.2s ease-out;
 }
 
@@ -42,8 +44,9 @@
   flex-direction: column;
   gap: var(--sw-space-3);
   padding: var(--sw-space-5);
-  background: var(--ev-panel);
+  background: linear-gradient(180deg, var(--ev-panel-top) 0%, var(--ev-panel-bot) 100%);
   border: 2px solid var(--ev-border);
+  border-top: 3px solid var(--ev-heat);
   border-radius: var(--sw-radius-lg);
   box-shadow: 6px 6px 0 0 var(--ev-hard);
   animation: sw-scale-in 0.22s ease-out;
@@ -80,14 +83,16 @@
   font-size: var(--sw-text-2xs);
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
-  color: var(--sw-on-accent);
-  background: var(--ev-gold);
+  color: var(--sw-bone, #e8e4dc);
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.28));
+  border: 1px solid var(--ev-heat);
   border-radius: var(--sw-radius-sm);
   box-shadow: 3px 3px 0 0 var(--ev-hard);
 }
 
 .event-result__chain-glyph {
   font-size: var(--sw-text-sm);
+  color: var(--ev-heat-light);
 }
 
 /* ===========================================
@@ -109,7 +114,7 @@
   height: 2rem;
   border: 2px solid var(--ev-border);
   border-radius: var(--sw-radius-sm);
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(5, 6, 8, 0.45);
 }
 
 .event-result__header-icon--gain {
@@ -137,7 +142,7 @@
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
   color: var(--ev-title);
-  text-shadow: 0 0 8px rgba(242, 177, 52, 0.45);
+  text-shadow: 2px 2px 0 var(--ev-hard);
   margin: 0;
 }
 
@@ -152,7 +157,7 @@
   text-align: center;
   color: var(--ev-body);
   padding: var(--sw-space-3);
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(5, 6, 8, 0.45);
   border: 1px solid var(--ev-border);
   border-radius: var(--sw-radius-sm);
   margin: 0;
@@ -170,7 +175,7 @@
   font-size: var(--sw-text-2xs);
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
-  color: var(--ev-gold);
+  color: var(--ev-heat-light);
 }
 
 .event-result__divider::after {
@@ -198,7 +203,7 @@
   align-items: center;
   gap: var(--sw-space-2);
   padding: var(--sw-space-2) var(--sw-space-3);
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(5, 6, 8, 0.45);
   border: 1px solid var(--ev-border);
   border-left-width: 3px;
   border-radius: var(--sw-radius-sm);
@@ -215,7 +220,7 @@
   font-size: var(--sw-text-xs);
   letter-spacing: var(--sw-tracking-wide);
   text-transform: uppercase;
-  color: var(--sw-text-secondary);
+  color: var(--sw-fog, #8a9199);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -278,6 +283,18 @@
   border-radius: var(--sw-radius-sm);
 }
 
+.event-result__no-change--weight {
+  color: #fca5a5;
+  border-color: rgba(230, 72, 63, 0.45);
+  background: rgba(230, 72, 63, 0.08);
+}
+
+.event-result__no-change--gain {
+  color: #86efac;
+  border-color: rgba(67, 194, 106, 0.4);
+  background: rgba(67, 194, 106, 0.08);
+}
+
 /* ===========================================
    Continue button
    =========================================== */
@@ -289,20 +306,21 @@
   font-size: var(--sw-text-sm);
   letter-spacing: var(--sw-tracking-wide);
   text-transform: uppercase;
-  color: var(--ev-title);
-  background: var(--sw-bg-surface);
-  border: 2px solid var(--ev-border);
+  color: var(--sw-bone, #e8e4dc);
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.22));
+  border: 2px solid var(--ev-heat);
   border-radius: var(--sw-radius-md);
   box-shadow: 3px 3px 0 0 var(--ev-hard);
   cursor: pointer;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
-    background var(--sw-transition-base);
+    background var(--sw-transition-base), border-color var(--sw-transition-fast);
 }
 
 .event-result__continue:hover {
   transform: translate(-1px, -1px);
   box-shadow: 4px 4px 0 0 var(--ev-hard);
-  border-color: var(--sw-frame);
+  background: rgba(166, 93, 63, 0.4);
+  border-color: var(--ev-heat-light);
 }
 
 .event-result__continue:active {
@@ -311,25 +329,33 @@
 }
 
 .event-result__continue:focus-visible {
-  outline: 2px solid var(--ev-gold);
+  outline: 2px solid var(--sw-rust, #a65d3f);
   outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4dc);
 }
 
-/* Chain CTA: solid gold, dark text — the primary "keep going" action. */
+/* Chain CTA: stronger rust heat — keep going */
 .event-result__continue--chain {
-  color: var(--sw-on-accent);
-  background: var(--ev-gold);
-  border-color: var(--ev-gold);
+  color: var(--sw-bone, #e8e4dc);
+  background: rgba(166, 93, 63, 0.42);
+  border-color: var(--ev-heat-light);
 }
 
 .event-result__continue--chain:hover {
-  background: #ffca4d;
+  background: rgba(166, 93, 63, 0.58);
 }
 
 .event-result__hint {
   text-align: center;
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-2xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-fog, #8a9199);
   margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-result,
+  .event-result__panel {
+    animation: none;
+  }
 }

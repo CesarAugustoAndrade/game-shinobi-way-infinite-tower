@@ -1,5 +1,6 @@
 /**
  * T-050: Rest activity result panel
+ * Void chassis — bone title, rust CTA (matches Reward / LocationComplete).
  */
 
 @import '../../styles/design-system/index.css';
@@ -12,19 +13,20 @@
   align-items: center;
   justify-content: center;
   padding: var(--sw-space-4);
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(5, 6, 8, 0.72);
 }
 
 .rest-result__panel {
   max-width: 22rem;
   width: 100%;
   padding: var(--sw-space-5);
-  background: var(--sw-bg-secondary, #12121a);
-  border: 3px solid #000;
-  box-shadow: 4px 4px 0 #000;
+  background: linear-gradient(180deg, var(--sw-abyss, #1a2633) 0%, var(--sw-void, #050608) 100%);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-top: 3px solid var(--sw-rust, #a65d3f);
+  box-shadow: 6px 6px 0 var(--sw-void, #050608);
   font-family: var(--sw-font-display, Silkscreen, monospace);
   text-align: center;
-  color: var(--sw-text-primary, #f0e8d8);
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .rest-result__header {
@@ -39,9 +41,9 @@
   width: 3rem !important;
   height: 3rem !important;
   image-rendering: pixelated;
-  border: 2px solid #000;
-  box-shadow: 2px 2px 0 #000;
-  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  background: rgba(5, 6, 8, 0.55);
 }
 
 .rest-result__title {
@@ -49,14 +51,15 @@
   font-size: var(--sw-text-lg);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #86efac;
+  /* Bone instrument — not party green phosphor */
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .rest-result__flavor {
   margin: 0 0 var(--sw-space-3);
   font-family: var(--sw-font-body, VT323, monospace);
   font-size: var(--sw-text-base);
-  color: var(--sw-text-secondary, #ccc);
+  color: var(--sw-fog, #8a9199);
 }
 
 .rest-result__gains {
@@ -69,12 +72,13 @@
   text-transform: uppercase;
 }
 
+/* Resource identity only — chassis stays void */
 .rest-result__gain--hp {
-  color: #f87171;
+  color: var(--sw-hp-color, #ef4444);
 }
 
 .rest-result__gain--cp {
-  color: #60a5fa;
+  color: var(--sw-chakra-color, #3b82f6);
 }
 
 .rest-result__bars {
@@ -95,13 +99,13 @@
 }
 
 .rest-result__bar-label {
-  color: var(--sw-text-muted, #888);
+  color: var(--sw-fog, #8a9199);
 }
 
 .rest-result__bar-track {
   height: 8px;
-  background: #0a0a12;
-  border: 2px solid #000;
+  background: var(--sw-void, #050608);
+  border: 2px solid var(--sw-metal, #2d3d4a);
   overflow: hidden;
 }
 
@@ -110,18 +114,19 @@
 }
 
 .rest-result__bar-fill--hp {
-  background: linear-gradient(90deg, #c0392b, #e74c3c);
+  background: var(--sw-hp-fill, linear-gradient(90deg, #c0392b, #e74c3c));
 }
 
 .rest-result__bar-fill--cp {
-  background: linear-gradient(90deg, #1a5276, #3498db);
+  background: var(--sw-chakra-fill, linear-gradient(90deg, #1a5276, #3498db));
 }
 
 .rest-result__bar-val {
-  color: var(--sw-text-tertiary, #aaa);
+  color: var(--sw-bone-dim, #b8b4a8);
   white-space: nowrap;
 }
 
+/* Continue CTA — rust instrument heat */
 .rest-result__continue {
   display: inline-flex;
   align-items: center;
@@ -129,10 +134,10 @@
   gap: 10px;
   width: 100%;
   padding: var(--sw-space-3);
-  background: rgba(22, 163, 74, 0.3);
-  border: 2px solid #4ade80;
-  box-shadow: 2px 2px 0 #000;
-  color: #86efac;
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.22));
+  border: 2px solid var(--sw-rust, #a65d3f);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  color: var(--sw-bone, #e8e4dc);
   font-family: inherit;
   font-size: var(--sw-text-sm);
   font-weight: 700;
@@ -141,5 +146,12 @@
 }
 
 .rest-result__continue:hover {
-  background: rgba(22, 163, 74, 0.5);
+  background: rgba(166, 93, 63, 0.4);
+  border-color: var(--sw-rust-light, #c47a52);
+}
+
+.rest-result__continue:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4dc);
 }

@@ -290,16 +290,18 @@
 
 .room-card {
   position: relative;
-  width: 7rem;
-  height: 9rem;
+  /* Scale with viewport so the diamond fills the stage on desktop */
+  width: clamp(7.25rem, 12vw, 10.5rem);
+  height: clamp(9.25rem, 15.5vw, 13.25rem);
+  flex: 0 0 auto;
   border-radius: var(--sw-radius-lg);
   border: 2px solid var(--sw-frame-soft);
   overflow: hidden;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
     border-color var(--sw-transition-base), filter var(--sw-transition-base);
-  /* Pixel-arcade: solid blocky tile + hard shadow (no translucent blur). */
-  background: var(--sw-bg-tertiary);
-  box-shadow: var(--sw-pix-shadow-sm);
+  /* Mission tile — solid plate, hard shadow (not parchment / spreadsheet cell). */
+  background: linear-gradient(160deg, rgba(18, 22, 36, 0.98), rgba(8, 10, 18, 0.99));
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   cursor: pointer;
 }
 
@@ -394,6 +396,12 @@
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
   line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* T-085: terrain micro-hint on path-scan cards */
@@ -410,7 +418,7 @@
 .room-card__terrain-name {
   font-size: 8px;
   font-family: var(--sw-font-mono, monospace);
-  color: #7dd3fc;
+  color: #8a9199;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -449,6 +457,13 @@
   display: flex;
   gap: var(--sw-space-1);
   margin-bottom: var(--sw-space-1);
+}
+
+.room-card__activity-wrap {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  cursor: help;
 }
 
 .room-card__activity {
@@ -508,8 +523,28 @@
 }
 
 .room-card__glow--current {
-  background: rgba(34, 211, 238, 0.1);
+  background: rgba(166, 93, 63, 0.08);
   animation: sw-ready-pulse 2s ease-in-out infinite;
+}
+
+.room-card__here-badge {
+  position: absolute;
+  top: 0.35rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 0.15rem 0.45rem;
+  font-family: var(--sw-font-display);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #e8e4dc;
+  background: #6b3d2a;
+  border: 1px solid #a65d3f;
+  border-radius: var(--sw-radius-sm);
+  box-shadow: 2px 2px 0 #000;
+  pointer-events: none;
 }
 
 .room-card__glow--boss {
@@ -521,42 +556,66 @@
    LOCATION CARD DISPLAY
    =========================================== */
 
-/* Neon location card. --card-accent flips cyan -> magenta when locked/unknown. */
+/*
+ * Ops-table destination card.
+ * Accent = CRT instrument phosphor (thin, dim) — not party neon climate.
+ * Palette: void #050608 · metal #2d3d4a · fog #8a9199 · rust #a65d3f · bone #e8e4dc
+ */
 .location-card {
-  --card-accent: #22d3ee;
-  --card-accent-soft: rgba(34, 211, 238, 0.55);
-  --card-accent-glow: rgba(34, 211, 238, 0.3);
+  --card-accent: #7a8f9c; /* muted instrument metal-fog */
+  --card-accent-soft: rgba(45, 61, 74, 0.85);
+  --card-accent-glow: rgba(138, 145, 153, 0.12);
+  --card-phosphor: rgba(122, 143, 156, 0.22);
   position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   border-radius: var(--sw-radius-xl);
   border: 1px solid var(--card-accent-soft);
-  background: linear-gradient(to bottom, rgba(10, 12, 24, 0.92), rgba(6, 8, 18, 0.97));
-  box-shadow: 0 0 12px var(--card-accent-glow), inset 0 0 18px rgba(0, 0, 0, 0.6);
+  background: linear-gradient(to bottom, rgba(8, 10, 14, 0.94), rgba(5, 6, 8, 0.98));
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(232, 228, 220, 0.04),
+    inset 0 0 22px rgba(0, 0, 0, 0.55);
   overflow: hidden;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-base),
     border-color var(--sw-transition-base);
   cursor: pointer;
 }
 
+/* Mystery / low-intel: void purple instrument, not disco magenta */
 .location-card--mystery {
-  --card-accent: #e879f9;
-  --card-accent-soft: rgba(232, 121, 249, 0.55);
-  --card-accent-glow: rgba(232, 121, 249, 0.3);
+  --card-accent: #6b5b7a;
+  --card-accent-soft: rgba(45, 30, 58, 0.9);
+  --card-accent-glow: rgba(107, 91, 122, 0.18);
+  --card-phosphor: rgba(107, 91, 122, 0.2);
+}
+
+/* Secret destinations: rust + void — veiled route, not neon party */
+.location-card--secret:not(.location-card--mystery) {
+  --card-accent: #a65d3f;
+  --card-accent-soft: rgba(107, 61, 42, 0.75);
+  --card-accent-glow: rgba(166, 93, 63, 0.16);
+  --card-phosphor: rgba(166, 93, 63, 0.18);
 }
 
 .location-card--default:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   border-color: var(--card-accent);
-  box-shadow: 0 0 18px var(--card-accent-glow), 0 8px 22px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.6),
+    0 0 0 1px var(--card-phosphor),
+    inset 0 0 22px rgba(0, 0, 0, 0.5);
 }
 
 .location-card--selected {
   border-color: var(--card-accent);
-  box-shadow: 0 0 0 1px var(--card-accent), 0 0 22px var(--card-accent-glow),
-    inset 0 0 22px rgba(0, 0, 0, 0.5);
-  transform: translateY(-3px);
+  box-shadow:
+    0 0 0 1px var(--card-accent),
+    0 10px 24px rgba(0, 0, 0, 0.65),
+    inset 0 0 0 1px var(--card-phosphor),
+    inset 0 0 24px rgba(0, 0, 0, 0.55);
+  transform: translateY(-2px);
 }
 
 /* Revisit badge */
@@ -582,29 +641,31 @@
 /* Title bar: numbered badge + title + classification legend */
 .location-card__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sw-space-3);
   padding: var(--sw-space-3) var(--sw-space-3) var(--sw-space-2);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .location-card__badge {
   flex-shrink: 0;
   width: 1.85rem;
   height: 1.85rem;
+  margin-top: 1px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--card-accent);
+  border: 1px solid var(--card-accent);
   border-radius: var(--sw-radius-md);
-  background: rgba(0, 0, 0, 0.5);
-  box-shadow: 0 0 8px var(--card-accent-glow), inset 0 0 6px var(--card-accent-glow);
+  background: rgba(5, 6, 8, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(232, 228, 220, 0.04);
 }
 
 .location-card__badge-text {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-sm);
-  color: var(--card-accent);
-  text-shadow: 0 0 6px var(--card-accent-glow);
+  color: #e8e4dc;
 }
 
 .location-card__header-text {
@@ -616,11 +677,11 @@
 .location-card__title {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-lg);
-  color: var(--sw-text-primary);
+  color: #e8e4dc;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
   line-height: 1.1;
-  text-shadow: 0 0 8px rgba(186, 230, 253, 0.25);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -628,6 +689,7 @@
 
 .location-card__title--mystery {
   letter-spacing: var(--sw-tracking-widest);
+  color: #b8bcc2;
 }
 
 .location-card__legend {
@@ -637,22 +699,117 @@
   gap: var(--sw-space-1);
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-2xs);
-  color: var(--card-accent);
+  color: #8a9199;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
-  text-shadow: 0 0 6px var(--card-accent-glow);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-card--secret .location-card__legend {
+  color: #c47a52;
+}
+
+/* StS-style identity row: D# + biome + scar/veiled — never overflow the card */
+.location-card__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  min-width: 0;
+  max-width: 100%;
+  /* Cap height so long chip stacks don't blow the header */
+  max-height: 2.6rem;
+  overflow: hidden;
+}
+
+.location-card__d-badge {
+  flex: 0 0 auto;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border: 1px solid #2d3d4a;
+  background: rgba(5, 6, 8, 0.7);
+  color: #e8e4dc;
+  line-height: 1.2;
+}
+
+.location-card__d-badge--d1,
+.location-card__d-badge--d2 { color: #86efac; border-color: #15803d; }
+.location-card__d-badge--d3,
+.location-card__d-badge--d4 { color: #e8b84a; border-color: #a65d3f; }
+.location-card__d-badge--d5 { color: #c47a52; border-color: #8b4513; }
+.location-card__d-badge--d6,
+.location-card__d-badge--d7 { color: #fca5a5; border-color: #7f1d1d; }
+
+.location-card__id-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 8px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border: 1px solid #2d3d4a;
+  color: #8a9199;
+  background: rgba(26, 38, 51, 0.45);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Biome is the long label — soft cap so D# / Scar / Veiled stay visible */
+.location-card__id-chip--biome {
+  max-width: min(9.5rem, 100%);
+  color: #b8bcc2;
+}
+
+/* Short status chips never shrink away */
+.location-card__id-chip--scar,
+.location-card__id-chip--secret {
+  flex: 0 0 auto;
+}
+
+.location-card__id-chip--scar {
+  color: #e8b84a;
+  border-color: rgba(166, 93, 63, 0.7);
+  background: rgba(107, 61, 42, 0.4);
+}
+
+.location-card__id-chip--secret {
+  color: #c4b5fd;
+  border-color: rgba(88, 28, 135, 0.55);
+  background: rgba(30, 15, 45, 0.55);
+}
+
+/* Fogged intel — honest "no read", not a fake danger number */
+.location-card__id-chip--fog {
+  max-width: 100%;
+  color: #8a9199;
+  border-color: #2d3d4a;
+  background: rgba(5, 6, 8, 0.65);
+  letter-spacing: 0.04em;
 }
 
 .location-card__legend-mark {
   font-weight: 700;
 }
 
-/* Image area: pixel-art slot with graceful fallback */
+/* Image area: void underplate always, then gradient / art on top */
 .location-card__image {
   position: relative;
   height: 8.5rem;
   overflow: hidden;
-  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.6), rgba(2, 6, 23, 0.85));
+  background-color: #050608;
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.6), rgba(2, 6, 23, 0.85));
 }
 
 /* Top + bottom scrim keeps the biome label and card edge legible over art. */
@@ -691,39 +848,54 @@
 .location-card__biome {
   position: absolute;
   top: var(--sw-space-2);
-  left: 0;
-  right: 0;
+  left: var(--sw-space-2);
+  right: var(--sw-space-2);
   z-index: 2;
   text-align: center;
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-base);
   font-style: italic;
-  color: #67e8f9;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(34, 211, 238, 0.4);
+  color: #b8bcc2;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 1px rgba(5, 6, 8, 0.9);
+  /* Narrow cards: long biome quotes clip cleanly */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Mystery / locked glitch slot */
+/* Mystery / locked glitch slot — void fog, not party neon */
 .location-card__image--mystery {
-  background: linear-gradient(135deg, rgba(59, 7, 100, 0.6), rgba(15, 3, 40, 0.92));
+  background-color: #050608;
+  background-image: linear-gradient(135deg, rgba(26, 20, 36, 0.85), rgba(5, 6, 8, 0.96));
 }
 
 .location-card__glitch {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background:
-    repeating-linear-gradient(0deg, rgba(232, 121, 249, 0.06) 0 2px, transparent 2px 4px),
-    repeating-linear-gradient(90deg, rgba(34, 211, 238, 0.05) 0 3px, transparent 3px 6px);
+    repeating-linear-gradient(0deg, rgba(138, 145, 153, 0.05) 0 2px, transparent 2px 4px),
+    radial-gradient(ellipse at 50% 55%, rgba(45, 61, 74, 0.35), transparent 70%);
 }
 
 .location-card__glitch-mark {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-5xl);
-  color: rgba(232, 121, 249, 0.85);
-  text-shadow: 0 0 14px rgba(232, 121, 249, 0.7);
-  animation: sw-mystery-glitch 2.4s steps(2, jump-none) infinite;
+  color: rgba(184, 188, 194, 0.55);
+  text-shadow: 0 0 12px rgba(26, 38, 51, 0.9);
+  animation: sw-mystery-glitch 2.8s steps(2, jump-none) infinite;
+}
+
+.location-card__glitch-caption {
+  margin-top: 0.35rem;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(138, 145, 153, 0.7);
 }
 
 /* Stats section */
@@ -755,6 +927,35 @@
   color: var(--sw-text-secondary);
 }
 
+/* A4: terrain identity on destination cards */
+.location-card__terrain-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sw-space-2);
+}
+
+.location-card__terrain-label {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-2xs);
+  color: #9d8cd6;
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wider);
+}
+
+.location-card__terrain-value {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 10px;
+  color: #8a9199;
+  text-transform: capitalize;
+  letter-spacing: 0.03em;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Activities section */
 .location-card__activities {
   padding: var(--sw-space-2) var(--sw-space-3);
@@ -780,6 +981,10 @@
 
 .location-card__feature-text {
   line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .location-card__feature--rest {
@@ -802,45 +1007,46 @@
 }
 
 .location-card__feature--training {
-  background: linear-gradient(to right, rgba(34, 211, 238, 0.16), rgba(34, 211, 238, 0.03));
-  color: #a5f3fc;
+  background: linear-gradient(to right, rgba(45, 61, 74, 0.45), rgba(26, 38, 51, 0.12));
+  color: #b8bcc2;
 }
 
 .location-card__feature--training .location-card__feature-icon {
-  color: #22d3ee;
+  color: #8a9199;
 }
 
 .location-card__feature--boss {
-  background: linear-gradient(to right, rgba(239, 68, 68, 0.22), rgba(127, 29, 29, 0.08));
+  background: linear-gradient(to right, rgba(139, 69, 19, 0.28), rgba(107, 61, 42, 0.1));
   color: #fca5a5;
 }
 
 .location-card__feature--boss .location-card__feature-icon {
-  color: #ef4444;
+  color: #c47a52;
 }
 
 .location-card__feature--secret {
-  background: linear-gradient(to right, rgba(168, 85, 247, 0.2), rgba(88, 28, 135, 0.06));
-  color: #d8b4fe;
+  background: linear-gradient(to right, rgba(30, 15, 45, 0.55), rgba(5, 6, 8, 0.2));
+  color: #c4b5fd;
+  border-top-color: rgba(107, 61, 42, 0.35);
 }
 
 .location-card__feature--secret .location-card__feature-icon {
-  color: #c084fc;
+  color: #a65d3f;
 }
 
 .location-card__feature--event {
-  background: linear-gradient(to right, rgba(96, 165, 250, 0.18), rgba(30, 58, 138, 0.06));
-  color: #bfdbfe;
+  background: linear-gradient(to right, rgba(26, 38, 51, 0.5), rgba(5, 6, 8, 0.15));
+  color: #b8bcc2;
 }
 
 .location-card__feature--event .location-card__feature-icon {
-  color: #60a5fa;
+  color: #8a9199;
 }
 
 .location-card__feature--mystery {
   justify-content: center;
-  background: linear-gradient(to right, rgba(232, 121, 249, 0.16), rgba(232, 121, 249, 0.03));
-  color: #f0abfc;
+  background: linear-gradient(to right, rgba(26, 20, 36, 0.55), rgba(5, 6, 8, 0.2));
+  color: #8a9199;
 }
 
 .location-card__feature--default {
@@ -848,15 +1054,15 @@
   color: var(--sw-text-tertiary);
 }
 
-/* Selection glow */
+/* Selection ring — thin instrument phosphor, not bloom */
 .location-card__selection-glow {
   position: absolute;
   inset: 0;
   pointer-events: none;
   border: 1px solid var(--card-accent);
   border-radius: var(--sw-radius-xl);
-  box-shadow: inset 0 0 14px var(--card-accent-glow);
-  animation: sw-blocky-pulse 1.8s steps(2, jump-none) infinite;
+  box-shadow: inset 0 0 0 1px var(--card-phosphor);
+  animation: sw-blocky-pulse 2s steps(2, jump-none) infinite;
 }
 
 /* Locked/unknown glitch flicker */
@@ -872,29 +1078,64 @@
    =========================================== */
 
 .location-map {
+  position: relative;
+  /* Full-bleed stage: rooms own the center column, not a postcard max-width */
   width: 100%;
-  max-width: 64rem;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   height: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  border-radius: var(--sw-radius-lg);
-  border: 1px solid var(--sw-glass-border);
+  border-radius: 0;
+  border: none;
   overflow: hidden;
+  background-color: #050608;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.45);
 }
 
-/* Arc-based backgrounds */
-.location-map--academy { background: linear-gradient(to bottom, #020617, #18181b, #020617); }
-.location-map--waves { background: linear-gradient(to bottom, #020617, #172554, #020617); }
-.location-map--exams { background: linear-gradient(to bottom, #022c22, #18181b, #020617); }
-.location-map--rogue { background: linear-gradient(to bottom, #020617, #431407, #020617); }
-.location-map--war { background: linear-gradient(to bottom, #450a0a, #18181b, #020617); }
+/* Arc-based void/abyss fallbacks (under biome / map plates) */
+.location-map--academy { background-color: #050608; }
+.location-map--waves { background-color: #050810; }
+.location-map--exams { background-color: #050a08; }
+.location-map--rogue { background-color: #0a0605; }
+.location-map--war { background-color: #0a0505; }
+
+/* Visor chrome — matches RegionMap CRT language */
+.location-map__scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.14) 3px,
+    rgba(0, 0, 0, 0) 4px
+  );
+  opacity: 0.45;
+}
+
+.location-map__vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  /* Soft cinematic edge — do not box the room board into a dark oval */
+  background: radial-gradient(ellipse 92% 88% at 50% 48%, transparent 62%, rgba(0, 0, 0, 0.42) 100%);
+  opacity: 0.85;
+}
 
 .location-map__header {
-  padding: var(--sw-space-4);
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  padding: var(--sw-space-3) var(--sw-space-4);
   border-bottom: 2px solid var(--sw-frame-soft);
   background: var(--sw-scrim);
 }
@@ -902,7 +1143,24 @@
 .location-map__header-content {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sw-space-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.location-map__header-content > div:first-child {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.location-map__title-row {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: var(--sw-space-2);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .location-map__title {
@@ -910,6 +1168,77 @@
   font-family: var(--sw-font-serif);
   color: var(--sw-text-secondary);
   letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A4: danger identity chip on location film stage */
+.location-map__danger {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border: 1px solid #475569;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.75);
+  text-transform: uppercase;
+}
+.location-map__danger--d1,
+.location-map__danger--d2 { color: #86efac; border-color: #15803d; }
+.location-map__danger--d3,
+.location-map__danger--d4 { color: #fde047; border-color: #a16207; }
+.location-map__danger--d5 { color: #fdba74; border-color: #c2410c; }
+.location-map__danger--d6,
+.location-map__danger--d7 { color: #fca5a5; border-color: #b91c1c; }
+
+/* A4 wave2: veiled/secret route chip */
+.location-map__veiled {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border: 1px solid rgba(88, 28, 135, 0.55);
+  color: #c4b5fd;
+  background: rgba(20, 12, 32, 0.7);
+  text-transform: uppercase;
+}
+
+/* A4: visit scar chip (revisit) — rust heat, not party gold neon */
+.location-map__scar {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  color: #e8b84a;
+  border: 1px solid rgba(166, 93, 63, 0.7);
+  background: rgba(107, 61, 42, 0.5);
+}
+
+/* A4 wave3: revisit scar note under intel strip */
+.location-map__scar-note {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  color: #e8b84a;
+  letter-spacing: 0.03em;
+}
+
+/* R1-009: biome subtitle under authored location name */
+.location-map__biome {
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-family: var(--sw-font-mono, monospace);
+  color: var(--sw-text-muted, #a1a1aa);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -928,7 +1257,7 @@
   margin: 4px 0 0;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #7dd3fc;
+  color: #8a9199;
   max-width: 32rem;
   line-height: 1.35;
 }
@@ -990,18 +1319,20 @@
 }
 
 .location-map__fog {
-  min-width: 5.5rem;
-  min-height: 4rem;
+  min-width: clamp(5.5rem, 10vw, 9rem);
+  min-height: clamp(4rem, 8vw, 6.5rem);
+  width: clamp(7.25rem, 12vw, 10.5rem);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed #475569;
-  background: rgba(15, 23, 42, 0.65);
-  color: #94a3b8;
+  border: 1px dashed rgba(138, 145, 153, 0.45);
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(45, 61, 74, 0.35), rgba(5, 6, 8, 0.75));
+  color: #8a9199;
   font-family: var(--sw-font-display, Silkscreen, monospace);
   font-size: 14px;
-  letter-spacing: 0.15em;
-  box-shadow: 2px 2px 0 #000;
+  letter-spacing: 0.18em;
+  box-shadow: 2px 2px 0 #000, inset 0 0 16px rgba(0, 0, 0, 0.4);
 }
 
 .location-map__stats {
@@ -1009,6 +1340,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-1);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .location-map__stat {
@@ -1054,30 +1388,138 @@
   color: var(--sw-text-muted);
 }
 
-/* Map area */
-.location-map__area {
-  flex: 1;
+.location-map__coach {
   position: relative;
-  padding: var(--sw-space-4);
-  min-height: 400px;
+  z-index: 2;
+  border-top: 2px solid var(--sw-frame-soft);
+  padding: var(--sw-space-3) var(--sw-space-4);
+  background: rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.location-map__coach-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  /* Bone instrument readout — clear next action, not candy gold */
+  color: #e8e4dc;
+}
+
+.location-map__instructions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--sw-space-2);
+  padding: var(--sw-space-2) var(--sw-space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  color: var(--sw-text-muted);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.location-map__key {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  font-family: var(--sw-font-mono);
+  font-size: 10px;
+  color: #e8e4dc;
+  background: rgba(26, 38, 51, 0.75);
+  border: 1px solid #2d3d4a;
+  border-radius: 3px;
+}
+
+.location-map__sep {
+  opacity: 0.45;
+  margin: 0 0.15rem;
+}
+
+/* Map area — fills remaining stage between header and selected/coach strips */
+.location-map__area {
+  flex: 1 1 auto;
+  position: relative;
+  z-index: 2;
+  padding: var(--sw-space-2) var(--sw-space-3);
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .location-map__rooms {
   position: relative;
   z-index: 10;
+  flex: 1 1 auto;
+  width: 100%;
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--sw-space-4) 0;
+  justify-content: space-evenly;
+  padding: var(--sw-space-3) 0;
+}
+
+/*
+ * Mission diamond — full-bleed board (not an inset postcard).
+ * Foreshortened far row + grounded you-are-here; path choice, not spreadsheet.
+ */
+.location-map__rooms--diamond {
+  gap: clamp(0.75rem, 2.5vh, 1.75rem);
+  padding: clamp(0.5rem, 1.5vh, 1.25rem) clamp(0.75rem, 3vw, 2rem);
+  border: none;
+  border-radius: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 78%, rgba(166, 93, 63, 0.05), transparent 55%),
+    linear-gradient(180deg, rgba(5, 6, 8, 0.08) 0%, rgba(5, 6, 8, 0.28) 100%);
+  box-shadow: none;
+}
+
+.location-map__rooms--diamond .location-map__row:first-child {
+  opacity: 0.9;
+  transform: scale(0.96);
+  filter: saturate(0.88);
+  width: 100%;
+  max-width: 72rem;
+}
+
+.location-map__rooms--diamond .location-map__row:nth-child(2) {
+  gap: clamp(1.5rem, 6vw, 4.5rem);
+  width: 100%;
+  max-width: 56rem;
+}
+
+.location-map__rooms--diamond .location-map__row:last-child {
+  margin-top: 0;
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+}
+
+.location-map__rooms--diamond .location-map__row:last-child::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -0.65rem;
+  width: 1px;
+  height: 0.55rem;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, transparent, rgba(138, 145, 153, 0.45));
+  pointer-events: none;
 }
 
 .location-map__row {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: var(--sw-space-8);
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .location-map__row-group {
@@ -1095,16 +1537,61 @@
   letter-spacing: var(--sw-tracking-wider);
 }
 
+/* A4 wave7: exit already cleared — bone/rust clear signal (not "defeat Guardian") */
+.location-map__exit-message--clear {
+  color: #e8b84a;
+}
+
+/* Empty grandchild slot — same void language as fog cells (never bare) */
 .location-map__placeholder {
-  color: var(--sw-glass-border);
+  min-width: clamp(5.5rem, 10vw, 9rem);
+  min-height: clamp(4rem, 8vw, 6.5rem);
+  width: clamp(7.25rem, 12vw, 10.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: rgba(138, 145, 153, 0.55);
   font-size: var(--sw-text-xs);
   font-style: italic;
-  width: 7.5rem;
-  text-align: center;
+  border: 1px dashed rgba(45, 61, 74, 0.5);
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(26, 38, 51, 0.35), rgba(5, 6, 8, 0.88));
+  box-shadow: 2px 2px 0 #000, inset 0 0 14px rgba(0, 0, 0, 0.45);
+}
+
+/* Ambient void plate when a diamond row has no rooms yet */
+.location-map__void-plate {
+  min-width: clamp(5.5rem, 10vw, 9rem);
+  min-height: clamp(4rem, 8vw, 6.5rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(45, 61, 74, 0.45);
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(45, 61, 74, 0.28), rgba(5, 6, 8, 0.9));
+  box-shadow: 2px 2px 0 #000, inset 0 0 16px rgba(0, 0, 0, 0.5);
+  color: #8a9199;
+}
+
+.location-map__void-plate--here {
+  min-width: clamp(7.25rem, 12vw, 10.5rem);
+  min-height: clamp(9.25rem, 15.5vw, 13.25rem);
+  border-style: solid;
+  border-color: rgba(45, 61, 74, 0.55);
+}
+
+.location-map__void-plate-mark {
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  opacity: 0.65;
 }
 
 /* Selected room panel */
 .location-map__selected {
+  position: relative;
+  z-index: 2;
   border-top: 2px solid var(--sw-frame-soft);
   padding: var(--sw-space-4);
   background: var(--sw-scrim);
@@ -1114,24 +1601,35 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--sw-space-3);
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .location-map__selected-info {
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-1);
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 .location-map__selected-name {
   font-size: var(--sw-text-lg);
   font-weight: 700;
   color: var(--sw-text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .location-map__selected-desc {
   font-size: var(--sw-text-xs);
   color: var(--sw-text-muted);
   margin-top: var(--sw-space-1);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* T-084: selected room terrain foresight */
@@ -1151,7 +1649,7 @@
 }
 
 .location-map__selected-terrain-name strong {
-  color: #7dd3fc;
+  color: #b8bcc2;
 }
 
 .location-map__selected-terrain-chips {
@@ -1231,10 +1729,19 @@
 .location-map__activity-tag--rest { background: rgba(22, 101, 52, 0.5); color: #4ade80; }
 .location-map__activity-tag--training { background: rgba(17, 94, 89, 0.5); color: #2dd4bf; }
 .location-map__activity-tag--treasure { background: rgba(120, 53, 15, 0.5); color: #fbbf24; }
+.location-map__activity-tag--intel { background: rgba(15, 118, 110, 0.5); color: #5eead4; }
 
 .location-map__selected-actions {
   display: flex;
   gap: var(--sw-space-2);
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+/* Floor-complete leave when no selected-room panel is mounted */
+.location-map__selected-actions--leave-only {
+  justify-content: center;
+  padding: var(--sw-space-3) var(--sw-space-4);
 }
 
 .location-map__action-btn {
@@ -1247,19 +1754,39 @@
 }
 
 .location-map__action-btn--enter {
-  background: rgba(8, 51, 68, 1);
-  border: 1px solid rgba(14, 116, 144, 1);
-  color: #a5f3fc;
+  background: rgba(26, 20, 16, 0.9);
+  border: 1px solid #a65d3f;
+  color: #e8e4dc;
+  box-shadow: 2px 2px 0 #000;
 }
 
 .location-map__action-btn--enter:hover {
-  background: rgba(21, 94, 117, 1);
+  background: rgba(42, 30, 22, 0.95);
+  border-color: #c47a52;
 }
 
 .location-map__action-btn--cleared {
   background: rgba(22, 101, 52, 0.5);
   border: 1px solid rgba(34, 197, 94, 0.7);
   color: #4ade80;
+}
+
+/* A4 wave7: leave after floor complete (rust instrument CTA, matches deploy) */
+.location-map__action-btn--leave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(26, 20, 16, 0.9);
+  border: 1px solid #a65d3f;
+  color: #e8e4dc;
+  box-shadow: 2px 2px 0 #000;
+  cursor: pointer;
+}
+
+.location-map__action-btn--leave:hover {
+  background: rgba(42, 30, 22, 0.95);
+  border-color: #c47a52;
 }
 
 .location-map__action-btn--locked {
@@ -1281,17 +1808,22 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--sw-radius-lg);
-  border: 1px solid rgba(34, 211, 238, 0.18);
+  /* Metal frame — instrument bezel, not neon rim */
+  border: 1px solid rgba(45, 61, 74, 0.65);
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  /* Void underplate always — map art layers on top via inline style */
+  background-color: #050608;
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.75),
+    inset 0 0 0 1px rgba(232, 228, 220, 0.03);
 }
 
-/* Arc gradients — deep navy/black CRT canvas with a faint arc tint. */
-.region-map--waves { background: radial-gradient(ellipse at 50% 0%, rgba(23, 37, 84, 0.55), #04050c 70%); }
-.region-map--exams { background: radial-gradient(ellipse at 50% 0%, rgba(6, 78, 59, 0.5), #04050c 70%); }
-.region-map--rogue { background: radial-gradient(ellipse at 50% 0%, rgba(67, 20, 7, 0.5), #04050c 70%); }
-.region-map--war { background: radial-gradient(ellipse at 50% 0%, rgba(69, 10, 10, 0.5), #04050c 70%); }
-.region-map--default { background: radial-gradient(ellipse at 50% 0%, rgba(24, 24, 40, 0.6), #04050c 70%); }
+/* Arc void underplates — mist/abyss climate; CRT scanlines supply instrument */
+.region-map--waves { background: radial-gradient(ellipse at 50% 0%, rgba(26, 38, 51, 0.55), #050608 72%); }
+.region-map--exams { background: radial-gradient(ellipse at 50% 0%, rgba(20, 40, 32, 0.5), #050608 72%); }
+.region-map--rogue { background: radial-gradient(ellipse at 50% 0%, rgba(50, 28, 20, 0.5), #050608 72%); }
+.region-map--war { background: radial-gradient(ellipse at 50% 0%, rgba(48, 18, 18, 0.5), #050608 72%); }
+.region-map--default { background: radial-gradient(ellipse at 50% 0%, rgba(26, 38, 51, 0.45), #050608 72%); }
 
 /* Decorative CRT layers (above content, never intercept clicks) */
 .region-map__scanlines {
@@ -1344,35 +1876,68 @@
 }
 
 .region-map__flourish-line {
-  color: rgba(34, 211, 238, 0.25);
+  color: rgba(138, 145, 153, 0.35);
   letter-spacing: -0.1em;
 }
 
 .region-map__flourish-icon {
-  color: #e0f2fe;
+  color: #a65d3f;
   font-size: var(--sw-text-2xl);
-  text-shadow: 0 0 10px rgba(34, 211, 238, 0.8), 0 0 20px rgba(232, 121, 249, 0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 .region-map__title {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-4xl);
-  color: #f0f9ff;
+  color: #e8e4dc;
   letter-spacing: var(--sw-tracking-ultra);
   text-transform: uppercase;
-  text-shadow:
-    0 0 8px rgba(34, 211, 238, 0.55),
-    0 0 18px rgba(34, 211, 238, 0.35),
-    0 0 30px rgba(232, 121, 249, 0.3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 1px rgba(5, 6, 8, 0.9);
+  padding: 0 var(--sw-space-2);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.region-map__biome {
+  margin: var(--sw-space-1) 0 0;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 11px;
+  color: #8a9199;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .region-map__theme {
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-lg);
-  color: #c4b5fd;
+  color: #b8bcc2;
   margin-top: var(--sw-space-2);
   font-style: italic;
   letter-spacing: var(--sw-tracking-wide);
+}
+
+/* R1 first-run: goal of Wave Country on region map */
+.region-map__first-tip {
+  margin: var(--sw-space-2) auto 0;
+  max-width: 28rem;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  color: #8a9199;
+  letter-spacing: 0.04em;
+}
+
+.region-map__boss-gate {
+  margin: var(--sw-space-2) 0 0;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 11px;
+  color: #fcd34d;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+.region-map__boss-gate--open {
+  color: #86efac;
 }
 
 /* T-069: elemental affinity from lootTheme (affects enemy element bias) */
@@ -1386,7 +1951,7 @@
 }
 
 .region-map__affinity-el {
-  color: #7dd3fc;
+  color: #b8bcc2;
   font-weight: 700;
 }
 
@@ -1431,17 +1996,21 @@
 
 .region-map__placeholder {
   border-radius: var(--sw-radius-xl);
-  border: 1px dashed rgba(34, 211, 238, 0.2);
-  background: rgba(8, 12, 24, 0.4);
+  border: 1px dashed rgba(45, 61, 74, 0.55);
+  background-color: #050608;
+  background-image:
+    radial-gradient(ellipse at 50% 40%, rgba(26, 38, 51, 0.45), transparent 70%),
+    linear-gradient(180deg, rgba(8, 10, 14, 0.9), rgba(5, 6, 8, 0.98));
   min-height: 18rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.55);
 }
 
 .region-map__placeholder-text {
   font-family: var(--sw-font-display);
-  color: rgba(34, 211, 238, 0.25);
+  color: rgba(138, 145, 153, 0.45);
   font-size: var(--sw-text-sm);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
@@ -1451,7 +2020,19 @@
 .region-map__enter-section {
   margin-top: var(--sw-space-6);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sw-space-2);
+}
+
+.region-map__coach {
+  margin: 0;
+  max-width: 28rem;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.35;
+  /* Fog bone — instrument readout, not candy gold pulse */
+  color: #b8bcc2;
 }
 
 .region-map__enter-btn {
@@ -1465,33 +2046,53 @@
   transition: transform var(--sw-transition-base), box-shadow var(--sw-transition-base);
 }
 
+/* Deploy CTA — rust instrument heat (scarce warmth), not cyan party */
 .region-map__enter-btn--active {
-  background: rgba(8, 47, 73, 0.45);
-  border: 2px solid #22d3ee;
-  color: #cffafe;
-  box-shadow: 0 0 14px rgba(34, 211, 238, 0.4), inset 0 0 14px rgba(34, 211, 238, 0.12);
-  text-shadow: 0 0 8px rgba(34, 211, 238, 0.6);
+  background: rgba(26, 20, 16, 0.72);
+  border: 2px solid #a65d3f;
+  color: #e8e4dc;
+  box-shadow: 3px 3px 0 #000, inset 0 0 0 1px rgba(196, 122, 82, 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
 .region-map__enter-btn--active:hover {
-  box-shadow: 0 0 22px rgba(34, 211, 238, 0.6), inset 0 0 16px rgba(34, 211, 238, 0.18);
-  transform: translateY(-2px);
+  border-color: #c47a52;
+  box-shadow: 4px 4px 0 #000, inset 0 0 0 1px rgba(196, 122, 82, 0.35);
+  transform: translateY(-1px);
+}
+
+.region-map__enter-btn--active:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4d9), 3px 3px 0 #000;
 }
 
 .region-map__enter-btn--disabled {
-  background: rgba(10, 12, 24, 0.6);
-  border: 2px solid rgba(99, 102, 130, 0.35);
+  background: rgba(10, 12, 16, 0.65);
+  border: 2px solid rgba(45, 61, 74, 0.45);
   color: var(--sw-text-muted);
   cursor: not-allowed;
+}
+
+/* Explicit reason when deploy CTA is disabled (never silent grey) */
+.region-map__enter-disabled-reason {
+  margin: 0;
+  max-width: 26rem;
+  text-align: center;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.35;
+  color: #8a9199;
+  letter-spacing: 0.03em;
 }
 
 .region-map__enter-glow {
   position: absolute;
   inset: 0;
   border-radius: var(--sw-radius-xl);
-  background: rgba(34, 211, 238, 0.1);
-  border: 2px solid var(--sw-room-current);
-  animation: sw-blocky-pulse 1.6s steps(2, jump-none) infinite;
+  background: rgba(166, 93, 63, 0.08);
+  border: 1px solid rgba(166, 93, 63, 0.35);
+  animation: sw-blocky-pulse 1.8s steps(2, jump-none) infinite;
 }
 
 .region-map__enter-text {
@@ -1503,6 +2104,76 @@
 .region-map__preview {
   margin-top: var(--sw-space-3);
   text-align: center;
+}
+
+.region-map__preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: var(--sw-space-2);
+}
+
+.region-map__preview-chip {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border: 1px solid #475569;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.region-map__preview-chip--biome {
+  color: #b8bcc2;
+  border-color: #2d3d4a;
+}
+
+.region-map__preview-chip--danger {
+  color: #e8b84a;
+  border-color: rgba(166, 93, 63, 0.55);
+}
+
+.region-map__preview-chip--d1,
+.region-map__preview-chip--d2 { color: #86efac; border-color: #15803d; }
+.region-map__preview-chip--d3,
+.region-map__preview-chip--d4 { color: #e8b84a; border-color: #a65d3f; }
+.region-map__preview-chip--d5 { color: #c47a52; border-color: #8b4513; }
+.region-map__preview-chip--d6,
+.region-map__preview-chip--d7 { color: #fca5a5; border-color: #7f1d1d; }
+
+.region-map__preview-chip--scar {
+  color: #e8b84a;
+  border-color: rgba(166, 93, 63, 0.7);
+  background: rgba(107, 61, 42, 0.45);
+}
+
+.region-map__preview-chip--secret {
+  color: #c4b5fd;
+  border-color: rgba(88, 28, 135, 0.5);
+  background: rgba(20, 12, 32, 0.65);
+}
+
+.region-map__preview-chip--mystery {
+  color: #8a9199;
+  border-color: #2d3d4a;
+  background: rgba(5, 6, 8, 0.55);
+  letter-spacing: 0.08em;
+}
+
+/* Honest fog read — no fabricated danger number */
+.region-map__preview-chip--threat {
+  color: #8a9199;
+  border-color: rgba(45, 61, 74, 0.75);
+  background: rgba(5, 6, 8, 0.5);
+  letter-spacing: 0.05em;
+}
+
+.region-map__preview-chip--terrain {
+  color: #8a9199;
+  border-color: #2d3d4a;
 }
 
 .region-map__preview-text {
@@ -1526,7 +2197,8 @@
   max-width: 36rem;
   font-size: 11px;
   font-family: var(--sw-font-mono, monospace);
-  color: #c4b5fd;
+  color: #8a9199;
+  font-style: italic;
 }
 
 /* T-063: location terrain effects at FULL intel */
@@ -1535,7 +2207,7 @@
   max-width: 36rem;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #7dd3fc;
+  color: #8a9199;
 }
 
 /* Footer */
@@ -1543,24 +2215,28 @@
   position: relative;
   z-index: 2;
   padding: var(--sw-space-3) var(--sw-space-4);
-  border-top: 1px solid rgba(34, 211, 238, 0.15);
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+  border-top: 1px solid rgba(45, 61, 74, 0.55);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sw-space-4);
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .region-map__progress {
   display: flex;
   align-items: center;
   gap: var(--sw-space-3);
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .region-map__progress-label {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-2xs);
-  color: #67e8f9;
+  color: #8a9199;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
 }
@@ -1574,45 +2250,188 @@
 .region-map__progress-bar {
   width: 8rem;
   height: 0.5rem;
-  background: rgba(2, 6, 23, 0.8);
-  border: 1px solid rgba(236, 72, 153, 0.3);
+  background: rgba(5, 6, 8, 0.9);
+  border: 1px solid rgba(45, 61, 74, 0.7);
   border-radius: var(--sw-radius-full);
   overflow: hidden;
 }
 
+/* Progress fill — rust oxide heat, instrument gauge (not magenta party) */
 .region-map__progress-fill {
   height: 100%;
-  background: linear-gradient(to right, #db2777, #ec4899, #f0abfc);
-  box-shadow: 0 0 8px rgba(236, 72, 153, 0.6);
+  background: linear-gradient(to right, #6b3d2a, #a65d3f, #c47a52);
+  box-shadow: none;
   transition: width var(--sw-transition-slower);
 }
 
 .region-map__progress-value {
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-base);
-  color: #f0abfc;
+  color: #c47a52;
 }
 
 .region-map__progress-count {
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-base);
-  color: #9d8cd6;
+  color: #8a9199;
 }
 
 .region-map__instructions {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-2xs);
-  color: #67e8f9;
+  color: #8a9199;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
+  flex: 0 1 auto;
+  min-width: 0;
+  text-align: right;
 }
 
 .region-map__key {
-  color: #a5f3fc;
-  text-shadow: 0 0 6px rgba(34, 211, 238, 0.4);
+  color: #e8e4dc;
+  text-shadow: none;
+  padding: 0 3px;
+  border: 1px solid #2d3d4a;
+  background: rgba(26, 38, 51, 0.55);
 }
 
 .region-map__sep {
   margin: 0 var(--sw-space-2);
-  color: #f0abfc;
+  color: #2d3d4a;
+}
+
+/* -------------------------------------------
+   A4 WAVE5 — residual narrow-width overflow
+   Keep maps readable when the visor is squeezed.
+   ------------------------------------------- */
+
+@media (max-width: 56rem) {
+  .region-map__cards {
+    padding: var(--sw-space-3) var(--sw-space-3);
+  }
+
+  .region-map__cards-grid {
+    gap: var(--sw-space-3);
+  }
+
+  .region-map__header {
+    padding: var(--sw-space-4) var(--sw-space-3) var(--sw-space-3);
+  }
+
+  .region-map__title {
+    font-size: var(--sw-text-2xl);
+    letter-spacing: var(--sw-tracking-wide);
+  }
+
+  .location-map__rooms--diamond {
+    padding: var(--sw-space-2) var(--sw-space-2);
+    gap: var(--sw-space-2);
+  }
+
+  .location-map__rooms--diamond .location-map__row:nth-child(2) {
+    gap: var(--sw-space-6);
+  }
+
+  .location-map__row {
+    gap: var(--sw-space-4);
+  }
+
+  .location-map__area {
+    min-height: 0;
+    padding: var(--sw-space-2);
+  }
+}
+
+@media (max-width: 40rem) {
+  /* Destination cards stack — never force 3 skinny columns that clip identity */
+  .region-map__cards-grid {
+    grid-template-columns: 1fr;
+    max-width: 22rem;
+    gap: var(--sw-space-3);
+  }
+
+  .region-map__placeholder {
+    min-height: 8rem;
+  }
+
+  .region-map__enter-btn {
+    padding: var(--sw-space-3) var(--sw-space-6);
+    font-size: var(--sw-text-base);
+    letter-spacing: var(--sw-tracking-wider);
+    max-width: 100%;
+  }
+
+  .region-map__footer {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .region-map__progress {
+    justify-content: center;
+  }
+
+  .region-map__progress-bar {
+    width: 6rem;
+  }
+
+  .region-map__instructions {
+    text-align: center;
+  }
+
+  .region-map__preview-meta {
+    gap: 4px;
+  }
+
+  .location-map__header {
+    padding: var(--sw-space-3);
+  }
+
+  .location-map__stats {
+    text-align: left;
+    width: 100%;
+  }
+
+  .location-map__intel {
+    justify-content: flex-start;
+  }
+
+  .location-map__selected-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .location-map__selected-actions {
+    width: 100%;
+  }
+
+  .location-map__action-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Diamond: shrink mission tiles so 2-up path row fits without horizontal clip */
+  .room-card {
+    width: 6.25rem;
+    height: 8.25rem;
+  }
+
+  .location-map__fog,
+  .location-map__placeholder,
+  .location-map__void-plate {
+    min-width: 4.75rem;
+  }
+
+  .location-map__void-plate--here {
+    min-width: 6.25rem;
+    min-height: 8.25rem;
+  }
+
+  .location-map__rooms--diamond .location-map__row:nth-child(2) {
+    gap: var(--sw-space-3);
+  }
+
+  .location-map__rooms--diamond .location-map__row:first-child {
+    transform: scale(0.9);
+  }
 }

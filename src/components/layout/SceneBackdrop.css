@@ -3,14 +3,14 @@
  * Mirrors the CinematicViewscreen layer stack without the enemy sprite.
  *
  * Layer z-index map:
- *   0  .scene-backdrop__bg        Biome background image (object-cover, opacity 0.38)
+ *   0  .scene-backdrop__bg        Biome background (object-cover, opacity 0.48, slow drift)
  *   1  .scene-backdrop__gradient  Dark scrim (top/bottom darkening)
  *   2  .scene-backdrop__vignette  Radial edge darkening
- *   3  .scene-backdrop__scanlines Subtle CRT scanlines
+ *   3  .scene-backdrop__scanlines Subtle CRT visor chrome
  *  10  .scene-backdrop__content   Scene content (children)
  *
  * Usage: wrap the scene root element.
- * The backdrop fills 100% width of its flex parent (overrides parchment bg).
+ * Fills center stage; void/abyss gradient when no biome image.
  * min-height: 100% ensures bg layers fill even short scenes.
  */
 
@@ -25,26 +25,40 @@
   position: relative;
   width: 100%;
   min-height: 100%;
-  /* Dark fallback — visible when no biome image is provided */
-  background: linear-gradient(180deg, #0c0e1a 0%, #05070c 100%);
+  /* Void/abyss fallback — always a take, never bare parchment */
+  background: linear-gradient(180deg, #1a2633 0%, #050608 55%, #030406 100%);
 }
 
 /* ============================================================
    Layer 0: Biome background image
-   Opacity 0.38 — subtle world presence without distracting from UI.
+   Opacity 0.48 — world read without washing UI (was 0.38 → too void-black).
    ============================================================ */
 
 .scene-backdrop__bg {
   position: absolute;
   inset: 0;
-  width: 100%;
+  width: 102%;
   height: 100%;
   object-fit: cover;
   object-position: center top;
-  opacity: 0.38;
+  /* Hidden until onLoad — void gradient underlay only (no broken/warm flash) */
+  opacity: 0;
+  visibility: hidden;
   z-index: 0;
   pointer-events: none;
-  image-rendering: pixelated;
+  image-rendering: auto;
+  transition: opacity 400ms ease;
+}
+
+.scene-backdrop__bg--ready {
+  opacity: 0.48;
+  visibility: visible;
+  animation: scene-backdrop-drift 48s ease-in-out infinite;
+}
+
+@keyframes scene-backdrop-drift {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(-0.7%); }
 }
 
 /* ============================================================
@@ -59,10 +73,10 @@
   pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(5, 7, 12, 0.60) 0%,
-    rgba(5, 7, 12, 0.10) 35%,
-    rgba(5, 7, 12, 0.10) 65%,
-    rgba(5, 7, 12, 0.75) 100%
+    rgba(5, 6, 8, 0.62) 0%,
+    rgba(5, 6, 8, 0.12) 35%,
+    rgba(5, 6, 8, 0.14) 62%,
+    rgba(5, 6, 8, 0.78) 100%
   );
 }
 
@@ -76,14 +90,14 @@
   z-index: 2;
   pointer-events: none;
   background: radial-gradient(
-    ellipse at 50% 30%,
-    transparent 30%,
-    rgba(0, 0, 0, 0.65) 100%
+    ellipse at 50% 32%,
+    transparent 32%,
+    rgba(0, 0, 0, 0.68) 100%
   );
 }
 
 /* ============================================================
-   Layer 3: Scanlines — subtle CRT texture
+   Layer 3: Scanlines — subtle CRT visor chrome (not neon wash)
    ============================================================ */
 
 .scene-backdrop__scanlines {
@@ -95,8 +109,8 @@
     to bottom,
     transparent 0px,
     transparent 2px,
-    rgba(0, 0, 0, 0.09) 2px,
-    rgba(0, 0, 0, 0.09) 4px
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
   );
 }
 
@@ -122,7 +136,10 @@
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
-  .scene-backdrop__bg {
+  .scene-backdrop__bg,
+  .scene-backdrop__bg--ready {
     animation: none;
+    transition: none;
+    width: 100%;
   }
 }

@@ -1,24 +1,42 @@
 @import '../../styles/design-system/index.css';
 
+/* Full-viewport shell (parity GameOver / Victory) — max-width lives on panel only */
 .interlude {
+  min-height: 100dvh;
   width: 100%;
-  max-width: 48rem;
+  display: flex;
+  flex-direction: column;
   z-index: 10;
 }
 
+.interlude > .scene-backdrop {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.interlude .scene-backdrop__content {
+  flex: 1 0 auto;
+  justify-content: center;
+  padding: var(--sw-space-6) var(--sw-space-4);
+}
+
 .interlude__panel {
-  background: var(--sw-bg-secondary, #12121a);
-  border: 4px solid var(--sw-hard, #0a0a0f);
-  box-shadow: 6px 6px 0 0 var(--sw-hard, #0a0a0f);
+  width: 100%;
+  max-width: 48rem;
+  background: var(--sw-abyss-deep, #0a0c10);
+  border: 3px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  box-shadow: var(--sw-pix-shadow-lg, 6px 6px 0 0 var(--sw-hard));
   padding: var(--sw-space-6);
   font-family: var(--sw-font-display, Silkscreen, monospace);
-  color: var(--sw-text-primary, #f0e8d8);
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .interlude__eyebrow {
   margin: 0 0 var(--sw-space-2);
   font-size: var(--sw-text-xs);
-  color: #e8b84a;
+  color: var(--sw-rust-light, #c2410c);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -32,10 +50,10 @@
 
 .interlude__body {
   margin: 0 0 var(--sw-space-4);
-  font-family: var(--sw-font-body, VT323, monospace);
+  font-family: var(--sw-font-pixel, VT323, monospace);
   font-size: var(--sw-text-lg);
   line-height: 1.45;
-  color: var(--sw-text-secondary, #ccc);
+  color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .interlude__summary {
@@ -44,7 +62,7 @@
   gap: var(--sw-space-3);
   margin-bottom: var(--sw-space-3);
   font-size: var(--sw-text-sm);
-  color: #e8b84a;
+  color: var(--sw-rust-light, #c2410c);
 }
 
 .interlude__heal {
@@ -107,10 +125,6 @@
   border-color: #a16207;
 }
 
-.interlude__boon-top {
-  position: relative;
-}
-
 .interlude__boon--focus {
   border-color: #6d28d9;
 }
@@ -134,7 +148,7 @@
   margin: 0 0 var(--sw-space-3);
   font-size: var(--sw-text-sm);
   text-transform: uppercase;
-  color: #f0e8d8;
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .interlude__boons {
@@ -167,6 +181,7 @@
 
 /* T-043: boon art + story chips */
 .interlude__boon-top {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -267,7 +282,7 @@
   background: #1a1528;
   border: 3px solid var(--sw-hard, #0a0a0f);
   box-shadow: 4px 4px 0 0 var(--sw-hard, #0a0a0f);
-  color: #f0e8d8;
+  color: var(--sw-bone, #e8e4d9);
   font-family: inherit;
   font-size: var(--sw-text-sm);
   text-transform: uppercase;
@@ -280,8 +295,22 @@
 }
 
 .interlude__continue:not(:disabled):hover {
-  color: #e8b84a;
-  border-color: #e8b84a;
+  color: var(--sw-rust-light, #c47a52);
+  border-color: var(--sw-rust, #a65d3f);
+}
+
+.interlude__continue:focus-visible,
+.interlude__boon:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4d9), 3px 3px 0 0 var(--sw-hard, #0a0a0f);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interlude__boon,
+  .interlude__continue {
+    transition: none;
+  }
 }
 
 .interlude__key {

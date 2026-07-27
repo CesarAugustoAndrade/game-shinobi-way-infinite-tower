@@ -290,10 +290,11 @@ export const BOSS_BY_ARC: Record<string, Partial<Record<number, BossDefinition>>
     1: { name: 'Demon Brothers', element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
     2: { name: 'Haku of the Mist', element: ElementType.WATER, skill: SKILLS.ICE_MIRRORS },
     3: { name: 'Zabuza Momochi', element: ElementType.WATER, skill: SKILLS.WATER_DRAGON },
-    4: { name: 'Zabuza, Demon of the Mist', element: ElementType.WATER, skill: SKILLS.HIDDEN_MIST },
+    4: { name: 'Zabuza, Demon of the Mist', element: ElementType.WATER, skill: SKILLS.WATER_DRAGON },
     5: { name: 'Haku, Ice Mirror Master', element: ElementType.WATER, skill: SKILLS.ICE_MIRRORS },
     6: { name: "Gato's Elite Guard", element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
-    7: { name: 'Zabuza & Haku', element: ElementType.WATER, skill: SKILLS.WATER_DRAGON },
+    // R1: compound climax is Gato (location boss), not Zabuza duo
+    7: { name: 'Gato', element: ElementType.PHYSICAL, skill: SKILLS.DEMON_SLASH },
   },
   EXAMS_ARC: {
     1: { name: 'Sound Genin', element: ElementType.WIND, skill: SKILLS.GREAT_BREAKTHROUGH },

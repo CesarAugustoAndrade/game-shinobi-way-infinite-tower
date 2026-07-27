@@ -102,7 +102,7 @@ export const HELP_TEXT = {
       desc: "Massive reserves of willpower and chakra.",
       strengths: ["Highest HP", "Largest Chakra pool", "Good HP Regeneration"],
       weakness: "Lower Speed and offensive stats",
-      strategy: "Outlast enemies with healing and defensive play."
+      strategy: "Endure. Heal. Outlast what the mist throws."
     },
     {
       id: Clan.UCHIHA,
@@ -111,7 +111,7 @@ export const HELP_TEXT = {
       desc: "Masters of elemental ninjutsu and precision strikes.",
       strengths: ["High elemental damage (Spirit)", "High Critical Chance", "Fast reflexes (Speed)"],
       weakness: "Low HP and defenses",
-      strategy: "Burst enemies down before taking heavy damage."
+      strategy: "End the fight before the frame cracks."
     },
     {
       id: Clan.HYUGA,
@@ -120,7 +120,7 @@ export const HELP_TEXT = {
       desc: "Surgical strikers with pinpoint accuracy and technique.",
       strengths: ["Highest Accuracy", "High Dexterity (crits)", "Strong Strength & Speed balance"],
       weakness: "Lower chakra capacity",
-      strategy: "Use melee attacks to land guaranteed critical hits."
+      strategy: "Close range. Crits write the ledger."
     },
     {
       id: Clan.LEE,
@@ -129,7 +129,7 @@ export const HELP_TEXT = {
       desc: "Extreme physical conditioning without any chakra.",
       strengths: ["Extreme Strength", "Extreme Speed", "High Willpower"],
       weakness: "No chakra for jutsus; Low mental stats",
-      strategy: "Pure taijutsu focus; rely on physical attacks and buffs."
+      strategy: "Body only. Fist and foot — no seals."
     },
     {
       id: Clan.YAMANAKA,
@@ -138,7 +138,7 @@ export const HELP_TEXT = {
       desc: "Tactical masterminds with unshakeable mental fortitude.",
       strengths: ["Highest Intelligence", "Highest Calmness", "Good Chakra pool"],
       weakness: "Physically frail (Low Strength)",
-      strategy: "Use status effects and debuffs to control the battlefield."
+      strategy: "Marks and silence. The field bends first."
     }
   ],
 
@@ -162,10 +162,10 @@ export const HELP_TEXT = {
       ]
     },
     DIFFICULTY_RANKS: [
-      { rank: "D", range: "0-29", color: "green-500", desc: "Beginner-friendly; low stat scaling" },
-      { rank: "C", range: "30-59", color: "yellow-500", desc: "Standard difficulty; moderate scaling" },
-      { rank: "B", range: "60-84", color: "orange-500", desc: "Challenging; significant scaling" },
-      { rank: "S", range: "85-100", color: "red-600", desc: "Extreme danger; maximum scaling" }
+      { rank: "D", range: "0-29", color: "green-500", desc: "Thin pressure; low stat scaling" },
+      { rank: "C", range: "30-59", color: "yellow-500", desc: "Usual pressure; moderate scaling" },
+      { rank: "B", range: "60-84", color: "orange-500", desc: "Hard edge; significant scaling" },
+      { rank: "S", range: "85-100", color: "red-600", desc: "Maximum pressure; full scaling" }
     ],
     RESOURCES: [
       { label: "HP Calculation", formula: "80 + (Willpower × 9) + equipment" },
@@ -289,6 +289,16 @@ export const HELP_TEXT = {
   // EXPLORATION - Region Hierarchy & Activities
   // ============================================================================
   EXPLORATION: {
+    /**
+     * First-run journey (Region 1 / Land of Waves). Matches live UI CTAs.
+     */
+    FIRST_RUN: [
+      { step: 1, title: "Enter the Mist", desc: "Set Mission Rank (C is the usual pressure). Enter the Mist. Choose a lineage — Uzumaki endures longest when the path is unknown." },
+      { step: 2, title: "Mark a path", desc: "On the region map, mark a destination card (1–3). Space/Enter or Enter Location to step through." },
+      { step: 3, title: "Stand in the glow", desc: "The lit room is where you stand. Enter Room (Space/Enter) to face what waits, or branch above (1–2)." },
+      { step: 4, title: "Seek the seal", desc: "Cut rooms until the Exit / Guardian appears. End it — return to the region scarred, richer, and still watched." },
+      { step: 5, title: "Walk Away is still a choice", desc: "Risk and payoff are written on every option. Safe Walk Away skips blood and loot — the path still records that you passed." }
+    ],
     HIERARCHY: [
       { term: "Region", desc: "Themed area with multiple locations. Shows Affinity (enemy element bias), Focus (loot stat bias), and Ryo multiplier on the region map.", icon: "map" },
       { term: "Location", desc: "Danger 1–7 node. Atmosphere line + Terrain strip list location effects that already apply in combat, intel, and approaches.", icon: "location" },
@@ -312,10 +322,11 @@ export const HELP_TEXT = {
       { order: 2, activity: "Elite Challenge", desc: "Optional guardian fight - choose to fight or escape" },
       { order: 3, activity: "Merchant", desc: "Buy items; stock biased by location loot table + region Focus" },
       { order: 4, activity: "Event", desc: "Story/choice encounter; intel rewards respect visibility fog" },
-      { order: 5, activity: "Scroll Discovery", desc: "Learn new jutsu skills" },
+      { order: 5, activity: "Scroll Discovery", desc: "Learn jutsu; pool biased by region Affinity (element) and Focus (scaling stat). Cards matching theme show a Region mark." },
       { order: 6, activity: "Rest", desc: "Restore HP and chakra" },
       { order: 7, activity: "Training", desc: "Spend resources to upgrade stats" },
-      { order: 8, activity: "Treasure", desc: "Components/Ryo; drops use loot table + region Focus" }
+      { order: 8, activity: "Treasure", desc: "Components/Ryo; drops use loot table + region Focus" },
+      { order: 9, activity: "Info Gathering", desc: "Raise intel for clearer destination cards on the region map (foggy locations gain less)" }
     ],
     ROOM_STATES: [
       { state: "Accessible", desc: "Room can be entered from current position" },
@@ -397,9 +408,9 @@ export const HELP_TEXT = {
       desc: "Your component bag holds up to 8 items (components or artifacts)"
     },
     SYNTHESIS: {
-      combine: "Select two components to create an artifact",
-      disassemble: "Break an artifact back into components (returns 50% value)",
-      tip: "Experiment with different combinations to discover new artifacts!"
+      combine: "Fence two components into one artifact",
+      disassemble: "Unmake an artifact — half value returns as components",
+      tip: "Unknown pairs still fuse. Read the forge; trust the scar."
     }
   }
 };

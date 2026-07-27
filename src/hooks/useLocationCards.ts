@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   GameState, Region, Location, LocationPath, LogEntry, Player,
   IntelPool, LocationDeck, LocationCard, IntelRevealLevel, BranchingFloor
@@ -85,6 +85,8 @@ export interface UseLocationCardsReturn {
   locationCompleteResult: LocationCompleteResult | null;
   /** T-060: Continue on panel → execute completion */
   confirmLocationComplete: () => void;
+  /** Drop staged complete panel + locks (new run / game over retry). */
+  clearLocationCompleteUi: () => void;
 }
 
 /**
@@ -130,13 +132,38 @@ export function useLocationCards(
   }, [drawnCards, setSelectedCardIndex, setSelectedLocation]);
 
   /**
-   * Enter the selected location from a card
+   * Double Space/Enter before re-render re-ran enterLocationFromCard + intel reset.
+   * Short arm only — region map unmounts on success so permanent lock is fine too.
+   */
+  const enterLocationLockRef = useRef(false);
+
+  /**
+   * Enter the selected location from a card.
+   * Falls back to card 0 when selection is still null (first-run / post-redraw race)
+   * so Space/Enter and the deploy CTA never silently no-op with a marked path on screen.
    */
   const handleEnterSelectedLocation = useCallback(() => {
-    if (!region || !locationDeck || selectedCardIndex === null) return;
+    if (!region || !locationDeck || drawnCards.length === 0) return;
+    if (enterLocationLockRef.current) return;
+    enterLocationLockRef.current = true;
 
-    const selectedCard = drawnCards[selectedCardIndex];
-    if (!selectedCard) return;
+    const index =
+      selectedCardIndex !== null && drawnCards[selectedCardIndex]
+        ? selectedCardIndex
+        : 0;
+    const selectedCard = drawnCards[index];
+    if (!selectedCard) {
+      enterLocationLockRef.current = false;
+      return;
+    }
+    // Keep parent selection in sync when we had to fall back
+    if (selectedCardIndex !== index) {
+      setSelectedCardIndex(index);
+      setSelectedLocation(selectedCard.location);
+    }
+
+    // Drop any stale room pointer from a prior site (approach/activity residue)
+    setSelectedBranchingRoom(null);
 
     // Reset intel for new location
     setCurrentIntel(0);
@@ -150,18 +177,41 @@ export function useLocationCards(
     setSelectedLocation(locationToEnter);
 
     const locationFloorData = locationToBranchingFloor(updatedRegion, player ?? undefined);
+    // Soft-lock guard: never land on LOCATION_EXPLORE without a floor (blank map UI)
+    if (!locationFloorData) {
+      addLog(
+        `Could not open ${locationToEnter.name} — signal lost. Choose another destination.`,
+        'danger',
+      );
+      setLocationFloor(null);
+      setGameState(GameState.REGION_MAP);
+      // Failed open — re-arm so player can pick another card
+      enterLocationLockRef.current = false;
+      return;
+    }
     setLocationFloor(locationFloorData);
 
     addLog(`Entering ${locationToEnter.name}${selectedCard.isRevisit ? ' (Revisit)' : ''}...`, 'info');
+    // A4: location-visit scar — clear feedback that this ground is spent
+    if (selectedCard.isRevisit) {
+      addLog(
+        `${locationToEnter.name} bears your earlier visit. Loot will be thinner here.`,
+        'info',
+      );
+    }
     // T-046: ambient atmosphereEvents flavor (authored location color, not GameEvent)
-    if (locationFloorData?.atmosphereFlavor) {
+    if (locationFloorData.atmosphereFlavor) {
       addLog(locationFloorData.atmosphereFlavor, 'info');
     }
     setGameState(GameState.LOCATION_EXPLORE);
+    // Success path leaves region map; re-arm when cards redraw after a later complete
+    window.setTimeout(() => {
+      enterLocationLockRef.current = false;
+    }, 400);
   }, [
     region, locationDeck, selectedCardIndex, drawnCards, player,
-    setCurrentIntel, setRegion, setSelectedLocation, setLocationFloor,
-    addLog, setGameState
+    setCurrentIntel, setRegion, setSelectedLocation, setSelectedCardIndex,
+    setLocationFloor, setSelectedBranchingRoom, addLog, setGameState,
   ]);
 
   /**
@@ -177,7 +227,7 @@ export function useLocationCards(
       const synced = discoverSecretsFromEventFlags(updatedRegion, player.eventFlags);
       updatedRegion = synced.region;
       for (const name of synced.newlyDiscovered) {
-        addLog(`Secret location revealed: ${name}!`, 'gain');
+        addLog(`A veiled route surfaces: ${name}.`, 'gain');
       }
     }
     setRegion(updatedRegion);
@@ -204,6 +254,10 @@ export function useLocationCards(
     useState<LocationCompleteResult | null>(null);
   const [pendingCompleteOptions, setPendingCompleteOptions] =
     useState<CompleteLocationOptions | undefined>(undefined);
+  // Same-tick leave + auto-returnToMap must not double-stage the panel
+  const completePanelOpenRef = useRef(false);
+  // Leave meta execute once (Enter keydown + button click before re-render)
+  const completeExecuteLockRef = useRef(false);
 
   /**
    * Single completion path for location → region meta.
@@ -236,20 +290,47 @@ export function useLocationCards(
     let updatedRegion = markLocationComplete(region);
 
     // 1b. T-030: secret paths from this location unlock secret destinations
+    // R1-016: path unlock also writes unlockCondition.requirement → eventFlags
+    let pathUnlockReqs: string[] = [];
     if (!wasAlreadyComplete) {
       const pathDiscover = discoverSecretsFromCompletedLocation(updatedRegion, locationId);
       updatedRegion = pathDiscover.region;
+      pathUnlockReqs = pathDiscover.unlockedRequirements ?? [];
       for (const name of pathDiscover.newlyDiscovered) {
-        addLog(`You uncovered a secret route to ${name}!`, 'gain');
+        addLog(`You uncovered a path off the ledgers: ${name}.`, 'gain');
       }
     }
 
-    // 1c. T-030: narrative flags may unlock secrets
-    if (player?.eventFlags) {
-      const flagDiscover = discoverSecretsFromEventFlags(updatedRegion, player.eventFlags);
+    // 4. Advance progression + merge path-discovered secret flags into eventFlags
+    // (before flag-based secret sync so same-tick flags can unlock further secrets)
+    if (!wasAlreadyComplete || pathUnlockReqs.length > 0) {
+      setPlayer((prev) => {
+        if (!prev) return null;
+        let next = prev;
+        if (!wasAlreadyComplete) {
+          next = { ...next, locationsCleared: next.locationsCleared + 1 };
+        }
+        if (pathUnlockReqs.length > 0) {
+          const eventFlags = { ...(next.eventFlags ?? {}) };
+          for (const req of pathUnlockReqs) {
+            eventFlags[req] = Math.max(1, eventFlags[req] ?? 0);
+          }
+          next = { ...next, eventFlags };
+        }
+        return next;
+      });
+    }
+
+    // 1c. T-030: narrative flags may unlock secrets (includes flags just written)
+    const flagsForSync = {
+      ...(player?.eventFlags ?? {}),
+      ...Object.fromEntries(pathUnlockReqs.map((r) => [r, 1])),
+    };
+    if (Object.keys(flagsForSync).length > 0) {
+      const flagDiscover = discoverSecretsFromEventFlags(updatedRegion, flagsForSync);
       updatedRegion = flagDiscover.region;
       for (const name of flagDiscover.newlyDiscovered) {
-        addLog(`Secret location revealed: ${name}!`, 'gain');
+        addLog(`A veiled route surfaces: ${name}.`, 'gain');
       }
     }
 
@@ -260,13 +341,6 @@ export function useLocationCards(
     // 3. Update deck weights / revisit penalty
     const updatedDeck = updateDeckAfterCompletion(locationDeck, locationId);
     setLocationDeck(updatedDeck);
-
-    // 4. Advance global progression (once per completion)
-    if (!wasAlreadyComplete) {
-      setPlayer(prev =>
-        prev ? { ...prev, locationsCleared: prev.locationsCleared + 1 } : null
-      );
-    }
 
     // 5. Redraw destination cards from intel
     const intel = options?.intel ?? currentIntel;
@@ -316,6 +390,9 @@ export function useLocationCards(
    * T-060: show location-complete panel first; real meta path on Continue.
    */
   const completeLocationAndReturnToRegion = useCallback((options?: CompleteLocationOptions) => {
+    // Already showing / staging complete panel — don't re-stage (leave + auto-return race)
+    if (completePanelOpenRef.current) return;
+
     if (!region || !locationDeck) {
       executeLocationComplete(options);
       return;
@@ -328,6 +405,10 @@ export function useLocationCards(
       return;
     }
 
+    completePanelOpenRef.current = true;
+    // New panel → allow one Continue (see confirmLocationComplete lock)
+    completeExecuteLockRef.current = false;
+
     const wasAlreadyComplete = location.isCompleted ?? false;
     const floor = options?.floor ?? locationFloor;
     const roomsVisited = floor?.roomsVisited ?? 0;
@@ -337,10 +418,16 @@ export function useLocationCards(
     if (!wasAlreadyComplete) {
       const pathDiscover = discoverSecretsFromCompletedLocation(region, locationId);
       secretUnlocks.push(...pathDiscover.newlyDiscovered);
-      if (player?.eventFlags) {
+      const flagsForPreview = {
+        ...(player?.eventFlags ?? {}),
+        ...Object.fromEntries(
+          (pathDiscover.unlockedRequirements ?? []).map((r) => [r, 1]),
+        ),
+      };
+      if (Object.keys(flagsForPreview).length > 0) {
         const flagDiscover = discoverSecretsFromEventFlags(
           pathDiscover.region,
-          player.eventFlags,
+          flagsForPreview,
         );
         for (const name of flagDiscover.newlyDiscovered) {
           if (!secretUnlocks.includes(name)) secretUnlocks.push(name);
@@ -383,10 +470,15 @@ export function useLocationCards(
       isBoss: Boolean(location.flags?.isBoss),
       terrainLines,
       regionIdentity,
+      // A4 wave3: biome for location-as-transform scar copy
+      biome: location.biome ?? locationFloor?.biome ?? null,
     });
   }, [region, locationDeck, locationFloor, player, executeLocationComplete]);
 
   const confirmLocationComplete = useCallback(() => {
+    // Sync lock first — useState eager updaters re-read lastRenderedState until commit,
+    // so two same-tick Continues both see a non-null panel without this ref.
+    if (completeExecuteLockRef.current) return;
     // Consume panel first — blocks double Continue (double leave / boss callbacks)
     const box: { opts?: CompleteLocationOptions; had: boolean } = { had: false };
     setLocationCompleteResult(prev => {
@@ -399,14 +491,26 @@ export function useLocationCards(
       return undefined;
     });
     if (!box.had) return;
+    // Hold until next panel is staged (closedRef on modal is primary; this is belt)
+    completeExecuteLockRef.current = true;
+    completePanelOpenRef.current = false;
     executeLocationComplete(box.opts);
   }, [executeLocationComplete]);
+
+  const clearLocationCompleteUi = useCallback(() => {
+    setLocationCompleteResult(null);
+    setPendingCompleteOptions(undefined);
+    completePanelOpenRef.current = false;
+    completeExecuteLockRef.current = false;
+  }, []);
 
   /**
    * Leave the current location and return to region map (only if floor complete).
    */
   const handleLeaveLocation = useCallback(() => {
     if (!region || !locationDeck || !locationFloor) return;
+    // Already staged complete panel (auto path or prior leave) — avoid re-stage
+    if (completePanelOpenRef.current) return;
 
     if (isFloorComplete(locationFloor)) {
       completeLocationAndReturnToRegion({ floor: locationFloor, intel: currentIntel });
@@ -426,5 +530,6 @@ export function useLocationCards(
     completeLocationAndReturnToRegion,
     locationCompleteResult,
     confirmLocationComplete,
+    clearLocationCompleteUi,
   };
 }

@@ -276,6 +276,40 @@ describe('useSkill', () => {
     expect(result!.newPlayerBuffs.some(b => b.effect?.type === EffectType.HEAL)).toBe(false);
   });
 
+  it('TASK-R11: scales HEAL effect dynamically with Intelligence and Spirit stats', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.05);
+
+    const skill = createMockSkill({
+      id: 'heal-jutsu',
+      name: 'Mystic Palm',
+      chakraCost: 10,
+      damageMult: 0,
+      attackMethod: AttackMethod.AUTO,
+      effects: [{ type: EffectType.HEAL, value: 40, duration: 0, chance: 1 }],
+    });
+    const player = createMockPlayer({
+      skills: [skill],
+      currentChakra: 100,
+      currentHp: 50,
+    });
+    const enemy = createMockEnemy({ currentHp: 500 });
+    // High intelligence (30) and spirit (30) => statMult = (30+30)/20 = 3.0 => heal 40 * 3 = 120 HP
+    const highStatsPlayer = {
+      ...makeStats(),
+      effectivePrimary: {
+        ...makeStats().effectivePrimary,
+        intelligence: 30,
+        spirit: 30,
+      },
+    };
+    const enemyStats = makeStats();
+
+    const result = useSkill(player, highStatsPlayer, enemy, enemyStats, skill, baseCombatState());
+    expect(result).not.toBeNull();
+    expect(result!.newPlayerHp).toBe(170); // 50 + 120
+    expect(result!.logMessage).toMatch(/HEAL \+120 HP/i);
+  });
+
   it('medical HEAL cleanses poison and bleed when description promises it (A-004)', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.05);
 

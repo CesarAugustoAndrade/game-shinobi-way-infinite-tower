@@ -24,7 +24,7 @@
   box-shadow: 4px 4px 0 #000;
   font-family: var(--sw-font-display, Silkscreen, monospace);
   text-align: center;
-  color: var(--sw-text-primary, #f0e8d8);
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .loc-complete__header {
@@ -45,7 +45,8 @@
   font-size: var(--sw-text-sm);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #86efac;
+  /* Bone instrument — not party green phosphor */
+  color: #e8e4dc;
 }
 
 .loc-complete__name {
@@ -64,6 +65,21 @@
   color: #fca5a5;
   border: 2px solid #000;
   background: rgba(185, 28, 28, 0.4);
+}
+
+/* A4 wave3: scar chip on revisit complete */
+.loc-complete__scar-tag {
+  display: inline-block;
+  margin-top: 6px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8b84a;
+  border: 2px solid #000;
+  background: rgba(107, 61, 42, 0.55);
 }
 
 .loc-complete__stats {
@@ -108,15 +124,51 @@
 
 .loc-complete__secrets ul {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 0;
+  list-style: none;
   font-size: 11px;
   color: #c4b5fd;
+}
+
+.loc-complete__secrets li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 8px;
+  padding: 2px 0;
+}
+
+.loc-complete__secret-name {
+  color: #e9d5ff;
+  font-weight: 700;
+}
+
+.loc-complete__secret-tag {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a9199;
+  font-family: var(--sw-font-mono, monospace);
 }
 
 .loc-complete__note {
   margin: 0 0 var(--sw-space-3);
   font-size: 10px;
   color: var(--sw-text-muted, #888);
+}
+
+/* A4 wave3: location-as-transform scar line (always shown) */
+.loc-complete__scar {
+  margin: 0 0 var(--sw-space-3);
+  padding: var(--sw-space-2);
+  border: 2px solid #000;
+  background: rgba(107, 61, 42, 0.28);
+  font-size: 11px;
+  line-height: 1.4;
+  color: #e8b84a;
+  font-family: var(--sw-font-mono, monospace);
+  text-align: left;
 }
 
 /* T-075: region/terrain identity strip */
@@ -132,7 +184,7 @@
   margin: 0 0 4px;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #c4b5fd;
+  color: #b8bcc2;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -141,10 +193,11 @@
   margin: 0;
   font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
-  color: #7dd3fc;
+  color: #8a9199;
   line-height: 1.35;
 }
 
+/* Continue CTA — rust instrument heat (matches RegionMap deploy) */
 .loc-complete__continue {
   display: inline-flex;
   align-items: center;
@@ -152,10 +205,10 @@
   gap: 10px;
   width: 100%;
   padding: var(--sw-space-3);
-  background: rgba(22, 163, 74, 0.3);
-  border: 2px solid #4ade80;
+  background: rgba(26, 20, 16, 0.9);
+  border: 2px solid #a65d3f;
   box-shadow: 2px 2px 0 #000;
-  color: #86efac;
+  color: #e8e4dc;
   font-family: inherit;
   font-size: var(--sw-text-sm);
   font-weight: 700;
@@ -164,5 +217,6 @@
 }
 
 .loc-complete__continue:hover {
-  background: rgba(22, 163, 74, 0.5);
+  background: rgba(42, 30, 22, 0.95);
+  border-color: #c47a52;
 }

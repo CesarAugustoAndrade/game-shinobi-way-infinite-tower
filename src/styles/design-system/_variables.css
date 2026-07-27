@@ -16,6 +16,24 @@
   --sw-bg-surface: #27272a;
 
   /* ─────────────────────────────────────────────────────────────────────────
+     SEINEN-SUBLIME PALETTE (canonical mood — combat stage / CRT chassis)
+     void · abyss · metal · fog · bone · rust (sole heat of the frame)
+     ───────────────────────────────────────────────────────────────────────── */
+  --sw-void: #050608;
+  --sw-abyss: #1a2633;
+  --sw-metal: #2d3d4a;
+  --sw-fog: #8a9199;
+  --sw-bone: #e8e4dc;
+  --sw-rust: #a65d3f;
+  --sw-rust-light: #c47a52;
+  --sw-rust-dim: #6b3d2a;
+  --sw-rust-glow: rgba(166, 93, 63, 0.35);
+  --sw-rust-bg: rgba(166, 93, 63, 0.18);
+  --sw-fog-soft: rgba(138, 145, 153, 0.22);
+  --sw-abyss-glass: rgba(26, 38, 51, 0.88);
+  --sw-void-glass: rgba(5, 6, 8, 0.94);
+
+  /* ─────────────────────────────────────────────────────────────────────────
      GLASS PANEL COLORS (Glassmorphism)
      ───────────────────────────────────────────────────────────────────────── */
   --sw-glass-bg: rgba(24, 24, 27, 0.6);
@@ -93,29 +111,31 @@
   --sw-category-technique-glow: rgba(16, 185, 129, 0.4);
 
   /* ─────────────────────────────────────────────────────────────────────────
-     RARITY COLORS
+     RARITY COLORS — bone / fog / rust hierarchy (no zinc-gray)
+     quiet: broken·common (metal/fog) · signal: rare·epic · heat: legendary(rust) · danger: cursed
      ───────────────────────────────────────────────────────────────────────── */
-  --sw-rarity-broken: #78716c;
-  --sw-rarity-broken-bg: rgba(120, 113, 108, 0.15);
+  --sw-rarity-broken: #5a6570;
+  --sw-rarity-broken-bg: rgba(45, 61, 74, 0.28);
 
-  --sw-rarity-common: #a1a1aa;
-  --sw-rarity-common-bg: rgba(161, 161, 170, 0.15);
+  --sw-rarity-common: var(--sw-fog);
+  --sw-rarity-common-bg: rgba(138, 145, 153, 0.14);
 
-  --sw-rarity-rare: #3b82f6;
-  --sw-rarity-rare-bg: rgba(59, 130, 246, 0.15);
-  --sw-rarity-rare-glow: rgba(59, 130, 246, 0.4);
+  --sw-rarity-rare: #6b9ecf;
+  --sw-rarity-rare-bg: rgba(107, 158, 207, 0.15);
+  --sw-rarity-rare-glow: rgba(107, 158, 207, 0.4);
 
-  --sw-rarity-epic: #a855f7;
-  --sw-rarity-epic-bg: rgba(168, 85, 247, 0.15);
-  --sw-rarity-epic-glow: rgba(168, 85, 247, 0.4);
+  --sw-rarity-epic: #9b7ec8;
+  --sw-rarity-epic-bg: rgba(155, 126, 200, 0.15);
+  --sw-rarity-epic-glow: rgba(155, 126, 200, 0.4);
 
-  --sw-rarity-legendary: #f97316;
-  --sw-rarity-legendary-bg: rgba(249, 115, 22, 0.15);
-  --sw-rarity-legendary-glow: rgba(249, 115, 22, 0.5);
+  /* Sole heat of the frame — rust, not zinc/orange-tailwind */
+  --sw-rarity-legendary: var(--sw-rust-light);
+  --sw-rarity-legendary-bg: var(--sw-rust-bg);
+  --sw-rarity-legendary-glow: var(--sw-rust-glow);
 
-  --sw-rarity-cursed: #ef4444;
-  --sw-rarity-cursed-bg: rgba(239, 68, 68, 0.15);
-  --sw-rarity-cursed-glow: rgba(239, 68, 68, 0.5);
+  --sw-rarity-cursed: #c45c5c;
+  --sw-rarity-cursed-bg: rgba(196, 92, 92, 0.15);
+  --sw-rarity-cursed-glow: rgba(196, 92, 92, 0.45);
 
   /* ─────────────────────────────────────────────────────────────────────────
      TEXT COLORS
@@ -249,6 +269,16 @@
   --sw-pix-shadow: 4px 4px 0 0 var(--sw-hard);
   --sw-pix-shadow-sm: 3px 3px 0 0 var(--sw-hard);
   --sw-pix-shadow-lg: 6px 6px 0 0 var(--sw-hard);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     TOOLTIP / PRODUCT CHROME — one language for combat, loot, merchant, HUD
+     Void abyss panel · bone text · rust rare accents (VISION-8 A6)
+     ───────────────────────────────────────────────────────────────────────── */
+  --sw-abyss-panel: rgba(8, 10, 14, 0.97);       /* tooltip / floating panel fill */
+  --sw-abyss-deep: #0a0c10;                      /* solid panel when opacity not wanted */
+  --sw-bone-dim: #b8b4a8;                        /* secondary bone */
+  --sw-bone-muted: #7a766c;                      /* tertiary / labels */
+  --sw-rust-border: rgba(154, 52, 18, 0.65);     /* tooltip frame accent */
 
   /* ─────────────────────────────────────────────────────────────────────────
      Z-INDEX SCALE

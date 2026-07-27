@@ -98,6 +98,8 @@ interface SimulationContext {
   enemyFirstHitMultiplier: number;
   /** T-106: room combat FOREST cover evasion */
   roomCombatEvasion: number;
+  /** T-110: CLIFF fall fraction of max HP on player miss */
+  fallDamageOnMiss: number;
   /** FREE_FIRST_SKILL artifact passive */
   skipFirstSkillCost: boolean;
   metrics: {
@@ -236,12 +238,15 @@ function executeAttack(
   const attackerStats = isPlayer ? ctx.playerStats : ctx.enemyStats;
   const defenderStats = isPlayer ? ctx.enemyStats : ctx.playerStats;
 
-  // Deduct costs (FREE_FIRST_SKILL skips chakra on first player skill)
+  // Deduct costs (FREE_FIRST_SKILL skips chakra on first accepted player skill —
+  // parity with PlayerTurnSystem / useCombat: flag alone gates the waiver).
   if (isPlayer) {
-    const skipCost = ctx.skipFirstSkillCost && ctx.isFirstTurn;
+    const skipCost = Boolean(ctx.skipFirstSkillCost);
     ctx.player.currentHp -= skill.hpCost;
     if (!skipCost) {
       ctx.player.currentChakra -= skill.chakraCost;
+    } else {
+      ctx.skipFirstSkillCost = false;
     }
   }
 
@@ -301,6 +306,20 @@ function executeAttack(
 
   // Skip if missed or evaded (still consume FREE_FIRST / opening window for player)
   if (result.isMiss || result.isEvaded) {
+    // T-110: CLIFF fall on player miss (parity with PlayerTurnSystem)
+    if (
+      isPlayer
+      && result.isMiss
+      && ctx.fallDamageOnMiss > 0
+      && ctx.playerStats.derived.maxHp > 0
+    ) {
+      const fallDmg = Math.max(
+        1,
+        Math.floor(ctx.playerStats.derived.maxHp * ctx.fallDamageOnMiss),
+      );
+      ctx.player.currentHp = Math.max(1, ctx.player.currentHp - fallDmg);
+      ctx.metrics.damageReceived += fallDmg;
+    }
     if (isPlayer) {
       ctx.isFirstTurn = false;
     }
@@ -664,6 +683,7 @@ export function simulateGameCombat(
   firstHitMult = roomApplied.modifiers.firstHitMultiplier;
   const enemyFirstHitMult = roomApplied.enemyFirstHitMultiplier;
   const roomCombatEvasion = roomApplied.playerEvasionBonus;
+  const fallDamageOnMiss = roomApplied.environment.fallDamageOnMiss;
   // Merge room-mod buffs (e.g. Corrupted poison) onto player
   if (roomApplied.modifiers.playerBuffs.length > 0) {
     clonedPlayer = {
@@ -738,6 +758,7 @@ export function simulateGameCombat(
     firstHitMultiplier: firstHitMult,
     enemyFirstHitMultiplier: enemyFirstHitMult,
     roomCombatEvasion,
+    fallDamageOnMiss,
     skipFirstSkillCost,
     metrics: {
       damageDealt: 0,

@@ -1,19 +1,20 @@
 /**
- * Game Guide Scene Styles — Pixel-Arcade (T-018)
- * Dark theme: replaces parchment (#f5f0e6) with sw-bg tokens.
- * All hex color literals removed in favor of design-system tokens.
- * Legibility first: VT323 body + Silkscreen headers.
+ * Game Guide — Shinobi Handbook (cinematic void/abyss)
+ * Product chrome: void plate · abyss panels · bone text · rust heat accents.
+ * Legibility: VT323 body + Silkscreen headers.
  */
 
 @import '../../styles/design-system/index.css';
 
 /* ===========================================
-   Main Container
+   Main Container — void stage + vignette
    =========================================== */
 
 .game-guide {
   min-height: 100vh;
-  background: var(--sw-bg-primary);
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 30%, rgba(26, 38, 51, 0.45) 0%, transparent 65%),
+    linear-gradient(180deg, #0a1018 0%, var(--sw-void, #050608) 55%, #030406 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,15 +23,36 @@
   position: relative;
 }
 
+.game-guide::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.12) 3px,
+      rgba(0, 0, 0, 0.12) 4px
+    );
+  z-index: 0;
+}
+
 .game-guide__container {
   width: 100%;
   max-width: 64rem;
   height: 85vh;
-  background: var(--sw-bg-secondary);
-  border: 2px solid var(--sw-frame-soft);
+  background: var(--sw-abyss-deep, #0a0c10);
+  border: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.45));
   border-radius: var(--sw-radius-sm);
-  box-shadow: var(--sw-pix-shadow-lg);
+  box-shadow:
+    var(--sw-pix-shadow-lg),
+    inset 0 0 80px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(166, 93, 63, 0.08);
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -41,9 +63,9 @@
    =========================================== */
 
 .game-guide__header {
-  background: var(--sw-bg-tertiary);
+  background: linear-gradient(180deg, rgba(26, 38, 51, 0.55) 0%, rgba(8, 10, 14, 0.95) 100%);
   padding: var(--sw-space-4) var(--sw-space-6);
-  border-bottom: 2px solid var(--sw-frame-soft);
+  border-bottom: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.4));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -57,15 +79,16 @@
 
 .game-guide__icon-wrapper {
   padding: var(--sw-space-2);
-  background: var(--sw-risk-high-bg);
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.18));
   border-radius: var(--sw-radius-sm);
-  border: 1px solid rgba(185, 28, 28, 0.4);
+  border: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.55));
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .game-guide__title {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-xl);
-  color: var(--sw-text-primary);
+  color: var(--sw-bone, #e8e4d9);
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
 }
@@ -75,9 +98,9 @@
   align-items: center;
   gap: var(--sw-space-2);
   padding: var(--sw-space-2) var(--sw-space-4);
-  background: var(--sw-bg-elevated);
-  color: var(--sw-text-secondary);
-  border: 2px solid var(--sw-frame-soft);
+  background: var(--sw-abyss-panel, rgba(8, 10, 14, 0.97));
+  color: var(--sw-bone-dim, #b8b4a8);
+  border: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.45));
   border-radius: var(--sw-radius-xs);
   box-shadow: var(--sw-pix-shadow-sm);
   font-family: var(--sw-font-display);
@@ -88,12 +111,13 @@
   transition:
     transform var(--sw-transition-fast),
     box-shadow var(--sw-transition-fast),
-    color var(--sw-transition-base);
+    color var(--sw-transition-base),
+    border-color var(--sw-transition-base);
 }
 
 .game-guide__back-btn:hover {
-  color: var(--sw-text-primary);
-  border-color: var(--sw-frame);
+  color: var(--sw-bone, #e8e4d9);
+  border-color: var(--sw-rust, #a65d3f);
   transform: translate(-1px, -1px);
   box-shadow: var(--sw-pix-shadow);
 }
@@ -103,6 +127,12 @@
   box-shadow: none;
 }
 
+.game-guide__back-btn:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4d9);
+}
+
 /* Keyboard Hints */
 .game-guide__hints {
   display: flex;
@@ -110,10 +140,10 @@
   gap: var(--sw-space-4);
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
   padding: var(--sw-space-2);
-  background: var(--sw-bg-primary);
-  border-bottom: 1px solid var(--sw-frame-soft);
+  background: var(--sw-void, #050608);
+  border-bottom: 1px solid rgba(45, 61, 74, 0.45);
 }
 
 .game-guide__hint {
@@ -123,16 +153,16 @@
 }
 
 /* ===========================================
-   Tabs Navigation — pixel-arcade
+   Tabs Navigation — rust heat on active
    =========================================== */
 
 .game-guide__tabs {
   display: flex;
   justify-content: center;
   gap: var(--sw-space-1);
-  background: var(--sw-bg-tertiary);
+  background: rgba(8, 10, 14, 0.95);
   padding: var(--sw-space-3);
-  border-bottom: 2px solid var(--sw-frame-soft);
+  border-bottom: 2px solid rgba(45, 61, 74, 0.5);
   flex-wrap: wrap;
 }
 
@@ -148,23 +178,31 @@
   transition:
     transform var(--sw-transition-fast),
     box-shadow var(--sw-transition-fast),
-    background var(--sw-transition-base);
+    background var(--sw-transition-base),
+    border-color var(--sw-transition-base),
+    color var(--sw-transition-base);
   background: transparent;
   border: 2px solid transparent;
-  color: var(--sw-text-tertiary);
+  color: var(--sw-bone-muted, #7a766c);
 }
 
 .game-guide__tab:hover {
-  background: var(--sw-bg-elevated);
-  border-color: var(--sw-frame-soft);
-  color: var(--sw-text-secondary);
+  background: rgba(26, 38, 51, 0.55);
+  border-color: rgba(45, 61, 74, 0.55);
+  color: var(--sw-bone-dim, #b8b4a8);
+}
+
+.game-guide__tab:focus-visible {
+  outline: 2px solid var(--sw-rust, #a65d3f);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--sw-bone, #e8e4d9);
 }
 
 .game-guide__tab--active {
-  background: var(--sw-risk-high);
-  border-color: var(--sw-risk-high-light);
-  color: var(--sw-text-primary);
-  box-shadow: var(--sw-pix-shadow-sm);
+  background: var(--sw-rust-dim, #6b3d2a);
+  border-color: var(--sw-rust, #a65d3f);
+  color: var(--sw-bone, #e8e4d9);
+  box-shadow: var(--sw-pix-shadow-sm), 0 0 12px var(--sw-rust-glow, rgba(166, 93, 63, 0.25));
   transform: translate(-1px, -1px);
 }
 
@@ -182,8 +220,21 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--sw-space-6) var(--sw-space-8);
-  background: transparent;
-  color: var(--sw-text-secondary);
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(26, 38, 51, 0.28) 0%, transparent 55%),
+    var(--sw-abyss-deep, #0a0c10);
+  color: var(--sw-bone-dim, #b8b4a8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-guide::before {
+    opacity: 0.12;
+  }
+
+  .game-guide__tab,
+  .game-guide__back-btn {
+    transition: none;
+  }
 }
 
 .game-guide__section {

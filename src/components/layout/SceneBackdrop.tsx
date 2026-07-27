@@ -8,7 +8,7 @@ interface SceneBackdropProps {
    */
   background?: string;
   /**
-   * Biome image opacity override (default 0.38 from CSS). Lower = darker scene.
+   * Biome image opacity override (default 0.48 from CSS). Lower = darker scene.
    * Used by GameOver (0.20) to keep the death screen somber.
    */
   dim?: number;
@@ -19,31 +19,43 @@ interface SceneBackdropProps {
  * SceneBackdrop — shared atmospheric wrapper for economy/reward scenes.
  *
  * Mirrors the CinematicViewscreen layer stack (without enemy sprite):
- *   0  Biome background image  (object-cover, opacity 0.38)
+ *   0  Biome background image  (object-cover, opacity 0 until ready → 0.48, slow drift)
  *   1  Dark gradient scrim     (top/bottom darkening)
  *   2  Vignette                (radial edge darkening)
- *   3  Scanlines               (subtle CRT texture)
+ *   3  Scanlines               (subtle CRT visor chrome)
  *  10  Scene content           (children)
  *
- * The root element fills the width of its flex parent (width: 100%) so the
- * biome image covers the full center-panel area, hiding the parchment panel
- * behind it.  The parent App.tsx container handles vertical scrolling.
+ * Void/abyss CSS gradient always paints first — never bare parchment flash.
+ * Parent App.tsx handles vertical scrolling for in-shell scenes.
  */
 export const SceneBackdrop: React.FC<SceneBackdropProps> = ({ background, dim, children }) => {
-  const [bgError, setBgError] = useState(false);
+  // Path-gated ready/error — avoids one-frame flash of a prior image's opacity
+  // when the background URL changes (parity CinematicViewscreen).
+  const [bgReadyPath, setBgReadyPath] = useState<string | null>(null);
+  const [bgErrorPath, setBgErrorPath] = useState<string | null>(null);
+
+  const bgReady = Boolean(background && bgReadyPath === background);
+  const bgError = Boolean(background && bgErrorPath === background);
   const showBg = Boolean(background) && !bgError;
 
   return (
     <div className="scene-backdrop">
-      {/* Layer 0: Biome background */}
+      {/* Layer 0: Biome background — opacity 0 until onLoad (void gradient under) */}
       {showBg && (
         <img
+          key={`bg:${background}`}
           src={background}
           alt=""
-          className="scene-backdrop__bg"
-          style={dim !== undefined ? { opacity: dim } : undefined}
+          className={`scene-backdrop__bg${bgReady ? ' scene-backdrop__bg--ready' : ''}`}
+          style={
+            bgReady && dim !== undefined
+              ? { opacity: dim }
+              : undefined
+          }
           aria-hidden="true"
-          onError={() => setBgError(true)}
+          decoding="async"
+          onLoad={() => setBgReadyPath(background!)}
+          onError={() => setBgErrorPath(background!)}
         />
       )}
 

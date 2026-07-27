@@ -13,15 +13,16 @@ export const GENERIC_EVENTS: GameEvent[] = [
     id: 'abandoned_supply_cache',
     title: 'Abandoned Supply Cache',
     description:
-      'A sealed crate lies half-buried at a crossroads. The Hidden Leaf insignia is barely visible under the mud. Whoever left it here did not return.',
+      'A sealed crate lies half-buried at a crossroads. Leaf seal under mud. Whoever left it did not return — and the rot smells of rationed urgency, not adventure.',
     // T-012 A2 (optional): removed explicit allowedArcs:[]; omitting the field
     // is consistent with the rest of GENERIC_EVENTS and is treated identically
     // by isEventValidForArc (both [] and undefined mean "all arcs").
+    // Kept in WAVES: low-stakes COMMON; does not dilute the spine.
     rarity: Rarity.COMMON,
     choices: [
       {
         label: 'Take the Supplies',
-        description: 'SAFE - Claim whatever was left behind',
+        description: 'SAFE — Claim whatever was left behind',
         riskLevel: RiskLevel.SAFE,
         outcomes: [
           {
@@ -31,7 +32,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               hpChange: { percent: 20 },
               intelGain: 10,
               logMessage:
-                'Field rations, medical supplies, and some coin. Someone prepared well for a mission they never finished.',
+                'Field rations, gauze, and cold coin. Someone provisioned for a mission that never finished.',
               logType: 'gain',
             },
           },
@@ -40,7 +41,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 40,
               intelGain: 5,
-              logMessage: 'Half the crate is ruined by moisture. You salvage what you can.',
+              logMessage: 'Half the crate is ruined by damp. You salvage what the rot left.',
               logType: 'info',
             },
           },
@@ -48,7 +49,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Inspect the Contents',
-        description: 'LOW RISK - Study the mission notes for intelligence',
+        description: 'LOW RISK — Study the mission notes for intelligence',
         riskLevel: RiskLevel.LOW,
         outcomes: [
           {
@@ -57,7 +58,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               exp: 35,
               intelGain: 20,
               logMessage:
-                'The mission briefing inside is still readable. Enemy patrol routes, weapon caches, terrain notes.',
+                'The briefing is still readable: patrol routes, weapon caches, terrain notes — someone else\'s unfinished ledger.',
               logType: 'gain',
             },
           },
@@ -66,7 +67,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             effects: {
               exp: 15,
               intelGain: 5,
-              logMessage: 'The notes are water-damaged beyond use. You glean a little from the fragments.',
+              logMessage: 'The notes are water-damaged beyond use. You glean little from the fragments.',
               logType: 'info',
             },
           },
@@ -74,14 +75,14 @@ export const GENERIC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Leave It for Another Team',
-        description: 'SAFE - Someone may need it more',
+        description: 'SAFE — Walk on; let the crate keep its secrets',
         riskLevel: RiskLevel.SAFE,
         outcomes: [
           {
             weight: 100,
             effects: {
               intelGain: 5,
-              logMessage: 'You leave the crate untouched and move on. Somewhere, a team might find it in time.',
+              logMessage: 'You leave the crate untouched. Somewhere, a team might find it in time — or not.',
               logType: 'info',
             },
           },
@@ -95,7 +96,8 @@ export const GENERIC_EVENTS: GameEvent[] = [
     title: 'Ancient Treasure Map',
     description:
       'An old scroll falls from a hidden compartment, revealing a map marked with strange symbols. It details the location of treasures far superior to what you usually find.',
-    allowedArcs: [], // Empty = available in all arcs
+    // Soft-gate: keep permanent treasure upgrades out of Waves free pool (spine first)
+    allowedArcs: ['ACADEMY_ARC', 'EXAMS_ARC', 'ROGUE_ARC', 'WAR_ARC'],
     rarity: Rarity.RARE,
     choices: [
       {
@@ -184,8 +186,10 @@ export const GENERIC_EVENTS: GameEvent[] = [
     id: 'traveling_merchant_caravan',
     title: 'Traveling Merchant Caravan',
     description:
-      'A large caravan of merchants has stopped to rest. Their leader notices your shinobi gear and offers you a special opportunity.',
-    allowedArcs: [], // Available in all arcs
+      'A caravan waits where the road still has a price. Their leader eyes your gear the way collectors eye open doors — opportunity, not friendship.',
+    // Soft-gate Waves: R1 uses location-tied false scales / dock economy instead
+    // (permanent merchant-slot power diluted spine pressure)
+    allowedArcs: ['ACADEMY_ARC', 'EXAMS_ARC', 'ROGUE_ARC', 'WAR_ARC'],
     rarity: Rarity.RARE,
     choices: [
       {
@@ -280,7 +284,8 @@ export const GENERIC_EVENTS: GameEvent[] = [
     title: 'Hidden Shrine of Fortune',
     description:
       'Deep within a forgotten alcove, you discover an ancient shrine dedicated to a long-forgotten deity of fortune. Faded inscriptions promise blessings to those who make offerings.',
-    allowedArcs: [], // Available in all arcs
+    // Soft-gate: EPIC permanent power stays out of Waves free pool
+    allowedArcs: ['ACADEMY_ARC', 'EXAMS_ARC', 'ROGUE_ARC', 'WAR_ARC'],
     rarity: Rarity.EPIC,
     choices: [
       {
@@ -373,8 +378,9 @@ export const GENERIC_EVENTS: GameEvent[] = [
     id: 'intelligence_network',
     title: 'Intelligence Network',
     description:
-      'You encounter a shadowy figure who claims to have information about the area. They offer to share their knowledge... for a price.',
-    allowedArcs: [], // Available in all arcs
+      'A figure in the grey claims to have maps of the area. Knowledge is another tax — paid in ryo, force, or patience.',
+    // Kept in Waves: intel-for-coin matches Gato\'s information economy
+    allowedArcs: [],
     rarity: Rarity.RARE,
     choices: [
       {

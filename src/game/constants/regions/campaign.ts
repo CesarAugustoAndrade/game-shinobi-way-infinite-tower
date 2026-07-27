@@ -37,9 +37,9 @@ export const REGION_ORDER: CampaignRegionEntry[] = [
     config: LAND_OF_WAVES_CONFIG,
     baseDifficulty: 40,
     interlude: {
-      title: 'Bridge of Hope',
+      title: 'Mist Lifts, Road Remains',
       body:
-        'Gato falls. The bridge stands. Wave Country breathes again — but the road of the shinobi never ends. A sealed scroll points toward the Forest of Death…',
+        'Gato is gone. The pier is quiet for the first time in years. Workers nail boards over bloodstains and call it quiet enough. A sealed scroll in your pack points inland — toward a forest that eats genin whole.',
     },
   },
   {

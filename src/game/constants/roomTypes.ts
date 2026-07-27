@@ -474,7 +474,7 @@ export const ROOM_NAMES: Record<BranchingRoomType, Record<string, string[]>> = {
     WAVES_ARC: ['Demon\'s Domain', 'Zabuza\'s Lair', 'Mist Barrier'],
     EXAMS_ARC: ['Tower Entrance', 'Preliminary Arena', 'Forest\'s End'],
     ROGUE_ARC: ['Akatsuki Hideout', 'Hunter\'s Den', 'Rogue\'s Final Stand'],
-    WAR_ARC: ['War\'s End Gate', 'Final Battlefield', 'Destiny\'s Door'],
+    WAR_ARC: ['War\'s End Gate', 'Final Battlefield', 'Last Muster Door'],
     default: ['Boss Gate', 'Guardian\'s Door', 'The Final Challenge'],
   },
   [BranchingRoomType.FOREST]: {

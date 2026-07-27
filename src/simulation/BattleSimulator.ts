@@ -21,6 +21,7 @@ import {
   TerrainType,
   TerrainDefinition,
   Posture,
+  CombatModifierType,
 } from '../game/types';
 import {
   calculateDerivedStats,
@@ -68,6 +69,8 @@ import {
   checkGutsPassive,
 } from '../game/systems/EquipmentPassiveSystem';
 import { selectEnemySkill } from '../game/systems/EnemyAISystem';
+import { applyRoomCombatModifiers } from '../game/systems/RoomCombatModifierSystem';
+import type { CombatModifiers } from '../game/systems/ApproachSystem';
 import {
   APPROACH_DEFINITIONS,
   calculateApproachSuccessChance,
@@ -235,6 +238,12 @@ export interface BattleContext {
   turn: number;
   isFirstTurn: boolean;
   firstHitMultiplier: number;
+  /** T-109: room AMBUSH enemy first-hit mult */
+  enemyFirstHitMultiplier: number;
+  /** T-109: room combat FOREST cover evasion */
+  roomCombatEvasion: number;
+  /** T-110: CLIFF fall fraction of max HP on player miss */
+  fallDamageOnMiss: number;
   approachSucceeded: boolean;  // Track actual approach success
   // T-004 AP economy (player only): the deckbuilder state mirrored from the real
   // game (DeckSystem/PostureSystem). The enemy keeps its 1-action-per-turn AI.
@@ -423,12 +432,38 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
   ctx.metrics.skillsUsed[skill.id] = (ctx.metrics.skillsUsed[skill.id] || 0) + 1;
   ctx.metrics.totalAttacks++;
 
+  // T-110: stack terrain + room combat FOREST cover into defender evasion
+  // (parity with EnemyTurnSystem / CombatSimulationService)
+  let defPrimary = isPlayer ? defender.primaryStats : defenderStats.effectivePrimary;
+  let defDerived = isPlayer
+    ? defenderStats.derived
+    : defenderStats.derived;
+  const terrainEvasion = ctx.terrain?.effects.evasionModifier ?? 0;
+  if (isPlayer) {
+    // Enemy dodging player — only terrain definition evasion
+    if (terrainEvasion !== 0) {
+      defDerived = {
+        ...defenderStats.derived,
+        evasion: Math.min(0.75, defenderStats.derived.evasion + terrainEvasion),
+      };
+    }
+  } else {
+    // Player dodging enemy — terrain + room combat cover
+    const totalEvasion = terrainEvasion + (ctx.roomCombatEvasion ?? 0);
+    if (totalEvasion !== 0) {
+      defDerived = {
+        ...defenderStats.derived,
+        evasion: Math.min(0.75, defenderStats.derived.evasion + totalEvasion),
+      };
+    }
+  }
+
   // Calculate damage (player gets passive skill damageBonus / FIRE_AFFINITY etc.)
   const result = calculateDamage(
     isPlayer ? attackerStats.effectivePrimary : attacker.primaryStats,
     attackerStats.derived,
-    isPlayer ? defender.primaryStats : defenderStats.effectivePrimary,
-    defenderStats.derived,
+    defPrimary,
+    defDerived,
     skill,
     attacker.element,
     defender.element,
@@ -442,10 +477,25 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
   // Track miss/evade
   if (result.isMiss) {
     ctx.metrics.misses++;
+    // T-110: CLIFF fall on player miss (parity with PlayerTurnSystem)
+    let fallNote = '';
+    if (
+      isPlayer
+      && ctx.fallDamageOnMiss > 0
+      && ctx.playerStats.derived.maxHp > 0
+    ) {
+      const fallDmg = Math.max(
+        1,
+        Math.floor(ctx.playerStats.derived.maxHp * ctx.fallDamageOnMiss),
+      );
+      ctx.player.currentHp = Math.max(1, ctx.player.currentHp - fallDmg);
+      ctx.metrics.totalDamageReceived += fallDmg;
+      fallNote = ` (cliff fall ${fallDmg})`;
+    }
     ctx.logs.push({
       turn: ctx.turn,
       actor: isPlayer ? 'player' : 'enemy',
-      action: `${skill.name} MISSED`,
+      action: `${skill.name} MISSED${fallNote}`,
       damage: 0,
       isCrit: false,
       isMiss: true,
@@ -495,6 +545,10 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
   // Apply first hit multiplier
   if (ctx.isFirstTurn && isPlayer && ctx.firstHitMultiplier > 1.0) {
     damage = Math.floor(damage * ctx.firstHitMultiplier);
+  }
+  // T-109: room AMBUSH enemy first-strike
+  if (ctx.isFirstTurn && !isPlayer && ctx.enemyFirstHitMultiplier > 1.0) {
+    damage = Math.floor(damage * ctx.enemyFirstHitMultiplier);
   }
 
   // T-004: light posture modifier on the player's OUTGOING damage. Mirrors
@@ -810,7 +864,9 @@ export function resolveBattle(
   config: SimulationConfig = DEFAULT_CONFIG,
   battleId: number = 0,
   approach: ApproachType | null = null,
-  terrain?: TerrainType
+  terrain?: TerrainType,
+  /** T-109: room combat activity modifiers (combat ?? elite) */
+  roomCombatModifiers?: CombatModifierType[] | null,
 ): BattleResolution {
   // Calculate derived stats
   const playerStats = getPlayerFullStats(player);
@@ -851,10 +907,37 @@ export function resolveBattle(
     : null;
 
   // First-hit mult from data (stealth = 2.0), not a hard-coded 2.5
-  const firstHitMult =
+  let firstHitMult =
     approachSucceeded && approachEffects
       ? (approachEffects.firstHitMultiplier ?? 1.0)
       : 1.0;
+
+  // T-109: room combat modifiers (parity with simulateGameCombat / startCombat)
+  const approachMods: CombatModifiers = {
+    playerGoesFirst: approachSucceeded && (approachEffects?.guaranteedFirst ?? false),
+    playerInitiativeBonus: approachEffects?.initiativeBonus ?? 0,
+    firstHitMultiplier: firstHitMult,
+    playerBuffs: [],
+    enemyDebuffs: [],
+    xpMultiplier: 1,
+  };
+  const roomApplied = applyRoomCombatModifiers(
+    roomCombatModifiers,
+    approachMods,
+    player,
+    playerStats.derived.maxHp,
+  );
+  player = roomApplied.player;
+  firstHitMult = roomApplied.modifiers.firstHitMultiplier;
+  const enemyFirstHitMult = roomApplied.enemyFirstHitMultiplier;
+  const roomCombatEvasion = roomApplied.playerEvasionBonus;
+  const fallDamageOnMiss = roomApplied.environment.fallDamageOnMiss;
+  if (roomApplied.modifiers.playerBuffs.length > 0) {
+    player = {
+      ...player,
+      activeBuffs: [...player.activeBuffs, ...roomApplied.modifiers.playerBuffs],
+    };
+  }
 
   // Light synergy: successful stealth opens Aggressive (mirrors useCombat.startCombat)
   const openingPosture =
@@ -874,6 +957,9 @@ export function resolveBattle(
     turn: 0,
     isFirstTurn: true,
     firstHitMultiplier: firstHitMult,
+    enemyFirstHitMultiplier: enemyFirstHitMult,
+    roomCombatEvasion,
+    fallDamageOnMiss,
     approachSucceeded,
     // AP/card/posture economy (player). Hand is dealt on the first player turn.
     posture: openingPosture,
@@ -902,8 +988,8 @@ export function resolveBattle(
   // Turn order via shared determineTurnOrder (initiativeBonus may be negative on failure)
   const whoFirst = determineTurnOrder(playerStats, enemyStats, {
     isFirstTurn: true,
-    playerGoesFirst: approachSucceeded && (approachEffects?.guaranteedFirst ?? false),
-    playerInitiativeBonus: approachEffects?.initiativeBonus ?? 0,
+    playerGoesFirst: roomApplied.modifiers.playerGoesFirst,
+    playerInitiativeBonus: roomApplied.modifiers.playerInitiativeBonus,
     terrain: terrainDef,
   });
   const playerGoesFirst = whoFirst === 'player';

@@ -369,7 +369,7 @@ const NORTHERN_HIDEOUT: LocationConfig = {
       targetId: 'bridge_to_valley',
       pathType: PathType.FORWARD,
       description: 'The road to the Valley',
-      dangerHint: 'Destiny waits',
+      dangerHint: 'The valley waits',
     },
   ],
   flags: {
@@ -574,7 +574,7 @@ export const SASUKE_RETRIEVAL_CONFIG: RegionConfig = {
   name: 'Sasuke Retrieval',
   description:
     'A desperate pursuit across Sound Country. Bring him home — or meet him as an enemy at the Valley of the End.',
-  theme: 'Friendship vs destiny, Sound Four, curse marks, Valley of the End',
+  theme: 'Friendship vs path, Sound Four, curse marks, Valley of the End',
 
   entryLocationIds: ['leaf_gate', 'river_road'],
   bossLocationId: 'valley_of_the_end',

@@ -468,9 +468,11 @@ function generateEventActivity(
  * Called only when weighted selection picks scrollDiscovery for this room.
  */
 function generateScrollDiscoveryActivity(
-  floor: number
+  floor: number,
+  lootTheme?: import('../types').RegionLootTheme,
 ): RoomActivities['scrollDiscovery'] {
-  const skill = generateSkillForFloor(floor);
+  // T-113: bias scroll element/scaling toward region lootTheme
+  const skill = generateSkillForFloor(floor, lootTheme);
   return {
     availableScrolls: [skill],
     cost: { chakra: 15 + floor * 2 },
@@ -493,6 +495,7 @@ function generateEliteChallengeActivity(
   preferredElement?: import('../types').ElementType,
   /** Explicit location danger (1-7). Elite bumps one step, capped at 7. */
   dangerLevel: number = 4,
+  config?: typeof ROOM_TYPE_CONFIGS[BranchingRoomType],
 ): RoomActivities['eliteChallenge'] | undefined {
   // Check feature flag first
   if (!FeatureFlags.ENABLE_ELITE_CHALLENGES) return undefined;
@@ -512,9 +515,16 @@ function generateEliteChallengeActivity(
   );
   eliteEnemy.name = `${eliteEnemy.name} (Artifact Guardian)`;
 
+  // T-108: room-type combat modifiers (elite rooms have no combat activity)
+  const roomConfig = config ?? getRoomTypeConfig(room.type);
+  const modifiers: CombatModifierType[] = roomConfig.combatModifiers
+    ? [roomConfig.combatModifiers[Math.floor(Math.random() * roomConfig.combatModifiers.length)]]
+    : [CombatModifierType.NONE];
+
   return {
     enemy: eliteEnemy,
     artifact: generateRandomArtifact(floor, difficulty + 20),
+    modifiers,
     completed: false,
   };
 }
@@ -770,7 +780,8 @@ export function getTreasureHuntReward(
       items.push(genComp(TreasureQuality.RARE));
       ryo = 150;
     } else if (wealthLevel <= 6) {
-      skills.push(generateSkillForFloor(floor));
+      // T-114: themed skill rewards (same as scroll discovery)
+      skills.push(generateSkillForFloor(floor, lootTheme));
     } else {
       items.push(generateRandomArtifact(floor, difficulty));
     }
@@ -779,17 +790,17 @@ export function getTreasureHuntReward(
       items.push(genComp(TreasureQuality.RARE));
       ryo = 150;
     } else if (wealthLevel <= 4) {
-      skills.push(generateSkillForFloor(floor));
+      skills.push(generateSkillForFloor(floor, lootTheme));
       ryo = 200;
     } else if (wealthLevel <= 6) {
       items.push(generateRandomArtifact(floor, difficulty));
     } else {
       items.push(generateRandomArtifact(floor, difficulty));
-      skills.push(generateSkillForFloor(floor));
+      skills.push(generateSkillForFloor(floor, lootTheme));
     }
   } else if (pieces >= 4) {
     if (wealthLevel <= 2) {
-      skills.push(generateSkillForFloor(floor));
+      skills.push(generateSkillForFloor(floor, lootTheme));
       ryo = 200;
     } else if (wealthLevel <= 4) {
       items.push(generateRandomArtifact(floor, difficulty));
@@ -798,7 +809,7 @@ export function getTreasureHuntReward(
       ryo = 300;
     } else {
       items.push(generateRandomArtifact(floor, difficulty));
-      skills.push(generateSkillForFloor(floor));
+      skills.push(generateSkillForFloor(floor, lootTheme));
       ryo = 500;
     }
   }
@@ -861,14 +872,14 @@ function generateActivityData(
       );
     case 'eliteChallenge':
       return generateEliteChallengeActivity(
-        room, floor, difficulty, arc, player, enemyPool, preferredElement, dangerLevel,
+        room, floor, difficulty, arc, player, enemyPool, preferredElement, dangerLevel, config,
       );
     case 'merchant':
       return generateMerchantActivity(floor, difficulty, player, lootTable, lootTheme);
     case 'event':
       return generateEventActivity(arc, player, preferredEventIds);
     case 'scrollDiscovery':
-      return generateScrollDiscoveryActivity(floor);
+      return generateScrollDiscoveryActivity(floor, lootTheme);
     case 'rest':
       return generateRestActivity();
     case 'training':
@@ -990,6 +1001,89 @@ function generateActivities(
   }
 
   return activities;
+}
+
+/**
+ * R1-012: After random weighted gen, inject amenities promised by location flags
+ * so card UI ("Has Merchant/Rest/Training") matches playable rooms.
+ *
+ * Picks the non-START room with fewest activities; does not remove existing ones.
+ * Safe no-op when the floor already has the activity somewhere.
+ */
+export function ensureLocationFlagActivities(
+  floor: BranchingFloor,
+  flags: {
+    hasMerchant?: boolean;
+    hasRest?: boolean;
+    hasTraining?: boolean;
+    /** Boss / story: guarantee at least one preferred event room (R1-007) */
+    ensureStoryEvent?: boolean;
+  },
+  gen: {
+    difficulty: number;
+    arc: string;
+    player?: Player;
+    preferredEventIds?: string[];
+    lootTable?: string;
+    lootTheme?: import('../types').RegionLootTheme;
+  },
+): BranchingFloor {
+  const needed: (keyof RoomActivities)[] = [];
+  if (flags.hasMerchant) needed.push('merchant');
+  if (flags.hasRest) needed.push('rest');
+  if (flags.hasTraining) needed.push('training');
+  if (flags.ensureStoryEvent && gen.preferredEventIds && gen.preferredEventIds.length > 0) {
+    needed.push('event');
+  }
+  if (needed.length === 0) return floor;
+
+  let rooms = floor.rooms;
+
+  for (const key of needed) {
+    const already = rooms.some((r) => r.activities[key] != null);
+    if (already) continue;
+
+    const candidates = rooms
+      .filter((r) => r.type !== BranchingRoomType.START && !r.isExit)
+      .slice()
+      .sort(
+        (a, b) =>
+          Object.keys(a.activities).length - Object.keys(b.activities).length,
+      );
+    const target = candidates[0];
+    if (!target) continue;
+
+    const config = getRoomTypeConfig(target.type);
+    const data = generateActivityData(
+      key,
+      target,
+      config,
+      floor.floor,
+      gen.difficulty,
+      gen.arc,
+      gen.player,
+      floor.wealthLevel ?? 4,
+      floor.treasureHunt,
+      floor.huntDeclined,
+      gen.preferredEventIds,
+      floor.enemyPool,
+      gen.lootTable ?? floor.lootTable,
+      getLocationTerrainMods(floor.terrainEffects).ambushChance,
+      floor.preferredElement,
+      gen.lootTheme ?? floor.lootTheme,
+      floor.dangerLevel ?? 4,
+    );
+    if (!data) continue;
+
+    rooms = rooms.map((r) =>
+      r.id === target.id
+        ? { ...r, activities: { ...r.activities, [key]: data } }
+        : r,
+    );
+  }
+
+  if (rooms === floor.rooms) return floor;
+  return { ...floor, rooms };
 }
 
 /**
@@ -1664,6 +1758,39 @@ export function completeActivity(
     ...branchingFloor,
     rooms: roomsAfterUnlock,
     clearedRooms: clearedCount,
+  };
+}
+
+/**
+ * Soft-lock recovery: room has no remaining activities but is still !isCleared
+ * (empty gen after event/elite flag dropouts, or spent residue). Without this,
+ * children never unlock and the branch is permanently sealed.
+ * No-op when room already cleared or still has a pending activity.
+ */
+export function clearRoomIfSpent(
+  branchingFloor: BranchingFloor,
+  roomId: string
+): BranchingFloor {
+  const room = branchingFloor.rooms.find((r) => r.id === roomId);
+  if (!room || room.isCleared) return branchingFloor;
+  if (getCurrentActivity(room)) return branchingFloor;
+
+  const updatedRooms = branchingFloor.rooms.map((r) =>
+    r.id === roomId ? { ...r, isCleared: true } : r
+  );
+  const clearedRoom = updatedRooms.find((r) => r.id === roomId);
+  const roomsAfterUnlock = clearedRoom
+    ? updatedRooms.map((r) =>
+        clearedRoom.childIds.includes(r.id) && !r.isAccessible
+          ? { ...r, isAccessible: true }
+          : r
+      )
+    : updatedRooms;
+
+  return {
+    ...branchingFloor,
+    rooms: roomsAfterUnlock,
+    clearedRooms: roomsAfterUnlock.filter((r) => r.isCleared).length,
   };
 }
 

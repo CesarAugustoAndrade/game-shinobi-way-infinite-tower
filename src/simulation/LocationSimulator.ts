@@ -218,13 +218,19 @@ export function simulateLocationRun(
           const enemy: Enemy =
             activityKey === 'combat' ? acts.combat!.enemy : acts.eliteChallenge!.enemy;
 
+          // T-109: room combat modifiers (combat or elite activity)
+          const roomMods =
+            activityKey === 'combat'
+              ? acts.combat?.modifiers
+              : acts.eliteChallenge?.modifiers;
           const res = resolveBattle(
             prepareForCombat(player),
             enemy,
             battleConfig,
             runId * 10000 + battleSeq++,
             null,
-            current.terrain
+            current.terrain,
+            roomMods,
           );
           combats++;
 

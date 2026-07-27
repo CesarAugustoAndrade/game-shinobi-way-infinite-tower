@@ -58,13 +58,27 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
     return () => clearTimeout(t);
   }, [actionToast]);
 
+  // Esc layers (capture so InventoryOverlay does not close first):
+  // toast → slot menu → let overlay/parent close
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && actionToast) setActionToast(null);
+      if (e.key !== 'Escape' || e.repeat) return;
+      if (actionToast) {
+        e.preventDefault();
+        e.stopPropagation();
+        setActionToast(null);
+        return;
+      }
+      if (activeMenu) {
+        e.preventDefault();
+        e.stopPropagation();
+        setActiveMenu(null);
+        return;
+      }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [actionToast]);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [actionToast, activeMenu]);
 
   const SLOT_NAMES: Record<EquipmentSlot, string> = {
     [EquipmentSlot.SLOT_1]: 'Primary (+50%)',
@@ -207,14 +221,14 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
             </div>
           ))}
         </div>
-        <div className="equipment-panel__tooltip-sell">Sell: {sellValue} Ryo (60%)</div>
+        <div className="equipment-panel__tooltip-sell">Fence for {sellValue} Ryo</div>
         {canDisassemble && (
-          <div className="equipment-panel__tooltip-disassemble">Can disassemble (50% return)</div>
+          <div className="equipment-panel__tooltip-disassemble">Can unmake (half returned)</div>
         )}
-        <div className="equipment-panel__tooltip-hint">Drag to move - Click for actions</div>
+        <div className="equipment-panel__tooltip-hint">Drag to shift · click to act</div>
       </div>
     ) : (
-      <div className="equipment-panel__tooltip-empty">Empty slot - drop items here</div>
+      <div className="equipment-panel__tooltip-empty">A hollow groove — nothing worn here</div>
     );
 
     return (
@@ -249,11 +263,11 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
               item ? getRarityColor(item.rarity) : 'equipment-panel__slot-name--empty'
             } ${isDragging ? 'equipment-panel__slot-invisible' : ''}`}>
               {item ? (
-                <span className="inline-flex items-center gap-1">
+                <span className="equipment-panel__slot-name-row">
                   <ArtIcon art={resolveItemArt(item)} size="xs" />
                   {item.name}
                 </span>
-              ) : "Empty"}
+              ) : '— vacant —'}
             </div>
           </div>
         </Tooltip>

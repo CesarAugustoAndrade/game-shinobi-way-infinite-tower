@@ -41,6 +41,8 @@ export interface RightSidebarPanelProps {
    * T-096: region lootTheme for bag Focus honesty (equip between loot peaks).
    */
   lootTheme?: RegionLootTheme | null;
+  /** Bump to arm bag synthesis after equipment → bag (W6 soft fix). */
+  synthesisSession?: number;
 }
 
 // Get drag preview class based on rarity
@@ -79,6 +81,7 @@ const RightSidebarPanel: React.FC<RightSidebarPanelProps> = ({
   onSwapEquipment,
   treasureHunt,
   lootTheme = null,
+  synthesisSession = 0,
 }) => {
   const { player } = useGame();
   const [activeDrag, setActiveDrag] = useState<DragData | null>(null);
@@ -166,6 +169,7 @@ const RightSidebarPanel: React.FC<RightSidebarPanelProps> = ({
             onEquipFromBag={onEquipFromBag}
             isDragging={!!activeDrag}
             lootTheme={lootTheme}
+            synthesisSession={synthesisSession}
           />
         )}
 

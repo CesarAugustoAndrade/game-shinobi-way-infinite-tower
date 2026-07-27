@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { Scroll, AlertTriangle, Sparkles, CheckCircle } from 'lucide-react';
 import { EventOutcome } from '../../game/types';
 import { OutcomeChange } from './eventOutcomeChanges';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './EventResultModal.css';
 
 interface EventResultModalProps {
@@ -28,31 +29,50 @@ interface EventResultModalProps {
 const EventResultModal: React.FC<EventResultModalProps> = ({ outcome, onClose }) => {
   const { message, logType, changes, nextEventId } = outcome;
   const isChain = Boolean(nextEventId);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Space hold / Enter+click same-tick double Continue → double completeActivity /
+  // returnToMapActivityComplete (exit-room events stage leave complete twice).
+  // Parity RestResultModal / IntelResultModal / LocationCompleteModal.
+  const closedRef = useRef(false);
+  useFocusTrap(rootRef);
 
-  // SPACE / ENTER to continue.
+  const dismiss = useCallback(() => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    onClose();
+  }, [onClose]);
+
+  // SPACE / ENTER / Escape to continue (Escape parity Rest/Intel).
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' || e.code === 'Enter') {
+      if (e.repeat) return;
+      if (e.code === 'Space' || e.code === 'Enter' || e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        dismiss();
       }
     };
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [onClose]);
+  }, [dismiss]);
 
   const HeaderIcon =
     logType === 'gain' ? CheckCircle : logType === 'danger' ? AlertTriangle : logType === 'loot' ? Sparkles : Scroll;
 
   return (
-    <div className="event-result" role="dialog" aria-modal="true" aria-label="Event result">
+    <div
+      ref={rootRef}
+      className="event-result"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Event result"
+    >
       <div className={`event-result__panel event-result__panel--${logType}`}>
         {/* Chain ribbon — the story is not over yet. */}
         {isChain && (
-          <div className="event-result__chain">
-            <span className="event-result__chain-glyph">⛓</span>
-            <span>The chain continues</span>
+          <div className="event-result__chain" role="status">
+            <span className="event-result__chain-glyph" aria-hidden="true">›</span>
+            <span>Ledger continues</span>
           </div>
         )}
 
@@ -61,7 +81,7 @@ const EventResultModal: React.FC<EventResultModalProps> = ({ outcome, onClose })
           <span className={`event-result__header-icon event-result__header-icon--${logType}`}>
             <HeaderIcon size={18} strokeWidth={2.5} />
           </span>
-          <h2 className="event-result__title">Result</h2>
+          <h2 className="event-result__title">Outcome</h2>
         </header>
 
         {/* Narrative outcome */}
@@ -83,20 +103,36 @@ const EventResultModal: React.FC<EventResultModalProps> = ({ outcome, onClose })
             ))}
           </ul>
         ) : (
-          <div className="event-result__no-change">No change — the moment passes.</div>
+          <div
+            className={`event-result__no-change ${
+              logType === 'danger'
+                ? 'event-result__no-change--weight'
+                : logType === 'gain'
+                  ? 'event-result__no-change--gain'
+                  : ''
+            }`}
+          >
+            {logType === 'danger'
+              ? 'No stats changed — the choice still sits in the ledger.'
+              : logType === 'gain'
+                ? 'No inventory change — only the path is clearer.'
+                : 'No mechanical change — you move on.'}
+          </div>
         )}
 
         {/* Continue */}
         <button
           type="button"
           className={`event-result__continue ${isChain ? 'event-result__continue--chain' : ''}`}
-          onClick={onClose}
+          onClick={dismiss}
           autoFocus
         >
-          {isChain ? 'Continue the Story ▸' : 'Keep Exploring ▸'}
+          {isChain ? 'Continue the Ledger ▸' : 'Keep Exploring ▸'}
         </button>
         <p className="event-result__hint">
           <span className="sw-shortcut">Space</span> / <span className="sw-shortcut">Enter</span>
+          {' · '}
+          <span className="sw-shortcut">Esc</span>
         </p>
       </div>
     </div>

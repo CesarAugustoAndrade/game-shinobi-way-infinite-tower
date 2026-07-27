@@ -1,17 +1,24 @@
 /**
- * Shared art renderer for the central art registry (T-019).
+ * Shared art renderer for the central art registry (T-019 / A7a).
  * Tries image src → onError → emoji cascade.
+ *
+ * size="fill" — stretch into parent (item-tile__visual plate). Prefer for
+ * loot / merchant / treasure cards so the asset IS the tile.
+ *
+ * Size classes are real BEM tokens in design-system (no Tailwind).
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArtEntry, getArt } from '../../game/constants/artRegistry';
 
 const SIZE_CLASS = {
-  xs: { img: 'w-4 h-4', text: 'text-sm' },
-  sm: { img: 'w-5 h-5', text: 'text-base' },
-  md: { img: 'w-8 h-8', text: 'text-2xl' },
-  lg: { img: 'w-12 h-12', text: 'text-4xl' },
-  xl: { img: 'w-16 h-16', text: 'text-5xl' },
+  xs: 'art-icon art-icon--xs',
+  sm: 'art-icon art-icon--sm',
+  md: 'art-icon art-icon--md',
+  lg: 'art-icon art-icon--lg',
+  xl: 'art-icon art-icon--xl',
+  /** Parent-sized — use inside .item-tile__visual */
+  fill: 'art-icon art-icon--fill',
 } as const;
 
 export type ArtIconSize = keyof typeof SIZE_CLASS;
@@ -37,18 +44,31 @@ const ArtIcon: React.FC<ArtIconProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   const art = artProp ?? (artKey ? getArt(artKey) : { emoji: '❓' });
-  const sizeCfg = SIZE_CLASS[size];
+  const sizeClass = SIZE_CLASS[size];
   const label = title ?? art.label ?? art.emoji;
   const showImg = !emojiOnly && Boolean(art.src) && !imageError;
+  const isFill = size === 'fill';
+  // Reset sticky onError when the resolved asset changes (merchant preview / synth rows / toasts).
+  const srcKey = art.src ?? '';
+  const artIdentity = artKey ?? srcKey;
+
+  useEffect(() => {
+    setImageError(false);
+  }, [artIdentity, srcKey]);
 
   if (showImg && art.src) {
     return (
       <img
+        key={artIdentity || srcKey}
         src={art.src}
         alt={label}
         title={label}
-        className={`${sizeCfg.img} object-contain image-pixelated ${className}`.trim()}
-        style={{ imageRendering: 'pixelated' }}
+        className={`${sizeClass} ${className}`.trim()}
+        style={
+          isFill
+            ? { width: '100%', height: '100%', objectFit: 'cover' }
+            : undefined
+        }
         onError={() => setImageError(true)}
         draggable={false}
       />
@@ -57,7 +77,7 @@ const ArtIcon: React.FC<ArtIconProps> = ({
 
   return (
     <span
-      className={`${sizeCfg.text} leading-none select-none ${className}`.trim()}
+      className={`${sizeClass} art-icon--emoji ${className}`.trim()}
       title={label}
       role="img"
       aria-label={label}

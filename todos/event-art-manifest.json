@@ -1,0 +1,312 @@
+[
+  {
+    "key": "event:cat_combat",
+    "id": "cat_combat",
+    "emoji": "⚔️",
+    "label": "Combat Event",
+    "src": "/assets/icons/events/cat_combat.svg",
+    "quality": "svg-tile",
+    "kind": "category",
+    "category": "combat"
+  },
+  {
+    "key": "event:cat_reward",
+    "id": "cat_reward",
+    "emoji": "💎",
+    "label": "Reward Event",
+    "src": "/assets/icons/events/cat_reward.svg",
+    "quality": "svg-tile",
+    "kind": "category",
+    "category": "reward"
+  },
+  {
+    "key": "event:cat_story",
+    "id": "cat_story",
+    "emoji": "📖",
+    "label": "Story Event",
+    "src": "/assets/icons/events/cat_story.svg",
+    "quality": "svg-tile",
+    "kind": "category",
+    "category": "story"
+  },
+  {
+    "key": "event:cat_danger",
+    "id": "cat_danger",
+    "emoji": "☠️",
+    "label": "Danger Event",
+    "src": "/assets/icons/events/cat_danger.svg",
+    "quality": "svg-tile",
+    "kind": "category",
+    "category": "danger"
+  },
+  {
+    "key": "event:cat_generic",
+    "id": "cat_generic",
+    "emoji": "🌀",
+    "label": "Event",
+    "src": "/assets/icons/events/cat_generic.svg",
+    "quality": "svg-tile",
+    "kind": "category",
+    "category": "generic"
+  },
+  {
+    "key": "event:forbidden_scroll_library",
+    "id": "forbidden_scroll_library",
+    "emoji": "📜",
+    "label": "forbidden scroll library",
+    "src": "/assets/icons/events/forbidden_scroll_library.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:bullying_incident",
+    "id": "bullying_incident",
+    "emoji": "📖",
+    "label": "bullying incident",
+    "src": "/assets/icons/events/bullying_incident.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:secret_training_ground",
+    "id": "secret_training_ground",
+    "emoji": "💎",
+    "label": "secret training ground",
+    "src": "/assets/icons/events/secret_training_ground.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:bridge_worker_plea",
+    "id": "bridge_worker_plea",
+    "emoji": "🌉",
+    "label": "bridge worker plea",
+    "src": "/assets/icons/events/bridge_worker_plea.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "combat"
+  },
+  {
+    "key": "event:mist_ambush_cache",
+    "id": "mist_ambush_cache",
+    "emoji": "🌫️",
+    "label": "mist ambush cache",
+    "src": "/assets/icons/events/mist_ambush_cache.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:tazuna_request",
+    "id": "tazuna_request",
+    "emoji": "👷",
+    "label": "tazuna request",
+    "src": "/assets/icons/events/tazuna_request.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:forest_death_trap",
+    "id": "forest_death_trap",
+    "emoji": "🌲",
+    "label": "forest death trap",
+    "src": "/assets/icons/events/forest_death_trap.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "danger"
+  },
+  {
+    "key": "event:rival_team_encounter",
+    "id": "rival_team_encounter",
+    "emoji": "⚔️",
+    "label": "rival team encounter",
+    "src": "/assets/icons/events/rival_team_encounter.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "combat"
+  },
+  {
+    "key": "event:giant_serpent_nest",
+    "id": "giant_serpent_nest",
+    "emoji": "☠️",
+    "label": "giant serpent nest",
+    "src": "/assets/icons/events/giant_serpent_nest.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "danger"
+  },
+  {
+    "key": "event:scroll_merchant",
+    "id": "scroll_merchant",
+    "emoji": "💎",
+    "label": "scroll merchant",
+    "src": "/assets/icons/events/scroll_merchant.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:sound_four_ritual",
+    "id": "sound_four_ritual",
+    "emoji": " Crowley",
+    "label": "sound four ritual",
+    "src": "/assets/icons/events/sound_four_ritual.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "danger"
+  },
+  {
+    "key": "event:curse_mark_amplifier",
+    "id": "curse_mark_amplifier",
+    "emoji": "☠️",
+    "label": "curse mark amplifier",
+    "src": "/assets/icons/events/curse_mark_amplifier.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "danger"
+  },
+  {
+    "key": "event:valley_vision",
+    "id": "valley_vision",
+    "emoji": "📖",
+    "label": "valley vision",
+    "src": "/assets/icons/events/valley_vision.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:orochimaru_experiment",
+    "id": "orochimaru_experiment",
+    "emoji": "🐍",
+    "label": "orochimaru experiment",
+    "src": "/assets/icons/events/orochimaru_experiment.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "danger"
+  },
+  {
+    "key": "event:orochimaru_experiment_result",
+    "id": "orochimaru_experiment_result",
+    "emoji": "📖",
+    "label": "orochimaru experiment result",
+    "src": "/assets/icons/events/orochimaru_experiment_result.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:white_zetsu_paranoia",
+    "id": "white_zetsu_paranoia",
+    "emoji": "☠️",
+    "label": "white zetsu paranoia",
+    "src": "/assets/icons/events/white_zetsu_paranoia.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "danger"
+  },
+  {
+    "key": "event:bijuu_chakra_fragment",
+    "id": "bijuu_chakra_fragment",
+    "emoji": "🦊",
+    "label": "bijuu chakra fragment",
+    "src": "/assets/icons/events/bijuu_chakra_fragment.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:reanimated_envoy",
+    "id": "reanimated_envoy",
+    "emoji": "💀",
+    "label": "reanimated envoy",
+    "src": "/assets/icons/events/reanimated_envoy.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:reanimated_envoy_fate",
+    "id": "reanimated_envoy_fate",
+    "emoji": "⚔️",
+    "label": "reanimated envoy fate",
+    "src": "/assets/icons/events/reanimated_envoy_fate.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "combat"
+  },
+  {
+    "key": "event:envoy_gratitude_repaid",
+    "id": "envoy_gratitude_repaid",
+    "emoji": "💎",
+    "label": "envoy gratitude repaid",
+    "src": "/assets/icons/events/envoy_gratitude_repaid.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:scavengers_field",
+    "id": "scavengers_field",
+    "emoji": "⚔️",
+    "label": "scavengers field",
+    "src": "/assets/icons/events/scavengers_field.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "combat"
+  },
+  {
+    "key": "event:abandoned_supply_cache",
+    "id": "abandoned_supply_cache",
+    "emoji": "💎",
+    "label": "abandoned supply cache",
+    "src": "/assets/icons/events/abandoned_supply_cache.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:ancient_treasure_map",
+    "id": "ancient_treasure_map",
+    "emoji": "💎",
+    "label": "ancient treasure map",
+    "src": "/assets/icons/events/ancient_treasure_map.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:traveling_merchant_caravan",
+    "id": "traveling_merchant_caravan",
+    "emoji": "💎",
+    "label": "traveling merchant caravan",
+    "src": "/assets/icons/events/traveling_merchant_caravan.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:hidden_shrine_blessing",
+    "id": "hidden_shrine_blessing",
+    "emoji": "⛩️",
+    "label": "hidden shrine blessing",
+    "src": "/assets/icons/events/hidden_shrine_blessing.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "reward"
+  },
+  {
+    "key": "event:intelligence_network",
+    "id": "intelligence_network",
+    "emoji": "📡",
+    "label": "intelligence network",
+    "src": "/assets/icons/events/intelligence_network.svg",
+    "quality": "svg-tile",
+    "kind": "event",
+    "category": "story"
+  }
+]

@@ -32,11 +32,12 @@
   flex-direction: column;
   width: min(360px, 100vw);
   max-width: 100%;
-  background: var(--sw-bg-secondary, #12121a);
-  border-left: 4px solid var(--sw-hard, #0a0a0f);
-  box-shadow: -6px 0 0 0 var(--sw-hard, #0a0a0f);
+  background: var(--sw-abyss-deep, #0a0c10);
+  border-left: 3px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  box-shadow: -6px 0 0 0 var(--sw-hard, #04060d);
   pointer-events: auto;
   font-family: var(--sw-font-display, Silkscreen, monospace);
+  color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .explore-overlay__panel--sheet {
@@ -48,15 +49,15 @@
   align-items: center;
   gap: var(--sw-space-2);
   padding: var(--sw-space-3);
-  border-bottom: 3px solid var(--sw-hard, #0a0a0f);
-  background: #1a1528;
+  border-bottom: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.55));
+  background: var(--sw-abyss, #050608);
   flex-shrink: 0;
 }
 
 .explore-overlay__title {
   margin: 0;
   font-size: var(--sw-text-sm, 0.85rem);
-  color: var(--sw-text-primary, #f0e8d8);
+  color: var(--sw-bone, #e8e4d9);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   flex: 1;
@@ -93,7 +94,7 @@
   background: #1a1018;
   border: 3px solid var(--sw-hard, #0a0a0f);
   box-shadow: 2px 2px 0 0 var(--sw-hard, #0a0a0f);
-  color: #f0e8d8;
+  color: var(--sw-bone, #e8e4d9);
   cursor: pointer;
 }
 

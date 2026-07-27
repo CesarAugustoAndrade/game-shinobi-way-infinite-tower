@@ -19,6 +19,12 @@ interface EliteChallengeProps {
   customDescription?: string;
   /** Biome background image — fills the scene like CinematicViewscreen. */
   background?: string;
+  /**
+   * T-111: room combat condition labels (Ambush, Sanctuary, …)
+   * already applied when fight starts (T-108).
+   */
+  roomConditionNames?: string[] | null;
+  roomConditionHints?: string[] | null;
 }
 
 // Helper for rarity class
@@ -48,8 +54,15 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
   customTitle,
   customDescription,
   background,
+  roomConditionNames = null,
+  roomConditionHints = null,
 }) => {
   const escapeInfo = getEscapeChanceDescription(playerStats);
+  const conditionNames = (roomConditionNames ?? []).filter(Boolean);
+  const conditionHint =
+    roomConditionHints && roomConditionHints.length > 0
+      ? roomConditionHints.join(' · ')
+      : undefined;
   const enemyStats = getEnemyFullStats(enemy);
   // T-036: Imagine registry art (enemy portrait + artifact tile)
   const enemyArt = getEnemyArt({
@@ -65,6 +78,8 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
 
   // Keyboard shortcuts: F for Fight, E for Escape
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Hold re-fires; parent eliteResolveLockRef is belt — still skip repeat noise
+    if (e.repeat) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
     if (e.key.toLowerCase() === 'f') {
@@ -101,6 +116,22 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
       <p className="elite-challenge__subtitle">
         {customDescription || 'A powerful guardian stands between you and a rare artifact. Will you fight or flee?'}
       </p>
+
+      {/* T-111: room fight condition before Accept (parity with approach strip) */}
+      {conditionNames.length > 0 && (
+        <div
+          className="elite-challenge__conditions"
+          title={conditionHint}
+          aria-label={`Room fight conditions: ${conditionNames.join(', ')}`}
+        >
+          <span className="elite-challenge__conditions-label">Room</span>
+          {conditionNames.map((name) => (
+            <span key={name} className="elite-challenge__condition-chip">
+              {name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Keyboard Hints */}
       <div className="elite-challenge__hints">
@@ -191,10 +222,10 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
             <Swords size={20} className="elite-challenge__choice-icon--fight" />
             <div className="elite-challenge__choice-text">
               <div className="elite-challenge__choice-title--fight">
-                Challenge Guardian
+                Fight <span className="sw-shortcut">F</span>
               </div>
               <div className="elite-challenge__choice-desc">
-                Face the guardian in combat. Victory: Claim the artifact.
+                Battle the guardian. Win the artifact; lose and you still walk away empty-handed if you die.
               </div>
             </div>
           </div>
@@ -212,7 +243,7 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
               <div className="elite-challenge__choice-text elite-challenge__choice-text--flex">
                 <div className="elite-challenge__escape-header">
                   <span className="elite-challenge__choice-title--escape">
-                    Attempt Escape
+                    Escape <span className="sw-shortcut">E</span>
                   </span>
                   <span className={`elite-challenge__escape-chance ${getEscapeChanceClass(escapeInfo.chance)}`}>
                     {escapeInfo.chance}%

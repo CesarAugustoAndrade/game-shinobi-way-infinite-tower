@@ -257,8 +257,54 @@ export const getStoryArcByName = (arcName: string): StoryArc => {
  * @returns Fully generated Enemy ready for combat
  */
 /** Humanize location enemyPool ids (snake_case) into display names. Exported for tests. */
+/** R1 Waves: readable foe names (pool ids are mechanical). */
+const POOL_DISPLAY_NAMES: Record<string, string> = {
+  dock_worker: 'Dock Worker',
+  corrupt_guard: "Gato's Enforcer",
+  smuggler: 'Harbor Smuggler',
+  beach_bandit: 'Shore Bandit',
+  sea_spirit: 'Mist Spirit',
+  stranded_ronin: 'Stranded Ronin',
+  forest_bandit: 'Woods Bandit',
+  wild_boar: 'Wild Boar',
+  missing_nin: 'Missing-nin',
+  cave_smuggler: 'Cave Runner',
+  trap_master: 'Trap Setter',
+  guard_dog: 'War Hound',
+  village_thug: 'Village Extortionist',
+  corrupt_merchant: 'Crooked Merchant',
+  hired_muscle: 'Hired Muscle',
+  river_bandit: 'River Raider',
+  camp_raider: 'Camp Raider',
+  desperate_traveler: 'Desperate Traveler',
+  drowned_sailor: 'Drowned Sailor',
+  water_spirit: 'Tide Wraith',
+  treasure_guardian: 'Treasure Guardian',
+  bridge_saboteur: 'Bridge Saboteur',
+  hired_assassin: 'Hired Assassin',
+  corrupt_foreman: 'Corrupt Foreman',
+  bandit_captain: 'Bandit Captain',
+  elite_mercenary: 'Elite Mercenary',
+  war_dog: 'War Hound',
+  vengeful_ghost: 'Vengeful Ghost',
+  manor_guardian: 'Manor Warden',
+  cursed_servant: 'Cursed Servant',
+  cove_smuggler: 'Cove Smuggler',
+  sea_creature: 'Deep Thing',
+  hidden_guard: 'Hidden Guard',
+  shrine_demon: 'Shrine Demon',
+  corrupted_priest: 'Corrupted Priest',
+  eldritch_guardian: 'Eldritch Warden',
+  elite_guard: 'Compound Guard',
+  ronin: 'Ronin',
+  assassin: 'Mist Assassin',
+  gato: 'Gato',
+};
+
 export function humanizeEnemyPoolId(id: string): string {
-  const cleaned = id.trim().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  const key = id.trim().toLowerCase();
+  if (POOL_DISPLAY_NAMES[key]) return POOL_DISPLAY_NAMES[key];
+  const cleaned = key.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
   if (!cleaned) return 'Rogue';
   return cleaned
     .split(' ')
@@ -333,6 +379,13 @@ export const generateEnemy = (
       cloneSkill(supportSkill),
       cloneSkill(bossData.skill),
     ];
+    if (bossData.name.includes('Zabuza')) {
+      bossSkills.push(cloneSkill(SKILLS.DEMON_SLASH));
+    }
+    if (bossData.name.includes('Gato')) {
+      // Tycoon climax: raw hired-muscle pressure + signature slash
+      bossSkills.push(cloneSkill(SKILLS.STRONG_FIST));
+    }
     // Avoid duplicate skill ids if signature equals support
     const uniqueBossSkills = bossSkills.filter(
       (s, i, arr) => arr.findIndex(x => x.id === s.id) === i

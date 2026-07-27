@@ -320,6 +320,181 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "quality": "imagine-jpg",
     "kind": "event",
     "category": "story"
+  },
+  // Land of Waves story plates (Grok swarm Imagine 16:9)
+  {
+    "key": "event:meet_tazuna",
+    "id": "meet_tazuna",
+    "emoji": "🌫️",
+    "label": "meet tazuna",
+    "src": "/assets/event_meet_tazuna.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:tazuna_road_mist",
+    "id": "tazuna_road_mist",
+    "emoji": "🌫️",
+    "label": "tazuna road mist",
+    // Same fog-corridor beat as meet_tazuna (reuse plate — no new art)
+    "src": "/assets/event_meet_tazuna.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:protect_village",
+    "id": "protect_village",
+    "emoji": "🏘️",
+    "label": "protect village",
+    "src": "/assets/event_protect_village.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:meet_inari",
+    "id": "meet_inari",
+    "emoji": "🧒",
+    "label": "meet inari",
+    "src": "/assets/event_meet_inari.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:protect_bridge",
+    "id": "protect_bridge",
+    "emoji": "🌉",
+    "label": "protect bridge",
+    "src": "/assets/event_protect_bridge.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "combat"
+  },
+  {
+    "key": "event:final_showdown_setup",
+    "id": "final_showdown_setup",
+    "emoji": "⚔️",
+    "label": "final showdown setup",
+    "src": "/assets/event_final_showdown_setup.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:final_confrontation",
+    "id": "final_confrontation",
+    "emoji": "🏯",
+    "label": "final confrontation",
+    "src": "/assets/event_final_confrontation.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:gato_defeat",
+    "id": "gato_defeat",
+    "emoji": "💰",
+    "label": "gato defeat",
+    "src": "/assets/event_gato_defeat.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  // A5 WAVE2 residual R1 sides — reuse existing plates (no new image_gen)
+  {
+    "key": "event:docks_collector_ledger",
+    "id": "docks_collector_ledger",
+    "emoji": "📒",
+    "label": "collector ledger",
+    "src": "/assets/event_docks_collector_ledger.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:mist_omen_tide",
+    "id": "mist_omen_tide",
+    "emoji": "🌫️",
+    "label": "mist omen tide",
+    "src": "/assets/event_mist_omen_tide.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "danger"
+  },
+  {
+    "key": "event:shipwreck_whisper",
+    "id": "shipwreck_whisper",
+    "emoji": "🚢",
+    "label": "shipwreck whisper",
+    "src": "/assets/event_shipwreck_whisper.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "danger"
+  },
+  {
+    "key": "event:manor_haunt_debt",
+    "id": "manor_haunt_debt",
+    "emoji": "🏚️",
+    "label": "manor haunt debt",
+    "src": "/assets/event_manor_haunt_debt.png",
+    "quality": "painted-png",
+    "kind": "event",
+    "category": "story"
+  },
+  // A5 WAVE3 residual R1 sides — reuse existing plates (no new image_gen)
+  {
+    "key": "event:corrupt_merchant_scales",
+    "id": "corrupt_merchant_scales",
+    "emoji": "⚖️",
+    "label": "false scales",
+    "src": "/assets/icons/events/traveling_merchant_caravan.jpg",
+    "quality": "imagine-jpg",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:riverside_traveler_pact",
+    "id": "riverside_traveler_pact",
+    "emoji": "🔥",
+    "label": "ashfire pact",
+    "src": "/assets/icons/events/intelligence_network.jpg",
+    "quality": "imagine-jpg",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:bandit_outpost_toll",
+    "id": "bandit_outpost_toll",
+    "emoji": "⚔️",
+    "label": "toll of stakes",
+    "src": "/assets/icons/events/mist_ambush_cache.jpg",
+    "quality": "imagine-jpg",
+    "kind": "event",
+    "category": "danger"
+  },
+  // A5 WAVE4 residual R1 secrets — reuse existing plates (no new image_gen)
+  {
+    "key": "event:hidden_cove_silent_drop",
+    "id": "hidden_cove_silent_drop",
+    "emoji": "🛥️",
+    "label": "silent drop",
+    "src": "/assets/icons/events/intelligence_network.jpg",
+    "quality": "imagine-jpg",
+    "kind": "event",
+    "category": "story"
+  },
+  {
+    "key": "event:drowned_shrine_black_tide",
+    "id": "drowned_shrine_black_tide",
+    "emoji": "🏛️",
+    "label": "black tide vow",
+    "src": "/assets/icons/events/hidden_shrine_blessing.jpg",
+    "quality": "imagine-jpg",
+    "kind": "event",
+    "category": "danger"
   }
 ];
 
@@ -327,6 +502,24 @@ export const EVENT_CATEGORY_BY_ID: Record<string, string> = {
   "bridge_worker_plea": "combat",
   "mist_ambush_cache": "reward",
   "tazuna_request": "story",
+  "meet_tazuna": "story",
+  "tazuna_road_mist": "story",
+  "protect_village": "story",
+  "meet_inari": "story",
+  "protect_bridge": "combat",
+  "final_showdown_setup": "story",
+  "final_confrontation": "story",
+  "gato_defeat": "story",
+  "docks_collector_ledger": "story",
+  "mist_omen_tide": "danger",
+  "shipwreck_whisper": "danger",
+  "manor_haunt_debt": "story",
+  "corrupt_merchant_scales": "story",
+  "riverside_traveler_pact": "story",
+  "bandit_outpost_toll": "danger",
+  "hidden_cove_silent_drop": "story",
+  "drowned_shrine_black_tide": "danger",
+
   "forest_death_trap": "danger",
   "rival_team_encounter": "combat",
   "giant_serpent_nest": "danger",

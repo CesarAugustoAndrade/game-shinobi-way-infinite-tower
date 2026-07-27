@@ -57,8 +57,20 @@ const hexColorToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+export interface FloatingTextOptions {
+  /** Damage channel for float color (Physical / Elemental / Mental / True). */
+  damageType?: string;
+  /** Element glow for themed hits. */
+  element?: string;
+}
+
 export interface CombatRef {
-  spawnFloatingText: (target: 'enemy' | 'player', text: string, type: FloatingTextType) => void;
+  spawnFloatingText: (
+    target: 'enemy' | 'player',
+    text: string,
+    type: FloatingTextType,
+    options?: FloatingTextOptions,
+  ) => void;
 }
 
 interface CombatProps {
@@ -92,10 +104,20 @@ interface CombatProps {
   autoPassTimeRemaining?: number | null;
   /**
    * Full path to the biome background image for the stage (Lámina 1).
-   * (e.g. /assets/location_misty_covered_bridge.png).
-   * Computed in App.tsx from the current location's biome slug.
+   * (e.g. /assets/location_mist_covered_bridge.png).
+   * Computed in App.tsx via resolveLaminaPaths(biome).
    */
   background?: string;
+  /**
+   * Optional Lámina 2 middleground — `/assets/lamina_mid_<biomeSlug>.png`.
+   * Passed from App; CinematicViewscreen hides the layer if the asset is missing.
+   */
+  midgroundImage?: string;
+  /**
+   * Optional Lámina 3 foreground — `/assets/lamina_fg_<biomeSlug>.png`.
+   * Passed from App; CinematicViewscreen hides the layer if the asset is missing.
+   */
+  foregroundImage?: string;
   /** Recent combat log lines for the mini combat log overlay. */
   logs?: LogEntry[];
   /** T-054: approach used to open this fight (optional). */
@@ -134,6 +156,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   onToggleAutoCombat,
   autoPassTimeRemaining,
   background,
+  midgroundImage,
+  foregroundImage,
   logs = [],
   approachResult = null,
   locationTerrainLines = null,
@@ -182,7 +206,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   const spawnFloatingText = useCallback((
     target: 'enemy' | 'player',
     text: string,
-    type: FloatingTextType
+    type: FloatingTextType,
+    options?: FloatingTextOptions,
   ) => {
     const targetRef = target === 'enemy' ? enemyRef : playerHudRef;
     const rect = targetRef.current?.getBoundingClientRect();
@@ -192,7 +217,17 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     const x = rect.left + rect.width / 2 + (Math.random() - 0.5) * 60;
     const y = rect.top + rect.height * (target === 'enemy' ? 0.4 : 0.3);
 
-    setFloatingTexts(prev => [...prev, { id, text, type, position: { x, y } }]);
+    setFloatingTexts((prev) => [
+      ...prev,
+      {
+        id,
+        text,
+        type,
+        position: { x, y },
+        damageType: options?.damageType,
+        element: options?.element,
+      },
+    ]);
 
     // Cheap hit juice: brief flash on the enemy sprite for damage/crit
     if (target === 'enemy' && (type === 'damage' || type === 'crit')) {
@@ -224,6 +259,10 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     .map((card) => player.skills.find((s) => s.id === card.id) ?? card)
     .slice(0, HAND_SHORTCUTS.length);
 
+  // Helper to check if player is stunned / silenced (TASK-R12 + WAVE12 feedback)
+  const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
+  const isSilencedStatus = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
+
   // Helper to check if a card can be played this turn (resources + AP + state).
   // FREE_FIRST_SKILL: effective chakra cost is 0 while skipFirstSkillCost is set.
   const canUseSkill = useCallback((skill: Skill): boolean => {
@@ -231,14 +270,53 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     const hasResources =
       player.currentChakra >= effectiveChakraCost && player.currentHp > skill.hpCost;
     const noCooldown = skill.currentCooldown === 0;
-    const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
+    const isPlayerStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
     const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
     // Silence blocks chakra-cost skills; allow free taijutsu and toggle deactivation
     const silencedBlocked = isSilenced && skill.chakraCost > 0 && !skill.isActive;
     const hasAp = currentAp >= getApCost(skill);
 
-    return Boolean((hasResources || skill.isActive) && noCooldown && !isStunned && !silencedBlocked && hasAp);
+    return Boolean((hasResources || skill.isActive) && noCooldown && !isPlayerStunned && !silencedBlocked && hasAp);
   }, [player, currentAp, skipFirstSkillCost]);
+
+  /** R1 Confuso: explain greyed hand cards (AP / chakra / silence / stun). */
+  const getSkillBlockReason = useCallback((skill: Skill): string | null => {
+    if (canUseSkill(skill)) return null;
+    if (player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN)) {
+      return 'Stunned — end turn';
+    }
+    if (
+      player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE) &&
+      skill.chakraCost > 0 &&
+      !skill.isActive
+    ) {
+      return 'Silenced — chakra jutsu blocked';
+    }
+    if (skill.currentCooldown > 0) {
+      return `On cooldown (${skill.currentCooldown})`;
+    }
+    const ap = getApCost(skill);
+    if (currentAp < ap) {
+      return `Need ${ap} AP (have ${currentAp})`;
+    }
+    const chakraCost = skipFirstSkillCost ? 0 : skill.chakraCost;
+    if (player.currentChakra < chakraCost) {
+      return `Need ${chakraCost} chakra`;
+    }
+    if (skill.hpCost > 0 && player.currentHp <= skill.hpCost) {
+      return `Need more HP (costs ${skill.hpCost})`;
+    }
+    return 'Cannot play this card';
+  }, [canUseSkill, player, currentAp, skipFirstSkillCost]);
+
+  /** Hand empty on player turn — surface End Turn so the player is never stuck. */
+  const handEmptyNeedsPass = turnState === 'PLAYER' && handCards.length === 0;
+  /** Every drawn card is unplayable (silence/AP/chakra) while the player can still pass. */
+  const allCardsBlocked =
+    turnState === 'PLAYER' &&
+    handCards.length > 0 &&
+    handCards.every((s) => !canUseSkill(s));
+  const needsPassHighlight = handEmptyNeedsPass || allCardsBlocked || isStunned;
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -300,12 +378,17 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   const elementIcon = ELEMENT_ICONS[enemy.element] ?? '◈';
 
   // ── Cutout + chakra aura (T-013) ─────────────────────────────────────────
-  // Derive the transparent cutout sprite path from the portrait path.
-  // Convention: /assets/enemy_<id>.png  →  /assets/enemy_cut_<id>.png
+  // Generic rewrite for any pool/boss/A3 asset: enemy_<id> → enemy_cut_<id>.
+  // Works for shared plates too (beach_bandit→dock_worker, stranded_ronin→
+  // samurai) because rewrite uses the resolved image path, not the pool id.
+  // Skip if already a cutout path (avoid enemy_cut_cut_*). Non-/assets/enemy_
+  // portraits (e.g. /assets/icons/enemies/*) leave cutout undefined.
   // onError in CinematicViewscreen falls back to the portrait with mask.
-  const enemyCutout = enemy.image?.startsWith('/assets/enemy_')
-    ? enemy.image.replace('/assets/enemy_', '/assets/enemy_cut_')
-    : undefined;
+  const enemyCutout =
+    enemy.image?.startsWith('/assets/enemy_') &&
+    !enemy.image.startsWith('/assets/enemy_cut_')
+      ? enemy.image.replace(/^\/assets\/enemy_/, '/assets/enemy_cut_')
+      : undefined;
 
   // Chakra aura: elemental glow color at 65% opacity for the drop-shadow.
   const chakraAuraColor = hexColorToRgba(elementColor, 0.65);
@@ -318,10 +401,12 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     <div className="combat__ip">
       {/* Row 1: icon + name + level badge */}
       <div className="combat__ip-name-row">
-        <span className="combat__ip-target-icon" aria-hidden="true">◎</span>
+        <span className="combat__ip-target-icon" aria-hidden="true">T</span>
         <h2 className="combat__ip-name">{enemy.name}</h2>
         {enemy.dangerLevel != null && (
-          <span className="combat__ip-level-badge">Lv. {enemy.dangerLevel}</span>
+          <span className="combat__ip-level-badge" title="Location danger scale (1–7)">
+            Danger {enemy.dangerLevel}
+          </span>
         )}
       </div>
 
@@ -399,21 +484,21 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       >
         <div className="combat__ip-stats-row" role="button" aria-label="View enemy stats detail">
           <div className="combat__ip-stat combat__ip-stat--phys">
-            <span className="combat__ip-stat-icon" aria-hidden="true">⚔</span>
+            <span className="combat__ip-stat-icon" aria-hidden="true">P</span>
             <div className="combat__ip-stat-body">
               <span className="combat__ip-stat-label">PHYS</span>
               <span className="combat__ip-stat-value">{enemyStats.derived.physicalDefenseFlat}<span className="combat__ip-stat-pct">+{Math.round(enemyStats.derived.physicalDefensePercent * 100)}%</span></span>
             </div>
           </div>
           <div className="combat__ip-stat combat__ip-stat--elem">
-            <span className="combat__ip-stat-icon" aria-hidden="true">✦</span>
+            <span className="combat__ip-stat-icon" aria-hidden="true">E</span>
             <div className="combat__ip-stat-body">
               <span className="combat__ip-stat-label">ELEM</span>
               <span className="combat__ip-stat-value">{enemyStats.derived.elementalDefenseFlat}<span className="combat__ip-stat-pct">+{Math.round(enemyStats.derived.elementalDefensePercent * 100)}%</span></span>
             </div>
           </div>
           <div className="combat__ip-stat combat__ip-stat--mnd">
-            <span className="combat__ip-stat-icon" aria-hidden="true">◎</span>
+            <span className="combat__ip-stat-icon" aria-hidden="true">M</span>
             <div className="combat__ip-stat-body">
               <span className="combat__ip-stat-label">MND</span>
               <span className="combat__ip-stat-value">{enemyStats.derived.mentalDefenseFlat}<span className="combat__ip-stat-pct">+{Math.round(enemyStats.derived.mentalDefensePercent * 100)}%</span></span>
@@ -422,18 +507,18 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         </div>
       </Tooltip>
 
-      {/* Row 4: STATUS EFFECTS + INFO */}
+      {/* Row 4: SEALS (status) + INFO — shinobi readable, not debug slots */}
       <div className="combat__ip-mid-row">
-        {/* Status effects: 4 slots */}
+        {/* Status seals: 4 slots */}
         <div className="combat__ip-status">
-          <span className="combat__ip-section-label">STATUSEFFECTS</span>
+          <span className="combat__ip-section-label">Seals</span>
           <div className="combat__ip-status-slots">
             {Array.from({ length: 4 }).map((_, i) => {
               const buff = activeEffects[i];
               if (!buff) {
                 return (
-                  <div key={i} className="combat__ip-slot combat__ip-slot--empty" aria-label="Empty status slot">
-                    <span className="combat__ip-slot-plus" aria-hidden="true">+</span>
+                  <div key={i} className="combat__ip-slot combat__ip-slot--empty" aria-label="Empty seal slot">
+                    <span className="combat__ip-slot-mark" aria-hidden="true" />
                   </div>
                 );
               }
@@ -441,6 +526,10 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
               const severity = getEffectSeverity(buff);
               const mechanics = getDetailedEffectMechanics(buff);
               const tip = buff.effect ? getEffectTip(buff.effect.type) : '';
+              const durationLabel =
+                buff.duration === -1
+                  ? 'lingers'
+                  : `${buff.duration} turn${buff.duration !== 1 ? 's' : ''}`;
               return (
                 <Tooltip
                   key={buff.id}
@@ -455,7 +544,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
                             {buff.name}
                           </div>
                           <div className="combat-tooltip__buff-type">
-                            {isPositive ? 'Enemy Buff' : 'Your Debuff on Enemy'}
+                            {isPositive ? 'Foe blessing' : 'Ailment on foe'}
                           </div>
                         </div>
                       </div>
@@ -463,11 +552,11 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
                         <div className="combat-tooltip__buff-desc">{getBuffDescription(buff)}</div>
                       </div>
                       <div className="combat-tooltip__section">
-                        <div className="combat-tooltip__section-title">Mechanics</div>
+                        <div className="combat-tooltip__section-title">What it does</div>
                         <div className="combat-tooltip__mechanics-list">
                           {mechanics.map((mechanic, mi) => (
                             <div key={mi} className="combat-tooltip__mechanic">
-                              <span className="combat-tooltip__mechanic-bullet">-</span>
+                              <span className="combat-tooltip__mechanic-bullet">–</span>
                               <span>{mechanic}</span>
                             </div>
                           ))}
@@ -475,32 +564,34 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
                       </div>
                       <div className="combat-tooltip__section combat-tooltip__source-row">
                         <div>
-                          <span className="combat-tooltip__source-label">Source: </span>
-                          <span className="combat-tooltip__source-value">{buff.source || 'Unknown'}</span>
+                          <span className="combat-tooltip__source-label">From </span>
+                          <span className="combat-tooltip__source-value">{buff.source || 'the field'}</span>
                         </div>
                         <div>
-                          <span className="combat-tooltip__duration-label">Remaining: </span>
-                          <span className={buff.duration <= 1 ? 'combat-tooltip__duration-value--expiring' : 'combat-tooltip__duration-value'}>
-                            {buff.duration === -1 ? 'Permanent' : `${buff.duration} turn${buff.duration !== 1 ? 's' : ''}`}
+                          <span className="combat-tooltip__duration-label">Left </span>
+                          <span className={buff.duration <= 1 && buff.duration !== -1 ? 'combat-tooltip__duration-value--expiring' : 'combat-tooltip__duration-value'}>
+                            {durationLabel}
                           </span>
                         </div>
                       </div>
                       {tip && (
                         <div className="combat-tooltip__section">
-                          <div className="combat-tooltip__tip">Tip: {tip}</div>
+                          <div className="combat-tooltip__tip">{tip}</div>
                         </div>
                       )}
                     </div>
                   }
                 >
                   <div
-                    className={`combat__ip-slot ${isPositive ? 'combat__ip-slot--positive' : 'combat__ip-slot--negative'}`}
-                    aria-label={`${buff.name} (${buff.duration} turns)`}
+                    className={`combat__ip-slot ${isPositive ? 'combat__ip-slot--positive' : 'combat__ip-slot--negative'}${buff.duration <= 1 && buff.duration !== -1 ? ' combat__ip-slot--expiring' : ''}`}
+                    aria-label={`${buff.name} (${durationLabel})`}
                   >
                     <span className="combat__ip-slot-icon">
                       {buff.effect ? getEffectIcon(buff.effect.type) : '?'}
                     </span>
-                    <span className="combat__ip-slot-duration">{buff.duration}</span>
+                    <span className="combat__ip-slot-duration">
+                      {buff.duration === -1 ? '∞' : `${buff.duration}t`}
+                    </span>
                   </div>
                 </Tooltip>
               );
@@ -510,7 +601,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
 
         {/* Enemy info / archetype description */}
         <div className="combat__ip-info">
-          <span className="combat__ip-section-label">INFO</span>
+          <span className="combat__ip-section-label">Read</span>
           <p className="combat__ip-info-text">
             {archetypeDesc || `${enemy.tier} threat.`}
           </p>
@@ -534,6 +625,19 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           showValue={false}
         />
       </div>
+
+      {/* Row 6: A-003 telegraph — next enemy skill (legible risk before you play) */}
+      {enemy.intendedSkillName && (
+        <div
+          className="combat__ip-telegraph"
+          role="status"
+          aria-live="polite"
+          title={enemy.intentReason ? `AI: ${enemy.intentReason}` : 'Enemy next action'}
+        >
+          <span className="combat__ip-telegraph-label">Next</span>
+          <span className="combat__ip-telegraph-skill">{enemy.intendedSkillName}</span>
+        </div>
+      )}
     </div>
   );
 
@@ -608,6 +712,56 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           <p className="combat-open-banner__hint">Tap to dismiss · auto-hides</p>
         </div>
       )}
+
+      {/* TASK-R12: Stunned player turn banner & explicit action button */}
+      {isStunned && turnState === 'PLAYER' && (
+        <div className="combat-stunned-banner" role="alert">
+          <div className="combat-stunned-banner__content">
+            <span className="combat-stunned-banner__title">⚡ STUNNED!</span>
+            <span className="combat-stunned-banner__desc">You are incapacitated this turn and cannot play cards.</span>
+          </div>
+          <button
+            type="button"
+            onClick={onPassTurn}
+            className="combat-stunned-banner__action-btn"
+          >
+            <Hourglass size={16} />
+            <span>STUNNED - PASS TURN</span>
+          </button>
+        </div>
+      )}
+
+      {/* WAVE12: Silence feedback — free taijutsu still playable; chakra jutsu blocked */}
+      {!isStunned && isSilencedStatus && turnState === 'PLAYER' && (
+        <div className="combat-silence-banner" role="status">
+          <div className="combat-silence-banner__content">
+            <span className="combat-silence-banner__title">🔇 SILENCED</span>
+            <span className="combat-silence-banner__desc">
+              Chakra jutsu blocked. Free taijutsu still playable — or end turn (Space).
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* WAVE12: Empty hand / no playable cards — explicit pass CTA (anti soft-lock) */}
+      {!isStunned && turnState === 'PLAYER' && (handEmptyNeedsPass || allCardsBlocked) && (
+        <div className="combat-pass-nudge" role="status">
+          <span className="combat-pass-nudge__text">
+            {handEmptyNeedsPass
+              ? 'No cards left — end your turn (Space).'
+              : 'No playable cards — end your turn (Space).'}
+          </span>
+          <button
+            type="button"
+            onClick={onPassTurn}
+            className="combat-pass-nudge__btn"
+          >
+            <Hourglass size={14} />
+            <span>End Turn</span>
+          </button>
+        </div>
+      )}
+
       {/* ROW 1 (1fr): Stage — cinematic viewscreen with floating info panel */}
       <div className="combat__stage" ref={enemyRef}>
         <CinematicViewscreen
@@ -621,9 +775,12 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           }
           enemyCutout={enemyCutout}
           backgroundImage={background}
+          midgroundImage={midgroundImage}
+          foregroundImage={foregroundImage}
           chakraAuraColor={chakraAuraColor}
           floatingPanel={floatingPanel}
           hitFlash={hitFlash}
+          intentLabel={enemy.intendedSkillName}
         />
         {/* Mini combat log (recent lines + aria-live) — bottom-left of stage */}
         {logs.length > 0 && (
@@ -695,7 +852,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
 
             {/* Keyboard whisper — cards already carry their Z/X/C/V badges */}
             <span className="combat__whisper" aria-hidden="true">
-              SPACE end · TAB auto-end
+              SPACE end turn · TAB auto-end (pass only)
             </span>
 
             {/* Auto-end turn toggle — countdown + pass (does NOT auto-play skills) */}
@@ -715,16 +872,28 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
               )}
             </button>
 
-            {/* Pass Turn Button */}
+            {/* Pass Turn Button (TASK-R12 + WAVE12 empty/blocked hand highlight) */}
             <button
               type="button"
               onClick={onPassTurn}
               disabled={turnState === 'ENEMY_TURN'}
-              className="combat__pass-btn"
+              className={[
+                'combat__pass-btn',
+                isStunned && turnState === 'PLAYER' ? 'combat__pass-btn--stunned' : '',
+                needsPassHighlight && !isStunned ? 'combat__pass-btn--nudge' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
               <Hourglass size={14} />
               <span className="combat__pass-label">
-                {turnState === 'ENEMY_TURN' ? 'Enemy Turn' : 'End Turn'}
+                {turnState === 'ENEMY_TURN'
+                  ? 'Enemy Turn'
+                  : isStunned
+                    ? 'STUNNED - PASS TURN'
+                    : handEmptyNeedsPass || allCardsBlocked
+                      ? 'End Turn (no plays)'
+                      : 'End Turn'}
               </span>
             </button>
           </div>
@@ -740,16 +909,18 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           posture={posture}
           isPlayerTurn={turnState === 'PLAYER'}
           canUseSkill={canUseSkill}
+          getSkillBlockReason={getSkillBlockReason}
           onUseSkill={onUseSkill}
           getDamageTypeColor={getDamageTypeColor}
           isFirstTurn={isFirstTurn}
           firstHitMultiplier={firstHitMultiplier}
           locationTerrainMods={locationTerrainMods}
           roomTerrain={roomTerrain}
+          skipFirstSkillCost={skipFirstSkillCost}
         />
       </div>
 
-      {/* FLOATING TEXT OVERLAY — viewport-fixed, z-50, left as-is per T-013 plan */}
+      {/* FLOATING TEXT OVERLAY — viewport-fixed; color by damage type / status (A7b) */}
       {FeatureFlags.SHOW_FLOATING_TEXT && floatingTexts.map(ft => (
         <FloatingText
           key={ft.id}
@@ -758,6 +929,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           type={ft.type}
           position={ft.position}
           onComplete={removeFloatingText}
+          damageType={ft.damageType}
+          element={ft.element}
         />
       ))}
     </div>

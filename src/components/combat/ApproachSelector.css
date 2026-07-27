@@ -12,7 +12,7 @@
 .approach-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(5, 6, 8, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,8 +22,9 @@
 }
 
 .approach-modal__container {
-  background: var(--sw-bg-secondary);
-  border: 3px solid var(--sw-frame);
+  background: linear-gradient(180deg, var(--sw-abyss, #1a2633) 0%, var(--sw-void, #050608) 100%);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-top: 3px solid var(--sw-rust, #a65d3f);
   border-radius: var(--sw-radius-xl);
   max-width: 72rem;
   width: 100%;
@@ -31,7 +32,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--sw-pix-shadow-lg);
+  box-shadow: 6px 6px 0 var(--sw-void, #050608), 0 0 40px rgba(5, 6, 8, 0.8);
 }
 
 /* ===========================================
@@ -40,18 +41,38 @@
 
 .approach-modal__header {
   padding: var(--sw-space-3) var(--sw-space-5);
-  border-bottom: 2px solid var(--sw-frame-soft);
+  border-bottom: 1px solid var(--sw-metal, #2d3d4a);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(to bottom, var(--sw-bg-tertiary), transparent);
+  background: linear-gradient(to bottom, rgba(45, 61, 74, 0.35), transparent);
   flex-shrink: 0;
+  gap: var(--sw-space-3);
+}
+
+.approach-modal__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--sw-space-3);
+  min-width: 0;
+}
+
+.approach-modal__enemy-art {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  object-position: center top;
+  border: 2px solid var(--sw-frame-soft);
+  border-radius: var(--sw-radius-sm, 2px);
+  flex-shrink: 0;
+  background: #0a0c12;
+  box-shadow: var(--sw-pix-shadow-sm, 2px 2px 0 #000);
 }
 
 .approach-modal__title {
   font-size: clamp(1.05rem, 2vw, 1.35rem);
   font-family: var(--sw-font-serif);
-  color: var(--sw-text-primary);
+  color: var(--sw-bone, #e8e4dc);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   margin: 0;
@@ -199,9 +220,9 @@
   position: relative;
   padding: var(--sw-space-3) var(--sw-space-4);
   border-radius: var(--sw-radius-lg);
-  border: 2px solid var(--sw-frame-soft);
-  background: var(--sw-bg-tertiary);
-  box-shadow: var(--sw-pix-shadow-sm);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  background: rgba(26, 38, 51, 0.72);
+  box-shadow: 3px 3px 0 var(--sw-void, #050608);
   text-align: left;
   cursor: pointer;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
@@ -209,7 +230,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 11.5rem;
+  min-height: 12.5rem;
 }
 
 .approach-card::before {
@@ -228,8 +249,8 @@
 .approach-card--stealth::before { background: #a78bfa; }
 .approach-card--genjutsu::before { background: #c084fc; }
 .approach-card--terrain::before { background: #4ade80; }
-.approach-card--guard::before { background: #38bdf8; }
-.approach-card--bypass::before { background: #67e8f9; }
+.approach-card--guard::before { background: #64748b; }
+.approach-card--bypass::before { background: #7a8b99; }
 
 .approach-card--available:hover {
   border-color: var(--sw-frame);
@@ -249,8 +270,8 @@
 }
 
 .approach-card--selected {
-  border-color: var(--sw-room-current);
-  box-shadow: var(--sw-pix-shadow), 0 0 14px var(--sw-room-current-glow);
+  border-color: var(--sw-rust, #a65d3f);
+  box-shadow: 3px 3px 0 var(--sw-void, #050608), 0 0 14px var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
 }
 
 /* Locked: dim but still readable (not 0.5 washout) */
@@ -297,8 +318,8 @@
 .approach-card--stealth .approach-card__icon--available { color: #c4b5fd; border-color: #7c3aed; }
 .approach-card--genjutsu .approach-card__icon--available { color: #e9d5ff; border-color: #a855f7; }
 .approach-card--terrain .approach-card__icon--available { color: #86efac; border-color: #16a34a; }
-.approach-card--guard .approach-card__icon--available { color: #7dd3fc; border-color: #0284c7; }
-.approach-card--bypass .approach-card__icon--available { color: #a5f3fc; border-color: #0891b2; }
+.approach-card--guard .approach-card__icon--available { color: #94a3b8; border-color: #475569; }
+.approach-card--bypass .approach-card__icon--available { color: #a8b4c0; border-color: #5a6a78; }
 
 .approach-card__icon--disabled {
   background: var(--sw-bg-secondary);
@@ -354,10 +375,45 @@
   background: rgba(22, 163, 74, 0.15);
 }
 
-.approach-card__tag--new {
-  color: #7dd3fc;
-  border-color: rgba(56, 189, 248, 0.4);
-  background: rgba(2, 132, 199, 0.2);
+.approach-card__tag--tank {
+  color: var(--sw-bone-dim, #b8b4a8);
+  border-color: rgba(138, 145, 153, 0.4);
+  background: rgba(45, 61, 74, 0.35);
+}
+
+/* Risk ladder on card face — scan before click */
+.approach-card__tag--risk {
+  margin-left: 4px;
+}
+
+.approach-card__tag--risk-high {
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(22, 163, 74, 0.12);
+}
+
+.approach-card__tag--risk-good {
+  color: #a7f3d0;
+  border-color: rgba(52, 211, 153, 0.3);
+  background: rgba(6, 95, 70, 0.2);
+}
+
+.approach-card__tag--risk-medium {
+  color: var(--sw-rust-light, #c47a52);
+  border-color: rgba(166, 93, 63, 0.4);
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.18));
+}
+
+.approach-card__tag--risk-low {
+  color: #fdba74;
+  border-color: rgba(234, 88, 12, 0.4);
+  background: rgba(67, 20, 7, 0.35);
+}
+
+.approach-card__tag--risk-critical {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.35);
 }
 
 /* ===========================================
@@ -381,13 +437,18 @@
 }
 
 /* ===========================================
-   BENEFIT CHIPS
+   TRADE-OFF CHIPS — gain vs stake (visible pre-confirm)
    =========================================== */
 
-.approach-card__benefits {
+.approach-card__benefits,
+.approach-card__risks {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  margin-bottom: var(--sw-space-1);
+}
+
+.approach-card__risks {
   margin-bottom: var(--sw-space-2);
 }
 
@@ -403,11 +464,25 @@
   letter-spacing: 0.02em;
 }
 
-.approach-card--stealth .approach-card__chip { border-color: rgba(167, 139, 250, 0.35); color: #ddd6fe; }
-.approach-card--genjutsu .approach-card__chip { border-color: rgba(192, 132, 252, 0.35); color: #f3e8ff; }
-.approach-card--terrain .approach-card__chip { border-color: rgba(74, 222, 128, 0.35); color: #dcfce7; }
-.approach-card--guard .approach-card__chip { border-color: rgba(56, 189, 248, 0.4); color: #e0f2fe; }
-.approach-card--bypass .approach-card__chip { border-color: rgba(103, 232, 249, 0.35); color: #cffafe; }
+/* Gain chips: soft positive edge */
+.approach-card__chip--gain {
+  border-color: rgba(74, 222, 128, 0.3);
+  color: #d1fae5;
+  background: rgba(6, 40, 20, 0.45);
+}
+
+/* Failure stakes: rust heat — scannable risk before commit */
+.approach-card__chip--risk {
+  border-color: rgba(166, 93, 63, 0.45);
+  color: #f0d0bc;
+  background: rgba(40, 18, 12, 0.55);
+}
+
+.approach-card--stealth .approach-card__chip--gain { border-color: rgba(167, 139, 250, 0.35); color: #ddd6fe; background: rgba(40, 20, 70, 0.4); }
+.approach-card--genjutsu .approach-card__chip--gain { border-color: rgba(192, 132, 252, 0.35); color: #f3e8ff; background: rgba(50, 20, 70, 0.4); }
+.approach-card--terrain .approach-card__chip--gain { border-color: rgba(74, 222, 128, 0.35); color: #dcfce7; }
+.approach-card--guard .approach-card__chip--gain { border-color: rgba(148, 163, 184, 0.4); color: #e2e8f0; background: rgba(20, 28, 36, 0.5); }
+.approach-card--bypass .approach-card__chip--gain { border-color: rgba(138, 145, 153, 0.4); color: #d4d8dc; background: rgba(20, 24, 28, 0.5); }
 
 /* ===========================================
    SUCCESS BAR
@@ -442,7 +517,7 @@
 
 .success-bar__value--high { color: #4ade80; }
 .success-bar__value--good { color: #34d399; }
-.success-bar__value--medium { color: #fbbf24; }
+.success-bar__value--medium { color: var(--sw-rust-light, #c47a52); }
 .success-bar__value--low { color: #fb923c; }
 .success-bar__value--critical { color: #f87171; }
 
@@ -463,7 +538,7 @@
 
 .success-bar__fill--high { background: linear-gradient(90deg, #16a34a, #4ade80); }
 .success-bar__fill--good { background: linear-gradient(90deg, #059669, #34d399); }
-.success-bar__fill--medium { background: linear-gradient(90deg, #d97706, #fbbf24); }
+.success-bar__fill--medium { background: linear-gradient(90deg, #6b3d2a, var(--sw-rust, #a65d3f)); }
 .success-bar__fill--low { background: linear-gradient(90deg, #ea580c, #fb923c); }
 .success-bar__fill--critical { background: linear-gradient(90deg, #dc2626, #f87171); }
 
@@ -513,7 +588,7 @@
   font-size: 0.72rem;
   font-weight: 700;
   font-family: var(--sw-font-mono);
-  color: #7dd3fc;
+  color: #a5b4fc; /* chakra indigo — not neon cyan */
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -609,14 +684,14 @@
 
 /* T-104: room combat condition (Ambush, Sanctuary, …) */
 .terrain-effects__item--condition {
-  color: #fbbf24;
+  color: var(--sw-rust-light, #c47a52);
   font-weight: 700;
 }
 
 .terrain-effects__loc-note {
   font-size: 0.85em;
   opacity: 0.9;
-  color: #7dd3fc;
+  color: var(--sw-fog, #8a9199);
 }
 
 /* ===========================================
@@ -681,8 +756,8 @@
 .confirm-modal__preview-icon--stealth { color: #c4b5fd; border-color: #7c3aed; }
 .confirm-modal__preview-icon--genjutsu { color: #e9d5ff; border-color: #a855f7; }
 .confirm-modal__preview-icon--terrain { color: #86efac; border-color: #16a34a; }
-.confirm-modal__preview-icon--guard { color: #7dd3fc; border-color: #0284c7; }
-.confirm-modal__preview-icon--bypass { color: #a5f3fc; border-color: #0891b2; }
+.confirm-modal__preview-icon--guard { color: #94a3b8; border-color: #475569; }
+.confirm-modal__preview-icon--bypass { color: #a8b4c0; border-color: #5a6a78; }
 
 .confirm-modal__preview-icon svg {
   width: 1.5rem;
@@ -704,10 +779,26 @@
 }
 
 .confirm-modal__desc {
-  margin: 0 0 var(--sw-space-3);
+  margin: 0 0 var(--sw-space-2);
   font-size: 0.85rem;
   line-height: 1.45;
   color: #d4d4d8;
+}
+
+.confirm-modal__tradeoff-lead {
+  margin: 0 0 var(--sw-space-3);
+  font-size: 0.72rem;
+  font-family: var(--sw-font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sw-rust-light, #c47a52);
+}
+
+.confirm-modal__risk-inline {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--sw-fog, #8a9199);
 }
 
 .confirm-modal__effects {
@@ -756,16 +847,32 @@
   font-size: 0.8rem;
   font-weight: 700;
   font-family: var(--sw-font-mono);
-  color: #7dd3fc;
+  color: #a5b4fc;
   margin-bottom: var(--sw-space-4);
   padding: var(--sw-space-2);
-  background: rgba(2, 132, 199, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(49, 46, 129, 0.25);
+  border: 1px solid rgba(129, 140, 248, 0.35);
   border-radius: var(--sw-radius-md);
 }
 
 .confirm-modal__cost-warning--insufficient {
   color: #fca5a5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .approach-modal,
+  .confirm-modal,
+  .confirm-modal__container {
+    animation: none;
+  }
+
+  .approach-card--available:hover {
+    transform: none;
+  }
+
+  .success-bar__fill {
+    transition: none;
+  }
 }
 
 .confirm-modal__buttons {

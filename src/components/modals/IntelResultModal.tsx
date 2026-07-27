@@ -2,9 +2,10 @@
  * T-049: Feedback after Info Gathering activity (intel peak before next room).
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { getActivityArt } from '../../game/constants/artRegistry';
 import ArtIcon from '../shared/ArtIcon';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './IntelResultModal.css';
 
 export interface IntelResultData {
@@ -28,16 +29,27 @@ interface IntelResultModalProps {
 
 const IntelResultModal: React.FC<IntelResultModalProps> = ({ result, onClose }) => {
   const activityArt = getActivityArt('infoGathering');
+  const rootRef = useRef<HTMLDivElement>(null);
+  // Space hold / Enter+click same-tick double Continue → double returnToMap chain
+  const closedRef = useRef(false);
+  useFocusTrap(rootRef);
+
+  const dismiss = useCallback(() => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    onClose();
+  }, [onClose]);
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
+      if (e.repeat) return;
       if (e.code === 'Space' || e.code === 'Enter' || e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        onClose();
+        dismiss();
       }
     },
-    [onClose],
+    [dismiss],
   );
 
   useEffect(() => {
@@ -48,7 +60,13 @@ const IntelResultModal: React.FC<IntelResultModalProps> = ({ result, onClose }) 
   const afterPct = Math.min(100, result.intelAfter);
 
   return (
-    <div className="intel-result" role="dialog" aria-modal="true" aria-label="Intel gathered">
+    <div
+      ref={rootRef}
+      className="intel-result"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Intel gathered"
+    >
       <div className="intel-result__panel">
         <div className="intel-result__header">
           <ArtIcon art={activityArt} size="lg" className="intel-result__art" title="Intel Gathering" />
@@ -83,8 +101,8 @@ const IntelResultModal: React.FC<IntelResultModalProps> = ({ result, onClose }) 
             />
           </div>
         </div>
-        <button type="button" className="intel-result__continue" onClick={onClose}>
-          Continue
+        <button type="button" className="intel-result__continue" onClick={dismiss} autoFocus>
+          Continue exploring
           <span className="sw-shortcut">Enter</span>
         </button>
       </div>

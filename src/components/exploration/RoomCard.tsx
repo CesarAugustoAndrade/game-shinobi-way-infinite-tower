@@ -73,33 +73,38 @@ const RoomCard: React.FC<RoomCardProps> = ({
   // Get activity icons for the room
   const getActivityIcons = (): React.ReactNode[] => {
     const icons: React.ReactNode[] = [];
+    const wrap = (key: string, label: string, node: React.ReactNode) => (
+      <span key={key} className="room-card__activity-wrap" title={label} aria-label={label}>
+        {node}
+      </span>
+    );
 
     if (room.activities.combat && !room.activities.combat.completed) {
-      icons.push(<Sword key="combat" className="room-card__activity text-orange-400" />);
+      icons.push(wrap('combat', 'Combat', <Sword className="room-card__activity text-orange-400" />));
     }
     if (room.activities.merchant && !room.activities.merchant.completed) {
-      icons.push(<ShoppingBag key="merchant" className="room-card__activity text-yellow-400" />);
+      icons.push(wrap('merchant', 'Merchant', <ShoppingBag className="room-card__activity text-yellow-400" />));
     }
     if (room.activities.event && !room.activities.event.completed) {
-      icons.push(<Scroll key="event" className="room-card__activity text-blue-400" />);
+      icons.push(wrap('event', 'Event', <Scroll className="room-card__activity text-blue-400" />));
     }
     if (room.activities.scrollDiscovery && !room.activities.scrollDiscovery.completed) {
-      icons.push(<BookOpen key="scrollDiscovery" className="room-card__activity text-purple-400" />);
+      icons.push(wrap('scrollDiscovery', 'Scroll Discovery', <BookOpen className="room-card__activity text-purple-400" />));
     }
     if (room.activities.rest && !room.activities.rest.completed) {
-      icons.push(<Heart key="rest" className="room-card__activity text-green-400" />);
+      icons.push(wrap('rest', 'Rest', <Heart className="room-card__activity text-green-400" />));
     }
     if (room.activities.training && !room.activities.training.completed) {
-      icons.push(<Dumbbell key="training" className="room-card__activity text-teal-400" />);
+      icons.push(wrap('training', 'Training', <Dumbbell className="room-card__activity text-teal-400" />));
     }
     if (room.activities.treasure && !room.activities.treasure.collected) {
-      icons.push(<Gift key="treasure" className="room-card__activity text-amber-400" />);
+      icons.push(wrap('treasure', 'Treasure', <Gift className="room-card__activity text-amber-400" />));
     }
     if (room.activities.eliteChallenge && !room.activities.eliteChallenge.completed) {
-      icons.push(<Skull key="eliteChallenge" className="room-card__activity text-red-400" />);
+      icons.push(wrap('eliteChallenge', 'Elite Challenge', <Skull className="room-card__activity text-red-400" />));
     }
     if (room.activities.infoGathering && !room.activities.infoGathering.completed) {
-      icons.push(<Radio key="infoGathering" className="room-card__activity text-teal-400" />);
+      icons.push(wrap('infoGathering', 'Info Gathering', <Radio className="room-card__activity text-teal-400" />));
     }
 
     return icons;
@@ -131,9 +136,12 @@ const RoomCard: React.FC<RoomCardProps> = ({
     };
   }, [room.terrain]);
 
-  // T-106: combat condition micro-chip (Ambush / Sanctuary / …)
+  // T-106/T-108: combat or elite condition micro-chip
   const fightCondition = useMemo(() => {
-    const mods = room.activities.combat?.modifiers ?? [];
+    const mods =
+      room.activities.combat?.modifiers
+      ?? room.activities.eliteChallenge?.modifiers
+      ?? [];
     const names = mods
       .filter((m) => m !== CombatModifierType.NONE)
       .map((m) => COMBAT_MODIFIER_EFFECTS[m]?.name)
@@ -143,7 +151,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
       short: names[0].slice(0, 6),
       title: names.join(' · '),
     };
-  }, [room.activities.combat?.modifiers]);
+  }, [room.activities.combat?.modifiers, room.activities.eliteChallenge?.modifiers]);
 
   // Determine card state
   const isLocked = !room.isAccessible && !room.isCleared;
@@ -161,12 +169,26 @@ const RoomCard: React.FC<RoomCardProps> = ({
     room.isCleared ? 'room-card--cleared' : '',
   ].filter(Boolean).join(' ');
 
+  // Honest titles — never claim Guardian lives once exit is cleared (W7/W8 residual)
+  const lockTitle = isLocked
+    ? 'Locked — clear the room you are in to open this path'
+    : room.isCleared && room.isExit
+      ? 'Guardian fallen — location exit cleared'
+      : room.isCleared
+        ? 'Room cleared'
+        : room.isCurrent
+          ? 'You are here — enter to resolve room activities'
+          : room.isExit
+            ? 'Exit room — defeat the Guardian to clear the location'
+            : undefined;
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={isLocked}
       className={cardClasses}
+      title={lockTitle}
     >
       {/* Background pattern */}
       <div className="room-card__bg">
@@ -239,9 +261,14 @@ const RoomCard: React.FC<RoomCardProps> = ({
         </div>
       )}
 
-      {/* Current room glow */}
+      {/* Current room glow + explicit first-time affordance */}
       {room.isCurrent && !room.isCleared && (
-        <div className="room-card__glow room-card__glow--current" />
+        <>
+          <div className="room-card__here-badge" aria-hidden="true">
+            You are here
+          </div>
+          <div className="room-card__glow room-card__glow--current" />
+        </>
       )}
 
       {/* Boss gate pulse */}

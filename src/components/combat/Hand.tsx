@@ -61,6 +61,8 @@ interface HandProps {
   isPlayerTurn: boolean;
   /** Single source of truth for playability (resources + AP + cooldown + stun). */
   canUseSkill: (skill: Skill) => boolean;
+  /** Optional: why a card is unplayable (shown as title when greyed). */
+  getSkillBlockReason?: (skill: Skill) => string | null;
   onUseSkill: (skill: Skill) => void;
   getDamageTypeColor: (dt: DamageType) => string;
   /** Approach ambush first-hit mult when still on the opening strike. */
@@ -70,6 +72,11 @@ interface HandProps {
   locationTerrainMods?: LocationTerrainMods | null;
   /** Room terrain definition for element amplification preview. */
   roomTerrain?: TerrainDefinition | null;
+  /**
+   * FREE_FIRST_SKILL: first accepted skill costs 0 chakra.
+   * Surface as waived CP on the card face (WAVE9 cost honesty).
+   */
+  skipFirstSkillCost?: boolean;
 }
 
 /**
@@ -89,16 +96,24 @@ export const Hand: React.FC<HandProps> = ({
   posture = Posture.BALANCED,
   isPlayerTurn,
   canUseSkill,
+  getSkillBlockReason,
   onUseSkill,
   getDamageTypeColor,
   isFirstTurn = false,
   firstHitMultiplier = 1,
   locationTerrainMods = null,
   roomTerrain = null,
+  skipFirstSkillCost = false,
 }) => {
   const renderCard = (skill: Skill, index: number) => {
     const apCost = getApCost(skill);
     const usable = canUseSkill(skill) && isPlayerTurn;
+    const effectiveChakra = skipFirstSkillCost ? 0 : skill.chakraCost;
+    const chakraShort =
+      !skipFirstSkillCost &&
+      skill.chakraCost > 0 &&
+      player.currentChakra < skill.chakraCost;
+    const hpShort = skill.hpCost > 0 && player.currentHp <= skill.hpCost;
 
     // T-038: match live combat mods (clan traits T-031 + event flags T-034)
     const clanCtx = applyClanTraitToDamageContext(
@@ -193,15 +208,15 @@ export const Hand: React.FC<HandProps> = ({
               <div className="combat-tooltip__description">{skill.description}</div>
             </div>
 
-            {/* Damage Section */}
+            {/* Strike force */}
             <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Damage</div>
+              <div className="combat-tooltip__section-title">Force</div>
               <div className="combat-tooltip__damage-row">
                 <div className="combat-tooltip__scaling">
                   <span className={`combat-tooltip__scaling-value ${getStatColor(skill.scalingStat)}`}>
                     {Math.round(skill.damageMult * 100)}% {formatScalingStat(skill.scalingStat)}
                   </span>
-                  <span className="combat-tooltip__scaling-label">scaling</span>
+                  <span className="combat-tooltip__scaling-label">from</span>
                 </div>
                 <div className="combat-tooltip__type-tags">
                   <span className={getDamageTypeColor(skill.damageType)}>{skill.damageType}</span>
@@ -219,21 +234,23 @@ export const Hand: React.FC<HandProps> = ({
               </div>
             </div>
 
-            {/* Hit Chance Section */}
+            {/* Precision / delivery */}
             <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Hit Chance</div>
+              <div className="combat-tooltip__section-title">Precision</div>
               <div className="combat-tooltip__hit-chance">
                 <span className="combat-tooltip__attack-method">{skill.attackMethod}</span> - {getAttackMethodDescription(skill.attackMethod)}
               </div>
             </div>
 
-            {/* Costs & Cooldown */}
+            {/* Toll & cooldown */}
             <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Cost</div>
+              <div className="combat-tooltip__section-title">Toll</div>
               <div className="combat-tooltip__cost-row">
                 <span className="combat-tooltip__cost--ap">{apCost} AP</span>
-                <span className={skill.chakraCost > 0 ? 'combat-tooltip__cost--cp' : 'combat-tooltip__cost--none'}>
-                  {skill.chakraCost} CP
+                <span className={effectiveChakra > 0 ? 'combat-tooltip__cost--cp' : 'combat-tooltip__cost--none'}>
+                  {skipFirstSkillCost && skill.chakraCost > 0
+                    ? `0 CP (waived · base ${skill.chakraCost})`
+                    : `${skill.chakraCost} CP`}
                 </span>
                 {skill.hpCost > 0 && (
                   <span className="combat-tooltip__cost--hp">{skill.hpCost} HP</span>
@@ -244,10 +261,10 @@ export const Hand: React.FC<HandProps> = ({
               </div>
             </div>
 
-            {/* Effects Section */}
+            {/* Lingering marks */}
             {skill.effects && skill.effects.length > 0 && (
               <div className="combat-tooltip__section">
-                <div className="combat-tooltip__section-title">Effects</div>
+                <div className="combat-tooltip__section-title">Marks</div>
                 <div className="combat-tooltip__effects">
                   {skill.effects.map((effect, idx) => (
                     <div key={idx} className="combat-tooltip__effect">
@@ -275,7 +292,7 @@ export const Hand: React.FC<HandProps> = ({
             {(skill.isToggle || skill.actionType === ActionType.TOGGLE) && (
               <div className="combat-tooltip__section">
                 <div className="combat-tooltip__toggle-info">
-                  Toggle Skill - {skill.upkeepCost || 0} CP/turn upkeep
+                  Stance lock · {skill.upkeepCost || 0} CP/turn upkeep
                 </div>
               </div>
             )}
@@ -309,6 +326,16 @@ export const Hand: React.FC<HandProps> = ({
           onClick={() => onUseSkill(skill)}
           shortcutKey={shortcutKey}
           apCost={apCost}
+          freeChakra={skipFirstSkillCost}
+          chakraShort={chakraShort}
+          hpShort={hpShort}
+          blockReason={
+            !usable
+              ? (!isPlayerTurn
+                  ? 'Enemy turn'
+                  : getSkillBlockReason?.(skill) ?? 'Cannot play')
+              : null
+          }
         />
       </Tooltip>
     );
@@ -323,7 +350,10 @@ export const Hand: React.FC<HandProps> = ({
         {cards.length > 0 ? (
           cards.map((skill, index) => renderCard(skill, index))
         ) : (
-          <div className="hand__empty">No cards left — end your turn (Space).</div>
+          <div className="hand__empty" role="status">
+            <div className="hand__empty-title">Hand empty</div>
+            <div className="hand__empty-hint">End your turn (Space) — AP does not carry over.</div>
+          </div>
         )}
       </div>
     </div>

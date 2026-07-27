@@ -66,18 +66,21 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
             .filter(Boolean)
             .join(' ');
 
+          // 'special' ≈ soft hint; R1-012 amenities use 'available' / true
+          const title = isSpecial ? `May have ${label}` : label;
+
           return (
             <span
               key={key}
               className={classes}
-              title={`${label}${isSpecial ? ' (Special)' : ''}`}
+              title={title}
             >
               <ArtIcon
                 art={art}
                 size="xs"
-                title={`${label}${isSpecial ? ' (Special)' : ''}`}
+                title={title}
               />
-              {isSpecial ? <span className="activity-icons__special-mark">✨</span> : null}
+              {isSpecial ? <span className="activity-icons__special-mark" aria-hidden>≈</span> : null}
             </span>
           );
         })

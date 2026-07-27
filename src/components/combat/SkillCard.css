@@ -12,89 +12,106 @@
 .skill-card {
   position: relative;
   width: 100%;
-  height: 7rem;
+  height: 7.5rem;
   border-radius: var(--sw-radius-lg);
   overflow: hidden;
-  /* Pixel-arcade: blocky 2px frame + hard shadow it lifts toward / sinks into. */
-  box-shadow: var(--sw-pix-shadow-sm);
+  /* CRT chassis: blocky 2px metal frame + void hard shadow */
+  box-shadow: 3px 3px 0 var(--sw-void, #050608);
   border: 2px solid;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
     border-color var(--sw-transition-base);
   text-align: left;
-  background: var(--sw-bg-tertiary);
+  background: var(--sw-abyss, #1a2633);
   cursor: pointer;
 }
 
-.skill-card:hover:not(.skill-card--disabled):not(.skill-card--passive) {
-  transform: translate(-2px, -2px);
-  box-shadow: var(--sw-pix-shadow-lg);
+/* StS-style hand lift: hover + keyboard focus both read as "selected" */
+.skill-card:hover:not(.skill-card--disabled):not(.skill-card--passive),
+.skill-card:focus-visible:not(.skill-card--disabled):not(.skill-card--passive) {
+  transform: translate(-2px, -4px);
+  box-shadow: 5px 6px 0 var(--sw-void, #050608);
+  z-index: 2;
+}
+
+.skill-card:focus-visible:not(.skill-card--disabled):not(.skill-card--passive) {
+  outline: 2px solid var(--sw-rust-light, #c47a52);
+  outline-offset: 2px;
+  border-color: var(--sw-rust-light, #c47a52);
 }
 
 .skill-card:active:not(.skill-card--disabled):not(.skill-card--passive) {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 0 var(--sw-hard);
+  box-shadow: 1px 1px 0 var(--sw-void, #050608);
 }
 
 /* Border Color Variants */
 .skill-card--main {
-  border-color: var(--sw-glass-border);
+  border-color: var(--sw-metal, #2d3d4a);
 }
 
 .skill-card--main:hover:not(.skill-card--disabled) {
-  border-color: var(--sw-glass-border-highlight);
+  border-color: var(--sw-fog, #8a9199);
 }
 
 .skill-card--side {
-  border-color: rgba(37, 99, 235, 0.7);
+  border-color: rgba(45, 90, 130, 0.85);
 }
 
 .skill-card--side:hover:not(.skill-card--disabled) {
-  border-color: #60a5fa;
+  border-color: #7aa8c9;
 }
 
 .skill-card--toggle {
-  border-color: rgba(180, 83, 9, 0.7);
+  border-color: var(--sw-rust-dim, #6b3d2a);
 }
 
 .skill-card--toggle:hover:not(.skill-card--disabled) {
-  border-color: #f59e0b;
+  border-color: var(--sw-rust, #a65d3f);
 }
 
 .skill-card--toggle.skill-card--active {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+  border-color: var(--sw-rust-light, #c47a52);
+  box-shadow: 0 0 0 2px var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
   animation: sw-ready-pulse 2s ease-in-out infinite;
 }
 
 .skill-card--passive {
-  border-color: var(--sw-glass-border-highlight);
+  border-color: var(--sw-metal, #2d3d4a);
   opacity: 0.6;
   cursor: default;
 }
 
 .skill-card--disabled {
-  /* Raised to 0.75 so the card is still identifiable (T-014).
-     A ::after overlay adds a branded dark scrim on top. */
-  opacity: 0.75;
+  /* Do NOT filter/opacity the whole card — that greys AP/CP chips (WAVE9 cost legibility).
+     Dim the art only; content + cost stack stay full contrast. */
   cursor: not-allowed;
-  filter: grayscale(30%);
 }
 
-/* Dark scrim overlay for disabled cards.
-   Fallback rgba(5,7,12,0.55) is the branded near-black; --sw-scrim-soft
-   is slightly lighter at rgba(0,0,0,0.5) — both acceptable. */
+.skill-card--disabled .skill-card__bg,
+.skill-card--disabled .skill-card__bg--emoji {
+  filter: grayscale(40%) saturate(0.65);
+  opacity: 0.42;
+}
+
+/* Dark scrim for disabled cards — sits ABOVE art/overlay, BELOW content (z20)
+   so name + cost stack remain fully legible. */
 .skill-card--disabled::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--sw-scrim-soft, rgba(5, 7, 12, 0.55));
-  z-index: 40;
+  background: rgba(5, 6, 8, 0.42);
+  z-index: 15;
   pointer-events: none;
   border-radius: inherit;
 }
 
+/* Super-effective: rust ring (heat = risk/reward, not party gold) */
 .skill-card--effective:not(.skill-card--disabled) {
-  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.5);
+  border-color: var(--sw-rust, #a65d3f);
+  box-shadow:
+    3px 3px 0 var(--sw-void, #050608),
+    inset 0 0 0 1px var(--sw-rust-light, #c47a52),
+    0 0 10px var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
 }
 
 /* ===========================================
@@ -106,9 +123,9 @@
   top: var(--sw-space-1);
   left: var(--sw-space-1);
   z-index: 30;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid var(--sw-glass-border-highlight);
-  color: var(--sw-text-secondary);
+  background: rgba(5, 6, 8, 0.9);
+  border: 1px solid var(--sw-metal, #2d3d4a);
+  color: var(--sw-bone, #e8e4dc);
   font-size: var(--sw-text-2xs);
   font-weight: 700;
   width: 1.25rem;
@@ -129,9 +146,12 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 30%;
   z-index: 0;
-  opacity: 0.7;
+  opacity: 0.72;
   transition: opacity var(--sw-transition-base);
+  /* Prefer crisp painted emblems over pixel stretch */
+  image-rendering: auto;
 }
 
 /* T-029: emoji cascade when Imagine tile missing/404 */
@@ -155,12 +175,114 @@
   opacity: 0.6;
 }
 
-/* Gradient Overlay */
+/* Gradient Overlay — void scrim so bone text + costs stay legible */
 .skill-card__overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to right, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4), transparent);
+  background: linear-gradient(
+    to right,
+    rgba(5, 6, 8, 0.78) 0%,
+    rgba(5, 6, 8, 0.45) 48%,
+    rgba(5, 6, 8, 0.12) 100%
+  );
   z-index: 10;
+  pointer-events: none;
+}
+
+/* ===========================================
+   Element color coding (StS readability)
+   Border + soft wash; never hide cost badges
+   =========================================== */
+
+.skill-card--el-fire {
+  border-color: rgba(239, 68, 68, 0.72);
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 0 1px rgba(239, 68, 68, 0.18);
+}
+.skill-card--el-fire .skill-card__overlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(127, 29, 29, 0.35) 55%,
+    rgba(239, 68, 68, 0.12) 100%
+  );
+}
+
+.skill-card--el-water {
+  border-color: rgba(96, 165, 250, 0.72);
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 0 1px rgba(96, 165, 250, 0.18);
+}
+.skill-card--el-water .skill-card__overlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(30, 58, 138, 0.35) 55%,
+    rgba(96, 165, 250, 0.12) 100%
+  );
+}
+
+.skill-card--el-lightning {
+  border-color: rgba(250, 204, 21, 0.72);
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 0 1px rgba(250, 204, 21, 0.18);
+}
+.skill-card--el-lightning .skill-card__overlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(113, 63, 18, 0.35) 55%,
+    rgba(250, 204, 21, 0.12) 100%
+  );
+}
+
+.skill-card--el-earth {
+  border-color: rgba(217, 119, 6, 0.72);
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 0 1px rgba(217, 119, 6, 0.18);
+}
+.skill-card--el-earth .skill-card__overlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(120, 53, 15, 0.35) 55%,
+    rgba(217, 119, 6, 0.12) 100%
+  );
+}
+
+.skill-card--el-wind {
+  border-color: rgba(52, 211, 153, 0.72);
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 0 1px rgba(52, 211, 153, 0.18);
+}
+.skill-card--el-wind .skill-card__overlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(6, 78, 59, 0.35) 55%,
+    rgba(52, 211, 153, 0.12) 100%
+  );
+}
+
+.skill-card--el-mental {
+  border-color: rgba(192, 132, 252, 0.72);
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 0 1px rgba(192, 132, 252, 0.18);
+}
+.skill-card--el-mental .skill-card__overlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(88, 28, 135, 0.35) 55%,
+    rgba(192, 132, 252, 0.12) 100%
+  );
+}
+
+.skill-card--el-physical {
+  border-color: rgba(251, 146, 60, 0.55);
+  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 0 1px rgba(251, 146, 60, 0.12);
+}
+.skill-card--el-physical .skill-card__overlay {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(251, 146, 60, 0.08) 100%
+  );
 }
 
 /* ===========================================
@@ -194,10 +316,10 @@
 .skill-card__name {
   font-size: var(--sw-text-xs);
   font-weight: 700;
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone, #e8e4dc);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wide);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 2px 4px rgba(5, 6, 8, 0.85);
 }
 
 .skill-card__type-row {
@@ -213,15 +335,20 @@
 }
 
 .skill-card__damage-type--physical {
-  color: var(--sw-category-body-light);
+  color: #fb923c;
 }
 
 .skill-card__damage-type--elemental {
-  color: var(--sw-category-mind-light);
+  color: #c4b5fd;
 }
 
 .skill-card__damage-type--mental {
-  color: #a5b4fc;
+  color: #d8b4fe;
+}
+
+.skill-card__damage-type--true {
+  color: #fef08a;
+  text-shadow: 0 0 6px rgba(250, 204, 21, 0.45);
 }
 
 /* Right Badges — tight vertical stack so the column stays clear of the
@@ -247,70 +374,159 @@
 }
 
 .skill-card__action-badge--main {
-  background: rgba(127, 29, 29, 0.8);
-  color: #fca5a5;
+  background: rgba(107, 61, 42, 0.85);
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .skill-card__action-badge--side {
-  background: rgba(30, 58, 138, 0.8);
-  color: #93c5fd;
+  background: rgba(26, 48, 72, 0.85);
+  color: #9bb8d1;
 }
 
 .skill-card__action-badge--toggle {
-  background: rgba(120, 53, 15, 0.8);
-  color: var(--sw-accent-tertiary);
+  background: rgba(90, 50, 32, 0.85);
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .skill-card__action-badge--toggle-active {
-  background: #d97706;
-  color: #fef3c7;
+  background: var(--sw-rust, #a65d3f);
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .skill-card__action-badge--passive {
-  background: var(--sw-glass-border);
-  color: var(--sw-text-tertiary);
+  background: var(--sw-metal, #2d3d4a);
+  color: var(--sw-fog, #8a9199);
 }
 
 .skill-card__level-badge {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid var(--sw-glass-border);
+  background: rgba(5, 6, 8, 0.7);
+  border: 1px solid var(--sw-metal, #2d3d4a);
   border-radius: var(--sw-radius-sm);
   padding: var(--sw-space-0-5) var(--sw-space-1-5);
-  box-shadow: var(--sw-shadow-sm);
+  box-shadow: 1px 1px 0 var(--sw-void, #050608);
 }
 
 .skill-card__level-text {
   font-size: 0.5rem;
   font-family: var(--sw-font-mono);
-  color: #ca8a04;
+  color: var(--sw-fog, #8a9199);
 }
 
-/* Chakra Cost Badge — primary affordance, chakra-blue blocky chip */
+/* Cost stack — AP + CP as paired chips (always above element wash + disabled scrim) */
+.skill-card__cost-stack {
+  position: relative;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  /* Hard plate so busy painted emblems never wash the numerals */
+  isolation: isolate;
+}
+
+/* Resource cost chips — solid void plate so element wash never hides numbers */
 .skill-card__cost-badge {
-  background: var(--sw-scrim-soft);
-  border: 1px solid var(--sw-chakra-color);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  background: rgba(5, 6, 8, 0.97);
+  border: 1.5px solid var(--sw-chakra-color);
   border-radius: var(--sw-radius-sm);
-  padding: var(--sw-space-0-5) var(--sw-space-1-5);
-  box-shadow: var(--sw-shadow-sm);
-  font-size: 0.5rem;
-  font-family: var(--sw-font-mono);
+  padding: 2px 6px;
+  box-shadow:
+    1px 1px 0 var(--sw-void, #050608),
+    0 0 0 1px rgba(5, 6, 8, 0.75),
+    inset 0 0 0 1px rgba(232, 228, 220, 0.06);
+  font-family: var(--sw-font-pixel, var(--sw-font-mono));
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wide);
+  letter-spacing: 0.04em;
   color: var(--sw-chakra-color);
   white-space: nowrap;
+  line-height: 1.15;
+  min-width: 2.4rem;
+  justify-content: center;
+  text-shadow: 0 1px 0 rgba(5, 6, 8, 0.95);
 }
 
-/* Free skills read green so "no cost" is unmistakable */
+.skill-card__cost-num {
+  font-size: 0.85rem;
+  font-weight: 900;
+  line-height: 1;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.skill-card__cost-unit {
+  font-size: 0.58rem;
+  font-weight: 700;
+  opacity: 0.98;
+  letter-spacing: 0.06em;
+  color: inherit;
+}
+
+/* Free skills / FREE_FIRST window — fog/bone (no party candy green) */
 .skill-card__cost-badge--free {
-  border-color: var(--sw-risk-safe-light);
-  color: var(--sw-risk-safe-light);
+  border-color: var(--sw-fog, #8a9199);
+  color: var(--sw-bone, #e8e4dc);
+  background:
+    linear-gradient(rgba(138, 145, 153, 0.12), rgba(138, 145, 153, 0.12)),
+    rgba(5, 6, 8, 0.97);
 }
 
-/* Action Point cost reads gold so it stands apart from chakra-blue (T-004) */
+.skill-card__cost-badge--free .skill-card__cost-num {
+  font-size: 0.65rem;
+}
+
+/* FREE_FIRST: show waived CP with strike + FREE tag for honesty */
+.skill-card__cost-badge--waived {
+  border-color: #6a9bc4;
+  color: #b8d4e8;
+  background:
+    linear-gradient(rgba(74, 127, 168, 0.2), rgba(74, 127, 168, 0.2)),
+    rgba(5, 6, 8, 0.97);
+}
+
+.skill-card__cost-strike {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-decoration: line-through;
+  opacity: 0.7;
+  letter-spacing: 0.02em;
+}
+
+.skill-card__cost-waive-label {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--sw-bone, #e8e4dc);
+}
+
+/* Chakra (CP) — cool abyss blue */
+.skill-card__cost-badge--cp {
+  border-color: #4a7fa8;
+  color: #8ab4d4;
+  background:
+    linear-gradient(rgba(74, 127, 168, 0.14), rgba(74, 127, 168, 0.14)),
+    rgba(5, 6, 8, 0.97);
+}
+
+/* AP cost = rust heat (same vocabulary as AP pips); void base + tint, not translucent wash */
 .skill-card__cost-badge--ap {
-  border-color: var(--sw-accent-tertiary);
-  color: var(--sw-accent-tertiary);
+  border-color: var(--sw-rust, #a65d3f);
+  color: var(--sw-rust-light, #c47a52);
+  background:
+    linear-gradient(rgba(166, 93, 63, 0.32), rgba(166, 93, 63, 0.32)),
+    rgba(5, 6, 8, 0.97);
+}
+
+/* Unaffordable resource (still shown when card disabled for other reasons) */
+.skill-card__cost-badge--short {
+  border-color: #a65d3f;
+  color: #e8a090;
+  box-shadow:
+    1px 1px 0 var(--sw-void, #050608),
+    0 0 0 1px rgba(166, 93, 63, 0.35);
 }
 
 /* ===========================================
@@ -329,7 +545,7 @@
 .skill-card__damage-label {
   font-size: 0.5rem;
   font-weight: 700;
-  color: var(--sw-text-muted);
+  color: var(--sw-fog, #8a9199);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-widest);
   margin-bottom: -2px;
@@ -341,14 +557,57 @@
   line-height: 1;
   font-weight: 900;
   font-family: var(--sw-font-serif);
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone, #e8e4dc);
   white-space: nowrap;
   transition: color var(--sw-transition-base);
+  text-shadow: 1px 1px 0 var(--sw-void, #050608);
+}
+
+.skill-card__damage-value--physical {
+  color: #d4a574;
+}
+
+.skill-card__damage-value--elemental {
+  color: #a8b8d0;
+}
+
+.skill-card__damage-value--mental {
+  color: #b0a0c8;
+}
+
+.skill-card__damage-value--true {
+  color: var(--sw-bone, #e8e4dc);
+  text-shadow: 0 0 8px var(--sw-rust-glow, rgba(166, 93, 63, 0.4));
 }
 
 .skill-card__damage-value--effective {
-  color: #facc15;
-  text-shadow: 0 0 8px rgba(234, 179, 8, 0.5);
+  color: var(--sw-rust-light, #c47a52) !important;
+  text-shadow:
+    0 0 8px var(--sw-rust-glow, rgba(166, 93, 63, 0.45)),
+    1px 1px 0 var(--sw-void, #050608);
+}
+
+/* Block reason strip — why this card is greyed (trade-off / gate) */
+.skill-card__block-reason {
+  position: absolute;
+  left: var(--sw-space-2);
+  right: var(--sw-space-2);
+  bottom: var(--sw-space-1);
+  z-index: 45;
+  font-family: var(--sw-font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--sw-fog, #8a9199);
+  background: rgba(5, 6, 8, 0.82);
+  border: 1px solid var(--sw-metal, #2d3d4a);
+  padding: 2px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  line-height: 1.2;
 }
 
 /* ===========================================
@@ -366,6 +625,16 @@
 .skill-card__cost--hp {
   color: #f87171;
   font-weight: 700;
+  text-shadow: 0 1px 0 rgba(5, 6, 8, 0.85);
+}
+
+/* HP cost unaffordable — flash chip when current HP cannot pay the toll */
+.skill-card__cost--hp-short {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.55);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  border-radius: var(--sw-radius-sm);
+  padding: 0 3px;
 }
 
 .skill-card__cost--upkeep {
@@ -376,6 +645,32 @@
 .skill-card__cost--passive {
   color: var(--sw-text-muted);
   font-style: italic;
+}
+
+/* Trade-off / status chip on face (DD ability clarity) */
+.skill-card__effect-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 6.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 1px 4px;
+  border-radius: var(--sw-radius-sm);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(192, 132, 252, 0.45);
+  color: #e9d5ff;
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.skill-card__effect-icon {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  line-height: 1;
 }
 
 /* ===========================================

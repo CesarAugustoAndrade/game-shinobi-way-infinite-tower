@@ -20,13 +20,28 @@ const MainMenu: React.FC<MainMenuProps> = ({
   infiniteUnlocked = false,
   onGuide
 }) => {
-  // Keyboard shortcuts
+  // Keyboard shortcuts — Enter starts when focus is not already on a CTA button
+  // (Handbook / Infinite / Enter the Mist use native button activation).
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.repeat) return;
+    const target = e.target;
+    const inField =
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable);
+
     if (e.key === 'Enter') {
+      if (target instanceof HTMLElement && target.closest('button, a[href], [role="button"]')) {
+        return;
+      }
+      // Slider / page body: enter campaign
       e.preventDefault();
       onEnter();
+      return;
     }
     if ((e.key === 'i' || e.key === 'I') && infiniteUnlocked && onInfiniteEnter) {
+      if (inField) return;
       e.preventDefault();
       onInfiniteEnter();
     }
@@ -37,11 +52,12 @@ const MainMenu: React.FC<MainMenuProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Get rank based on difficulty
+  // Get rank based on difficulty (R1-007: include Rank A — was D/C/B/S only)
   const getRank = () => {
-    if (difficulty < 30) return { label: 'D', class: 'main-menu__rank--d' };
-    if (difficulty < 60) return { label: 'C', class: 'main-menu__rank--c' };
-    if (difficulty < 85) return { label: 'B', class: 'main-menu__rank--b' };
+    if (difficulty < 25) return { label: 'D', class: 'main-menu__rank--d' };
+    if (difficulty < 45) return { label: 'C', class: 'main-menu__rank--c' };
+    if (difficulty < 65) return { label: 'B', class: 'main-menu__rank--b' };
+    if (difficulty < 85) return { label: 'A', class: 'main-menu__rank--a' };
     return { label: 'S', class: 'main-menu__rank--s' };
   };
 
@@ -54,14 +70,14 @@ const MainMenu: React.FC<MainMenuProps> = ({
         <div className="main-menu__title-panel">
           <div className="main-menu__corners" aria-hidden="true" />
           <h1 className="main-menu__title">SHINOBI WAY</h1>
-          <p className="main-menu__subtitle">The Infinite Tower Awaits</p>
+          <p className="main-menu__subtitle">Land of Waves · then the Tower</p>
         </div>
 
         {/* Difficulty Selector */}
         <div className="main-menu__difficulty">
           <div className="main-menu__difficulty-header">
             <label htmlFor="difficulty-slider" className="main-menu__difficulty-label">
-              Mission Difficulty
+              Mission Rank
             </label>
             <span className={`main-menu__rank ${rank.class}`}>
               Rank {rank.label}
@@ -75,17 +91,32 @@ const MainMenu: React.FC<MainMenuProps> = ({
             value={difficulty}
             onChange={(e) => onDifficultyChange(parseInt(e.target.value))}
             className="main-menu__slider"
+            aria-describedby="difficulty-hint"
           />
+          <p id="difficulty-hint" className="main-menu__difficulty-hint">
+            {difficulty < 25
+              ? 'Rank D — the mist is thin. Room to learn the path.'
+              : difficulty < 45
+                ? 'Rank C — standard campaign pressure. Default (~40) for first Wave Country runs.'
+                : difficulty < 65
+                  ? 'Rank B — denser foes, thinner margins.'
+                  : difficulty < 85
+                    ? 'Rank A — elite pressure. Every room needs a plan.'
+                    : 'Rank S — the tower does not forgive. Veterans only.'}
+          </p>
         </div>
 
         {/* Action Buttons */}
         <div className="main-menu__actions">
           <button type="button" onClick={onEnter} className="main-menu__enter">
             <span className="main-menu__enter-content">
-              <span>Campaign</span>
+              <span>Enter the Mist</span>
               <span className="sw-shortcut">Enter</span>
             </span>
           </button>
+          <p className="main-menu__cta-sub">
+            Campaign · opens in the Land of Waves
+          </p>
           {infiniteUnlocked && onInfiniteEnter && (
             <button type="button" onClick={onInfiniteEnter} className="main-menu__infinite">
               <span className="main-menu__enter-content">

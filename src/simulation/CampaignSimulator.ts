@@ -475,13 +475,19 @@ export function simulateCampaignLocation(
               ? acts.combat!.enemy
               : acts.eliteChallenge!.enemy;
 
+          // T-109: room combat modifiers (combat or elite activity)
+          const roomMods =
+            activityKey === 'combat'
+              ? acts.combat?.modifiers
+              : acts.eliteChallenge?.modifiers;
           const res = resolveBattle(
             prepareForCombat(p),
             enemy,
             battleConfig,
             runId * 100000 + locationSeq * 1000 + battleSeq++,
             null,
-            current.terrain
+            current.terrain,
+            roomMods,
           );
           combats++;
 

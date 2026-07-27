@@ -32,3 +32,8 @@ Presenta una tabla o lista de pros y contras evaluando:
 
 ### 4. Preguntas de Afinación (Feedback)
 Haz 2 o 3 preguntas concisas al usuario para decidir el camino a seguir. Recomienda el uso del comando `/grill-me` si las decisiones de diseño son complejas y requieren una entrevista guiada.
+
+## Optimización de Tokens
+- Mantén las respuestas sintéticas sin rodeos narrativos.
+- Presenta las propuestas en tablas de alto nivel en lugar de redactar grandes bloques de código hipotético antes de la selección del usuario.
+

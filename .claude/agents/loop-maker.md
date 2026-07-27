@@ -60,6 +60,12 @@ Only: `npx tsc --noEmit`, `npm test` / `npx vitest run`, `npm run build`,
 `git diff` / `git status` (read-only inspection), and short read-only inspection commands.
 **No** `git commit`, `git push`, no installing packages, no destructive commands.
 
+## Token Efficiency Rules (Optimización de Contexto)
+
+- **Lecturas acotadas (Range Slicing):** Inspecciona código usando rangos de líneas (`StartLine`/`EndLine`). Evita cargar archivos completos innecesariamente.
+- **Sin dumps masivos:** Sintetiza los resultados de cambios y evidencias sin volcar diffs o logs crudos completos en las respuestas.
+- **Búsquedas puntuales:** Utiliza `grep_search` con patrones específicos y rutas concretas para evitar exploraciones redundantes.
+
 ## How you report back
 
 You report to the **LEAD**, never to the human. End every run with this block:

@@ -164,36 +164,36 @@ export const formatEffectDescription = (effect: EffectDefinition): string => {
 
 // Full buff description (for active buffs display)
 export const getBuffDescription = (buff: Buff): string => {
-  if (!buff?.effect) return buff?.name || 'Unknown effect';
+  if (!buff?.effect) return buff?.name || 'An unknown mark lingers.';
   const { type, value, targetStat } = buff.effect;
   switch (type) {
     case EffectType.STUN:
-      return 'Cannot perform any actions.';
+      return 'Body locked — no actions this hold.';
     case EffectType.DOT:
     case EffectType.BLEED:
     case EffectType.BURN:
     case EffectType.POISON:
-      return `Takes ${value} damage at the start of each turn.`;
+      return `${value} damage seeps in at the start of each turn.`;
     case EffectType.BUFF:
-      return `${targetStat} increased by ${Math.round((value || 0) * 100)}%.`;
+      return `${targetStat ? formatScalingStat(targetStat) : 'a stat'} raised by ${Math.round((value || 0) * 100)}%.`;
     case EffectType.DEBUFF:
-      return `${targetStat} decreased by ${Math.round((value || 0) * 100)}%.`;
+      return `${targetStat ? formatScalingStat(targetStat) : 'a stat'} cut by ${Math.round((value || 0) * 100)}%.`;
     case EffectType.CONFUSION:
-      return '50% chance to hurt self in confusion.';
+      return 'Mind frays — half the time you strike yourself.';
     case EffectType.SILENCE:
-      return 'Cannot use skills with chakra cost.';
+      return 'Chakra seals shut — only free techniques remain.';
     case EffectType.CHAKRA_DRAIN:
-      return `Drains ${value} chakra per turn.`;
+      return `${value} chakra bleeds away each turn.`;
     case EffectType.SHIELD:
-      return `Absorbs the next ${value} damage taken.`;
+      return `Next ${value} damage is swallowed by the barrier.`;
     case EffectType.INVULNERABILITY:
-      return 'Takes 0 damage from all attacks.';
+      return 'No steel or jutsu finds purchase.';
     case EffectType.REFLECTION:
-      return `Reflects ${Math.round((value || 0) * 100)}% of damage taken back to attacker.`;
+      return `${Math.round((value || 0) * 100)}% of the blow returns to its sender.`;
     case EffectType.CURSE:
-      return `Damage taken increased by ${Math.round((value || 0) * 100)}%.`;
+      return `Wounds deepen — +${Math.round((value || 0) * 100)}% damage taken.`;
     case EffectType.REGEN:
-      return `Restores ${value} HP at the start of each turn.`;
+      return `${value} HP knits closed at the start of each turn.`;
     default:
       return buff.name;
   }
@@ -210,11 +210,11 @@ export const formatAttackMethod = (method: AttackMethod): string => {
 export const getAttackMethodDescription = (method: AttackMethod): string => {
   switch (method) {
     case AttackMethod.MELEE:
-      return 'Uses Speed vs Speed for hit chance';
+      return 'Hit chance: Speed vs Speed';
     case AttackMethod.RANGED:
-      return 'Uses Accuracy vs Speed for hit chance';
+      return 'Hit chance: Accuracy vs Speed';
     case AttackMethod.AUTO:
-      return 'Always hits';
+      return 'Never misses';
     default:
       return '';
   }
@@ -227,7 +227,7 @@ export const formatDamageProperty = (property: DamageProperty): string => {
 export const getDamagePropertyDescription = (property: DamageProperty): string => {
   switch (property) {
     case DamageProperty.NORMAL:
-      return 'Reduced by both flat and % defense';
+      return 'Cut by flat and % defense';
     case DamageProperty.PIERCING:
       return 'Ignores flat defense';
     case DamageProperty.ARMOR_BREAK:
@@ -240,13 +240,13 @@ export const getDamagePropertyDescription = (property: DamageProperty): string =
 export const getDamageTypeDescription = (type: DamageType): string => {
   switch (type) {
     case DamageType.PHYSICAL:
-      return 'Mitigated by Strength-based defense';
+      return 'Held by physical defense (Strength)';
     case DamageType.ELEMENTAL:
-      return 'Mitigated by Spirit-based defense';
+      return 'Held by elemental defense (Spirit)';
     case DamageType.MENTAL:
-      return 'Mitigated by Calmness-based defense';
+      return 'Held by mental defense (Calmness)';
     case DamageType.TRUE:
-      return 'Bypasses ALL defenses';
+      return 'Bypasses every defense';
     default:
       return '';
   }
@@ -382,7 +382,7 @@ export const calculateDoTTotal = (value: number, duration: number): number => {
  * Returns detailed mechanical breakdown for a buff/effect
  */
 export const getDetailedEffectMechanics = (buff: Buff): string[] => {
-  if (!buff?.effect) return ['Unknown effect'];
+  if (!buff?.effect) return ['Mark details unclear'];
 
   const { type, value, duration, targetStat, damageType, damageProperty } = buff.effect;
   const mechanics: string[] = [];
@@ -392,104 +392,96 @@ export const getDetailedEffectMechanics = (buff: Buff): string[] => {
     case EffectType.BLEED:
     case EffectType.BURN:
     case EffectType.POISON:
-      mechanics.push(`${value} damage per turn`);
+      mechanics.push(`${value} damage each turn`);
       if (damageType) {
-        mechanics.push(`${damageType} damage type`);
-        mechanics.push(`Mitigated by: ${getDamageTypeDefense(damageType)}`);
+        mechanics.push(`${damageType} damage`);
+        mechanics.push(`Held back by ${getDamageTypeDefense(damageType)}`);
       }
       if (duration > 0) {
-        mechanics.push(`Total damage: ${calculateDoTTotal(value || 0, duration)} over ${duration} turns`);
+        mechanics.push(`${calculateDoTTotal(value || 0, duration)} total over ${duration} turns`);
       }
       if (damageProperty === DamageProperty.PIERCING) {
-        mechanics.push('Piercing: Ignores flat defense');
+        mechanics.push('Piercing — ignores flat defense');
       }
       break;
 
     case EffectType.STUN:
-      mechanics.push('Skips entire turn');
-      mechanics.push('Cannot use any skills');
-      mechanics.push('Cannot pass turn early');
+      mechanics.push('Skips the whole turn');
+      mechanics.push('No skills, no early pass');
       break;
 
     case EffectType.CONFUSION:
-      mechanics.push('50% chance to hurt self');
-      mechanics.push('Self-damage: 50% of Strength');
-      mechanics.push('Can still act normally 50% of time');
+      mechanics.push('50% chance to strike yourself');
+      mechanics.push('Self-hit: half Strength');
+      mechanics.push('Otherwise you act as normal');
       break;
 
     case EffectType.SILENCE:
-      mechanics.push('Cannot use skills with CP cost');
-      mechanics.push('Free skills still usable');
-      mechanics.push('Basic attack remains available');
+      mechanics.push('No CP-cost skills');
+      mechanics.push('Free techniques still open');
+      mechanics.push('Basic strike remains');
       break;
 
     case EffectType.BUFF:
-      mechanics.push(`+${Math.round((value || 0) * 100)}% ${formatScalingStat(targetStat!)}`);
-      mechanics.push('Applied after equipment bonuses');
-      mechanics.push('Stacks with other buffs');
+      mechanics.push(`+${Math.round((value || 0) * 100)}% ${targetStat ? formatScalingStat(targetStat) : 'stat'}`);
+      mechanics.push('Stacks with gear and other marks');
       break;
 
     case EffectType.DEBUFF:
-      mechanics.push(`-${Math.round((value || 0) * 100)}% ${formatScalingStat(targetStat!)}`);
-      mechanics.push('Reduces effective stat value');
-      mechanics.push('Can reduce to minimum of 1');
+      mechanics.push(`-${Math.round((value || 0) * 100)}% ${targetStat ? formatScalingStat(targetStat) : 'stat'}`);
+      mechanics.push('Effective stat floored at 1');
       break;
 
     case EffectType.SHIELD:
-      mechanics.push(`Absorbs next ${value} damage`);
-      mechanics.push('Consumed before HP');
-      mechanics.push('Breaks when depleted');
-      mechanics.push('Does not stack (replaces)');
+      mechanics.push(`Absorbs the next ${value} damage`);
+      mechanics.push('Breaks before HP is touched');
+      mechanics.push('Does not stack — replaces');
       break;
 
     case EffectType.INVULNERABILITY:
-      mechanics.push('Blocks ALL incoming damage');
-      mechanics.push('Includes True damage');
-      mechanics.push('DoT still ticks but deals 0');
+      mechanics.push('Blocks all incoming damage');
+      mechanics.push('Even True damage fails');
       break;
 
     case EffectType.CURSE:
       mechanics.push(`+${Math.round((value || 0) * 100)}% damage taken`);
-      mechanics.push('Applied before defense');
-      mechanics.push('Amplifies ALL damage types');
+      mechanics.push('Amplifies every damage type');
       break;
 
     case EffectType.REFLECTION:
-      mechanics.push(`Returns ${Math.round((value || 0) * 100)}% damage to attacker`);
-      mechanics.push('Calculated before shield absorbs');
-      mechanics.push('Cannot reflect reflected damage');
+      mechanics.push(`Returns ${Math.round((value || 0) * 100)}% to the attacker`);
+      mechanics.push('Resolved before shield absorbs');
       break;
 
     case EffectType.REGEN:
-      mechanics.push(`+${value} HP per turn`);
-      mechanics.push('Heals at turn start');
-      mechanics.push(`Total heal: ${calculateDoTTotal(value || 0, duration)} over ${duration} turns`);
+      mechanics.push(`+${value} HP per turn (start)`);
+      if (duration > 0) {
+        mechanics.push(`${calculateDoTTotal(value || 0, duration)} total over ${duration} turns`);
+      }
       break;
 
     case EffectType.CHAKRA_DRAIN:
-      mechanics.push(`-${value} CP per turn`);
-      mechanics.push('Drains at turn start');
-      mechanics.push('Cannot reduce below 0');
+      mechanics.push(`-${value} CP per turn (start)`);
+      mechanics.push('Cannot fall below 0');
       break;
 
     case EffectType.CHAKRA_REGEN:
-      mechanics.push(`+${value} CP per turn`);
-      mechanics.push('Restores at turn start');
+      mechanics.push(`+${value} CP per turn (start)`);
       mechanics.push('Capped at max chakra');
       break;
 
     case EffectType.HEAL:
-      mechanics.push(`Restores ${value} HP instantly`);
+      mechanics.push(`Restores ${value} HP at once`);
       mechanics.push('Capped at max HP');
       break;
 
     case EffectType.DRAIN:
-      mechanics.push(`Steals ${value} HP from target`);
-      mechanics.push('Heals attacker for same amount');
+      mechanics.push(`Steals ${value} HP`);
+      mechanics.push('Heals the attacker the same');
       break;
 
     default:
-      mechanics.push('Effect details unknown');
+      mechanics.push('Effect unclear');
   }
 
   return mechanics;
@@ -502,30 +494,30 @@ export const getEffectTip = (type: EffectType): string => {
   switch (type) {
     case EffectType.DOT:
     case EffectType.BLEED:
-      return 'Physical defense reduces bleed damage';
+      return 'Steel defense softens the bleed.';
     case EffectType.BURN:
-      return 'Spirit stat reduces fire damage';
+      return 'Spirit cools the flame.';
     case EffectType.POISON:
-      return 'Often ignores some defense - high HP helps';
+      return 'Poison slips past armor — deep HP buys time.';
     case EffectType.STUN:
-      return 'Calmness increases status resistance';
+      return 'Calmness steadies the body against seals.';
     case EffectType.CONFUSION:
-      return 'Low Strength reduces self-damage';
+      return 'Lower Strength means a gentler self-strike.';
     case EffectType.SILENCE:
-      return 'Keep a 0-cost skill as backup';
+      return 'Keep a free technique when seals close.';
     case EffectType.SHIELD:
-      return 'Shield absorbs DoT damage too';
+      return 'The barrier also drinks DoT ticks.';
     case EffectType.INVULNERABILITY:
-      return 'Use to survive burst damage';
+      return 'Ride it through the enemy’s burst.';
     case EffectType.CURSE:
-      return 'Very dangerous - prioritize removing';
+      return 'Strip this first — every hit cuts deeper.';
     case EffectType.REFLECTION:
-      return 'Makes enemies hesitate to attack';
+      return 'Foes pay for every swing they take.';
     case EffectType.REGEN:
-      return 'Stacks well with high Willpower';
+      return 'High Willpower turns regen into a fortress.';
     case EffectType.BUFF:
     case EffectType.DEBUFF:
-      return 'Duration can be extended by some skills';
+      return 'Some jutsu can stretch the mark’s life.';
     default:
       return '';
   }

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import {
   Player, Item, Skill, GameState, BranchingRoom, BranchingFloor,
   CharacterStats, PrimaryStat, TrainingIntensity, GameEvent, EventChoice,
@@ -49,6 +49,8 @@ export interface ActivityState {
   isProcessingLoot: boolean;
   currentIntel: number;
   enemy: Enemy | null;
+  /** Live event definition — used to re-arm choice mutex when a new event opens. */
+  activeEvent: GameEvent | null;
 }
 
 export interface ActivitySetters {
@@ -112,7 +114,7 @@ export function useActivityHandlers(
     player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty,
     region, currentLocation, locationFloor, branchingFloor, selectedBranchingRoom,
     merchantDiscount, trainingData, scrollDiscoveryData, eliteChallengeData,
-    isProcessingLoot, currentIntel, enemy
+    isProcessingLoot, currentIntel, enemy, activeEvent,
   } = state;
 
   const {
@@ -128,45 +130,151 @@ export function useActivityHandlers(
     eventOutcome, startCombat,
   } = deps;
 
+  /** Sync mutex — isProcessingLoot state alone lags one frame behind double-clicks. */
+  const merchantLockRef = useRef(false);
+  /**
+   * Epoch bumps on leave / each new lock so a stale setTimeout unlock from a prior
+   * buy/reroll cannot clear the mutex mid-flight on a re-entered shop (W9 residual).
+   */
+  const merchantLockEpochRef = useRef(0);
+  /**
+   * Leave shop double-submit (button + Esc, or double-click).
+   * selectedBranchingRoom from closure is not a hard mutex until React commits —
+   * double leave could completeActivity + returnToMapActivityComplete twice
+   * (re-chain / double location-complete meta).
+   */
+  const merchantLeaveLockRef = useRef(false);
+  /**
+   * Elite Fight/Escape same-tick double-submit (click + F/E, or double-click).
+   * State consume alone is not enough: useState updaters re-read lastRenderedState
+   * until React commits, so two events in one frame both see the challenge.
+   */
+  const eliteResolveLockRef = useRef(false);
+
+  // New elite prompt → allow Fight/Escape again
+  useEffect(() => {
+    if (eliteChallengeData) {
+      eliteResolveLockRef.current = false;
+    }
+  }, [eliteChallengeData]);
+
+  // New merchant room (or re-enter) → allow Leave again
+  useEffect(() => {
+    if (selectedBranchingRoom?.id) {
+      merchantLeaveLockRef.current = false;
+    }
+  }, [selectedBranchingRoom?.id]);
+
   /**
    * Buy merchant item into bag.
    * T-055: returns paid price on success so UI can show purchase juice (null on fail).
+   * Functional setPlayer + ref mutex avoid double-click races that overwrite bag slots.
    */
   const buyItem = useCallback((item: Item): number | null => {
-    if (!player || isProcessingLoot) return null;
+    if (!player || isProcessingLoot || merchantLockRef.current) return null;
 
     // Match Merchant UI: ITEM_PRICE_MULTIPLIER × (1 - discount%)
     const price = Math.floor(
       item.value * MERCHANT.ITEM_PRICE_MULTIPLIER * (1 - merchantDiscount / 100)
     );
     if (player.ryo < price) {
-      addLog(`Not enough Ryō! Need ${price}.`, 'danger');
+      addLog(`Purse runs short — need ${price} Ryō.`, 'danger');
       return null;
     }
-
-    // Add item to bag instead of auto-equipping
-    const afterBuy = { ...player, ryo: player.ryo - price };
-    const result = { ...afterBuy };
-    const emptyIndex = result.bag.findIndex(s => s === null);
-    if (emptyIndex === -1) {
+    if (!player.bag.some((s) => s === null)) {
       addLog('Bag is full! Equip or sell items to make room.', 'danger');
       return null;
     }
-    result.bag = [...result.bag];
-    result.bag[emptyIndex] = item;
 
+    merchantLockRef.current = true;
+    const buyEpoch = ++merchantLockEpochRef.current;
     setIsProcessingLoot(true);
-    setPlayer(result);
+    type BuyOutcome = 'ok' | 'ryo' | 'full' | 'noprev';
+    const box: { o: BuyOutcome } = { o: 'noprev' };
+
+    setPlayer((prev) => {
+      if (!prev) {
+        box.o = 'noprev';
+        return null;
+      }
+      if (prev.ryo < price) {
+        box.o = 'ryo';
+        return prev;
+      }
+      const emptyIndex = prev.bag.findIndex((s) => s === null);
+      if (emptyIndex === -1) {
+        box.o = 'full';
+        return prev;
+      }
+      const newBag = [...prev.bag];
+      newBag[emptyIndex] = item;
+      box.o = 'ok';
+      return { ...prev, ryo: prev.ryo - price, bag: newBag };
+    });
+
+    const unlock = () => {
+      if (merchantLockEpochRef.current !== buyEpoch) return;
+      merchantLockRef.current = false;
+      setIsProcessingLoot(false);
+    };
+
+    if (box.o === 'ryo') {
+      unlock();
+      addLog(`Purse runs short — need ${price} Ryō.`, 'danger');
+      return null;
+    }
+    if (box.o === 'full') {
+      unlock();
+      addLog('Bag is full! Equip or sell items to make room.', 'danger');
+      return null;
+    }
+    if (box.o !== 'ok') {
+      unlock();
+      return null;
+    }
+
     addLog(`Bought ${item.name} for ${price} Ryō. Added to bag.`, 'loot');
-    setMerchantItems(prev => prev.filter(i => i.id !== item.id));
-    setTimeout(() => setIsProcessingLoot(false), 100);
+    setMerchantItems((prev) => prev.filter((i) => i.id !== item.id));
+    setTimeout(unlock, 100);
     return price;
   }, [player, isProcessingLoot, merchantDiscount, addLog, setPlayer, setMerchantItems, setIsProcessingLoot]);
 
   const leaveMerchant = useCallback(() => {
-    // Consume room pointer first so leave cannot double-complete the activity
+    // Ref mutex first — room closure alone can double-fire before commit
+    if (merchantLeaveLockRef.current) return;
     const room = selectedBranchingRoom;
-    if (!room) return;
+    merchantLeaveLockRef.current = true;
+
+    // Drop service lock + bump epoch so mid-buy timeout cannot re-unlock after leave
+    // (or clear a lock taken by a fast re-enter shop buy).
+    merchantLockEpochRef.current += 1;
+    merchantLockRef.current = false;
+    setIsProcessingLoot(false);
+
+    // Soft recovery: room pointer lost (stale cancel / chain race) — still leave the shop
+    // so MERCHANT never soft-locks with Leave no-op. Prefer completeActivity on current
+    // room so multi-activity chain / floor-complete still run.
+    if (!room) {
+      setMerchantItems([]);
+      setMerchantDiscount(0);
+      addLog('The merchant has packed up.', 'info');
+      const recoveryRoomId =
+        (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+        (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined);
+      if (locationFloor && region?.currentLocationId && recoveryRoomId) {
+        logActivityComplete(recoveryRoomId, 'merchant');
+        const updated = completeActivity(locationFloor, recoveryRoomId, 'merchant');
+        setLocationFloor(updated);
+        returnToMapActivityComplete(updated);
+      } else if (locationFloor && region?.currentLocationId) {
+        setGameState(GameState.LOCATION_EXPLORE);
+      } else {
+        setGameState(GameState.REGION_MAP);
+      }
+      return;
+    }
+
+    // Consume room pointer so leave cannot double-complete the activity
     setSelectedBranchingRoom(null);
 
     if (branchingFloor) {
@@ -189,35 +297,46 @@ export function useActivityHandlers(
 
     if (updatedLocationFloor && region?.currentLocationId) {
       returnToMapActivityComplete(updatedLocationFloor);
+    } else if (locationFloor && region?.currentLocationId) {
+      // Mid-location without a successful complete — stay on site map (never REGION_MAP)
+      setGameState(GameState.LOCATION_EXPLORE);
     } else {
       setGameState(GameState.REGION_MAP);
     }
-  }, [branchingFloor, selectedBranchingRoom, locationFloor, region, setBranchingFloor, setLocationFloor, setMerchantItems, setMerchantDiscount, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
+  }, [branchingFloor, selectedBranchingRoom, locationFloor, region, setBranchingFloor, setLocationFloor, setMerchantItems, setMerchantDiscount, setSelectedBranchingRoom, setGameState, setIsProcessingLoot, addLog, returnToMapActivityComplete]);
 
   const handleMerchantReroll = useCallback(() => {
-    if (!player || isProcessingLoot) return;
+    if (!player || isProcessingLoot || merchantLockRef.current) return;
     const cost = calculateMerchantRerollCost(currentDangerLevel, currentBaseDifficulty, MERCHANT.REROLL_BASE_COST, MERCHANT.REROLL_FLOOR_SCALING);
     if (player.ryo < cost) {
       addLog(`Not enough Ryō to reroll! Need ${cost}.`, 'danger');
       return;
     }
 
-    // Gate concurrent rerolls / slot buys (same flag as buyItem)
+    // Gate concurrent rerolls / buys / slot / quality (same mutex as buyItem)
+    merchantLockRef.current = true;
+    const rerollEpoch = ++merchantLockEpochRef.current;
     setIsProcessingLoot(true);
 
     let charged = false;
+    let treasureQuality = player.treasureQuality;
+    let itemCount = player.merchantSlots;
     setPlayer(p => {
       if (!p || p.ryo < cost) return p;
       charged = true;
+      treasureQuality = p.treasureQuality;
+      itemCount = p.merchantSlots;
       return { ...p, ryo: p.ryo - cost };
     });
     if (!charged) {
-      setIsProcessingLoot(false);
+      if (merchantLockEpochRef.current === rerollEpoch) {
+        merchantLockRef.current = false;
+        setIsProcessingLoot(false);
+      }
       return;
     }
 
     const newItems: Item[] = [];
-    const itemCount = player.merchantSlots;
     const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
     for (let i = 0; i < itemCount; i++) {
       // T-070: pass location lootTable + region lootTheme for stock bias
@@ -225,7 +344,7 @@ export function useActivityHandlers(
         generateMerchantItem(
           effectiveFloor,
           difficulty,
-          player.treasureQuality,
+          treasureQuality,
           currentLocation?.lootTable,
           region?.lootTheme,
         ),
@@ -233,11 +352,15 @@ export function useActivityHandlers(
     }
     setMerchantItems(newItems);
     addLog(`Paid ${cost} Ryō to refresh the merchant's inventory.`, 'info');
-    setTimeout(() => setIsProcessingLoot(false), 150);
+    setTimeout(() => {
+      if (merchantLockEpochRef.current !== rerollEpoch) return;
+      merchantLockRef.current = false;
+      setIsProcessingLoot(false);
+    }, 150);
   }, [player, isProcessingLoot, currentDangerLevel, currentBaseDifficulty, difficulty, currentLocation, region, setPlayer, setMerchantItems, setIsProcessingLoot, addLog]);
 
   const handleBuyMerchantSlot = useCallback(() => {
-    if (!player || isProcessingLoot) return;
+    if (!player || isProcessingLoot || merchantLockRef.current) return;
     if (player.merchantSlots >= MERCHANT.SLOT_COSTS.length) return;
     const cost = MERCHANT.SLOT_COSTS[player.merchantSlots];
     if (player.ryo < cost) {
@@ -245,6 +368,8 @@ export function useActivityHandlers(
       return;
     }
 
+    merchantLockRef.current = true;
+    const slotEpoch = ++merchantLockEpochRef.current;
     setIsProcessingLoot(true);
     let purchased = false;
     let newSlots = player.merchantSlots;
@@ -257,15 +382,22 @@ export function useActivityHandlers(
       return { ...p, ryo: p.ryo - slotCost, merchantSlots: newSlots };
     });
     if (!purchased) {
-      setIsProcessingLoot(false);
+      if (merchantLockEpochRef.current === slotEpoch) {
+        merchantLockRef.current = false;
+        setIsProcessingLoot(false);
+      }
       return;
     }
     addLog(`Paid ${cost} Ryō. Merchants will now show ${newSlots} items!`, 'gain');
-    setTimeout(() => setIsProcessingLoot(false), 150);
+    setTimeout(() => {
+      if (merchantLockEpochRef.current !== slotEpoch) return;
+      merchantLockRef.current = false;
+      setIsProcessingLoot(false);
+    }, 150);
   }, [player, isProcessingLoot, setPlayer, setIsProcessingLoot, addLog]);
 
   const handleUpgradeTreasureQuality = useCallback(() => {
-    if (!player || isProcessingLoot) return;
+    if (!player || isProcessingLoot || merchantLockRef.current) return;
     if (player.treasureQuality === TreasureQuality.RARE) return;
     const cost = player.treasureQuality === TreasureQuality.BROKEN
       ? MERCHANT.QUALITY_UPGRADE_COSTS.COMMON
@@ -275,6 +407,8 @@ export function useActivityHandlers(
       return;
     }
 
+    merchantLockRef.current = true;
+    const qualityEpoch = ++merchantLockEpochRef.current;
     setIsProcessingLoot(true);
     let upgraded: TreasureQuality | null = null;
     setPlayer(p => {
@@ -290,11 +424,18 @@ export function useActivityHandlers(
       return { ...p, ryo: p.ryo - upgradeCost, treasureQuality: nextQuality };
     });
     if (!upgraded) {
-      setIsProcessingLoot(false);
+      if (merchantLockEpochRef.current === qualityEpoch) {
+        merchantLockRef.current = false;
+        setIsProcessingLoot(false);
+      }
       return;
     }
     addLog(`Paid ${cost} Ryō. Treasure quality upgraded to ${upgraded}!`, 'gain');
-    setTimeout(() => setIsProcessingLoot(false), 150);
+    setTimeout(() => {
+      if (merchantLockEpochRef.current !== qualityEpoch) return;
+      merchantLockRef.current = false;
+      setIsProcessingLoot(false);
+    }, 150);
   }, [player, isProcessingLoot, setPlayer, setIsProcessingLoot, addLog]);
 
   const handleTrainingComplete = useCallback((stat: PrimaryStat, intensity: TrainingIntensity) => {
@@ -355,6 +496,9 @@ export function useActivityHandlers(
 
     if (updatedLocationFloor && region?.currentLocationId) {
       returnToMapActivityComplete(updatedLocationFloor);
+    } else if (locationFloor && region?.currentLocationId) {
+      setSelectedBranchingRoom(null);
+      setGameState(GameState.LOCATION_EXPLORE);
     } else {
       setSelectedBranchingRoom(null);
       setGameState(GameState.REGION_MAP);
@@ -371,16 +515,22 @@ export function useActivityHandlers(
     });
     if (!hadSession) return;
 
-    if (branchingFloor && selectedBranchingRoom) {
-      logActivityComplete(selectedBranchingRoom.id, 'training');
-      const updatedFloor = completeActivity(branchingFloor, selectedBranchingRoom.id, 'training');
+    // Prefer selected room; fall back to floor current (desync / chain race)
+    const roomId =
+      selectedBranchingRoom?.id ??
+      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined);
+
+    if (branchingFloor && roomId) {
+      logActivityComplete(roomId, 'training');
+      const updatedFloor = completeActivity(branchingFloor, roomId, 'training');
       setBranchingFloor(updatedFloor);
     }
 
     let updatedLocationFloor: BranchingFloor | undefined;
-    if (locationFloor && region && selectedBranchingRoom) {
-      logActivityComplete(selectedBranchingRoom.id, 'training');
-      updatedLocationFloor = completeActivity(locationFloor, selectedBranchingRoom.id, 'training');
+    if (locationFloor && region && roomId) {
+      logActivityComplete(roomId, 'training');
+      updatedLocationFloor = completeActivity(locationFloor, roomId, 'training');
       setLocationFloor(updatedLocationFloor);
     }
 
@@ -389,6 +539,10 @@ export function useActivityHandlers(
 
     if (updatedLocationFloor && region?.currentLocationId) {
       returnToMapActivityComplete(updatedLocationFloor);
+    } else if (locationFloor && region?.currentLocationId) {
+      // Mid-location: never dump to REGION_MAP (orphans live floor / seals progress UI)
+      setSelectedBranchingRoom(null);
+      setGameState(GameState.LOCATION_EXPLORE);
     } else {
       setSelectedBranchingRoom(null);
       setGameState(GameState.REGION_MAP);
@@ -477,6 +631,9 @@ export function useActivityHandlers(
 
     if (updatedLocationFloor && region?.currentLocationId) {
       returnToMapActivityComplete(updatedLocationFloor);
+    } else if (locationFloor && region?.currentLocationId) {
+      setSelectedBranchingRoom(null);
+      setGameState(GameState.LOCATION_EXPLORE);
     } else {
       setSelectedBranchingRoom(null);
       setGameState(GameState.REGION_MAP);
@@ -492,16 +649,21 @@ export function useActivityHandlers(
     });
     if (!hadSession) return;
 
-    if (branchingFloor && selectedBranchingRoom) {
-      logActivityComplete(selectedBranchingRoom.id, 'scrollDiscovery');
-      const updatedFloor = completeActivity(branchingFloor, selectedBranchingRoom.id, 'scrollDiscovery');
+    const roomId =
+      selectedBranchingRoom?.id ??
+      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined);
+
+    if (branchingFloor && roomId) {
+      logActivityComplete(roomId, 'scrollDiscovery');
+      const updatedFloor = completeActivity(branchingFloor, roomId, 'scrollDiscovery');
       setBranchingFloor(updatedFloor);
     }
 
     let updatedLocationFloor: BranchingFloor | undefined;
-    if (locationFloor && region && selectedBranchingRoom) {
-      logActivityComplete(selectedBranchingRoom.id, 'scrollDiscovery');
-      updatedLocationFloor = completeActivity(locationFloor, selectedBranchingRoom.id, 'scrollDiscovery');
+    if (locationFloor && region && roomId) {
+      logActivityComplete(roomId, 'scrollDiscovery');
+      updatedLocationFloor = completeActivity(locationFloor, roomId, 'scrollDiscovery');
       setLocationFloor(updatedLocationFloor);
     }
 
@@ -510,6 +672,9 @@ export function useActivityHandlers(
 
     if (updatedLocationFloor && region?.currentLocationId) {
       returnToMapActivityComplete(updatedLocationFloor);
+    } else if (locationFloor && region?.currentLocationId) {
+      setSelectedBranchingRoom(null);
+      setGameState(GameState.LOCATION_EXPLORE);
     } else {
       setSelectedBranchingRoom(null);
       setGameState(GameState.REGION_MAP);
@@ -517,16 +682,13 @@ export function useActivityHandlers(
   }, [branchingFloor, selectedBranchingRoom, locationFloor, region, setBranchingFloor, setLocationFloor, setScrollDiscoveryData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
 
   const handleEliteFight = useCallback(() => {
-    // Consume challenge first — blocks double Fight (double approach / pending artifact)
-    const box: { data: typeof eliteChallengeData } = { data: null };
-    setEliteChallengeData((prev: typeof eliteChallengeData) => {
-      if (!prev) return null;
-      box.data = prev;
-      return null;
-    });
-    if (!box.data) return;
+    // Ref first — same-tick double Fight (button + F) before React re-renders
+    if (eliteResolveLockRef.current) return;
+    if (!eliteChallengeData) return;
+    eliteResolveLockRef.current = true;
 
-    const challenge = box.data;
+    const challenge = eliteChallengeData;
+    setEliteChallengeData(null);
     logExplorationCheckpoint('Elite Fight chosen', { enemy: challenge.enemy.name, artifact: challenge.artifact.name });
     logModalOpen('ApproachSelector', { source: 'eliteChallenge', enemy: challenge.enemy.name });
     setPendingArtifact(challenge.artifact);
@@ -538,22 +700,18 @@ export function useActivityHandlers(
     } else {
       setGameState(GameState.REGION_MAP);
     }
-  }, [locationFloor, region, setPendingArtifact, setSelectedBranchingRoom, setShowApproachSelector, setEliteChallengeData, setGameState]);
+  }, [eliteChallengeData, locationFloor, region, setPendingArtifact, setSelectedBranchingRoom, setShowApproachSelector, setEliteChallengeData, setGameState]);
 
   const handleEliteEscape = useCallback(() => {
     if (!player || !playerStats) return;
     if (!branchingFloor && !locationFloor) return;
+    // Ref first — same-tick double Escape (button + E) double complete / double roll
+    if (eliteResolveLockRef.current) return;
+    if (!eliteChallengeData) return;
+    eliteResolveLockRef.current = true;
 
-    // Consume challenge first — blocks double Escape (double complete / double roll)
-    const box: { data: typeof eliteChallengeData } = { data: null };
-    setEliteChallengeData((prev: typeof eliteChallengeData) => {
-      if (!prev) return null;
-      box.data = prev;
-      return null;
-    });
-    if (!box.data) return;
-
-    const challenge = box.data;
+    const challenge = eliteChallengeData;
+    setEliteChallengeData(null);
     const result = attemptEliteEscape(player, playerStats, challenge.enemy);
     logExplorationCheckpoint('Elite Escape attempt', { success: result.success, roll: result.roll, chance: result.chance });
 
@@ -610,16 +768,35 @@ export function useActivityHandlers(
         setGameState(GameState.REGION_MAP);
       }
     }
-  }, [player, playerStats, branchingFloor, locationFloor, region, setBranchingFloor, setLocationFloor, setEliteChallengeData, setGameState, addLog, setPendingArtifact, setSelectedBranchingRoom, setShowApproachSelector, returnToMapActivityComplete]);
+  }, [player, playerStats, eliteChallengeData, branchingFloor, locationFloor, region, setBranchingFloor, setLocationFloor, setEliteChallengeData, setGameState, addLog, setPendingArtifact, setSelectedBranchingRoom, setShowApproachSelector, returnToMapActivityComplete]);
+
+  /**
+   * Sync mutex for event confirm — UI choiceLocked state lagged one frame so
+   * double Enter/click re-ran resolveEventChoice (double HP/ryo/flags/combat).
+   * Rearm when a new activeEvent opens (terminal outcome / combat left the lock
+   * true forever → second event UI locked with no resolve). Also rearm on failed
+   * gate and chain hops.
+   */
+  const eventChoiceLockRef = useRef(false);
+
+  useEffect(() => {
+    if (activeEvent) {
+      eventChoiceLockRef.current = false;
+    }
+  }, [activeEvent]);
 
   const handleEventChoice = useCallback((choice: EventChoice) => {
     if (!player || !playerStats) return;
     // Outcome already open — ignore re-clicks on event choices
     if (eventOutcome) return;
+    if (eventChoiceLockRef.current) return;
+    eventChoiceLockRef.current = true;
 
     const result = resolveEventChoice(player, choice, playerStats);
 
     if (!result.success) {
+      // Failed gate (cost/req) — allow another pick
+      eventChoiceLockRef.current = false;
       addLog(result.message, 'danger');
       return;
     }
@@ -641,7 +818,7 @@ export function useActivityHandlers(
         if (newlyDiscovered.length > 0) {
           setRegion(nextRegion);
           for (const name of newlyDiscovered) {
-            addLog(`Secret location revealed: ${name}!`, 'gain');
+            addLog(`A veiled route surfaces: ${name}.`, 'gain');
           }
         }
       }
@@ -680,9 +857,10 @@ export function useActivityHandlers(
 
     if (result.triggerCombat && result.outcome?.effects.triggerCombat) {
       const combatConfig = result.outcome.effects.triggerCombat;
-      const combatDangerLevel = combatConfig.floor
-        ? Math.min(7, Math.max(1, Math.ceil(combatConfig.floor / 3)))
-        : currentDangerLevel;
+      const combatDangerLevel =
+        combatConfig.floor !== undefined && combatConfig.floor !== null
+          ? Math.min(7, Math.max(1, Math.ceil(combatConfig.floor / 3)))
+          : currentDangerLevel;
 
       // archetype is a combat build (TANK/ASSASSIN/…), not enemy tier (NORMAL/ELITE/BOSS)
       const VALID_ARCHETYPES: EnemyArchetype[] = [
@@ -698,11 +876,13 @@ export function useActivityHandlers(
       // T-057: theme event fights with current location enemy pool when available
       const eventEnemyPool =
         locationFloor?.enemyPool ?? branchingFloor?.enemyPool;
+      const baseDiff = region?.baseDifficulty ?? currentBaseDifficulty ?? difficulty;
+      const combatDifficulty = baseDiff + (combatConfig.difficulty || 0);
       const combatEnemy = generateEnemy(
         combatDangerLevel,
         player?.locationsCleared ?? 0,
         enemyType,
-        combatConfig.difficulty || difficulty,
+        combatDifficulty,
         region?.arc ?? 'WAVES_ARC',
         forcedArchetype,
         eventEnemyPool,
@@ -718,19 +898,18 @@ export function useActivityHandlers(
         : branchingFloor
         ? getCurrentRoom(branchingFloor)
         : null;
+      // Prefer selected room (set when event opens) so the activity is always consumed
+      const combatEventRoomId =
+        selectedBranchingRoom?.id ?? currentRoom?.id ?? null;
 
-      if (locationFloor && region) {
-        if (currentRoom) {
-          logActivityComplete(currentRoom.id, 'event');
-          const updatedFloor = completeActivity(locationFloor, currentRoom.id, 'event');
-          setLocationFloor(updatedFloor);
-        }
-      } else if (branchingFloor) {
-        if (currentRoom) {
-          logActivityComplete(currentRoom.id, 'event');
-          const updatedFloor = completeActivity(branchingFloor, currentRoom.id, 'event');
-          setBranchingFloor(updatedFloor);
-        }
+      if (locationFloor && combatEventRoomId) {
+        logActivityComplete(combatEventRoomId, 'event');
+        const updatedFloor = completeActivity(locationFloor, combatEventRoomId, 'event');
+        setLocationFloor(updatedFloor);
+      } else if (branchingFloor && combatEventRoomId) {
+        logActivityComplete(combatEventRoomId, 'event');
+        const updatedFloor = completeActivity(branchingFloor, combatEventRoomId, 'event');
+        setBranchingFloor(updatedFloor);
       }
 
       // T-063/T-070: location terrain for manual + auto event combat
@@ -772,9 +951,11 @@ export function useActivityHandlers(
           currentRoom?.activities.combat?.modifiers,
         );
       } else {
+        // Auto-sim must start from post-event player (HP/ryo/flags already applied).
+        // Prior path used pre-choice `player` → wrong starting HP after event damage/heal.
         addLog(`Engaging ${combatEnemy.name} from event...`, 'info');
         const simResult = simulateGameCombat(
-          player,
+          postEventPlayer,
           playerStats,
           combatEnemy,
           undefined,
@@ -805,6 +986,13 @@ export function useActivityHandlers(
       return;
     }
 
+    // Resolve which room owns this event (selected room wins — more reliable than currentRoomId alone)
+    const eventRoomId =
+      selectedBranchingRoom?.id ??
+      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined) ??
+      null;
+
     // T-008/T-011: chain into the next event. The eventFlags written by this
     // outcome were already persisted via setPlayer(postEventPlayer) above, so
     // the next event (and its choices) see them when gating. In the location
@@ -822,6 +1010,7 @@ export function useActivityHandlers(
           logType: logType as 'gain' | 'danger' | 'info' | 'loot',
           changes: outcomeChanges,
           nextEventId: result.nextEventId,
+          roomId: eventRoomId,
         });
         setActiveEvent(null);
         setGameState(GameState.LOCATION_EXPLORE);
@@ -830,6 +1019,8 @@ export function useActivityHandlers(
       // Legacy branching explorer has no result panel — hop directly.
       const nextEvent = EVENTS.find(e => e.id === result.nextEventId);
       if (nextEvent) {
+        // Next link must accept a confirm (UI remounts; parent mutex must rearm)
+        eventChoiceLockRef.current = false;
         setCameFromChain(true);
         setActiveEvent(nextEvent);
         setGameState(GameState.EVENT);
@@ -837,39 +1028,73 @@ export function useActivityHandlers(
       }
     }
 
+    // Show result panel, then complete the room event on close (roomId carried in payload)
     if (result.outcome) {
       setEventOutcome({
         message: result.message || 'Choice resolved.',
         outcome: result.outcome,
         logType: logType as 'gain' | 'danger' | 'info' | 'loot',
         changes: outcomeChanges,
+        roomId: eventRoomId,
       });
+      setActiveEvent(null);
+      if (inLocationMode) {
+        setGameState(GameState.LOCATION_EXPLORE);
+      } else {
+        setGameState(GameState.REGION_MAP);
+      }
+      return;
     }
 
+    // No outcome panel — mark event consumed immediately so it cannot re-open
     setActiveEvent(null);
+    if (eventRoomId && locationFloor && region) {
+      logActivityComplete(eventRoomId, 'event');
+      const updatedFloor = completeActivity(locationFloor, eventRoomId, 'event');
+      setLocationFloor(updatedFloor);
+      returnToMapActivityComplete(updatedFloor);
+      return;
+    }
+    if (eventRoomId && branchingFloor) {
+      logActivityComplete(eventRoomId, 'event');
+      const updatedFloor = completeActivity(branchingFloor, eventRoomId, 'event');
+      setBranchingFloor(updatedFloor);
+    }
     if (inLocationMode) {
       setGameState(GameState.LOCATION_EXPLORE);
     } else {
       setGameState(GameState.REGION_MAP);
     }
-  }, [player, playerStats, currentDangerLevel, difficulty, region, locationFloor, branchingFloor, eventOutcome, setPlayer, setRegion, setLocationFloor, setBranchingFloor, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, addLog, checkLevelUp, handleCombatVictory, startCombat]);
+  }, [player, playerStats, currentDangerLevel, difficulty, region, locationFloor, branchingFloor, selectedBranchingRoom, eventOutcome, setPlayer, setRegion, setLocationFloor, setBranchingFloor, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, addLog, checkLevelUp, handleCombatVictory, startCombat, returnToMapActivityComplete]);
 
   const handleEventOutcomeClose = useCallback(() => {
     logModalClose('EventOutcomeModal');
 
     // Consume outcome first — blocks double Continue (double intel / double complete)
-    let outcome: typeof eventOutcome = null;
+    const box: {
+      outcome: {
+        message: string;
+        outcome: any;
+        logType: string;
+        changes: OutcomeChange[];
+        nextEventId?: string;
+        roomId?: string | null;
+      } | null;
+    } = { outcome: null };
     setEventOutcome((prev: typeof eventOutcome) => {
       if (!prev) return null;
-      outcome = prev;
+      box.outcome = prev;
       return null;
     });
-    if (!outcome) return;
+    if (!box.outcome) return;
+
+    const closed = box.outcome;
 
     // T-011: chain continues the story without completing the room / granting intel
-    if (outcome.nextEventId) {
-      const nextEvent = EVENTS.find(e => e.id === outcome.nextEventId);
+    if (closed.nextEventId) {
+      const nextEvent = EVENTS.find(e => e.id === closed.nextEventId);
       if (nextEvent) {
+        eventChoiceLockRef.current = false;
         setCameFromChain(true);
         setActiveEvent(nextEvent);
         setGameState(GameState.EVENT);
@@ -880,41 +1105,56 @@ export function useActivityHandlers(
     // Terminal link: the chain (if any) is over — clear the chain flag.
     setCameFromChain(false);
 
-    if (branchingFloor) {
-      const currentRoom = getCurrentRoom(branchingFloor);
-      if (currentRoom) {
-        logActivityComplete(currentRoom.id, 'event');
-        const updatedFloor = completeActivity(branchingFloor, currentRoom.id, 'event');
-        setBranchingFloor(updatedFloor);
-      }
+    // Prefer roomId stamped when the choice resolved (survives currentRoomId drift)
+    const roomId =
+      closed.roomId ??
+      selectedBranchingRoom?.id ??
+      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined) ??
+      null;
+
+    if (locationFloor && roomId) {
+      logActivityComplete(roomId, 'event');
+      const updatedFloor = completeActivity(locationFloor, roomId, 'event');
+      setLocationFloor(updatedFloor);
+
+      // T-068: fog/visibility_penalty scales event intel (parity combat/infoGather)
+      const baseEventIntel =
+        closed.outcome?.effects?.intelGain ?? INTEL_GAIN.EVENT_DEFAULT;
+      const eventIntelGain = applyVisibilityToIntelGain(
+        baseEventIntel,
+        getLocationTerrainMods(currentLocation?.terrainEffects),
+      );
+      const nextIntel = Math.min(100, currentIntel + eventIntelGain);
+      setCurrentIntel(nextIntel);
+      logIntelGain('Event', eventIntelGain, nextIntel);
+
+      // Pass fresh floor + intel so location-complete redraw is not stale
+      returnToMapActivityComplete(updatedFloor, { intel: nextIntel });
+      return;
     }
 
-    if (locationFloor && region) {
-      const currentRoom = getCurrentRoom(locationFloor);
-      if (currentRoom) {
-        logActivityComplete(currentRoom.id, 'event');
-        const updatedFloor = completeActivity(locationFloor, currentRoom.id, 'event');
-        setLocationFloor(updatedFloor);
+    if (branchingFloor && roomId) {
+      logActivityComplete(roomId, 'event');
+      const updatedFloor = completeActivity(branchingFloor, roomId, 'event');
+      setBranchingFloor(updatedFloor);
+      setSelectedBranchingRoom(null);
+      setGameState(GameState.REGION_MAP);
+      return;
+    }
 
-        // T-068: fog/visibility_penalty scales event intel (parity combat/infoGather)
-        const baseEventIntel =
-          outcome.outcome?.effects?.intelGain ?? INTEL_GAIN.EVENT_DEFAULT;
-        const eventIntelGain = applyVisibilityToIntelGain(
-          baseEventIntel,
-          getLocationTerrainMods(currentLocation?.terrainEffects),
-        );
-        const nextIntel = Math.min(100, currentIntel + eventIntelGain);
-        setCurrentIntel(nextIntel);
-        logIntelGain('Event', eventIntelGain, nextIntel);
-
-        // Pass fresh floor + intel so location-complete redraw is not stale
-        returnToMapActivityComplete(updatedFloor, { intel: nextIntel });
-      }
+    // Fallback: still leave event UI even if room id was lost
+    addLog('Event resolved.', 'info');
+    setSelectedBranchingRoom(null);
+    if (locationFloor && region?.currentLocationId) {
+      returnToMapActivityComplete(locationFloor);
+    } else {
+      setGameState(GameState.REGION_MAP);
     }
   }, [
-    branchingFloor, locationFloor, region, currentLocation, currentIntel,
-    setBranchingFloor, setLocationFloor, setCurrentIntel, setEventOutcome,
-    setCameFromChain, setActiveEvent, setGameState, returnToMapActivityComplete,
+    branchingFloor, locationFloor, region, currentLocation, currentIntel, selectedBranchingRoom,
+    setBranchingFloor, setLocationFloor, setCurrentIntel, setEventOutcome, setSelectedBranchingRoom,
+    setCameFromChain, setActiveEvent, setGameState, returnToMapActivityComplete, addLog,
   ]);
 
   return {

@@ -81,24 +81,24 @@ export function buildOutcomeChanges(
   // --- Resource deltas: exact (before→after) so clamping reads honestly. ---
   const hpDelta = after.currentHp - before.currentHp;
   if (hpDelta !== 0) {
-    changes.push({ key: 'hp', icon: '❤', label: 'HP', value: signed(hpDelta), tone: hpDelta > 0 ? 'up' : 'down' });
+    changes.push({ key: 'hp', icon: 'HP', label: 'HP', value: signed(hpDelta), tone: hpDelta > 0 ? 'up' : 'down' });
   }
 
   const cpDelta = after.currentChakra - before.currentChakra;
   if (cpDelta !== 0) {
-    changes.push({ key: 'cp', icon: '✦', label: 'Chakra', value: signed(cpDelta), tone: cpDelta > 0 ? 'up' : 'down' });
+    changes.push({ key: 'cp', icon: 'CP', label: 'Chakra', value: signed(cpDelta), tone: cpDelta > 0 ? 'up' : 'down' });
   }
 
   // Ryo is net of the choice's upfront cost, which is the honest bottom line.
   const ryoDelta = after.ryo - before.ryo;
   if (ryoDelta !== 0) {
-    changes.push({ key: 'ryo', icon: '◈', label: 'Ryo', value: signed(ryoDelta), tone: ryoDelta > 0 ? 'up' : 'down' });
+    changes.push({ key: 'ryo', icon: 'RY', label: 'Ryo', value: signed(ryoDelta), tone: ryoDelta > 0 ? 'up' : 'down' });
   }
 
   // --- Declared effects (leveling / on-close application make before→after
   //     unreliable for these, so read the authoritative declaration). ---
   if (effects.exp) {
-    changes.push({ key: 'exp', icon: '▲', label: 'XP', value: signed(effects.exp), tone: effects.exp > 0 ? 'up' : 'down' });
+    changes.push({ key: 'exp', icon: 'XP', label: 'XP', value: signed(effects.exp), tone: effects.exp > 0 ? 'up' : 'down' });
   }
 
   // T-086: prefer fog-scaled intel (matches setCurrentIntel on outcome close)
@@ -114,7 +114,7 @@ export function buildOutcomeChanges(
       && base !== effectiveIntel;
     changes.push({
       key: 'intel',
-      icon: '🔮',
+      icon: 'IN',
       label: 'Intel',
       value: fog
         ? `${signed(base)}%→${signed(effectiveIntel)}% · fog`
@@ -129,7 +129,7 @@ export function buildOutcomeChanges(
       if (typeof value === 'number' && value !== 0) {
         changes.push({
           key: `stat-${stat}`,
-          icon: '◆',
+          icon: 'ST',
           label: STAT_LABELS[stat] ?? stat,
           value: signed(value),
           tone: value > 0 ? 'up' : 'down',
@@ -139,11 +139,11 @@ export function buildOutcomeChanges(
   }
 
   if (effects.upgradeTreasureQuality) {
-    changes.push({ key: 'treasure', icon: '🎁', label: 'Treasure', value: 'Quality ↑', tone: 'up' });
+    changes.push({ key: 'treasure', icon: 'TR', label: 'Treasure', value: 'Quality ↑', tone: 'up' });
   }
 
   if (effects.addMerchantSlot) {
-    changes.push({ key: 'slot', icon: '🛒', label: 'Merchant', value: '+1 slot', tone: 'up' });
+    changes.push({ key: 'slot', icon: 'SH', label: 'Merchant', value: '+1 slot', tone: 'up' });
   }
 
   // Skill grant is deduped by the engine — only report it if the loadout
@@ -153,35 +153,58 @@ export function buildOutcomeChanges(
     const has = after.skills.some((s) => s.id === effects.grantSkillById);
     if (!had && has) {
       const granted = Object.values(SKILLS).find((s) => s.id === effects.grantSkillById);
-      changes.push({ key: 'skill', icon: '📜', label: 'Learned', value: granted?.name ?? 'New Jutsu', tone: 'up' });
+      changes.push({ key: 'skill', icon: 'JT', label: 'Learned', value: granted?.name ?? 'New Jutsu', tone: 'up' });
     }
   }
 
   if (effects.buffs) {
     for (const buff of effects.buffs) {
-      changes.push({ key: `buff-${buff.id}`, icon: '🛡', label: 'Effect', value: `${buff.name} · ${buff.duration}t`, tone: 'up' });
+      changes.push({ key: `buff-${buff.id}`, icon: 'FX', label: 'Effect', value: `${buff.name} · ${buff.duration}t`, tone: 'up' });
     }
   }
 
   if (effects.curse) {
     const pct = Math.round((effects.curse.value ?? 0.5) * 100);
     const dur = effects.curse.duration ?? 3;
-    changes.push({ key: 'curse', icon: '☠', label: 'Curse', value: `+${pct}% dmg · ${dur}t`, tone: 'curse' });
+    changes.push({ key: 'curse', icon: 'CR', label: 'Curse', value: `+${pct}% dmg · ${dur}t`, tone: 'curse' });
   }
 
   // Item loss: find the slot that went item→null so we can name what was lost.
   if (effects.removeRandomItem) {
     const lost = before.bag.find((item, i) => item !== null && after.bag[i] === null);
     if (lost) {
-      changes.push({ key: 'item-lost', icon: '✖', label: 'Lost', value: lost.name, tone: 'down' });
+      changes.push({ key: 'item-lost', icon: 'LS', label: 'Lost', value: lost.name, tone: 'down' });
     }
   }
 
   // Narrative flags: surfaced quietly so the player knows a decision was recorded.
   if (effects.setFlags) {
     for (const flag of Object.keys(effects.setFlags)) {
-      changes.push({ key: `flag-${flag}`, icon: '⚑', label: 'Mark', value: flag.replace(/_/g, ' '), tone: 'flag' });
+      changes.push({ key: `flag-${flag}`, icon: 'MK', label: 'Mark', value: flag.replace(/_/g, ' '), tone: 'flag' });
     }
+  }
+
+  if (effects.triggerCombat) {
+    changes.push({
+      key: 'combat',
+      icon: 'FT',
+      label: 'Combat',
+      value: effects.triggerCombat.name || 'Encounter',
+      tone: 'down',
+    });
+  }
+
+  // Pure narrative outcomes (e.g. Walk Away): surface that the choice resolved
+  // so the WHAT CHANGED panel never looks like a broken empty state.
+  if (changes.length === 0 && effects.logMessage) {
+    const isDark = effects.logType === 'danger';
+    changes.push({
+      key: 'narrative',
+      icon: isDark ? '··' : 'OK',
+      label: 'Outcome',
+      value: isDark ? 'No rewards · weight carried' : 'Resolved · no deltas',
+      tone: isDark ? 'down' : 'neutral',
+    });
   }
 
   return changes;

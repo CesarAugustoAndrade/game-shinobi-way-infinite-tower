@@ -123,7 +123,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_dock_worker",
     "emoji": "🥷",
     "label": "dock worker",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_dock_worker.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -132,7 +132,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_corrupt_guard",
     "emoji": "🥷",
     "label": "corrupt guard",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_corrupt_guard.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -141,7 +141,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_smuggler",
     "emoji": "🥷",
     "label": "smuggler",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_smuggler.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -150,7 +150,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_beach_bandit",
     "emoji": "🥷",
     "label": "beach bandit",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_beach_bandit.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -159,8 +159,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_sea_spirit",
     "emoji": "👁️",
     "label": "sea spirit",
-    "src": "/assets/icons/enemies/sea_spirit.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_sea_spirit.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -168,7 +168,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_stranded_ronin",
     "emoji": "⚔️",
     "label": "stranded ronin",
-    "src": "/assets/enemy_samurai.png",
+    "src": "/assets/enemy_stranded_ronin.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -177,7 +177,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_forest_bandit",
     "emoji": "🥷",
     "label": "forest bandit",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_forest_bandit.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -186,8 +186,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_wild_boar",
     "emoji": "🛡️",
     "label": "wild boar",
-    "src": "/assets/icons/enemies/wild_boar.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_wild_boar.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -195,8 +195,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_missing_nin",
     "emoji": "🥷",
     "label": "missing nin",
-    "src": "/assets/icons/enemies/missing_nin.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_missing_nin.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -204,7 +204,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_cave_smuggler",
     "emoji": "🥷",
     "label": "cave smuggler",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_cave_smuggler.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -213,16 +213,16 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_trap_master",
     "emoji": "🥷",
     "label": "trap master",
-    "src": "/assets/icons/enemies/trap_master.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_trap_master.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
     "key": "enemy:pool_guard_dog",
     "id": "pool_guard_dog",
-    "emoji": "🥷",
+    "emoji": "🐕",
     "label": "guard dog",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_war_dog.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -231,7 +231,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_village_thug",
     "emoji": "🥷",
     "label": "village thug",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_village_thug.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -240,7 +240,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_corrupt_merchant",
     "emoji": "🥷",
     "label": "corrupt merchant",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_corrupt_merchant.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -249,7 +249,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_hired_muscle",
     "emoji": "🥷",
     "label": "hired muscle",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_hired_muscle.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -258,7 +258,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_river_bandit",
     "emoji": "🥷",
     "label": "river bandit",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_mist_ninja.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -267,7 +267,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_camp_raider",
     "emoji": "🥷",
     "label": "camp raider",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_camp_raider.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -276,7 +276,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_desperate_traveler",
     "emoji": "🥷",
     "label": "desperate traveler",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_desperate_traveler.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -285,8 +285,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_drowned_sailor",
     "emoji": "🥷",
     "label": "drowned sailor",
-    "src": "/assets/icons/enemies/drowned_sailor.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_drowned_sailor.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -294,8 +294,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_water_spirit",
     "emoji": "👁️",
     "label": "water spirit",
-    "src": "/assets/icons/enemies/water_spirit.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_water_spirit.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -303,7 +303,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_treasure_guardian",
     "emoji": "🥷",
     "label": "treasure guardian",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_treasure_guardian.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -312,7 +312,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_bridge_saboteur",
     "emoji": "🥷",
     "label": "bridge saboteur",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_bridge_saboteur.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -321,7 +321,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_hired_assassin",
     "emoji": "🥷",
     "label": "hired assassin",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_hired_assassin.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -330,7 +330,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_corrupt_foreman",
     "emoji": "🥷",
     "label": "corrupt foreman",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_corrupt_foreman.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -339,7 +339,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_bandit_captain",
     "emoji": "🥷",
     "label": "bandit captain",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_bandit_captain.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -348,7 +348,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_elite_mercenary",
     "emoji": "🥷",
     "label": "elite mercenary",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_bridge_saboteur.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -357,8 +357,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_war_dog",
     "emoji": "🛡️",
     "label": "war dog",
-    "src": "/assets/icons/enemies/war_dog.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_war_dog.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -366,8 +366,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_vengeful_ghost",
     "emoji": "👁️",
     "label": "vengeful ghost",
-    "src": "/assets/icons/enemies/vengeful_ghost.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_vengeful_ghost.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -375,7 +375,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_manor_guardian",
     "emoji": "🥷",
     "label": "manor guardian",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_corrupt_guard.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -384,8 +384,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_cursed_servant",
     "emoji": "🥷",
     "label": "cursed servant",
-    "src": "/assets/icons/enemies/cursed_servant.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_cursed_servant.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -393,7 +393,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_cove_smuggler",
     "emoji": "🥷",
     "label": "cove smuggler",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_cove_smuggler.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -402,8 +402,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_sea_creature",
     "emoji": "🥷",
     "label": "sea creature",
-    "src": "/assets/icons/enemies/sea_creature.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_sea_creature.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -411,7 +411,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_hidden_guard",
     "emoji": "🥷",
     "label": "hidden guard",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_mist_ninja.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -420,8 +420,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_shrine_demon",
     "emoji": "👁️",
     "label": "shrine demon",
-    "src": "/assets/icons/enemies/shrine_demon.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_shrine_demon.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -429,8 +429,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_corrupted_priest",
     "emoji": "👁️",
     "label": "corrupted priest",
-    "src": "/assets/icons/enemies/corrupted_priest.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_corrupted_priest.png",
+    "quality": "painted-png",
     "kind": "pool"
   },
   {
@@ -438,7 +438,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_eldritch_guardian",
     "emoji": "🥷",
     "label": "eldritch guardian",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_treasure_guardian.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -447,7 +447,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_elite_guard",
     "emoji": "⚔️",
     "label": "elite guard",
-    "src": "/assets/enemy_samurai.png",
+    "src": "/assets/enemy_corrupt_guard.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -456,7 +456,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_ronin",
     "emoji": "⚔️",
     "label": "ronin",
-    "src": "/assets/enemy_samurai.png",
+    "src": "/assets/enemy_ronin.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -465,7 +465,7 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_assassin",
     "emoji": "🥷",
     "label": "assassin",
-    "src": "/assets/enemy_exhausted_shinobi.png",
+    "src": "/assets/enemy_hired_assassin.png",
     "quality": "painted-png",
     "kind": "pool"
   },
@@ -474,8 +474,8 @@ export const ENEMY_ART_MANIFEST: EnemyArtManifestEntry[] = [
     "id": "pool_gato",
     "emoji": "💰",
     "label": "gato",
-    "src": "/assets/icons/enemies/gato.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/enemy_gato.png",
+    "quality": "painted-png",
     "kind": "pool"
   }
 ];

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   TrainingActivity,
   TrainingIntensity,
@@ -20,6 +20,7 @@ import {
   type LucideIcon
 } from 'lucide-react';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
+import { isFocusStat } from '../../game/utils/itemFocusMatch';
 import './Training.css';
 
 interface TrainingProps {
@@ -30,6 +31,10 @@ interface TrainingProps {
   onSkip: () => void;
   /** Biome background image — fills the scene via SceneBackdrop. */
   background?: string;
+  /**
+   * T-112: region equipmentFocus — mark matching training stats for build planning.
+   */
+  equipmentFocus?: string[] | null;
 }
 
 type StatCategory = 'body' | 'mind' | 'technique';
@@ -294,6 +299,8 @@ interface StatCardProps {
   onSelect: () => void;
   onIntensityChange: (intensity: TrainingIntensity) => void;
   canAfford: (hp: number, chakra: number) => boolean;
+  /** T-112 */
+  isFocus?: boolean;
 }
 
 const StatCard: React.FC<StatCardProps> = ({
@@ -306,6 +313,7 @@ const StatCard: React.FC<StatCardProps> = ({
   onSelect,
   onIntensityChange,
   canAfford,
+  isFocus = false,
 }) => {
   const info = STAT_INFO[option.stat];
   const Icon = info.icon;
@@ -321,7 +329,7 @@ const StatCard: React.FC<StatCardProps> = ({
     <div
       className={`stat-card stat-card--${info.category} ${
         isSelected ? 'stat-card--selected' : ''
-      } ${isDimmed ? 'stat-card--dimmed' : ''}`}
+      } ${isDimmed ? 'stat-card--dimmed' : ''} ${isFocus ? 'stat-card--focus' : ''}`}
       onClick={handleClick}
       role="button"
       tabIndex={0}
@@ -332,6 +340,11 @@ const StatCard: React.FC<StatCardProps> = ({
         <div>
           <span className="stat-card__index">{index + 1}</span>
           <span className="stat-card__category">{info.categoryLabel}</span>
+          {isFocus && (
+            <span className="stat-card__focus-badge" title="Matches region Focus">
+              Focus
+            </span>
+          )}
         </div>
         <span className={`stat-card__value stat-card__value--${info.category}`}>
           {currentValue}
@@ -343,7 +356,10 @@ const StatCard: React.FC<StatCardProps> = ({
         <div className={`stat-card__icon stat-card__icon--${info.category}`}>
           <Icon size={18} />
         </div>
-        <span className="stat-card__name">{displayName}</span>
+        <span className="stat-card__name">
+          {displayName}
+          {isFocus && <span className="stat-card__focus-mark"> ★</span>}
+        </span>
       </div>
 
       {/* Benefits */}
@@ -423,6 +439,7 @@ const Training: React.FC<TrainingProps> = ({
   onTrain,
   onSkip,
   background,
+  equipmentFocus = null,
 }) => {
   const [selectedStat, setSelectedStat] = useState<PrimaryStat | null>(null);
   const [selectedIntensity, setSelectedIntensity] = useState<TrainingIntensity | null>(null);
@@ -456,9 +473,13 @@ const Training: React.FC<TrainingProps> = ({
     setSelectedIntensity(intensity);
   }, []);
 
+  /** Sync mutex — result state lags; double Enter/click before re-render re-called onTrain. */
+  const resultContinueLockRef = useRef(false);
+
   // T-048: show result panel first; parent apply + leave on continue
   const handleTrain = useCallback(() => {
     if (!selectedStat || !selectedIntensity || !selectedOption) return;
+    if (resultContinueLockRef.current) return;
     const { cost, gain } = selectedOption.intensities[selectedIntensity];
     if (!canAfford(cost.hp, cost.chakra)) return;
     const before = getStatValue(selectedStat);
@@ -473,7 +494,8 @@ const Training: React.FC<TrainingProps> = ({
   }, [selectedStat, selectedIntensity, selectedOption, canAfford, getStatValue]);
 
   const handleResultContinue = useCallback(() => {
-    if (!result) return;
+    if (!result || resultContinueLockRef.current) return;
+    resultContinueLockRef.current = true;
     // Clear local result first so double Enter/click cannot re-apply training
     const { stat, intensity } = result;
     setResult(null);
@@ -493,6 +515,7 @@ const Training: React.FC<TrainingProps> = ({
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.repeat) return;
     const key = e.key.toUpperCase();
 
     // Number keys 1-9 to select stat
@@ -539,10 +562,13 @@ const Training: React.FC<TrainingProps> = ({
       }
     }
 
-    // Escape to skip or deselect (blocked on result — must continue)
+    // Escape: result → continue (parity Scroll/Reward); else deselect or leave
     if (e.key === 'Escape') {
       e.preventDefault();
-      if (result) return;
+      if (result) {
+        handleResultContinue();
+        return;
+      }
       if (selectedStat) {
         setSelectedStat(null);
         setSelectedIntensity(null);
@@ -565,8 +591,8 @@ const Training: React.FC<TrainingProps> = ({
       <SceneBackdrop background={background}>
         <div className="training training--result">
           <div className="training__result" role="status">
-            <h2 className="training__result-title">Training Complete</h2>
-            <p className="training__result-intensity">{intensityLabel} session</p>
+            <h2 className="training__result-title">Session Sealed</h2>
+            <p className="training__result-intensity">{intensityLabel} drill</p>
             <div className="training__result-stat">
               <span className="training__result-stat-name">{result.stat}</span>
               <span className="training__result-stat-delta">
@@ -586,6 +612,7 @@ const Training: React.FC<TrainingProps> = ({
             >
               Continue
               <span className="sw-shortcut">Enter</span>
+              <span className="sw-shortcut">Esc</span>
             </button>
           </div>
         </div>
@@ -604,7 +631,18 @@ const Training: React.FC<TrainingProps> = ({
         <div className="training__dojo-nameplate">
           <span className="training__dojo-role">Training Grounds</span>
         </div>
-        <p className="training__dojo-quote">"Forge your body and spirit through sweat and will."</p>
+        <p className="training__dojo-quote">Steel remembers every toll. Spend vitality. Claim the mark.</p>
+        {/* T-112: region Focus for training choices */}
+        {equipmentFocus && equipmentFocus.length > 0 && (
+          <div className="training__focus-strip" aria-label="Region Focus stats">
+            <span className="training__focus-label">Region Focus</span>
+            {equipmentFocus.map((s) => (
+              <span key={s} className="training__focus-chip">
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </span>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Keyboard Hints */}
@@ -646,6 +684,10 @@ const Training: React.FC<TrainingProps> = ({
             onSelect={() => handleStatSelect(option.stat)}
             onIntensityChange={handleIntensitySelect}
             canAfford={canAfford}
+            isFocus={
+              isFocusStat(String(option.stat), equipmentFocus)
+              || isFocusStat(STAT_DISPLAY_NAMES[option.stat], equipmentFocus)
+            }
           />
         ))}
       </div>
@@ -668,7 +710,8 @@ const Training: React.FC<TrainingProps> = ({
           className="training__skip-button"
           onClick={onSkip}
         >
-          Skip Training
+          Leave training
+          <span className="sw-shortcut">Esc</span>
         </button>
       </div>
     </div>

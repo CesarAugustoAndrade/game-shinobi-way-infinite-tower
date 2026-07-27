@@ -92,6 +92,8 @@ export interface UseCombatReturn {
   hand: Skill[];
   posture: Posture;
   changePosture: (next: Posture) => void;
+  /** End player turn (Space / End Turn). Ref-locked against same-tick double fire. */
+  passTurn: () => void;
 }
 
 /**
@@ -122,6 +124,14 @@ export function useCombat({
   const [upkeepProcessedThisTurn, setUpkeepProcessedThisTurn] = useState(false);
 
   const combatRef = useRef<CombatRef>(null);
+  /**
+   * Sync lock: blocks same-tick double card resolve (double-click / key repeat)
+   * before React re-renders turnState / combatState. Cleared when the player
+   * can act again (multi-card turn with remaining AP, or next PLAYER turn).
+   */
+  const skillActionLockRef = useRef(false);
+  /** Blocks double victory (double XP/ryo / double reward modal) until next startCombat. */
+  const victoryLockRef = useRef(false);
 
   // Compute enemy stats when enemy changes
   const enemyStats = useMemo(() => {
@@ -133,16 +143,19 @@ export function useCombat({
    * Handle victory - called when enemy HP reaches 0
    */
   const handleVictory = useCallback(() => {
-    if (enemy) {
-      logSceneExit('COMBAT', `Victory over ${enemy.name}`);
-      logFlowCheckpoint('handleVictory called', { enemy: enemy.name, tier: enemy.tier });
-      // Store enemy reference before clearing state
-      const defeatedEnemy = enemy;
-      // Clear enemy state immediately to prevent re-triggering
-      setEnemy(null);
-      setTurnState('PLAYER');
-      onVictory(defeatedEnemy, combatState);
-    }
+    // Same-tick double path (e.g. skill kill + late enemy-turn cleanup) must not
+    // double-apply XP/ryo or open two reward flows.
+    if (victoryLockRef.current) return;
+    if (!enemy) return;
+    victoryLockRef.current = true;
+    logSceneExit('COMBAT', `Victory over ${enemy.name}`);
+    logFlowCheckpoint('handleVictory called', { enemy: enemy.name, tier: enemy.tier });
+    // Store enemy reference before clearing state
+    const defeatedEnemy = enemy;
+    // Clear enemy state immediately to prevent re-triggering
+    setEnemy(null);
+    setTurnState('PLAYER');
+    onVictory(defeatedEnemy, combatState);
   }, [enemy, combatState, onVictory]);
 
   /**
@@ -157,8 +170,12 @@ export function useCombat({
   const useSkill = useCallback(
     (skill: Skill) => {
       if (!player || !enemy || !playerStats || !enemyStats || !combatState) return;
+      // Dead player must not act (mid-delay cancel / desync); death path owns GAME_OVER
+      if (player.currentHp <= 0 || enemy.currentHp <= 0) return;
       // Gate off-player-turn race (double-click / late key after ENEMY_TURN)
       if (turnState !== 'PLAYER') return;
+      // Same-tick double-submit (stale combatState AP / hand still has the card)
+      if (skillActionLockRef.current) return;
 
       logPlayerAction(skill.name, {
         enemyHpBefore: enemy.currentHp
@@ -188,7 +205,14 @@ export function useCombat({
         return;
       }
 
+      // Card must still be in hand (guards double-play of same id before re-render)
+      if (!combatState.hand.some((c) => c.id === skill.id)) {
+        return;
+      }
+
       const apAfter = combatState.currentAp - apCost;
+      // Commit lock after validation — released when combatState/turn commits
+      skillActionLockRef.current = true;
 
       // Shared bookkeeping after a card resolves: spend AP, move the played card
       // to the discard pile, optionally shift posture, then end the turn if AP
@@ -214,16 +238,23 @@ export function useCombat({
       // ── TOGGLE cards: flip activation, pay AP, do NOT end the turn directly ──
       if (skill.isToggle || skill.actionType === ActionType.TOGGLE) {
         const isActive = skill.isActive || false;
+        // FREE_FIRST_SKILL: activation chakra waived on first accepted skill (parity with useSkill).
+        // Silence still keys off base chakraCost — free-first does not bypass silence.
+        const skipToggleChakra =
+          Boolean(combatState.skipFirstSkillCost) && !isActive && skill.chakraCost > 0;
+        const effectiveToggleChakra = skipToggleChakra ? 0 : isActive ? 0 : skill.chakraCost;
 
         // Silence blocks toggle activation (but not deactivation)
         if (!isActive && isSilenced && skill.chakraCost > 0) {
           addLog('Cannot activate - you are Silenced!', 'danger');
+          skillActionLockRef.current = false;
           return;
         }
 
-        // Check chakra cost for activation
-        if (!isActive && player.currentChakra < skill.chakraCost) {
+        // Check chakra cost for activation (honour FREE_FIRST waiver)
+        if (!isActive && player.currentChakra < effectiveToggleChakra) {
           addLog('Insufficient Chakra to activate!', 'danger');
+          skillActionLockRef.current = false;
           return;
         }
 
@@ -240,8 +271,8 @@ export function useCombat({
             newBuffs = newBuffs.filter((b) => b.source !== skill.name);
             addLog(`${skill.name} Deactivated.`, 'info');
           } else {
-            // Activate: Apply effects and pay initial cost
-            newChakra -= skill.chakraCost;
+            // Activate: Apply effects and pay initial cost (0 when FREE_FIRST)
+            newChakra -= effectiveToggleChakra;
             if (skill.effects) {
               skill.effects.forEach((eff) => {
                 const buff: Buff = {
@@ -254,19 +285,33 @@ export function useCombat({
                 newBuffs.push(buff);
               });
             }
-            addLog(`${skill.name} Activated!`, 'gain');
+            addLog(
+              skipToggleChakra
+                ? `${skill.name} Activated! FREE!`
+                : `${skill.name} Activated!`,
+              'gain',
+            );
           }
 
           return { ...prev, skills: newSkills, activeBuffs: newBuffs, currentChakra: newChakra };
         });
 
+        // Consume FREE_FIRST on any accepted toggle play (same as regular cards)
+        if (combatState.skipFirstSkillCost) {
+          setCombatState((prev) =>
+            prev ? { ...prev, skipFirstSkillCost: false } : prev,
+          );
+        }
+
         finishCardPlay();
+        // Lock stays until combatState commits (see unlock effect) — blocks stale-AP double play
         return;
       }
 
       // ── Regular cards: silence blocks chakra-cost skills before paying ──
       if (isSilenced && skill.chakraCost > 0) {
         addLog('You are Silenced and cannot use chakra skills!', 'danger');
+        skillActionLockRef.current = false;
         return;
       }
 
@@ -280,13 +325,17 @@ export function useCombat({
         combatState
       );
 
-      if (!result) return;
+      if (!result) {
+        skillActionLockRef.current = false;
+        return;
+      }
 
       // Apply result to game state
       addLog(result.logMessage, result.logType);
 
       // A rejected action (e.g. insufficient chakra/HP) spends no AP and stays in hand.
       if (result.apCost === 0 && result.damageDealt === 0 && result.logType === 'danger') {
+        skillActionLockRef.current = false;
         return;
       }
 
@@ -309,13 +358,14 @@ export function useCombat({
         });
       }
 
-      // Spawn floating combat text
+      // Spawn floating combat text — color by skill damage channel / element (A7b)
       if (result.damageDealt > 0) {
         const isCrit = result.logMessage.includes('CRITICAL');
         combatRef.current?.spawnFloatingText(
           'enemy',
           result.damageDealt.toString(),
-          isCrit ? 'crit' : 'damage'
+          isCrit ? 'crit' : 'damage',
+          { damageType: skill.damageType, element: skill.element },
         );
       } else if (result.logMessage.includes('MISSED') || result.logMessage.includes('EVADED')) {
         combatRef.current?.spawnFloatingText('enemy', 'MISS', 'miss');
@@ -369,13 +419,20 @@ export function useCombat({
         }
         handleVictory();
         setTurnState('PLAYER'); // Stop enemy turn effect from re-running
+        skillActionLockRef.current = false;
         return;
       } else if (result.playerDefeated) {
+        // Clear combat actors so auto-pass / enemy-turn / upkeep cannot re-fire after death
         setGameState(GameState.GAME_OVER);
+        setEnemy(null);
+        setCombatState(null);
+        setTurnState('PLAYER');
+        skillActionLockRef.current = false;
         return;
       }
 
       finishCardPlay(result.newPosture);
+      // Lock stays until combatState commits (see unlock effect) — blocks stale-AP double play
     },
     [player, enemy, playerStats, enemyStats, combatState, turnState, addLog, setPlayer, setCombatState, handleVictory, setGameState, setTurnState]
   );
@@ -383,11 +440,15 @@ export function useCombat({
   /**
    * Switch the active combat posture (T-004).
    * Costs POSTURE_SWITCH_AP_COST AP; ends the turn if that exhausts AP.
+   * Shares skillActionLockRef — double-click spent AP twice via functional setState
+   * while the gate still saw the pre-switch combatState.
    */
   const changePosture = useCallback(
     (next: Posture) => {
       if (!combatState || turnState !== 'PLAYER') return;
+      if (player && player.currentHp <= 0) return;
       if (next === combatState.posture) return;
+      if (skillActionLockRef.current) return;
 
       const cost = LaunchProperties.POSTURE_SWITCH_AP_COST;
       if (combatState.currentAp < cost) {
@@ -395,6 +456,7 @@ export function useCombat({
         return;
       }
 
+      skillActionLockRef.current = true;
       const apAfter = combatState.currentAp - cost;
       setCombatState((prev) =>
         prev ? { ...prev, currentAp: prev.currentAp - cost, posture: next } : prev
@@ -404,8 +466,24 @@ export function useCombat({
         setTurnState('ENEMY_TURN');
       }
     },
-    [combatState, turnState, addLog, setCombatState, setTurnState]
+    [combatState, turnState, player, addLog, setCombatState, setTurnState]
   );
+
+  /**
+   * End the player turn (Space / End Turn button).
+   * Ref-locked: turnState stays PLAYER until re-render, so double click/Space
+   * used to log twice and race auto-pass / enemy-turn scheduling.
+   */
+  const passTurn = useCallback(() => {
+    if (turnState !== 'PLAYER') return;
+    if (skillActionLockRef.current) return;
+    // Do not hand the turn to a live enemy when already dead (soft-lock / ghost combat)
+    if (!player || player.currentHp <= 0) return;
+    if (!enemy || enemy.currentHp <= 0) return;
+    skillActionLockRef.current = true;
+    addLog('You focus on defense and wait.', 'info');
+    setTurnState('ENEMY_TURN');
+  }, [turnState, player, enemy, addLog, setTurnState]);
 
   /**
    * Start a new combat encounter
@@ -421,6 +499,8 @@ export function useCombat({
       /** T-102: room CombatActivity.modifiers */
       roomCombatModifiers?: CombatModifierType[] | null,
     ) => {
+      victoryLockRef.current = false;
+      skillActionLockRef.current = false;
       logSceneEnter('COMBAT', {
         enemy: newEnemy.name,
         enemyTier: newEnemy.tier,
@@ -588,6 +668,8 @@ export function useCombat({
    * Reset combat state (after victory/defeat)
    */
   const resetCombat = useCallback(() => {
+    victoryLockRef.current = false;
+    skillActionLockRef.current = false;
     setEnemy(null);
     setCombatState(null);
     setApproachResult(null);
@@ -596,7 +678,14 @@ export function useCombat({
 
   // Auto-pass effect: When enabled and it's player's turn, count down and auto-pass
   useEffect(() => {
-    if (!autoCombatEnabled || turnState !== 'PLAYER' || !enemy) {
+    if (
+      !autoCombatEnabled ||
+      turnState !== 'PLAYER' ||
+      !enemy ||
+      enemy.currentHp <= 0 ||
+      !player ||
+      player.currentHp <= 0
+    ) {
       setAutoPassTimeRemaining(null);
       return;
     }
@@ -612,29 +701,75 @@ export function useCombat({
       setAutoPassTimeRemaining(remaining);
     }, 100);
 
-    // Auto-pass after delay
-    const autoPassTimer = setTimeout(() => {
+    // Auto-pass after delay — share skillActionLockRef with passTurn / card play so
+    // Space + timer same tick cannot double-log or race enemy-turn scheduling.
+    // If a card is resolving at fire time, one short retry so auto-pass is not dropped
+    // for the rest of the turn (silent no-op left players waiting on auto).
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const fireAutoPass = () => {
+      if (skillActionLockRef.current) return false;
+      // Victory/death may clear enemy in state before this effect re-runs and cancels
+      // the timer — closed-over enemy still looks alive. victoryLockRef is set sync on
+      // kill; also gate HP so we never schedule ENEMY_TURN after the fight ends.
+      if (victoryLockRef.current) return true;
+      if (!enemy || enemy.currentHp <= 0 || !player || player.currentHp <= 0) {
+        return true; // treat as done — do not reschedule
+      }
+      skillActionLockRef.current = true;
       addLog('Auto-pass: Focusing on defense...', 'info');
       setTurnState('ENEMY_TURN');
+      return true;
+    };
+    const autoPassTimer = setTimeout(() => {
+      if (!fireAutoPass()) {
+        retryTimer = setTimeout(() => {
+          fireAutoPass();
+        }, 50);
+      }
     }, TIMING.AUTO_PASS_DELAY);
 
     return () => {
       clearTimeout(autoPassTimer);
+      if (retryTimer != null) clearTimeout(retryTimer);
       clearInterval(countdownInterval);
       setAutoPassTimeRemaining(null);
     };
-  }, [autoCombatEnabled, turnState, enemy, addLog, setTurnState]);
+  }, [autoCombatEnabled, turnState, enemy, player, addLog, setTurnState]);
 
   // Enemy turn effect
   useEffect(() => {
-    // Safety guard: don't process if enemy is null or already defeated
-    if (turnState === 'ENEMY_TURN' && player && enemy && enemy.currentHp > 0 && playerStats && enemyStats) {
+    // Safety guard: skip if either side is gone/dead (prevents post-death reschedule hang)
+    if (
+      turnState === 'ENEMY_TURN' &&
+      player &&
+      player.currentHp > 0 &&
+      enemy &&
+      enemy.currentHp > 0 &&
+      playerStats &&
+      enemyStats
+    ) {
       logTurnChange('PLAYER', 'ENEMY_TURN', 'Player action completed');
 
       const timer = setTimeout(() => {
-        // Double-check enemy is still valid (may have been cleared)
-        if (!enemy || enemy.currentHp <= 0) {
-          logFlowCheckpoint('Enemy turn cancelled - enemy already defeated or cleared');
+        // Mid-delay hygiene: prior code set turn PLAYER for ANY dead actor, which left
+        // a 0-HP player in COMBAT with a live enemy (ghost combat / no GAME_OVER).
+        if (!player || player.currentHp <= 0) {
+          logFlowCheckpoint('Enemy turn cancelled - player already defeated');
+          setGameState(GameState.GAME_OVER);
+          setEnemy(null);
+          setCombatState(null);
+          setTurnState('PLAYER');
+          return;
+        }
+        if (!enemy) {
+          // Victory already nulled the foe — stop ENEMY_TURN loop
+          setTurnState('PLAYER');
+          return;
+        }
+        if (enemy.currentHp <= 0) {
+          // Corpse still present (victory race) — ensure reward path runs once
+          logFlowCheckpoint('Enemy turn cancelled - enemy already defeated, ensuring victory');
+          handleVictory();
           setTurnState('PLAYER');
           return;
         }
@@ -658,10 +793,17 @@ export function useCombat({
         const playerDamageTaken = player.currentHp - result.newPlayerHp;
         if (playerDamageTaken > 0) {
           const isCrit = result.logMessages.some((m) => m.includes('Crit'));
+          const enemySkill =
+            enemy.skills.find((s) => s.id === enemy.intendedSkillId) ??
+            enemy.skills[0];
           combatRef.current?.spawnFloatingText(
             'player',
             playerDamageTaken.toString(),
-            isCrit ? 'crit' : 'damage'
+            isCrit ? 'crit' : 'damage',
+            {
+              damageType: enemySkill?.damageType,
+              element: enemySkill?.element ?? enemy.element,
+            },
           );
         } else if (
           result.logMessages.some((m) => m.includes('MISSED') || m.includes('EVADED'))
@@ -669,10 +811,14 @@ export function useCombat({
           combatRef.current?.spawnFloatingText('player', 'MISS', 'miss');
         }
 
-        // Check if enemy took DoT damage for floating text
+        // Check if enemy took DoT damage for floating text (tick — status tint)
         const enemyDamageTaken = enemy.currentHp - result.newEnemyHp;
         if (enemyDamageTaken > 0) {
-          combatRef.current?.spawnFloatingText('enemy', enemyDamageTaken.toString(), 'damage');
+          combatRef.current?.spawnFloatingText(
+            'enemy',
+            enemyDamageTaken.toString(),
+            'status',
+          );
         }
 
         // Check for player healing (regen)
@@ -698,6 +844,28 @@ export function useCombat({
             : null
         );
 
+        // Update combatState if artifact guts was triggered (one-time per combat)
+        if (result.artifactGutsTriggered) {
+          setCombatState((prev) => prev ? { ...prev, artifactGutsUsed: true } : null);
+        }
+
+        if (result.enemyDefeated) {
+          logFlowCheckpoint('Enemy defeated - calling handleVictory', { enemy: enemy.name });
+          // handleVictory nulls enemy + sets PLAYER — do not setEnemy with corpse first
+          handleVictory();
+          setTurnState('PLAYER'); // Stop the effect from re-running
+          return;
+        } else if (result.playerDefeated) {
+          // P1: prior path left ENEMY_TURN + live enemy → effect re-scheduled forever
+          // (player/enemy identity change after setState, turnState stuck, GAME_OVER UI only).
+          logFlowCheckpoint('Player defeated - GAME OVER');
+          setGameState(GameState.GAME_OVER);
+          setEnemy(null);
+          setCombatState(null);
+          setTurnState('PLAYER');
+          return;
+        }
+
         setEnemy((prev) =>
           prev
             ? {
@@ -714,23 +882,8 @@ export function useCombat({
             : null
         );
 
-        // Update combatState if artifact guts was triggered (one-time per combat)
-        if (result.artifactGutsTriggered) {
-          setCombatState((prev) => prev ? { ...prev, artifactGutsUsed: true } : null);
-        }
-
-        if (result.enemyDefeated) {
-          logFlowCheckpoint('Enemy defeated - calling handleVictory', { enemy: enemy.name });
-          handleVictory();
-          setTurnState('PLAYER'); // Stop the effect from re-running
-          return;
-        } else if (result.playerDefeated) {
-          logFlowCheckpoint('Player defeated - GAME OVER');
-          setGameState(GameState.GAME_OVER);
-        } else {
-          logTurnChange('ENEMY_TURN', 'PLAYER', 'Enemy turn completed');
-          setTurnState('PLAYER');
-        }
+        logTurnChange('ENEMY_TURN', 'PLAYER', 'Enemy turn completed');
+        setTurnState('PLAYER');
       }, TIMING.ENEMY_TURN_DELAY);
 
       return () => clearTimeout(timer);
@@ -740,7 +893,18 @@ export function useCombat({
   // Process upkeep when turn changes to PLAYER (after enemy turn).
   // T-004: restores the AP budget and deals a fresh, posture-weighted hand.
   useEffect(() => {
-    if (turnState === 'PLAYER' && player && playerStats && enemy && combatState && !upkeepProcessedThisTurn) {
+    // Skip when either actor is already dead — avoid redrawing a hand in a ghost combat
+    // after mid-delay death cancel / victory race left turn on PLAYER briefly.
+    if (
+      turnState === 'PLAYER' &&
+      player &&
+      player.currentHp > 0 &&
+      playerStats &&
+      enemy &&
+      enemy.currentHp > 0 &&
+      combatState &&
+      !upkeepProcessedThisTurn
+    ) {
       // Process toggle upkeep costs, passive regen, artifact turn-start passives,
       // and draw the new-turn AP/hand economy.
       const upkeepResult = processUpkeep(player, playerStats, combatState, enemy);
@@ -781,6 +945,13 @@ export function useCombat({
     }
   }, [turnState]);
 
+  // Clear skill lock after React commits turn / AP / hand (safe for multi-card turns)
+  useEffect(() => {
+    if (turnState === 'PLAYER') {
+      skillActionLockRef.current = false;
+    }
+  }, [turnState, combatState?.currentAp, combatState?.hand]);
+
   return {
     enemy,
     enemyStats,
@@ -800,5 +971,6 @@ export function useCombat({
     hand: combatState?.hand ?? [],
     posture: combatState?.posture ?? Posture.BALANCED,
     changePosture,
+    passTurn,
   };
 }

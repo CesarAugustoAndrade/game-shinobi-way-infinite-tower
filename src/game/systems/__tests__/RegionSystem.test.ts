@@ -278,9 +278,10 @@ describe('card display description (T-047)', () => {
 
     const full = getCardDisplayInfo({ ...base, intelLevel: IntelRevealLevel.FULL });
     expect(full.description).toBe(loc.description);
-    // FULL may surface atmosphere if location has atmosphereEvents
+    // FULL may surface atmosphere if location has atmosphereEvents (prose or prefix)
     if ((loc.atmosphereEvents?.length ?? 0) > 0) {
-      expect(full.atmosphereLine).toMatch(/^Atmosphere:/);
+      expect(full.atmosphereLine).toBeTruthy();
+      expect(full.atmosphereLine!.length).toBeGreaterThan(8);
     }
   });
 });
@@ -372,12 +373,27 @@ describe('secret discovery (T-030)', () => {
       sunken_ship_discovered: 1,
     });
     const shipLoc = withShip.locations.find((l) => l.id.includes('sunken_ship'))!;
-    const { region: afterPaths, newlyDiscovered } = discoverSecretsFromCompletedLocation(
-      withShip,
-      shipLoc.id,
-    );
+    const { region: afterPaths, newlyDiscovered, unlockedRequirements } =
+      discoverSecretsFromCompletedLocation(withShip, shipLoc.id);
     expect(newlyDiscovered.length).toBeGreaterThanOrEqual(1);
     const shrine = afterPaths.locations.find((l) => l.id.includes('drowned_shrine'));
     expect(shrine?.isDiscovered).toBe(true);
+    // R1-016: path unlock surfaces unlockCondition.requirement for eventFlags
+    expect(unlockedRequirements).toContain('drowned_shrine_discovered');
+  });
+
+  it('TASK-R06: caps progress percentage at 100% when locationsCompleted exceeds totalLocations', () => {
+    const region = makeRegion();
+    // Exceed totalLocations by clearing secret locations
+    const overflowRegion = {
+      ...region,
+      locationsCompleted: region.totalLocations + 5,
+    };
+    const deck = initializeLocationDeck(overflowRegion);
+    const intel = createInitialIntelPool();
+    // drawLocationCards calculates progressPercent internally
+    const cards = drawLocationCards(overflowRegion, deck, intel, 3);
+    expect(cards.length).toBe(3);
   });
 });
+

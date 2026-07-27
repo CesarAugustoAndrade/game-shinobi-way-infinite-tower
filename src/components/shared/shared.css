@@ -33,12 +33,12 @@
 
 .stat-bar__track {
   width: 100%;
-  background: rgba(9, 9, 11, 0.8);
+  background: var(--sw-abyss, #050608);
   border-radius: var(--sw-radius-full);
   height: 0.75rem;
-  border: 1px solid var(--sw-glass-border);
+  border: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   overflow: hidden;
-  backdrop-filter: blur(4px);
+  /* Solid abyss track — no glass blur (stress gauges, not frosted UI) */
 }
 
 .stat-bar__fill {
@@ -120,8 +120,8 @@
 }
 
 .sw-badge--warning {
-  background: rgba(120, 53, 15, 0.3);
-  color: #fbbf24;
+  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.22));
+  color: var(--sw-rust-light, #c47a52);
 }
 
 .sw-badge--danger {
@@ -199,78 +199,93 @@
 }
 
 /* ===========================================
-   TOOLTIP COMPONENT
+   TOOLTIP COMPONENT — unified abyss chrome
+   One skin for combat / loot / merchant / HUD (VISION-8 A6):
+   void panel · bone text · rust frame accent · hard shadow · no glass blur
    =========================================== */
 
 .tooltip {
   position: fixed;
-  z-index: 50;
-  background: var(--sw-bg-primary);
-  border: 1px solid var(--sw-glass-border);
-  color: var(--sw-text-secondary);
-  border-radius: var(--sw-radius-md);
+  z-index: var(--sw-z-tooltip, 100);
+  background: var(--sw-abyss-panel, rgba(8, 10, 14, 0.97));
+  border: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  color: var(--sw-bone-dim, #b8b4a8);
+  border-radius: var(--sw-radius-sm);
   padding: var(--sw-space-3);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--sw-pix-shadow, 4px 4px 0 0 var(--sw-hard));
   pointer-events: none;
   min-width: 200px;
-  max-width: 300px;
+  max-width: min(300px, calc(100vw - 16px));
+  /* Residual: tall sheets (clan loadout, bag recipes) stay inside the viewport */
+  max-height: min(70vh, calc(100dvh - 16px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: var(--sw-font-pixel, 'VT323', monospace);
+  font-size: var(--sw-text-sm);
+  line-height: var(--sw-leading-snug);
 }
 
-/* Position Variants */
-.tooltip--bottom {
+/* Pre-clamp: CSS transform anchors the portal to the trigger.
+   After layout clamp (`.tooltip--clamped`), transform is disabled
+   because top/left are already absolute viewport coords. */
+.tooltip--bottom:not(.tooltip--clamped) {
   transform: translateX(-50%);
 }
 
-.tooltip--top {
+.tooltip--top:not(.tooltip--clamped) {
   transform: translate(-50%, -100%);
 }
 
-.tooltip--left {
+.tooltip--left:not(.tooltip--clamped) {
   transform: translate(-100%, -50%);
 }
 
-.tooltip--right {
+.tooltip--right:not(.tooltip--clamped) {
   transform: translateY(-50%);
 }
 
-/* Arrow Base */
+.tooltip--clamped {
+  transform: none;
+}
+
+/* Arrow — abyss fill + rust edge, only shown pre-clamp */
 .tooltip__arrow {
   position: absolute;
   width: 0.5rem;
   height: 0.5rem;
-  background: var(--sw-bg-primary);
+  background: var(--sw-abyss-deep, #0a0c10);
   transform: rotate(45deg);
 }
 
-/* Arrow Positions */
 .tooltip__arrow--bottom {
   top: 0;
   left: 50%;
   transform: translateX(-50%) translateY(-50%) rotate(45deg);
-  border-left: 1px solid var(--sw-glass-border);
-  border-top: 1px solid var(--sw-glass-border);
+  border-left: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
 }
 
 .tooltip__arrow--top {
   bottom: 0;
   left: 50%;
   transform: translateX(-50%) translateY(50%) rotate(45deg);
-  border-right: 1px solid var(--sw-glass-border);
-  border-bottom: 1px solid var(--sw-glass-border);
+  border-right: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  border-bottom: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
 }
 
 .tooltip__arrow--left {
   right: 0;
   top: 50%;
   transform: translateX(50%) translateY(-50%) rotate(45deg);
-  border-right: 1px solid var(--sw-glass-border);
-  border-top: 1px solid var(--sw-glass-border);
+  border-right: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
 }
 
 .tooltip__arrow--right {
   left: 0;
   top: 50%;
   transform: translateX(-50%) translateY(-50%) rotate(45deg);
-  border-left: 1px solid var(--sw-glass-border);
-  border-bottom: 1px solid var(--sw-glass-border);
+  border-left: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  border-bottom: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
 }

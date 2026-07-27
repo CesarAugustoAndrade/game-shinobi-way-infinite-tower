@@ -1,6 +1,7 @@
 /**
- * Event Scene Styles (T-011)
- * Pixel-arcade encounter: blocky panels, hard shadows (no blur),
+ * Event Scene Styles (T-011 / A5)
+ * Moral combat of choice: cinematic plate, risk chips, hard shadows (no blur).
+ * SceneBackdrop supplies location biome; .event is the take over that plate.
  * Silkscreen chrome + VT323 body. Palette scoped to .event.
  */
 
@@ -23,6 +24,7 @@
 
   width: 100%;
   max-width: 52rem;
+  margin: 0 auto;
   padding: var(--sw-space-6);
   display: flex;
   flex-direction: column;
@@ -55,45 +57,72 @@
 }
 
 /* ===========================================
-   Header
+   Header — cinematic plate frame
    =========================================== */
 
 .event__header {
   text-align: center;
   padding: var(--sw-space-5);
-  background: var(--ev-panel);
+  background: linear-gradient(180deg, rgba(20, 25, 36, 0.94) 0%, rgba(10, 12, 18, 0.92) 100%);
   border: 2px solid var(--ev-border);
   border-top: 4px solid var(--ev-gold);
   border-radius: var(--sw-radius-lg);
-  box-shadow: 5px 5px 0 0 var(--ev-hard);
+  box-shadow: 5px 5px 0 0 var(--ev-hard), inset 0 0 0 1px rgba(242, 177, 52, 0.08);
 }
 
-.event__art {
+/* Plate art — widescreen take over the location BG */
+.event__plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sw-space-2);
+  margin: 0 auto var(--sw-space-4);
+  max-width: 28rem;
+}
+
+.event__plate-frame {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto var(--sw-space-3);
-  max-width: 22rem;
-  min-height: 6rem;
+  width: 100%;
+  min-height: 8rem;
   padding: var(--sw-space-2);
-  background: var(--sw-bg-primary, #0a0a12);
+  background: #05070c;
   border: 2px solid var(--ev-border);
-  box-shadow: 3px 3px 0 0 var(--ev-hard);
+  border-bottom-color: var(--ev-gold);
+  box-shadow: 4px 4px 0 0 var(--ev-hard), inset 0 0 24px rgba(0, 0, 0, 0.55);
   image-rendering: pixelated;
+  overflow: hidden;
 }
 
-.event__art img {
-  max-height: 7rem;
+.event__plate-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 55%,
+    rgba(5, 7, 12, 0.55) 100%
+  );
+  z-index: 1;
+}
+
+.event__plate-frame img {
+  max-height: 9rem;
   width: auto;
   max-width: 100%;
-  object-fit: contain;
+  object-fit: cover;
   image-rendering: pixelated;
 }
 
-.event__icon {
-  display: inline-flex;
-  margin-bottom: var(--sw-space-3);
-  color: var(--ev-gold);
+.event__plate-tag {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-2xs);
+  letter-spacing: var(--sw-tracking-widest);
+  text-transform: uppercase;
+  color: var(--ev-muted);
 }
 
 .event__title {
@@ -103,7 +132,20 @@
   text-transform: uppercase;
   color: var(--ev-title);
   text-shadow: 0 0 10px rgba(242, 177, 52, 0.4);
-  margin-bottom: var(--sw-space-3);
+  margin-bottom: var(--sw-space-2);
+}
+
+/* Optional one-line pressure tag under title (mystery residual) */
+.event__mystery-flavor {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-xs);
+  letter-spacing: var(--sw-tracking-widest);
+  text-transform: uppercase;
+  color: var(--ev-gold);
+  opacity: 0.88;
+  margin: 0 auto var(--sw-space-3);
+  max-width: 32rem;
+  line-height: var(--sw-leading-snug);
 }
 
 .event__description {
@@ -111,7 +153,7 @@
   font-size: var(--sw-text-base);
   color: var(--ev-body);
   line-height: var(--sw-leading-snug);
-  max-width: 34rem;
+  max-width: 36rem;
   margin: 0 auto;
 }
 
@@ -164,9 +206,10 @@
   position: relative;
   background: var(--ev-panel);
   border: 2px solid var(--ev-border);
-  border-left: 4px solid var(--risk);
+  /* Thick risk rail — legible at a glance before reading body copy */
+  border-left: 6px solid var(--risk);
   border-radius: var(--sw-radius-lg);
-  box-shadow: 4px 4px 0 0 var(--ev-hard);
+  box-shadow: 4px 4px 0 0 var(--ev-hard), inset 3px 0 0 0 color-mix(in srgb, var(--risk) 22%, transparent);
   padding: var(--sw-space-4);
   cursor: pointer;
   text-align: left;
@@ -176,12 +219,14 @@
 
 .choice-card:hover:not(.choice-card--disabled):not(.choice-card--dimmed) {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 0 var(--ev-hard);
+  box-shadow: 6px 6px 0 0 var(--ev-hard),
+    inset 3px 0 0 0 color-mix(in srgb, var(--risk) 28%, transparent);
 }
 
 .choice-card:active:not(.choice-card--disabled):not(.choice-card--dimmed) {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 0 var(--ev-hard);
+  box-shadow: 1px 1px 0 0 var(--ev-hard),
+    inset 3px 0 0 0 color-mix(in srgb, var(--risk) 22%, transparent);
 }
 
 .choice-card:focus-visible {
@@ -254,16 +299,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.55rem;
+  height: 1.55rem;
   flex-shrink: 0;
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-sm);
   font-weight: 700;
   color: var(--ev-title);
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--risk);
+  background: color-mix(in srgb, var(--risk) 18%, rgba(0, 0, 0, 0.55));
+  border: 2px solid var(--risk);
   border-radius: var(--sw-radius-sm);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--risk) 25%, transparent);
 }
 
 .choice-card__label {
@@ -282,8 +328,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--sw-space-1);
+  gap: 3px;
   flex-shrink: 0;
+  min-width: 4.25rem;
 }
 
 .risk-meter--safe {
@@ -306,31 +353,44 @@
   --meter: var(--ev-risk-extreme);
 }
 
+/* Risk chip: hard edge, high contrast label — DD / cyber-terror readability */
 .risk-meter__badge {
-  padding: var(--sw-space-0-5) var(--sw-space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  padding: 0.15rem 0.45rem;
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-2xs);
-  letter-spacing: var(--sw-tracking-wide);
-  color: var(--sw-on-accent);
+  font-weight: 700;
+  letter-spacing: var(--sw-tracking-widest);
+  text-transform: uppercase;
+  color: #0a0c10;
   background: var(--meter);
+  border: 2px solid color-mix(in srgb, var(--meter) 55%, #000);
   border-radius: var(--sw-radius-sm);
+  box-shadow: 2px 2px 0 0 var(--ev-hard), 0 0 10px color-mix(in srgb, var(--meter) 35%, transparent);
 }
 
 .risk-meter__bar {
   display: flex;
-  gap: 2px;
+  gap: 3px;
+  width: 100%;
+  justify-content: flex-end;
 }
 
 .risk-meter__seg {
-  width: 0.6rem;
-  height: 0.35rem;
-  background: rgba(0, 0, 0, 0.5);
+  width: 0.7rem;
+  height: 0.45rem;
+  background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--ev-border);
+  border-radius: 1px;
 }
 
 .risk-meter__seg--on {
   background: var(--meter);
-  border-color: var(--meter);
+  border-color: color-mix(in srgb, var(--meter) 70%, #fff);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--meter) 50%, transparent);
 }
 
 /* ===========================================
@@ -592,6 +652,15 @@
   font-style: italic;
   color: var(--sw-text-muted);
   margin: 0;
+}
+
+.event__empty-choices {
+  text-align: center;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 12px;
+  color: var(--sw-text-secondary);
+  padding: var(--sw-space-4);
+  border: 1px dashed var(--sw-frame-soft);
 }
 
 /* ===========================================

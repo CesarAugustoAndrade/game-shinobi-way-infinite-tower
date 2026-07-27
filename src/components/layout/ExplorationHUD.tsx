@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Player, RegionLootTheme } from '../../game/types';
+import { Player, RegionLootTheme, MAX_BAG_SLOTS } from '../../game/types';
 import { Coins, Backpack, ScrollText } from 'lucide-react';
 import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
 import './ExplorationHUD.css';
@@ -23,6 +23,9 @@ interface ExplorationHUDProps {
    * Same Affinity / Focus / Ryo language as LocationPanel (T-099).
    */
   lootTheme?: RegionLootTheme | null;
+  /** A4: optional location identity chip (name + danger) when inside a location */
+  locationLabel?: string | null;
+  dangerLevel?: number | null;
 }
 
 const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
@@ -34,16 +37,30 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
   bagOpen = false,
   characterOpen = false,
   lootTheme = null,
+  locationLabel = null,
+  dangerLevel = null,
 }) => {
   const hpPct = maxHp > 0 ? Math.min(100, (player.currentHp / maxHp) * 100) : 0;
   const cpPct = maxChakra > 0 ? Math.min(100, (player.currentChakra / maxChakra) * 100) : 0;
   const runFlagLabels = getEventFlagRunModifiers(player).activeLabels;
+  const bagUsed = player.bag.filter((s) => s != null).length;
+  const bagFull = bagUsed >= MAX_BAG_SLOTS;
 
   return (
     <div className="explore-hud" role="toolbar" aria-label="Exploration HUD">
       <div className="explore-hud__identity">
         <span className="explore-hud__name">{player.clan}</span>
         <span className="explore-hud__level">Lv.{player.level}</span>
+        {locationLabel && (
+          <span className="explore-hud__loc" title="Current location">
+            {locationLabel}
+            {dangerLevel != null && (
+              <span className={`explore-hud__loc-d explore-hud__loc-d--d${dangerLevel}`}>
+                D{dangerLevel}
+              </span>
+            )}
+          </span>
+        )}
       </div>
 
       <div className="explore-hud__bars">
@@ -118,13 +135,16 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
       <div className="explore-hud__actions">
         <button
           type="button"
-          className={`explore-hud__btn ${bagOpen ? 'explore-hud__btn--active' : ''}`}
+          className={`explore-hud__btn ${bagOpen ? 'explore-hud__btn--active' : ''} ${bagFull ? 'explore-hud__btn--warn' : ''}`}
           onClick={onOpenBag}
-          title="Bag (I)"
+          title={`Bag ${bagUsed}/${MAX_BAG_SLOTS} (I)${bagFull ? ' — full' : ''}`}
           aria-pressed={bagOpen}
-          aria-label="Open bag"
+          aria-label={`Open bag, ${bagUsed} of ${MAX_BAG_SLOTS} slots used${bagFull ? ', full' : ''}`}
         >
           <Backpack size={16} aria-hidden />
+          <span className="explore-hud__btn-count" aria-hidden="true">
+            {bagUsed}/{MAX_BAG_SLOTS}
+          </span>
           <span className="explore-hud__btn-key">I</span>
         </button>
         <button

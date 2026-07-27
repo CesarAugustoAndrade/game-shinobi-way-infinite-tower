@@ -13,9 +13,12 @@
   width: 100%;
   max-width: 64rem;
   margin: 0 auto;
-  background: linear-gradient(to right, rgba(24, 24, 27, 0.95), rgba(24, 24, 27, 0.9), rgba(24, 24, 27, 0.95));
-  border: 1px solid var(--sw-glass-border);
-  border-radius: var(--sw-radius-lg);
+  /* Abyss plate — stress strip, not SaaS glass bar */
+  background:
+    linear-gradient(90deg, rgba(8, 10, 14, 0.98) 0%, rgba(12, 14, 20, 0.96) 50%, rgba(8, 10, 14, 0.98) 100%);
+  border: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.45));
+  border-radius: var(--sw-radius-sm);
+  box-shadow: var(--sw-pix-shadow-sm, 3px 3px 0 0 var(--sw-hard));
   padding: var(--sw-space-3) var(--sw-space-6);
 }
 
@@ -255,8 +258,12 @@
   position: relative;
   /* extra bottom padding reserves room for the 3px XP sliver */
   padding: var(--sw-space-2) var(--sw-space-3) calc(var(--sw-space-2) + 3px);
-  border-radius: var(--sw-radius-md);
+  border-radius: var(--sw-radius-sm);
   overflow: hidden;
+  /* Combat dock: denser void plate — StS hand lives below; stress reads first */
+  background: var(--sw-abyss-panel, rgba(8, 10, 14, 0.97));
+  border-color: var(--sw-rust-border, rgba(154, 52, 18, 0.55));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4), var(--sw-pix-shadow-sm, 3px 3px 0 0 var(--sw-hard));
 }
 
 .player-hud--compact .player-hud__content {
@@ -292,11 +299,39 @@
   font-size: var(--sw-text-xs);
   text-transform: uppercase;
   letter-spacing: -0.02em;
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .player-hud--compact .player-hud__level {
   font-size: var(--sw-text-2xs);
   padding: 1px var(--sw-space-1-5);
+  background: var(--sw-abyss, #050608);
+  color: var(--sw-bone-dim, #b8b4a8);
+  border: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
+}
+
+/* Compact stress bars — hard tracks, mono values, no frosted chrome */
+.player-hud--compact .stat-bar__label {
+  color: var(--sw-bone-muted, #7a766c);
+  font-family: var(--sw-font-mono);
+  letter-spacing: 0.06em;
+}
+
+.player-hud--compact .stat-bar__value {
+  color: var(--sw-bone, #e8e4d9);
+}
+
+.player-hud--compact .stat-bar__track {
+  height: 0.5rem;
+  border-radius: 1px;
+  background: #04060a;
+  border: 1px solid rgba(0, 0, 0, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.player-hud--compact .stat-bar__fill {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .player-hud--compact .player-hud__bars {
@@ -311,12 +346,7 @@
   margin-bottom: 1px;
 }
 
-.player-hud--compact .stat-bar__track {
-  height: 0.45rem;
-  border-radius: var(--sw-radius-xs);
-}
-
-/* XP: 3px sliver pinned to the strip's bottom edge */
+/* XP: 3px rust-heat sliver pinned to the strip's bottom edge */
 .player-hud--compact .player-hud__xp {
   position: absolute;
   left: 0;
@@ -334,6 +364,11 @@
 .player-hud--compact .player-hud__xp-track {
   height: 3px;
   border-radius: 0;
+  background: #04060a;
+}
+
+.player-hud--compact .player-hud__xp-fill {
+  background: var(--sw-rust, #9a3412);
 }
 
 /* Buff chips: tighter */
@@ -363,13 +398,14 @@
   }
 }
 
-/* Buff Tooltip */
+/* Buff Tooltip — content inside portal abyss chrome */
 .player-hud__buff-tooltip {
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-2);
   padding: var(--sw-space-1);
   max-width: 260px;
+  color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .player-hud__buff-tooltip-header {
@@ -386,34 +422,36 @@
   font-weight: 700;
   text-transform: uppercase;
   font-size: var(--sw-text-sm);
+  color: var(--sw-bone, #e8e4d9);
+  font-family: var(--sw-font-display);
 }
 
 .player-hud__buff-tooltip-name--positive {
-  color: #4ade80;
+  color: var(--sw-risk-safe-light);
 }
 
 .player-hud__buff-tooltip-type {
   font-size: 9px;
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
 }
 
 .player-hud__buff-tooltip-desc {
   font-size: var(--sw-text-xs);
-  color: var(--sw-text-secondary);
-  border-top: 1px solid var(--sw-glass-border);
+  color: var(--sw-bone-dim, #b8b4a8);
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   padding-top: var(--sw-space-2);
 }
 
 .player-hud__buff-tooltip-section {
-  border-top: 1px solid var(--sw-glass-border);
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   padding-top: var(--sw-space-2);
 }
 
 .player-hud__buff-tooltip-section-title {
   font-size: 9px;
-  color: var(--sw-text-muted);
+  color: var(--sw-rust-light, #c2410c);
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
   margin-bottom: var(--sw-space-1);
@@ -421,18 +459,18 @@
 
 .player-hud__buff-tooltip-mechanic {
   font-size: 10px;
-  color: var(--sw-text-tertiary);
+  color: var(--sw-bone-dim, #b8b4a8);
   display: flex;
   align-items: flex-start;
   gap: var(--sw-space-1);
 }
 
 .player-hud__buff-tooltip-bullet {
-  color: var(--sw-glass-border);
+  color: var(--sw-rust, #9a3412);
 }
 
 .player-hud__buff-tooltip-footer {
-  border-top: 1px solid var(--sw-glass-border);
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   padding-top: var(--sw-space-2);
   display: flex;
   justify-content: space-between;
@@ -440,23 +478,23 @@
 }
 
 .player-hud__buff-tooltip-label {
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
 }
 
 .player-hud__buff-tooltip-value {
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone, #e8e4d9);
 }
 
 .player-hud__buff-tooltip-value--expiring {
-  color: #f87171;
+  color: var(--sw-risk-high-light);
   font-weight: 700;
 }
 
 .player-hud__buff-tooltip-tip {
-  border-top: 1px solid var(--sw-glass-border);
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   padding-top: var(--sw-space-2);
   font-size: 10px;
-  color: rgba(251, 191, 36, 0.8);
+  color: var(--sw-rust-light, #c2410c);
   font-style: italic;
 }
 
@@ -629,24 +667,26 @@
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-1);
+  color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .primary-stats__tooltip-title {
   font-weight: 700;
-  color: var(--sw-text-secondary);
+  color: var(--sw-bone, #e8e4d9);
   margin-bottom: var(--sw-space-1);
+  font-family: var(--sw-font-display);
 }
 
 .primary-stats__tooltip-desc {
-  color: var(--sw-text-tertiary);
+  color: var(--sw-bone-muted, #7a766c);
 }
 
 .primary-stats__tooltip-breakdown {
-  border-top: 1px solid var(--sw-glass-border);
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   margin-top: var(--sw-space-2);
   padding-top: var(--sw-space-2);
   font-family: var(--sw-font-mono);
-  color: var(--sw-text-muted);
+  color: var(--sw-bone-muted, #7a766c);
 }
 
 .primary-stats__tooltip-row {
@@ -655,9 +695,10 @@
 }
 
 .primary-stats__tooltip-row--total {
-  border-top: 1px solid var(--sw-glass-border);
+  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
   margin-top: var(--sw-space-1);
   padding-top: var(--sw-space-1);
+  color: var(--sw-bone, #e8e4d9);
 }
 
 /* Icon Colors */

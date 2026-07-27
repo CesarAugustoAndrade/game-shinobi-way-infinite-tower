@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   GameEvent,
   Player,
@@ -17,7 +17,8 @@ import { applyVisibilityToIntelGain } from '../../game/systems/LocationTerrainSy
 import type { LocationTerrainMods } from '../../game/systems/LocationTerrainSystem';
 import { getEventArt } from '../../game/constants/artRegistry';
 import ArtIcon from '../../components/shared/ArtIcon';
-import { Scroll, CheckCircle, Lock, Info } from 'lucide-react';
+import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
+import { CheckCircle, Lock, Info } from 'lucide-react';
 import './Event.css';
 
 interface EventProps {
@@ -32,6 +33,8 @@ interface EventProps {
    * (same scaling as applyVisibilityToIntelGain on resolve).
    */
   locationTerrainMods?: LocationTerrainMods | null;
+  /** Biome plate — location BG take via SceneBackdrop (same as Merchant/Training). */
+  background?: string;
 }
 
 /* ===========================================
@@ -387,10 +390,16 @@ const Event: React.FC<EventProps> = ({
   playerStats,
   cameFromChain = false,
   locationTerrainMods = null,
+  background,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  /** Blocks double confirm (double resolveEventChoice / double rewards) */
+  /** UI disable after confirm (re-render lag). */
   const [choiceLocked, setChoiceLocked] = useState(false);
+  /**
+   * Sync mutex — choiceLocked state alone lags one frame. Double Enter / Enter+click
+   * same-tick both saw choiceLocked=false → double resolveEventChoice (double HP/ryo/flags).
+   */
+  const choiceLockRef = useRef(false);
 
   // T-008: hide choices gated out by the player's run flags. Requirement/cost
   // gating still shows-but-disables; flag gating removes the choice entirely.
@@ -407,22 +416,24 @@ const Event: React.FC<EventProps> = ({
   useEffect(() => {
     setSelectedIndex(null);
     setChoiceLocked(false);
+    choiceLockRef.current = false;
   }, [activeEvent]);
 
   const handleSelect = useCallback((index: number) => {
-    if (choiceLocked) return;
+    if (choiceLockRef.current || choiceLocked) return;
     setSelectedIndex((prev) => (prev === index ? null : index));
   }, [choiceLocked]);
 
   const handleConfirm = useCallback((choice: EventChoice) => {
-    if (choiceLocked) return;
+    if (choiceLockRef.current || choiceLocked) return;
+    choiceLockRef.current = true;
     setChoiceLocked(true);
     onChoice(choice);
   }, [choiceLocked, onChoice]);
 
   const isChoiceAvailable = useCallback(
     (choice: EventChoice) => {
-      if (!player || choiceLocked) return false;
+      if (!player || choiceLocked || choiceLockRef.current) return false;
       return (
         checkRequirements(player, choice.requirements, playerStats) &&
         checkEventCost(player, choice.costs)
@@ -433,7 +444,8 @@ const Event: React.FC<EventProps> = ({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (!player || choiceLocked) return;
+      if (e.repeat) return;
+      if (!player || choiceLocked || choiceLockRef.current) return;
       const key = e.key;
 
       if (key >= '1' && key <= '4') {
@@ -466,66 +478,79 @@ const Event: React.FC<EventProps> = ({
   if (!player) return null;
 
   return (
-    <div className="event">
-      {/* Chain ribbon */}
-      {cameFromChain && (
-        <div className="event__chain">
-          <span className="event__chain-glyph">⛓</span>
-          <span>Chain</span>
-        </div>
-      )}
+    <SceneBackdrop background={background} dim={0.32}>
+      <div className="event">
+        {/* Chain ribbon */}
+        {cameFromChain && (
+          <div className="event__chain" role="status">
+            <span className="event__chain-glyph" aria-hidden="true">›</span>
+            <span>Ledger continues</span>
+          </div>
+        )}
 
-      {/* Header */}
-      <header className="event__header">
-        <div className="event__art" aria-hidden="true">
-          <ArtIcon art={getEventArt(activeEvent.id)} size="xl" title={activeEvent.title} />
-        </div>
-        <div className="event__icon">
-          <Scroll size={36} strokeWidth={2} />
-        </div>
-        <h1 className="event__title">{activeEvent.title}</h1>
-        <p className="event__description">{activeEvent.description}</p>
-      </header>
+        {/* Cinematic header — plate art as scene of choice */}
+        <header className="event__header">
+          <div className="event__plate" aria-hidden="true">
+            <div className="event__plate-frame">
+              <ArtIcon art={getEventArt(activeEvent.id)} size="xl" title={activeEvent.title} />
+            </div>
+            <span className="event__plate-tag">Scene of Choice</span>
+          </div>
+          <h1 className="event__title">{activeEvent.title}</h1>
+          {activeEvent.mysteryFlavor && (
+            <p className="event__mystery-flavor">{activeEvent.mysteryFlavor}</p>
+          )}
+          <p className="event__description">{activeEvent.description}</p>
+        </header>
 
-      {/* Divider + keyboard hints */}
-      <div className="event__path-bar">
-        <div className="event__divider">▸ Choose Your Path</div>
-        <div className="event__hints">
-          <span className="event__hint">
-            <span className="sw-shortcut">1</span>-<span className="sw-shortcut">4</span> Select
-          </span>
-          <span className="event__hint">
-            <span className="sw-shortcut">Enter</span> Confirm
-          </span>
-          <span className="event__hint">
-            <span className="sw-shortcut">Esc</span> Deselect
-          </span>
+        {/* Divider + keyboard hints */}
+        <div className="event__path-bar">
+          <div className="event__divider">▸ Choose Your Path</div>
+          <div className="event__hints">
+            <span className="event__hint">
+              <span className="sw-shortcut">1</span>-<span className="sw-shortcut">4</span> Select
+            </span>
+            <span className="event__hint">
+              <span className="sw-shortcut">Enter</span> Confirm
+            </span>
+            <span className="event__hint">
+              <span className="sw-shortcut">Esc</span> Deselect
+            </span>
+          </div>
         </div>
+
+        {/* Choice cards */}
+        <div className="event__choices">
+          {availableChoices.length === 0 ? (
+            <p className="event__empty-choices" role="status">
+              No paths are open for this moment.
+            </p>
+          ) : (
+            availableChoices.map((choice, idx) => (
+              <ChoiceCard
+                key={idx}
+                choice={choice}
+                player={player}
+                playerStats={playerStats || null}
+                isSelected={selectedIndex === idx}
+                isDimmed={selectedIndex !== null && selectedIndex !== idx}
+                index={idx}
+                onSelect={() => handleSelect(idx)}
+                onConfirm={() => handleConfirm(choice)}
+                locationTerrainMods={locationTerrainMods}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Hidden-path hint */}
+        {hasHiddenPaths && (
+          <p className="event__hidden-note">
+            Some paths stay sealed until your earlier choices open them.
+          </p>
+        )}
       </div>
-
-      {/* Choice cards */}
-      <div className="event__choices">
-        {availableChoices.map((choice, idx) => (
-          <ChoiceCard
-            key={idx}
-            choice={choice}
-            player={player}
-            playerStats={playerStats || null}
-            isSelected={selectedIndex === idx}
-            isDimmed={selectedIndex !== null && selectedIndex !== idx}
-            index={idx}
-            onSelect={() => handleSelect(idx)}
-            onConfirm={() => handleConfirm(choice)}
-            locationTerrainMods={locationTerrainMods}
-          />
-        ))}
-      </div>
-
-      {/* Hidden-path hint */}
-      {hasHiddenPaths && (
-        <p className="event__hidden-note">· some paths open based on your choices ·</p>
-      )}
-    </div>
+    </SceneBackdrop>
   );
 };
 

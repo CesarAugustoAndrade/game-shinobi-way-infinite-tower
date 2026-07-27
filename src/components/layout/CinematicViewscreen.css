@@ -1,16 +1,18 @@
 /**
  * CinematicViewscreen Component Styles — T-013 parallax + CRT (atop T-014 v3)
+ * A2 combat UI: mist floor, enemy stage grounding, seinen-sublime palette.
  *
  * Layer z-index map:
  *    0  .cinematic__bg-img      Lámina 1: biome background (slow parallax)
  *    1  .cinematic__mid-img     Lámina 2: middleground (optional, medium parallax)
  *    2  .cinematic__gradient    Dark gradient overlay
  *    3  .cinematic__vignette    Radial edge darkening
- *    4  .cinematic__scanlines   CRT scanlines
- *    5  .cinematic__crt-frame   CRT curvature frame (optional, feature-flagged)
- *   10  .cinematic__enemy-sprite Enemy sprite (portrait OR cutout)
- *   11  .cinematic__fg-img      Lámina 3: foreground (optional, faster parallax, occludes enemy)
- *   20  .cinematic__panel-slot  Floating enemy info panel
+ *    4  .cinematic__mist-floor  Ground mist (grounds the sole vertical)
+ *   10  .cinematic__enemy-stage Enemy stage subject only (portrait OR cutout; no player hero)
+ *   11  .cinematic__fg-img      Lámina 3: foreground (optional, faster parallax, occludes sprites)
+ *   25  .cinematic__scanlines   CRT scanlines (sit above character sprites)
+ *   26  .cinematic__crt-frame   CRT curvature frame (sit above scanlines)
+ *   30  .cinematic__panel-slot  Floating enemy info panel
  *
  * ASSET PIPELINE CONVENTION:
  * ---------------------------------------------------------------
@@ -61,7 +63,7 @@
 /* ============================================================
    Root container — fills whatever the grid parent gives it.
    Fallback gradient (#0c0e1a → #05070c) renders always;
-   the bg-img layer sits on top with opacity 0.42.
+   the bg-img layer sits on top with opacity 0.62 (R1 combat stage readability).
    ============================================================ */
 
 .cinematic {
@@ -69,9 +71,9 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  /* Fallback: visible even without a backgroundImage */
-  background: linear-gradient(180deg, #0c0e1a 0%, #05070c 100%);
-  border-bottom: 2px solid var(--sw-frame-soft);
+  /* Seinen-sublime void → abyss fallback when no biome art */
+  background: linear-gradient(180deg, var(--sw-abyss, #1a2633) 0%, var(--sw-void, #050608) 100%);
+  border-bottom: 2px solid var(--sw-metal, #2d3d4a);
 }
 
 /* ============================================================
@@ -85,12 +87,20 @@
   width: 102%; /* slight overscan so the parallax drift never reveals edges */
   height: 100%;
   object-fit: cover;
-  opacity: 0.42;
+  /* Hidden until onLoad — opacity + visibility (broken icon never paints) */
+  opacity: 0;
+  visibility: hidden;
   z-index: 0;
-  transition: opacity 800ms ease;
+  transition: opacity 500ms ease;
   animation: parallax-bg 40s ease-in-out infinite;
-  /* pixel-art source: keep crisp at native scale */
-  image-rendering: pixelated;
+  /* painted/Imagine JPGs: smooth scale (pixelated reserved for cutout sprites) */
+  image-rendering: auto;
+}
+
+.cinematic__bg-img--ready {
+  /* A2: keep painted world legible under CRT/vignette without washing the cutout */
+  opacity: 0.68;
+  visibility: visible;
 }
 
 /* ============================================================
@@ -107,7 +117,17 @@
   z-index: 1;
   pointer-events: none;
   animation: parallax-mid 25s ease-in-out infinite;
-  image-rendering: pixelated;
+  image-rendering: auto;
+  /* Opaque only after onLoad — missing mid assets never flash broken icons */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 400ms ease;
+}
+
+.cinematic__mid-img--ready {
+  /* Keep frame elements without smothering the enemy sprite */
+  opacity: 0.78;
+  visibility: visible;
 }
 
 /* ============================================================
@@ -119,11 +139,12 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
+  /* Void scrim: protect enemy silhouette + bottom dock handoff */
   background: linear-gradient(
     180deg,
-    rgba(5, 7, 12, 0.35) 0%,
-    rgba(5, 7, 12, 0.05) 40%,
-    rgba(5, 7, 12, 0.60) 100%
+    rgba(5, 6, 8, 0.38) 0%,
+    rgba(5, 6, 8, 0.04) 38%,
+    rgba(5, 6, 8, 0.55) 100%
   );
 }
 
@@ -137,32 +158,77 @@
   z-index: 3;
   pointer-events: none;
   background: radial-gradient(
-    ellipse at 50% 40%,
-    transparent 35%,
-    rgba(0, 0, 0, 0.65) 100%
+    ellipse at 58% 42%,
+    transparent 38%,
+    rgba(5, 6, 8, 0.42) 78%,
+    rgba(5, 6, 8, 0.62) 100%
   );
 }
 
 /* ============================================================
-   Layer 4: Scanlines FX
+   Layer 4: Mist floor — fog bank under the enemy cutout
+   ============================================================ */
+
+.cinematic__mist-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38%;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 62% 78%,
+      rgba(138, 145, 153, 0.28) 0%,
+      rgba(138, 145, 153, 0.08) 45%,
+      transparent 72%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(26, 38, 51, 0.22) 48%,
+      rgba(5, 6, 8, 0.55) 100%
+    );
+}
+
+@keyframes mist-drift {
+  0%, 100% { opacity: 0.85; transform: translateX(0); }
+  50%      { opacity: 1;    transform: translateX(-1.2%); }
+}
+
+.cinematic__mist-floor::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 55% 40% at 68% 88%,
+    rgba(232, 228, 220, 0.08) 0%,
+    transparent 70%
+  );
+  animation: mist-drift 14s ease-in-out infinite;
+}
+
+/* ============================================================
+   Layer 25: Scanlines FX (TASK-R10: sit above character sprites)
    ============================================================ */
 
 .cinematic__scanlines {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 25;
   pointer-events: none;
   background: repeating-linear-gradient(
     to bottom,
     transparent 0px,
     transparent 2px,
-    rgba(0, 0, 0, 0.18) 2px,
-    rgba(0, 0, 0, 0.18) 4px
+    rgba(0, 0, 0, 0.12) 2px,
+    rgba(0, 0, 0, 0.12) 4px
   );
 }
 
 /* ============================================================
-   Layer 5: CRT frame — spherical screen curvature illusion
+   Layer 26: CRT frame — spherical screen curvature illusion (TASK-R10)
    Rendered only when FeatureFlags.ENABLE_CRT_OVERLAY is true.
    Uses inset box-shadow to simulate the convex-screen depth of
    an old CRT monitor without changing the layout rectangle.
@@ -172,7 +238,7 @@
 .cinematic__crt-frame {
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 26;
   pointer-events: none;
   /* Double inset shadow: wide ambient + tight inner edge — mimics CRT curvature */
   box-shadow:
@@ -181,78 +247,167 @@
 }
 
 /* ============================================================
-   Layer 10: Enemy sprite — RIGHT side, bottom-anchored.
-   Two variants:
-     --portrait  : square/rectangular portrait blended with all-edges mask
-     --cutout    : pre-isolated transparent PNG + chakra aura drop-shadow
+   Layer 10: Enemy stage — sole sharp vertical (no player hero).
+   Anchored center-right. Cutout preferred; portrait falls back.
    ============================================================ */
 
-.cinematic__enemy-sprite {
+.cinematic__enemy-stage {
   position: absolute;
-  bottom: 0;
-  right: 0;
+  bottom: 4%;
+  right: 6%;
+  left: auto;
   z-index: 10;
-  /* Width: occupy roughly the right 55% of the stage, capped at 480px */
-  width: clamp(200px, 55%, 480px);
+  width: clamp(280px, 58%, 520px);
+  height: 88%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Contact shadow — pins the cutout to the mist floor */
+.cinematic__enemy-shadow {
+  position: absolute;
+  bottom: 2%;
+  left: 50%;
+  width: 58%;
+  height: 10%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(5, 6, 8, 0.72) 0%,
+    rgba(5, 6, 8, 0.28) 48%,
+    transparent 72%
+  );
+  filter: blur(4px);
+  z-index: 0;
+}
+
+/* DD-style intent chip — sits above the cutout, secondary to panel telegraph */
+.cinematic__intent {
+  position: absolute;
+  top: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 90%;
+  padding: 2px 6px 2px 4px;
+  background: rgba(5, 6, 8, 0.82);
+  border: 1px solid var(--sw-rust, #a65d3f);
+  border-radius: 2px;
+  box-shadow:
+    1px 1px 0 rgba(5, 6, 8, 0.9),
+    inset 0 0 0 1px rgba(166, 93, 63, 0.12);
+  pointer-events: none;
+}
+
+.cinematic__intent-icon {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--sw-rust-light, #c47a52);
+}
+
+.cinematic__intent-text {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 0.55rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sw-bone, #e8e4dc);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.cinematic__enemy-sprite {
+  position: relative;
+  z-index: 1;
+  width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center top;
   pointer-events: none;
   display: block;
-  image-rendering: pixelated;
+  image-rendering: auto;
+  /* Subtle lift so the foe reads as the threat portrait */
+  transform: scale(1.02);
+  transform-origin: bottom center;
+}
+
+/* Cutouts stay invisible until loaded — no alt-text/broken flash on missing cut files */
+.cinematic__enemy-sprite--cutout:not(.cinematic__enemy-sprite--ready) {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.cinematic__enemy-sprite--cutout.cinematic__enemy-sprite--ready {
+  visibility: visible;
 }
 
 /* Portrait: blend all four edges so the image merges into the scene */
 .cinematic__enemy-sprite--portrait {
   -webkit-mask-image: radial-gradient(
-    ellipse 75% 80% at 65% 45%,
+    ellipse 74% 80% at 50% 40%,
     black 30%,
-    rgba(0, 0, 0, 0.6) 60%,
+    rgba(0, 0, 0, 0.55) 58%,
     transparent 100%
   );
   mask-image: radial-gradient(
-    ellipse 75% 80% at 65% 45%,
+    ellipse 74% 80% at 50% 40%,
     black 30%,
-    rgba(0, 0, 0, 0.6) 60%,
+    rgba(0, 0, 0, 0.55) 58%,
     transparent 100%
   );
+  /* Soft edge dark so portrait doesn't float on fog */
+  filter: drop-shadow(0 8px 18px rgba(5, 6, 8, 0.55));
 }
 
-/* Cutout sprite: pre-isolated, no blend needed.
-   Chakra aura: two stacked drop-shadows.
-     Outer: elemental color glow (set via --chakra-aura CSS variable from Combat.tsx).
-     Inner: faint white halo for edge highlight.
-   --chakra-aura defaults to a neutral blue if the prop is absent. */
+/* Cutout: pre-isolated + chakra aura + depth shadow.
+   --chakra-aura from Combat.tsx (element color). */
 .cinematic__enemy-sprite--cutout {
   object-fit: contain;
-  object-position: bottom right;
+  object-position: bottom center;
   filter:
-    drop-shadow(0 0 12px var(--chakra-aura, rgba(37, 99, 235, 0.65)))
-    drop-shadow(0 0  4px rgba(191, 219, 254, 0.35));
+    drop-shadow(0 0 14px var(--chakra-aura, rgba(166, 93, 63, 0.55)))
+    drop-shadow(0 0 5px rgba(232, 228, 220, 0.18))
+    drop-shadow(0 14px 10px rgba(5, 6, 8, 0.55));
 }
 
-/* Hit juice: brief white flash + micro scale when damage lands (A-010) */
-.cinematic__enemy-sprite--hit {
+/* Hit juice: brief bone flash + micro scale when damage lands */
+.cinematic__enemy-sprite--hit,
+.cinematic__enemy-stage--hit .cinematic__enemy-sprite {
   animation: cinematic-hit-flash 180ms ease-out;
 }
 
 @keyframes cinematic-hit-flash {
   0% {
     filter:
-      brightness(2.4)
-      drop-shadow(0 0 16px rgba(255, 255, 255, 0.9));
-    transform: scale(1.04);
+      brightness(2.2)
+      drop-shadow(0 0 18px rgba(232, 228, 220, 0.85));
+    transform: scale(1.05);
   }
   100% {
     filter: brightness(1);
-    transform: scale(1);
+    transform: scale(1.02);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cinematic__enemy-sprite--hit {
+  .cinematic__enemy-sprite--hit,
+  .cinematic__enemy-stage--hit .cinematic__enemy-sprite {
     animation: none;
-    filter: brightness(1.5);
+    filter: brightness(1.45);
+  }
+
+  .cinematic__mist-floor::after {
+    animation: none;
   }
 }
 
@@ -270,11 +425,20 @@
   z-index: 11;
   pointer-events: none;
   animation: parallax-fg 18s ease-in-out infinite;
-  image-rendering: pixelated;
+  image-rendering: auto;
+  /* Opaque only after onLoad — missing fg assets never flash broken icons */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 400ms ease;
+}
+
+.cinematic__fg-img--ready {
+  opacity: 0.88;
+  visibility: visible;
 }
 
 /* ============================================================
-   Layer 20: Floating panel slot — left side of stage.
+   Layer 30: Floating panel slot — left side of stage (above CRT overlay).
    The actual panel styles live in Combat.css as .combat__ip-*.
    This slot just provides absolute positioning context.
    ============================================================ */
@@ -283,9 +447,14 @@
   position: absolute;
   top: var(--sw-space-4);
   left: var(--sw-space-4);
-  z-index: 20;
+  z-index: 30;
   /* Limit panel width so it never overlaps the right-side enemy sprite */
-  max-width: min(44%, 340px);
+  max-width: min(42%, 320px);
+  /* Short 16:9 stages: keep panel inside stage (don't spill into deck) */
+  max-height: calc(100% - 2 * var(--sw-space-4));
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
   /* pointer-events on so the tooltip/interactive elements inside work */
   pointer-events: auto;
 }
@@ -309,5 +478,15 @@
   .cinematic__mid-img,
   .cinematic__fg-img {
     animation: none;
+  }
+}
+
+/* Narrow stages: keep the foe large enough to read as threat portrait */
+@media (max-width: 640px) {
+  .cinematic__enemy-stage {
+    right: 2%;
+    width: clamp(200px, 72%, 360px);
+    height: 82%;
+    bottom: 6%;
   }
 }

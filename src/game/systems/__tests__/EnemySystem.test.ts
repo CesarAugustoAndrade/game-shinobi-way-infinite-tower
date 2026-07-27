@@ -208,6 +208,14 @@ describe('generateEnemy', () => {
       const boss = generateEnemy(3, 0, 'BOSS', 50, 'WAVES_ARC');
       expect(boss.skills.length).toBeGreaterThanOrEqual(2);
     });
+
+    it('TASK-R13: Zabuza Danger 4 boss kit includes high-threat damaging jutsu alongside utility skills', () => {
+      const zabuza = generateEnemy(4, 0, 'BOSS', 50, 'WAVES_ARC');
+      expect(zabuza.name).toContain('Zabuza');
+      const damagingSkills = zabuza.skills.filter(s => (s.damageMult || 0) > 0);
+      expect(damagingSkills.length).toBeGreaterThanOrEqual(2);
+      expect(zabuza.skills.some(s => s.id === 'water_dragon')).toBe(true);
+    });
   });
 
   describe('AMBUSH enemies', () => {
