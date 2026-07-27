@@ -4,6 +4,22 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Fixed (Wave 14 — React setState-updater regression in the claim locks)
+
+The claim-once locks below were implemented as `let claimed = false; setX(prev => { claimed = true; … }); if (!claimed) return;`.
+React only runs a setState updater synchronously via the eager-state bailout, which requires
+`0 === fiber.lanes && (null === alternate || 0 === alternate.lanes)`; `enqueueUpdate$1` sets `fiber.lanes` **and**
+`fiber.alternate.lanes`, so any prior setState in the same batch defers every later updater. The flag stayed `false`,
+the handler bailed out before granting the reward — while the queued updater still committed the consumption.
+Net effect: **resource consumed, reward never granted.** Verified against the repo's own react@19.2.0 under StrictMode.
+
+- **Merchant "Buy" was a silent no-op that deleted the listing (P0)** (`useActivityHandlers.ts`): `setIsProcessingLoot(true)` dirtied the fiber before the stock-claim updater, so `stockClaimed` was *always* false — the item vanished from the shop, no ryo charged, no item, no message. Stock claim now reads the rendered `merchantItems` (added to `ActivityState`). Double-buy protection still holds via `merchantLockRef`.
+- **Interlude boon never advanced to Region 2 (P0)** (`App.tsx`): `handleInterludeBoon` read `box.meta`/`box.healed` written inside updaters; on a warmed fiber both were null, so it returned before `applyCampaignBoon`/`setCampaignRegionIndex` while the queued updater still nulled `interludeMeta` — the orphan guard then dumped the player back onto the cleared Land of Waves map, making Region 2 unreachable. Now reads `interludeMeta`/`player` from the render closure and computes the boon once outside any updater (StrictMode double-invokes updaters, so applying inside risked a double-apply).
+- **LOOT Learn/Upgrade destroyed the jutsu without learning it (P1)** (`App.tsx`): removed the dead `claimed` re-check; `learnSkill` already guards synchronously on the rendered `droppedSkill`.
+- **Treasure claim sealed the chest and granted nothing (P1)** (`useTreasureHandlers.ts`): select and reveal both already guard on the rendered `currentTreasure` + `treasureActionLockRef`; removed the broken flag re-checks so the grant path is reached. Reveal no longer unseals for free.
+
+Remaining instances of the same pattern (20 sites in training/scroll/elite session, sell/equip and treasure-hunt flows) are tracked as **R1-500** in `region1-polish-backlog.md`.
+
 ### Fixed (scheduled bug hunt — claim locks)
 
 - **Approach Engage stuck "Engaging…" on parent lock (P1)** (`App.tsx`): UI `commitLockRef` arms before parent; when `approachEngageLockRef` was already true (remount residue / re-open before re-arm) parent silent-returned — Engage stayed "Engaging…" forever. Dismiss overlay on parent lock (parity failed-gate dismiss).

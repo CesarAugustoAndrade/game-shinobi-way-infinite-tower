@@ -42,6 +42,8 @@ export interface ActivityState {
   locationFloor: BranchingFloor | null;
   branchingFloor: BranchingFloor | null;
   selectedBranchingRoom: BranchingRoom | null;
+  /** Live shop stock — the synchronous source for the buy-once claim (see buyItem). */
+  merchantItems: Item[];
   merchantDiscount: number;
   trainingData: any;
   scrollDiscoveryData: any;
@@ -113,7 +115,7 @@ export function useActivityHandlers(
   const {
     player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty,
     region, currentLocation, locationFloor, branchingFloor, selectedBranchingRoom,
-    merchantDiscount, trainingData, scrollDiscoveryData, eliteChallengeData,
+    merchantItems, merchantDiscount, trainingData, scrollDiscoveryData, eliteChallengeData,
     isProcessingLoot, currentIntel, enemy, activeEvent,
   } = state;
 
@@ -221,17 +223,16 @@ export function useActivityHandlers(
       setIsProcessingLoot(false);
     };
 
-    // Claim stock FIRST — one listing, one purchase (stale card / double path cannot re-buy)
-    let stockClaimed = false;
-    setMerchantItems((prev) => {
-      if (!prev.some((i) => i.id === item.id)) return prev;
-      stockClaimed = true;
-      return prev.filter((i) => i.id !== item.id);
-    });
-    if (!stockClaimed) {
+    // Claim stock FIRST — one listing, one purchase (stale card / double path cannot re-buy).
+    // The check reads the rendered `merchantItems`, NOT a flag set inside the updater below:
+    // React only runs an updater eagerly while the fiber is clean, and setIsProcessingLoot above
+    // always dirties it, so such a flag would still be false here and abort every purchase.
+    // merchantLockRef (taken above) is what blocks a same-tick second click.
+    if (!merchantItems.some((i) => i.id === item.id)) {
       unlock();
       return null;
     }
+    setMerchantItems((prev) => prev.filter((i) => i.id !== item.id));
 
     type BuyOutcome = 'ok' | 'ryo' | 'full' | 'noprev';
     const box: { o: BuyOutcome } = { o: 'noprev' };
@@ -273,7 +274,7 @@ export function useActivityHandlers(
     addLog(`Bought ${item.name} for ${price} Ryō. Added to bag.`, 'loot');
     setTimeout(unlock, 100);
     return price;
-  }, [player, isProcessingLoot, merchantDiscount, addLog, setPlayer, setMerchantItems, setIsProcessingLoot]);
+  }, [player, isProcessingLoot, merchantItems, merchantDiscount, addLog, setPlayer, setMerchantItems, setIsProcessingLoot]);
 
   const leaveMerchant = useCallback(() => {
     // Ref mutex first — room closure alone can double-fire before commit

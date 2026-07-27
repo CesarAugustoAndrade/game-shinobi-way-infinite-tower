@@ -762,48 +762,32 @@ const App: React.FC = () => {
   const handleInterludeBoon = useCallback(
     (boon: CampaignBoon): boolean => {
       if (interludeBoonLockRef.current) return false;
+
+      // Read staged meta + player from the RENDERED closure. A value written inside a setState
+      // updater is not readable here: React only runs an updater eagerly while the fiber is clean
+      // (react-dom eager-state bailout), so on a warmed App fiber it stays null — which used to
+      // abort the advance while still nulling interludeMeta, orphaning the interlude and bouncing
+      // the player back onto the cleared region map.
+      const meta = interludeMeta;
+      if (!meta || !player) return false;
       interludeBoonLockRef.current = true;
 
-      // Consume staging first — always leave INTERLUDE after UI confirm committed
-      const box: {
-        meta: {
-          title: string;
-          body: string;
-          regionName: string;
-          nextRegionName: string;
-          nextIndex: number;
-          nextLootTheme?: import('./game/types').RegionLootTheme | null;
-        } | null;
-        healed: Player | null;
-      } = { meta: null, healed: null };
-      setInterludeMeta((prev) => {
-        if (!prev) return null;
-        box.meta = prev;
-        return null;
-      });
-      setInterludeBoons([]);
+      // Compute once, outside any updater — StrictMode double-invokes updaters in dev, so applying
+      // the boon inside one risks a double-apply.
+      const healed = applyCampaignBoon(player, boon);
 
-      if (!box.meta) {
-        interludeBoonLockRef.current = false;
-        return false;
-      }
-      const meta = box.meta;
+      // Consume staging — always leave INTERLUDE after UI confirm committed
+      setInterludeMeta(null);
+      setInterludeBoons([]);
+      setPlayer(healed);
 
       const nextEntry = getCampaignEntry(meta.nextIndex);
       const config = nextEntry?.config;
 
-      // Functional apply on latest player (never gate leave on closure player)
-      setPlayer((p) => {
-        if (!p) return null;
-        box.healed = applyCampaignBoon(p, boon);
-        return box.healed;
-      });
-
-      if (!config || !box.healed) {
+      if (!config) {
         setGameState(GameState.VICTORY);
         return true;
       }
-      const healed = box.healed;
 
       setCampaignRegionIndex(meta.nextIndex);
 
@@ -835,7 +819,7 @@ const App: React.FC = () => {
       setGameState(GameState.REGION_MAP);
       return true;
     },
-    [difficulty, addLog],
+    [difficulty, addLog, interludeMeta, player],
   );
 
   // Auto-skip character selection if feature flag is enabled
@@ -1215,7 +1199,7 @@ const App: React.FC = () => {
     {
       player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty,
       region, currentLocation, locationFloor, branchingFloor, selectedBranchingRoom,
-      merchantDiscount, trainingData, scrollDiscoveryData, eliteChallengeData,
+      merchantItems, merchantDiscount, trainingData, scrollDiscoveryData, eliteChallengeData,
       isProcessingLoot, currentIntel, enemy, activeEvent,
     },
     {
@@ -1387,17 +1371,11 @@ const App: React.FC = () => {
     // Lock before consume (same-tick double Upgrade cannot re-enter)
     lootSkillClaimLockRef.current = true;
 
-    // Consume drop first (blocks double-learn / double-upgrade on rapid click)
-    let claimed = false;
-    setDroppedSkill(prev => {
-      if (!prev || prev.id !== skill.id) return prev;
-      claimed = true;
-      return null;
-    });
-    if (!claimed) {
-      lootSkillClaimLockRef.current = false;
-      return;
-    }
+    // Consume drop (blocks double-learn / double-upgrade on rapid click). The claim was already
+    // decided synchronously above from the rendered `droppedSkill` + lootSkillClaimLockRef — a flag
+    // written inside this updater is NOT readable here (React defers updaters once the fiber is
+    // dirty), which previously destroyed the drop without ever learning it.
+    setDroppedSkill(prev => (prev && prev.id === skill.id ? null : prev));
 
     type LearnKind = 'upgrade' | 'replace' | 'learn' | 'fail';
     const box: { kind: LearnKind; detail?: string; level?: number } = { kind: 'fail' };

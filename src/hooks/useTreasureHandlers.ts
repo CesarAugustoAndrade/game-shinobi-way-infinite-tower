@@ -239,34 +239,12 @@ export function useTreasureHandlers(
 
     treasureActionLockRef.current = true;
 
-    // Claim isRevealed FIRST (blocks double charge if lock was freed after a prior reveal
-    // before re-render — setState alone re-reads lastRendered until commit).
-    let revealed = false;
-    setCurrentTreasure(prev => {
-      if (!prev || prev.isRevealed) return prev;
-      revealed = true;
-      return { ...prev, isRevealed: true };
-    });
-    if (!revealed) {
-      treasureActionLockRef.current = false;
-      return;
-    }
-
-    // Charge on latest player — un-reveal if chakra was spent elsewhere
-    let charged = false;
-    setPlayer(p => {
-      if (!p || p.currentChakra < cost) return p;
-      charged = true;
-      return { ...p, currentChakra: p.currentChakra - cost };
-    });
-    if (!charged) {
-      setCurrentTreasure(prev =>
-        prev && prev.isRevealed ? { ...prev, isRevealed: false } : prev,
-      );
-      treasureActionLockRef.current = false;
-      addLog('Not enough chakra to reveal the treasure!', 'danger');
-      return;
-    }
+    // Claim + charge together. Both decisions were already made synchronously above from the
+    // rendered currentTreasure/player plus treasureActionLockRef — a flag written inside either
+    // updater is NOT readable here (React defers updaters once the fiber is dirty), which
+    // previously bailed out after revealing and left the chest revealed for free.
+    setCurrentTreasure(prev => (prev && !prev.isRevealed ? { ...prev, isRevealed: true } : prev));
+    setPlayer(p => (p && p.currentChakra >= cost ? { ...p, currentChakra: p.currentChakra - cost } : p));
 
     addLog(`Spent ${cost} chakra to reveal the treasure contents.`, 'info');
     // Free so claim can proceed; isRevealed claim blocks a second reveal path
@@ -295,17 +273,13 @@ export function useTreasureHandlers(
     // Lock before collected claim (parity fight/dice — not after bag pre-check)
     treasureActionLockRef.current = true;
 
-    // Atomically claim this chest (blocks double-select exploit)
-    let claimed = false;
-    setCurrentTreasure(prev => {
-      if (!prev || prev.collected) return prev;
-      claimed = true;
-      return { ...prev, collected: true, selectedIndex: index };
-    });
-    if (!claimed) {
-      treasureActionLockRef.current = false;
-      return;
-    }
+    // Claim this chest (blocks double-select exploit). The claim was already decided
+    // synchronously above from the rendered currentTreasure.collected + treasureActionLockRef —
+    // a flag written inside this updater is NOT readable here (React defers updaters once the
+    // fiber is dirty), which previously marked the chest collected and granted nothing.
+    setCurrentTreasure(prev =>
+      prev && !prev.collected ? { ...prev, collected: true, selectedIndex: index } : prev,
+    );
 
     // Functional ryo + bag add on latest player (avoids overwriting concurrent ryo/bag).
     // Do not grant ryo until bag write succeeds — bag-full race must reopen bag-full panel

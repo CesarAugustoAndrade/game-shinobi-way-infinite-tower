@@ -441,3 +441,182 @@
 - **status**: done
 - **notes**: WAVES_ARC danger 7 boss Gato + art registry + STRONG_FIST kit
 
+
+---
+
+## Wave 14 — Opus 5 exploration pass (2026-07-27, agent `claude-opus5-r1`)
+
+> Re-opened after `out-of-scope.md` stamped the R1 ceiling: this pass ran 7 independent lenses with
+> adversarial (refute-by-default) verification. 13 findings survived. The four Roto items share ONE
+> root cause (R1-500) that is a **live P0 regression on `develop`**, so the ceiling did not hold and
+> the "blocker" exception in out-of-scope.md applies.
+
+### R1-500 — ROOT CAUSE: claim flags written inside setState updaters are read synchronously
+- **status**: claimed
+- **category**: Roto
+- **priority**: P0
+- **files**: src/hooks/useActivityHandlers.ts, src/hooks/useTreasureHandlers.ts, src/hooks/useInventoryHandlers.ts, src/App.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: 25 sites use `let claimed = false; setX(prev => { claimed = true; ... }); if (!claimed) return;`.
+  React only runs a setState updater synchronously via the eager-state bailout, which requires
+  `0 === fiber.lanes && (null === alternate || 0 === alternate.lanes)` (verified in
+  node_modules/react-dom/cjs/react-dom-client.development.js:9143-9146). `enqueueUpdate$1` sets
+  `fiber.lanes |= lane` AND `fiber.alternate.lanes |= lane`, so ANY prior setState in the same batch
+  defers every later updater. The flag stays false, the handler bails out early and skips the reward
+  grant — but the queued updater still commits the consumption. Net effect: **resource consumed,
+  reward never granted.** React 19.2.0 + StrictMode confirmed installed.
+- **done_when**: No handler decides control flow from a variable assigned inside a setState updater;
+  claim decisions come from a synchronous source (closure state or ref). tsc + full Vitest green.
+- **notes**: 2026-07-27 claude-opus5-r1 — IN PROGRESS: 5 of 25 sites fixed (the four player-facing P0/P1 flows). **20 sites remain** in training/scroll/elite sessions, sell/equip and treasure-hunt flows: useActivityHandlers 358/411/499/515/574/637/744, useInventoryHandlers 280/949, useTreasureHandlers 358/467/560/615/667/700/715/752/795, App.tsx 1251/1268. Root-cause note: the regression is ALSO on origin/main (develop is merged in).
+
+### R1-501 — Merchant "Buy" is a silent no-op that deletes the listing
+- **status**: done
+- **category**: Roto
+- **priority**: P0
+- **files**: src/hooks/useActivityHandlers.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: `setIsProcessingLoot(true)` (:216) dirties the fiber before the `setMerchantItems`
+  claim updater (:226), so `stockClaimed` is ALWAYS false and the handler returns at :233. The item
+  disappears from the shop; no item, no ryo charged, no message. Deterministic, not a race. From 3d55294.
+- **done_when**: Buying deducts ryo, puts the item in the bag, logs the purchase, removes the listing.
+- **notes**: 2026-07-27 claude-opus5-r1 — stock claim now reads the rendered `merchantItems` (added to ActivityState) instead of a flag from inside the updater. Verified with a jsdom repro on the repo's own react@19.2.0: buy charges 10 ryo (500->490), item lands in bag, listing removed, logged once; a double re-click does NOT double-charge. tsc + 475 tests green.
+
+### R1-502 — Choosing an Interlude boon never advances to Region 2
+- **status**: done
+- **category**: Roto
+- **priority**: P0
+- **files**: src/App.tsx, src/scenes/menu/Interlude.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: `handleInterludeBoon` (App.tsx:762-805) reads `box.meta` / `box.healed` written inside
+  setState updaters. On a warmed fiber both are null, so it returns before `applyCampaignBoon` and
+  `setCampaignRegionIndex` — but the queued `setInterludeMeta` still nulls meta, so the orphan guard
+  (:946) dumps the player back on the cleared Land of Waves map. Region 2 unreachable. From 3d55294.
+- **done_when**: Defeating Gato then picking a boon applies the boon exactly once and enters Region 2.
+- **notes**: 2026-07-27 claude-opus5-r1 — handleInterludeBoon reads `interludeMeta`/`player` from the render closure and computes `applyCampaignBoon` once outside any updater (StrictMode double-invokes updaters, so applying inside risked a double-apply). Deps updated. tsc + 475 tests green.
+
+### R1-503 — Claiming a jutsu from the loot pile destroys the drop without learning it
+- **status**: done
+- **category**: Roto
+- **priority**: P1
+- **files**: src/App.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: App.tsx:1391-1400 — same root cause; returns before the learn/upgrade block at
+  :1405-1437 while the queued updater nulls `droppedSkill`. Blank-LOOT recovery then closes the screen.
+- **done_when**: Learn/Upgrade grants the jutsu exactly once and the pile clears normally.
+- **notes**: 2026-07-27 claude-opus5-r1 — removed the dead `claimed` re-check; learnSkill already guards synchronously on the rendered `droppedSkill` at the top of the handler. Consume is now an unconditional idempotent updater. tsc + 475 tests green.
+
+### R1-504 — Treasure chest claim marks it collected but grants nothing
+- **status**: done
+- **category**: Roto
+- **priority**: P1
+- **files**: src/hooks/useTreasureHandlers.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: useTreasureHandlers.ts:299-308 — same root cause; never reaches the setPlayer grant
+  at :315-335 while `collected: true` commits. The re-entry guard at :281 then blocks retry permanently.
+  The reveal charge at :244-253 has the same shape (chest reveals free).
+- **done_when**: Selecting a treasure choice grants the relic/ryo exactly once; reveal charges chakra once.
+- **notes**: 2026-07-27 claude-opus5-r1 — reveal and select both already guard on the rendered currentTreasure + treasureActionLockRef; removed the broken flag re-checks so the grant path is reached. tsc + 475 tests green.
+
+### R1-505 — Main Menu "Mission Rank" slider has zero effect on Region 1
+- **status**: open
+- **category**: Roto
+- **priority**: P1
+- **files**: src/App.tsx, src/game/systems/RegionSystem.ts, src/game/constants/regions/landOfWaves.ts
+- **claimed_by**: none
+- **description**: `bootstrapRegionMap` (App.tsx:637) passes `config.baseDifficulty` (hard-coded 40 at
+  landOfWaves.ts:505), never the player's `difficulty` state. The Infinite path (App.tsx:720) DOES use it.
+  Only treasure guardians read the slider (useTreasureHandlers.ts:398), so one run mixes two sources.
+- **done_when**: The chosen rank measurably changes R1 enemy scaling, from one difficulty source.
+- **notes**: Needs a balance decision — flagged for human review, deliberately NOT auto-fixed.
+
+### R1-506 — Internal event-flag ids leak into R1 choice cards ("Requires waves_mercy")
+- **status**: open
+- **category**: Confuso
+- **priority**: P1
+- **files**: src/game/constants/events/wavesArcEvents.ts, src/scenes/activities/Event.tsx
+- **claimed_by**: none
+- **description**: 17 choice descriptions embed raw flag keys (lines 553, 575, 597, 619, 848, 871, 1090,
+  1113, 1135, 1158, 1181, 1273, 1295, 1316, 1338, 1360, 1521), rendered verbatim at Event.tsx:319.
+  Gated choices are filtered out when unmet, so the clause only ever shows to players who already
+  satisfy it — debug-looking AND useless. Correct convention exists at line 825 ("Requires meeting Tazuna").
+- **done_when**: No player-visible string contains a raw snake_case flag id.
+- **notes**:
+
+### R1-507 — Game Guide approach requirements contradict real thresholds
+- **status**: open
+- **category**: Confuso
+- **priority**: P1
+- **files**: src/game/constants/helpText.ts, src/game/constants/approaches.ts
+- **claimed_by**: none
+- **description**: helpText.ts:254-260 vs approaches.ts — Silent Strike 12 vs 10, Mind Trap 15 vs 11,
+  Terrain Trap 14 vs 11 and +25% vs +20% XP, Shadow Passage 35 + Body Flicker vs 28 and no skill gate.
+  Iron Guard missing entirely (5 of 6 documented). Combat prints the true numbers, so it self-contradicts.
+- **done_when**: Guide matches approaches.ts exactly and lists all six.
+- **notes**:
+
+### R1-508 — Region-map cards read "No activities" for full locations
+- **status**: open
+- **category**: Confuso
+- **priority**: P2
+- **files**: src/game/systems/RegionSystem.ts, src/components/exploration/ActivityIcons.tsx
+- **claimed_by**: none
+- **description**: `getLocationActivities` (RegionSystem.ts:182-201) sets only amenity flags; combat/
+  event/treasure/scroll are structurally unreachable. Bandit Outpost and Sunken Ship therefore render
+  "No activities" beside a "Rooms 10+" / "Story Event" footer on the primary decision screen.
+- **done_when**: No real location card can read "No activities" while advertising rooms/story content.
+- **notes**:
+
+### R1-509 — Clipboard emoji (U+1F4CB) on every region-map card
+- **status**: open
+- **category**: Feo
+- **priority**: P2
+- **files**: src/components/exploration/ActivityIcons.tsx
+- **claimed_by**: none
+- **description**: Lines 40 and 52 emit `<span className="activity-icons__label">` with a clipboard emoji;
+  not hidden by CSS. Only colour OS emoji left on the R1 exploration spine (missed by R1-EMOJI-PASS-2).
+- **done_when**: No emoji in src/components/exploration/.
+- **notes**:
+
+### R1-510 — "You are here" badge missing on arrival at every location
+- **status**: open
+- **category**: Feo
+- **priority**: P2
+- **files**: src/game/systems/LocationSystem.ts
+- **claimed_by**: none
+- **description**: LocationSystem.ts:1502-1505 clears `isCurrent` when `!isFirstFloor`, while :1541 makes
+  that same room current. `isFirstFloor = floor === 1` is never true in R1 (dangerToFloor yields >=14).
+- **done_when**: The current room shows its badge/glow on entering any R1 location.
+- **notes**:
+
+### R1-511 — [R] reveal hotkey charges chakra on Treasure Hunter chambers
+- **status**: open
+- **category**: Roto
+- **priority**: P2
+- **files**: src/scenes/rewards/TreasureChoice.tsx
+- **claimed_by**: none
+- **description**: TreasureChoice.tsx:200-204 — the r/R branch is not gated on `isLockedChest` while every
+  other hotkey is, and the visible Unseal button only renders for locked chests. Chakra spent, nothing reveals.
+- **done_when**: R is a no-op on non-locked chests and never deducts chakra.
+- **notes**:
+
+### R1-512 — Handbook difficulty table contradicts Main Menu bands
+- **status**: open
+- **category**: Confuso
+- **priority**: P2
+- **files**: src/game/constants/helpText.ts, src/scenes/menu/GameGuide.tsx
+- **claimed_by**: none
+- **description**: helpText.ts:164-169 ships four bands (D 0-29 / C 30-59 / B 60-84 / S 85-100) but
+  MainMenu.tsx:57-61 uses five (25/45/65/85) including Rank A. R1-007 fixed the menu, not the handbook.
+- **done_when**: Handbook lists D/C/B/A/S matching getRank thresholds.
+- **notes**:
+
+### R1-513 — Raw hazard enum ("CHAKRA_DRAIN hazard") on every R1 exit room
+- **status**: open
+- **category**: Feo
+- **priority**: P2
+- **files**: src/components/combat/ApproachSelector.tsx, src/game/systems/LocationTerrainSystem.ts
+- **claimed_by**: none
+- **description**: ApproachSelector.tsx:508 and LocationTerrainSystem.ts:307 interpolate the SCREAMING_SNAKE
+  union straight into player text. Every exit room is a BOSS_GATE, so R1 exposure is near-universal.
+- **done_when**: A shared label map renders hazard prose at both sites.
+- **notes**:
