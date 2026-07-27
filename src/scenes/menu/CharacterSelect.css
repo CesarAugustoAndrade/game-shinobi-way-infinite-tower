@@ -71,7 +71,7 @@
   color: var(--sw-bone, #e8e4dc);
 }
 
-.char-select--infinite .clan-card__select-text {
+.char-select--infinite .clan-card__select {
   letter-spacing: 0.04em;
 }
 
@@ -518,34 +518,10 @@
 .clan-card__select {
   position: relative;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: transform var(--sw-transition-base);
-}
-
-.clan-card__select:hover {
-  transform: scale(1.03);
-}
-
-.clan-card__select-img {
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  border-radius: var(--sw-radius-md);
-  opacity: 0.9;
-  transition: opacity var(--sw-transition-base);
-}
-
-.clan-card:hover .clan-card__select-img {
-  opacity: 1;
-}
-
-/* Text shown as fallback or alongside image */
-.clan-card__select-text {
-  display: none;
   padding: var(--sw-space-3) var(--sw-space-4);
   background: var(--sw-accent-primary);
   border: 2px solid var(--sw-frame);
@@ -557,21 +533,12 @@
   text-transform: uppercase;
   color: var(--sw-on-accent);
   box-shadow: var(--sw-pix-shadow-sm);
+  cursor: pointer;
   transition: all var(--sw-transition-base);
 }
 
-/* When fallback mode is active, hide image and show text */
-.clan-card__select--fallback .clan-card__select-img {
-  display: none;
-}
-
-.clan-card__select--fallback .clan-card__select-text {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.clan-card:hover .clan-card__select-text {
+.clan-card__select:hover {
+  transform: scale(1.03);
   background: var(--sw-accent-tertiary);
   box-shadow: var(--sw-pix-shadow), 0 0 14px var(--sw-accent-glow);
 }

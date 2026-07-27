@@ -620,3 +620,116 @@
   union straight into player text. Every exit room is a BOSS_GATE, so R1 exposure is near-universal.
 - **done_when**: A shared label map renders hazard prose at both sites.
 - **notes**: 2026-07-27 claude-opus5-r1 — Added HAZARD_LABELS + getHazardLabel to constants/terrain.ts and used it at both sites (ApproachSelector and LocationTerrainSystem), so exit rooms read "Chakra drain hazard" instead of "CHAKRA_DRAIN hazard".
+
+---
+
+## Wave 15 — confirming pass (2026-07-27, agent `claude-opus5-r1`)
+
+> Ran after the Wave-14 backlog hit zero, using six DIFFERENT lenses (the first sweep's seven would
+> only re-find the same things) plus an adversarial regression check aimed at breaking the Wave-14
+> fixes. 6 findings survived verification, 4 were refuted. The regression lens caught a P0 that
+> Wave 14 itself introduced — which is exactly why it was included.
+
+### R1-514 — REGRESSION (mine): Wave-14 froze six equipment handlers on a null player
+- **status**: done
+- **category**: Roto
+- **priority**: P0
+- **files**: src/hooks/useInventoryHandlers.ts, src/hooks/useActivityHandlers.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: 922fa36 hoisted six updater bodies into eager functions reading the rendered
+  `player`, but left the useCallback dep arrays as `[setPlayer, addLog]`. Every one of those deps is
+  referentially stable forever (useState setters; `addLog` is `useCallback(..., [])` at App.tsx:286),
+  so each callback was memoized on App's FIRST render — where `player === null` (App.tsx:139). Every
+  `applyX(null)` hit its `if (!prev) { box.o = 'noprev'; return null; }` head, took the failure
+  branch, and returned. `'noprev'` is not `'full'`, so no log fired: **fully silent**. Dead handlers:
+  unequipToBag, startSynthesisEquipped, handleDisassembleEquipped, dragBagToEquip, dragEquipToBag,
+  swapEquipment — i.e. the whole equipment-management subsystem including every inventory drag.
+- **done_when**: The six dep arrays include `player`; each action applies and emits its log line.
+- **notes**: 2026-07-27 claude-opus5-r1 — Added `player` to the six arrays (:735, :792, :849, :916,
+  :985, :1019) and to `handleTrainingComplete` in useActivityHandlers (found by a repo-wide scan for
+  useCallbacks that read a bare `player` but omit it from deps — same mistake, same commit).
+  Verified empirically with a jsdom harness on the repo's own react@19.2.0 reproducing the exact
+  memoization shape: BROKEN deps -> `returned=false`, item still equipped, bag empty, **no logs**,
+  1 callback identity; FIXED deps -> `returned=true`, slot cleared, `bag0=sword`,
+  log "Moved Test Blade to bag.", 3 identities. tsc clean, 475/475 Vitest.
+  Verified the other Wave-14 dep edits are correct (handleInterludeBoon, handleIntelResultClose,
+  handleRestResultClose, buyItem, confirmLocationComplete, handleDiceResultContinue).
+
+### R1-515 — Exit-room Guardian spawns with currentHp above its own maxHp
+- **status**: done
+- **category**: Roto
+- **priority**: P1
+- **files**: src/game/systems/LocationSystem.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: LocationSystem.ts:1136-1137 (generateGuardian) hardcodes the pre-T-006 curve
+  `const hpBonus = enemy.primaryStats.willpower * 12 + 50; enemy.currentHp = hpBonus;` while the live
+  formula is HP_BASE 80 + willpower × 9 (types.ts:779-780, consumed at StatSystem.ts:289). This is the
+  ONLY site in the repo that overrides an enemy's currentHp; every other enemy derives it from
+  calculateDerivedStats. For willpower > 10, 12W+50 > 80+9W and nothing re-clamps it. Measured with
+  live constants: D2 278/251 (+11%), D4 542/449 (+21%), D7 Gato's Compound 1010/800 (+26%).
+  Combat.tsx:653-655 prints `currentHp / maxHp` literally and StatBar clamps its fill at 100%.
+  Every location's exit room is a BOSS_GATE guardian, so a first-time player meets ~5 of these.
+- **done_when**: generateGuardian derives currentHp from the live formula; sampling danger 1-7 at
+  baseDifficulty 40 gives currentHp === getEnemyFullStats(enemy).derived.maxHp every time.
+- **notes**: 2026-07-27 claude-opus5-r1 — generateGuardian now assigns `enemy.currentHp = getEnemyFullStats(enemy).derived.maxHp` instead of the hardcoded pre-T-006 curve, and the stale doc block was rewritten. Verified statically (the strongest available check here): the only `willpower * 12` left in src/ is inside the new explanatory comment, and enemy currentHp is now assigned in exactly three places repo-wide — EnemySystem:403, EnemySystem:536 and this one — all `derived.maxHp`, so currentHp === maxHp by construction. NOT exercised end-to-end: exit rooms come from the region-level branching generator, and the location generator I could drive in a harness produces no isExit/BOSS_GATE rooms. tsc + 475/475 + build green.
+
+### R1-516 — First region map can offer the same destination twice
+- **status**: done
+- **category**: Roto
+- **priority**: P1
+- **files**: src/game/systems/RegionSystem.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: `drawLocationCards` draws each card independently from the same weighted pool and
+  deliberately never removes a picked entry (RegionSystem.ts:1221, comment at :1242-1243). At 0%
+  progress getTierWeights is {low 0.80, mid 0.18, high 0.02} and only three R1 locations are
+  danger<=2, so ~78% of the draw weight sits on 3 entries. Measured over 4000 opening spreads:
+  duplicate among the two NAMED cards 21.8%, duplicate anywhere in the 3-card spread 52.8%.
+  RegionMap renders drawnCards verbatim with no dedupe, so the opening choice can read
+  "Fishing Village | Fishing Village".
+- **done_when**: One `drawLocationCards` call never returns the same locationId twice (dedupe
+  between picks, allowing repeats only once distinct candidates are exhausted); 4000-spread sample
+  reports 0% duplicates.
+- **notes**: 2026-07-27 claude-opus5-r1 — drawLocationCards now draws from a working copy and removes the picked locationId between picks, refilling only once every distinct candidate is used (so repeats remain possible when the pool is genuinely smaller than the card count). Verified empirically with a 4000-spread harness against the real modules: duplicates anywhere in the spread 52.8% -> **0.0%**, duplicates among the two named cards 21.8% -> **0.0%**.
+
+### R1-517 — Approach modal opens with focus on "Exit Room"
+- **status**: done
+- **category**: Confuso
+- **priority**: P1
+- **files**: src/components/combat/ApproachSelector.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: useFocusTrap focuses `focusables[0]` on mount, and the first focusable inside
+  `.approach-modal` is the header "Exit Room" button (ApproachSelector.tsx:325-336), rendered before
+  the close button and the approach grid. The modal has no Space/Enter handler of its own, and the two
+  screens the player just came through both teach "Space / Enter enter room". So the taught keypress
+  natively activates Exit Room -> "You leave the room without fighting."
+- **done_when**: Initial focus lands on the first available approach card (or the modal container),
+  not Exit Room; Space/Enter right after open no longer leaves the room.
+- **notes**: 2026-07-27 claude-opus5-r1 — useFocusTrap gained an optional third `initialFocusRef` parameter (backward compatible — the other 11 callers are untouched), and ApproachSelector passes a ref attached to the first *available* approach card. Initial focus no longer lands on the header "Exit Room" button, so the Space/Enter the player was just taught no longer leaves the room without fighting.
+
+### R1-518 — Player HP reads above max after unequipping Willpower gear
+- **status**: done
+- **category**: Confuso
+- **priority**: P2
+- **files**: src/hooks/useInventoryHandlers.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: maxHp derives from effective willpower including equipment (StatSystem.ts:289/488),
+  but no equipment mutation clamps currentHp — clamps exist only on combat/heal/event paths. LevelSystem
+  sets currentHp = maxHp on every level-up, so the player is routinely at exactly full HP, and SLOT_1
+  carries a 1.5x multiplier so even re-slotting drops effective willpower. HUD then reads e.g. "530 / 368".
+- **done_when**: After any equip/unequip/sell-equipped/slot-swap, currentHp is clamped to the new maxHp.
+- **notes**: 2026-07-27 claude-opus5-r1 — Added a single clamp effect in App keyed on playerStats.derived.maxHp/maxChakra. One choke point covers every equip/unequip/sell/slot-swap path (rather than patching ~9 call sites) and only ever clamps downward. Extended to chakra as well, which had the identical uncapped-derived-stat problem.
+
+### R1-519 — "Gato" spawns as a random trash mob inside Gato's Compound
+- **status**: done
+- **category**: Confuso
+- **priority**: P2
+- **files**: src/game/constants/regions/landOfWaves.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: landOfWaves.ts:452 puts `'gato'` in GATOS_COMPOUND.enemyPool. EnemySystem only
+  filters empty strings, so the boss id is a normal NORMAL/ELITE draw; POOL_DISPLAY_NAMES maps it to
+  "Gato" and the art manifest gives it Gato's painted portrait, so a Chunin mook wears the boss's name
+  and face — and the guardian path can read "Guardian Gato". Danger-7 reserves "Gato" as the arc boss,
+  and the compound's story climax fights "Compound Elite Guard" / "Balcony Sniper". It is the only R1
+  pool containing a named-character id; the other 12 are generic roles.
+- **done_when**: No NORMAL/ELITE/Guardian encounter at the compound is named after the region boss.
+- **notes**: 2026-07-27 claude-opus5-r1 — Dropped 'gato' from GATOS_COMPOUND.enemyPool, leaving elite_guard/ronin/assassin, with a comment recording why. EnemySystem only filters empty strings from pools, so the boss id was a normal NORMAL/ELITE draw — mooks were named "Gato" and wore his painted portrait, and the exit guardian could read "Guardian Gato". The name is now reserved for the danger-7 arc boss.

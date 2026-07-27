@@ -1214,11 +1214,17 @@ export function drawLocationCards(
     return { ...deckLoc, calculatedWeight: weight, location };
   }).filter(item => item.location !== null && item.calculatedWeight > 0);
 
-  // Draw cards
+  // Draw cards. Distinct within a single spread: at 0% progress getTierWeights puts ~78% of the
+  // weight on the three danger<=2 locations, so drawing each card independently offered the SAME
+  // destination twice in about half of opening spreads ("Fishing Village | Fishing Village").
+  // A repeat is only allowed once every distinct candidate has been used.
+  let available = [...weightedLocations];
   for (let i = 0; i < count; i++) {
     if (weightedLocations.length === 0) break;
+    if (available.length === 0) available = [...weightedLocations];
 
-    const selected = weightedRandomSelect(weightedLocations);
+    const selected = weightedRandomSelect(available);
+    available = available.filter(item => item.locationId !== selected.locationId);
     const location = region.locations.find(l => l.id === selected.locationId)!;
 
     // NEW: Use revealedCount to determine intel level if provided
@@ -1239,8 +1245,6 @@ export function drawLocationCards(
       isRevisit: selected.isCompleted,
     });
 
-    // Note: We don't remove from weightedLocations to allow same location
-    // to appear multiple times (as per requirements)
   }
 
   // If we couldn't draw enough cards, fill with whatever is available

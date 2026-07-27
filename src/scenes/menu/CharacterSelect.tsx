@@ -336,19 +336,7 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({
                       : `Enter the mist as ${clan}`
                   }
                 >
-                  <img
-                    src="/assets/translucent_begin_journey.png"
-                    alt={isInfinite ? 'Begin Ascent' : 'Enter the Mist'}
-                    className="clan-card__select-img"
-                    onError={(e) => {
-                      // Fallback if image doesn't load
-                      const target = e.target as HTMLImageElement;
-                      target.parentElement?.classList.add('clan-card__select--fallback');
-                    }}
-                  />
-                  <span className="clan-card__select-text">
-                    {isInfinite ? 'Begin Ascent' : 'Enter the Mist'}
-                  </span>
+                  {isInfinite ? 'Begin Ascent' : 'Enter the Mist'}
                 </button>
               </div>
             </Tooltip>

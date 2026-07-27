@@ -290,6 +290,27 @@ const App: React.FC = () => {
     return getPlayerFullStats(player);
   }, [player]);
 
+  // Clamp current HP/Chakra when a gear change lowers the cap. maxHp/maxChakra derive from effective
+  // willpower/chakra, which include equipment (and SLOT_1 carries a 1.5x multiplier, so even
+  // re-slotting the same items changes them). Every equip/unequip/sell/swap path writes only
+  // `equipment`/`bag`, and the existing clamps live on combat/heal/event paths — so after a level-up
+  // (which sets currentHp = maxHp with the gear on) unequipping left the HUD reading e.g. "530 / 368".
+  // One choke point here covers every mutation path, and only ever clamps downward.
+  const maxHpCap = playerStats?.derived.maxHp;
+  const maxChakraCap = playerStats?.derived.maxChakra;
+  useEffect(() => {
+    if (!maxHpCap || !maxChakraCap) return;
+    setPlayer(p => {
+      if (!p) return p;
+      if (p.currentHp <= maxHpCap && p.currentChakra <= maxChakraCap) return p;
+      return {
+        ...p,
+        currentHp: Math.min(p.currentHp, maxHpCap),
+        currentChakra: Math.min(p.currentChakra, maxChakraCap),
+      };
+    });
+  }, [maxHpCap, maxChakraCap]);
+
   interface LevelUpResult {
     player: Player;
     levelUpInfo?: {

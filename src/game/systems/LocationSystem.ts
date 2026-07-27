@@ -65,6 +65,7 @@ import {
   TreasureHunt,
 } from '../types';
 import { generateEnemy } from './EnemySystem';
+import { getEnemyFullStats } from './StatSystem';
 import { generateLoot, generateRandomArtifact, generateSkillForFloor, generateComponentByQuality, generateMerchantItem } from './LootSystem';
 import {
   getLocationTerrainMods,
@@ -1096,11 +1097,11 @@ export function ensureLocationFlagActivities(
  * - Spirit: ×1.2 (20% more elemental defense)
  *
  * ## HP Recalculation:
- * After stat boost, HP is recalculated using the standard formula:
- * HP = (willpower × 12) + 50
+ * After the stat boost, HP is recalculated from the live derived-stat formula
+ * (getEnemyFullStats -> derived.maxHp), so the Guardian always spawns exactly at its own maxHp.
  *
- * This ensures the Guardian has significantly more health than regular
- * elite enemies, making them a meaningful floor-ending challenge.
+ * The ×1.3 willpower boost is what makes the Guardian a meaningful floor-ending
+ * challenge — the HP follows from it rather than from a separate hardcoded curve.
  *
  * @param floor - Effective floor (loot/label scaling only; NOT used for danger)
  * @param difficulty - Difficulty modifier (extra +15 applied)
@@ -1132,9 +1133,12 @@ function generateGuardian(
   enemy.primaryStats.strength = Math.floor(enemy.primaryStats.strength * 1.2);
   enemy.primaryStats.spirit = Math.floor(enemy.primaryStats.spirit * 1.2);
 
-  // Recalculate HP based on boosted willpower
-  const hpBonus = enemy.primaryStats.willpower * 12 + 50;
-  enemy.currentHp = hpBonus;
+  // Recalculate HP from the boosted willpower using the LIVE formula. This used to hardcode the
+  // pre-T-006 curve (willpower * 12 + 50), which exceeds the current HP_BASE 80 + willpower * 9 for
+  // any willpower > 10 — so guardians spawned above their own displayed maxHp (D7 read "1010 / 800")
+  // with the HP bar pinned at 100% for the first couple hundred damage. This is the only place in
+  // the repo that overrides an enemy's currentHp; everything else derives it the same way.
+  enemy.currentHp = getEnemyFullStats(enemy).derived.maxHp;
 
   return enemy;
 }

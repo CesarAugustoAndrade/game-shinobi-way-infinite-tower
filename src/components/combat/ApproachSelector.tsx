@@ -116,7 +116,11 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
   const [commitLocked, setCommitLocked] = useState(false);
   const commitLockRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(rootRef);
+  // Focus the first *available* approach card, not the modal's first focusable — that is the
+  // header "Exit Room" button, and both screens the player just came through teach
+  // "Space / Enter enter room", so the taught keypress used to leave the room without fighting.
+  const firstApproachRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap(rootRef, true, firstApproachRef);
 
   const isEliteOrBoss = node.type === 'ELITE' || node.type === 'BOSS';
 
@@ -193,6 +197,9 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
       return a.available ? -1 : 1;
     });
   }, [stats, skillIds, node.terrain, combinedStealthPts, isEliteOrBoss]);
+
+  // Card that receives initial focus (the list is sorted available-first).
+  const firstAvailableType = approaches.find(a => a.available)?.type;
 
   const getApproachIcon = (type: ApproachType): React.ReactNode => {
     switch (type) {
@@ -363,6 +370,7 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
                 <button
                   type="button"
                   key={approach.type}
+                  ref={approach.type === firstAvailableType ? firstApproachRef : undefined}
                   onClick={() => approach.available && handleSelect(approach.type)}
                   disabled={!approach.available}
                   className={getCardClasses(approach)}

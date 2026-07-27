@@ -449,7 +449,11 @@ const GATOS_COMPOUND: LocationConfig = {
     { type: 'enemy_attack_bonus', value: 0.1 },
   ],
   biome: 'Fortified Mansion',
-  enemyPool: ['elite_guard', 'ronin', 'assassin', 'gato'],
+  // 'gato' is deliberately NOT in this pool: EnemySystem draws pool ids for NORMAL/ELITE encounters
+  // and names them via POOL_DISPLAY_NAMES, so including it spawned Chunin mooks called "Gato"
+  // (wearing his painted portrait), and the exit guardian could read "Guardian Gato".
+  // The name is reserved for the danger-7 arc boss at the compound's climax.
+  enemyPool: ['elite_guard', 'ronin', 'assassin'],
   lootTable: 'waves_boss',
   atmosphereEvents: ['gato_speech', 'servant_whispers', 'display_of_power'],
   tiedStoryEvents: ['final_confrontation', 'gato_defeat'],

@@ -538,7 +538,7 @@ export function useActivityHandlers(
       setSelectedBranchingRoom(null);
       setGameState(GameState.REGION_MAP);
     }
-  }, [trainingData, selectedBranchingRoom, branchingFloor, region, locationFloor, setPlayer, setBranchingFloor, setLocationFloor, setTrainingData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
+  }, [player, trainingData, selectedBranchingRoom, branchingFloor, region, locationFloor, setPlayer, setBranchingFloor, setLocationFloor, setTrainingData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
 
   const handleTrainingSkip = useCallback(() => {
     // Ref first — Esc + click Skip same tick both saw trainingData

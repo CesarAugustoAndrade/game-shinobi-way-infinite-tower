@@ -25,6 +25,13 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
 export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
   active = true,
+  /**
+   * Optional element to focus on mount instead of the first focusable in DOM order.
+   * Use when the first focusable is a destructive escape hatch (e.g. the approach modal's
+   * "Exit Room" header button), so the Space/Enter the player was just taught does not
+   * trigger it the instant the dialog opens.
+   */
+  initialFocusRef?: RefObject<HTMLElement | null>,
 ): void {
   useEffect(() => {
     if (!active) return;
@@ -35,7 +42,9 @@ export function useFocusTrap(
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     const focusables = getFocusable(root);
-    const initial = focusables[0] ?? root;
+    const preferred = initialFocusRef?.current;
+    const initial =
+      preferred && root.contains(preferred) ? preferred : (focusables[0] ?? root);
     // Defer so autoFocus / layout settle first
     const t = window.setTimeout(() => {
       if (!root.contains(document.activeElement)) {
@@ -74,5 +83,5 @@ export function useFocusTrap(
         previouslyFocused.focus({ preventScroll: true });
       }
     };
-  }, [containerRef, active]);
+  }, [containerRef, active, initialFocusRef]);
 }

@@ -4,6 +4,18 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Fixed (Wave 15 — confirming pass, incl. a Wave-14 regression)
+
+Ran after the Wave-14 backlog hit zero, using six deliberately different lenses plus an adversarial
+regression check aimed at breaking the Wave-14 fixes. That check earned its place immediately:
+
+- **REGRESSION: six equipment handlers were frozen on a null player (P0)** (`useInventoryHandlers.ts`): Wave 14 hoisted six updater bodies into eager functions reading the rendered `player`, but left the `useCallback` deps as `[setPlayer, addLog]` — all referentially stable, so each callback was memoized on App's *first* render where `player === null`. Every call hit the `'noprev'` head and returned; `'noprev'` is not `'full'`, so no log fired. Unequip, disassemble, synthesize-from-slot and **every inventory drag** were silent no-ops from game start. Added `player` to the six arrays (plus `handleTrainingComplete`, found by a repo-wide scan for the same mistake). Proven with a jsdom harness on react@19.2.0: broken deps -> `returned=false`, item still equipped, no logs, 1 callback identity; fixed -> `returned=true`, item banked, log emitted, 3 identities.
+- **Exit-room Guardians spawned above their own maxHp (P1)** (`LocationSystem.ts`): `generateGuardian` hardcoded the pre-T-006 curve `willpower * 12 + 50` while the live formula is `HP_BASE 80 + willpower * 9`. It was the only site in the repo overriding an enemy's `currentHp`. Guardians ran 11-26% over their displayed max (Gato's Compound read "1010 / 800") with the HP bar pinned at 100% for the first couple hundred damage — at the climax of every Land of Waves location.
+- **The opening region map could offer the same destination twice (P1)** (`RegionSystem.ts`): `drawLocationCards` drew each card independently and deliberately never removed a pick, while ~78% of the opening draw weight sits on the three danger<=2 locations. Measured over 4000 spreads: **52.8%** of spreads contained a duplicate and **21.8%** showed it in the two named cards ("Fishing Village | Fishing Village"). Now deduped between picks — 0.0% on both counts.
+- **The approach modal opened with focus on "Exit Room" (P1)** (`ApproachSelector.tsx`, `useFocusTrap.ts`): the focus trap focuses the first focusable in DOM order, which is the header escape hatch — and both preceding screens teach "Space / Enter enter room", so the taught keypress left the room without fighting. `useFocusTrap` gained an optional `initialFocusRef`; focus now lands on the first available approach card.
+- **HP could read above max after a gear change (P2)** (`App.tsx`): `maxHp` derives from effective willpower including equipment, but no equip/unequip/swap path clamped `currentHp`. Since level-up sets `currentHp = maxHp` with the gear on, unequipping a Willpower component left the HUD reading e.g. "530 / 368". Single clamp effect keyed on the derived caps; extended to chakra, which had the identical problem.
+- **"Gato" spawned as a random trash mob inside Gato's Compound (P2)** (`landOfWaves.ts`): the boss id sat in the location's `enemyPool`, and `EnemySystem` only filters empty strings — so Chunin mooks were named "Gato" and wore his painted portrait, and the exit guardian could read "Guardian Gato". Removed; the name is reserved for the danger-7 arc boss.
+
 ### Fixed (Wave 14 — Region 1 polish pass)
 
 Found by a 7-lens exploration pass with adversarial verification; all registered as R1-5xx in

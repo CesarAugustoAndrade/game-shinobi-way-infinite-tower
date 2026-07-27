@@ -732,7 +732,7 @@ export function useInventoryHandlers(
     }
     addLog(`Moved ${item.name} to bag.`, 'info');
     return true;
-  }, [setPlayer, addLog]);
+  }, [player, setPlayer, addLog]);
 
   /**
    * Unequip component into bag and select it for synthesis.
@@ -789,7 +789,7 @@ export function useInventoryHandlers(
       addLog(`Select another component to synthesize with ${item.name}.`, 'info');
     }
     return true;
-  }, [setPlayer, addLog, setSelectedComponent]);
+  }, [player, setPlayer, addLog, setSelectedComponent]);
 
   /**
    * Disassemble artifact into a component.
@@ -846,7 +846,7 @@ export function useInventoryHandlers(
     }
     addLog(`Disassembled ${item.name} into ${component.name}!`, 'loot');
     return component;
-  }, [setPlayer, addLog]);
+  }, [player, setPlayer, addLog]);
 
   // Swap items within the bag
   const reorderBag = useCallback((fromIndex: number, toIndex: number) => {
@@ -913,7 +913,7 @@ export function useInventoryHandlers(
       addLog(`Equipped ${item.name}.`, 'loot');
     }
     setSelectedComponent(null);
-  }, [setPlayer, addLog, setSelectedComponent]);
+  }, [player, setPlayer, addLog, setSelectedComponent]);
 
   // Unequip item from equipment to bag via drag
   const dragEquipToBag = useCallback((item: Item, slot: EquipmentSlot, targetBagIndex?: number) => {
@@ -982,7 +982,7 @@ export function useInventoryHandlers(
     if (outBox.o === 'ok') {
       addLog(`Moved ${item.name} to bag.`, 'info');
     }
-  }, [setPlayer, addLog]);
+  }, [player, setPlayer, addLog]);
 
   // Swap items between two equipment slots
   const swapEquipment = useCallback((fromSlot: EquipmentSlot, toSlot: EquipmentSlot) => {
@@ -1016,7 +1016,7 @@ export function useInventoryHandlers(
     } else if (fromName) {
       addLog(`Moved ${fromName} to another slot.`, 'info');
     }
-  }, [setPlayer, addLog]);
+  }, [player, setPlayer, addLog]);
 
   return {
     equipItem,
