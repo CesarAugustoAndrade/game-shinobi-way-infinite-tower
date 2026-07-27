@@ -479,23 +479,19 @@ export function useLocationCards(
     // Sync lock first — useState eager updaters re-read lastRenderedState until commit,
     // so two same-tick Continues both see a non-null panel without this ref.
     if (completeExecuteLockRef.current) return;
-    // Consume panel first — blocks double Continue (double leave / boss callbacks)
-    const box: { opts?: CompleteLocationOptions; had: boolean } = { had: false };
-    setLocationCompleteResult(prev => {
-      if (!prev) return null;
-      box.had = true;
-      return null;
-    });
-    setPendingCompleteOptions(prev => {
-      box.opts = prev;
-      return undefined;
-    });
-    if (!box.had) return;
+    // Consume panel first — blocks double Continue (double leave / boss callbacks). Decided from
+    // the RENDERED panel state: values written inside a setState updater are not readable after it
+    // (React defers updaters once the fiber is dirty), so this always returned early and
+    // executeLocationComplete never ran — a completed location could not be left.
+    if (!locationCompleteResult) return;
+    const opts = pendingCompleteOptions;
+    setLocationCompleteResult(null);
+    setPendingCompleteOptions(undefined);
     // Hold until next panel is staged (closedRef on modal is primary; this is belt)
     completeExecuteLockRef.current = true;
     completePanelOpenRef.current = false;
-    executeLocationComplete(box.opts);
-  }, [executeLocationComplete]);
+    executeLocationComplete(opts);
+  }, [executeLocationComplete, locationCompleteResult, pendingCompleteOptions]);
 
   const clearLocationCompleteUi = useCallback(() => {
     setLocationCompleteResult(null);

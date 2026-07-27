@@ -599,6 +599,7 @@ const App: React.FC = () => {
       region,
       currentLocation,
       treasureHuntReward,
+      diceRollResult,
       pendingBagFullItem,
     },
     {
@@ -1247,37 +1248,25 @@ const App: React.FC = () => {
 
   const handleIntelResultClose = useCallback(() => {
     if (intelContinueLockRef.current) return;
+    // Read the rendered result — a flag written inside the updater below is NOT readable here
+    // (React defers updaters once the fiber is dirty), which cleared the panel but skipped
+    // returnToMap, stalling the activity chain / floor completion.
+    if (!intelResult) return;
     intelContinueLockRef.current = true;
-    let had = false;
-    setIntelResult((prev) => {
-      if (!prev) return null;
-      had = true;
-      return null;
-    });
-    if (!had) {
-      intelContinueLockRef.current = false;
-      return;
-    }
+    setIntelResult(null);
     // Activity already completeActivity'd — chain next room activity or finish floor
     returnToMap();
-  }, [returnToMap]);
+  }, [returnToMap, intelResult]);
 
   const handleRestResultClose = useCallback(() => {
     if (restContinueLockRef.current) return;
+    // Rendered value, not a flag from inside the updater (see handleIntelResultClose).
+    if (!restResult) return;
     restContinueLockRef.current = true;
-    let had = false;
-    setRestResult((prev) => {
-      if (!prev) return null;
-      had = true;
-      return null;
-    });
-    if (!had) {
-      restContinueLockRef.current = false;
-      return;
-    }
+    setRestResult(null);
     // Rest already completeActivity'd + setFloor — returnToMap for chain / floor complete
     returnToMap();
-  }, [returnToMap]);
+  }, [returnToMap, restResult]);
 
   const handleDiceContinueOnce = useCallback(() => {
     if (diceContinueLockRef.current) return;
@@ -1378,39 +1367,50 @@ const App: React.FC = () => {
     setDroppedSkill(prev => (prev && prev.id === skill.id ? null : prev));
 
     type LearnKind = 'upgrade' | 'replace' | 'learn' | 'fail';
-    const box: { kind: LearnKind; detail?: string; level?: number } = { kind: 'fail' };
+
+    // Outcome computed from the RENDERED player, before the write. A value written inside the
+    // updater is not readable after it (React defers updaters once the fiber is dirty), so this
+    // always reported 'fail': it restored the drop while the queued updater still learned the
+    // skill, letting the same scroll be learned/upgraded over and over.
+    const priorSkills = player.skills;
+    const existingIndex = priorSkills.findIndex(s => s.id === skill.id);
+    const box: { kind: LearnKind; detail?: string; level?: number } =
+      existingIndex !== -1
+        ? {
+            kind: 'upgrade',
+            detail: priorSkills[existingIndex].name,
+            level: (priorSkills[existingIndex].level || 1) + 1,
+          }
+        : slotIndex !== undefined && priorSkills[slotIndex]
+          ? { kind: 'replace', detail: priorSkills[slotIndex].name }
+          : priorSkills.length < 4
+            ? { kind: 'learn' }
+            : { kind: 'fail' };
 
     setPlayer(prev => {
       if (!prev) return null;
       const newSkills = [...prev.skills];
-      const existingIndex = newSkills.findIndex(s => s.id === skill.id);
+      const idx = newSkills.findIndex(s => s.id === skill.id);
 
-      if (existingIndex !== -1) {
-        const existing = newSkills[existingIndex];
+      if (idx !== -1) {
+        const existing = newSkills[idx];
         const currentLevel = existing.level || 1;
         const growth = skill.damageMult * 0.2;
-        newSkills[existingIndex] = {
+        newSkills[idx] = {
           ...existing,
           level: currentLevel + 1,
           damageMult: existing.damageMult + growth,
         };
-        box.kind = 'upgrade';
-        box.detail = existing.name;
-        box.level = currentLevel + 1;
         return { ...prev, skills: newSkills };
       }
       if (slotIndex !== undefined && newSkills[slotIndex]) {
-        box.kind = 'replace';
-        box.detail = newSkills[slotIndex].name;
         newSkills[slotIndex] = { ...skill, level: 1 };
         return { ...prev, skills: newSkills };
       }
       if (newSkills.length < 4) {
         newSkills.push({ ...skill, level: 1 });
-        box.kind = 'learn';
         return { ...prev, skills: newSkills };
       }
-      box.kind = 'fail';
       return prev;
     });
 
@@ -1428,13 +1428,8 @@ const App: React.FC = () => {
     }
 
     // Stay on LOOT if items remain; only leave when pile is empty.
-    // Read latest pile via setState (closure droppedItems can lag mid-claim settle).
     // Share exit mutex with Leave All / finish claim (no double returnToMap).
-    let pileEmpty = droppedItems.length === 0;
-    setDroppedItems(prev => {
-      pileEmpty = prev.length === 0;
-      return prev;
-    });
+    const pileEmpty = droppedItems.length === 0;
     if (pileEmpty) {
       exitLootOnce();
     }

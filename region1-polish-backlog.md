@@ -452,7 +452,7 @@
 > the "blocker" exception in out-of-scope.md applies.
 
 ### R1-500 — ROOT CAUSE: claim flags written inside setState updaters are read synchronously
-- **status**: claimed
+- **status**: done
 - **category**: Roto
 - **priority**: P0
 - **files**: src/hooks/useActivityHandlers.ts, src/hooks/useTreasureHandlers.ts, src/hooks/useInventoryHandlers.ts, src/App.tsx
@@ -467,7 +467,7 @@
   reward never granted.** React 19.2.0 + StrictMode confirmed installed.
 - **done_when**: No handler decides control flow from a variable assigned inside a setState updater;
   claim decisions come from a synchronous source (closure state or ref). tsc + full Vitest green.
-- **notes**: 2026-07-27 claude-opus5-r1 — IN PROGRESS: 5 of 25 sites fixed (the four player-facing P0/P1 flows). **20 sites remain** in training/scroll/elite sessions, sell/equip and treasure-hunt flows: useActivityHandlers 358/411/499/515/574/637/744, useInventoryHandlers 280/949, useTreasureHandlers 358/467/560/615/667/700/715/752/795, App.tsx 1251/1268. Root-cause note: the regression is ALSO on origin/main (develop is merged in).
+- **notes**: 2026-07-27 claude-opus5-r1 — DONE. **40 sites** fixed across two variants of the same root cause. The first scan only caught the primitive form (`let claimed = false`); a second scan found 15 more in an object form (`const box: { o: Outcome } = { o: 'noprev' }`) that a type annotation before `=` had hidden. Both are now zero repo-wide (verified by scanner). The object form was the more damaging half: because the outcome always read as the failure value, handlers ran their rollback (restore the listing / un-claim the chest / release the material claim / restore the drop) **while the queued updater still applied the mutation** — i.e. duplication exploits, not just dead actions. Notable: `useLocationCards.confirmLocationComplete` never called `executeLocationComplete`, so a completed location could not be left (P0 soft-lock); `handleTreasureHuntRewardClaim` lost the entire treasure-map payout; loot equip/store/craft/upgrade/forge/unequip/disassemble/drag all rolled back while applying. Fix shape: decide from the rendered value (closure state) before the write, or hoist the updater body into a function called eagerly against `player` and commit only on success — logic preserved verbatim. Verified: tsc clean, 475/475 Vitest, production build green, and a jsdom repro on the repo's own react@19.2.0 showing buy charges once (500->490, item in bag, logged once) with three further clicks changing nothing.
 
 ### R1-501 — Merchant "Buy" is a silent no-op that deletes the listing
 - **status**: done

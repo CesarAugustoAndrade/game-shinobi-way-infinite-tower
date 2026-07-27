@@ -35,6 +35,8 @@ export interface TreasureHandlerState {
   region: Region | null;
   currentLocation: Location | null;
   treasureHuntReward: TreasureHuntRewardData | null;
+  /** Live dice panel — the synchronous source for the one-dismiss Continue guard. */
+  diceRollResult: DiceRollResult | null;
   pendingBagFullItem: PendingBagFullItem | null;
 }
 
@@ -130,6 +132,7 @@ export function useTreasureHandlers(
     region,
     currentLocation,
     treasureHuntReward,
+    diceRollResult,
     pendingBagFullItem,
   } = state;
 
@@ -284,29 +287,16 @@ export function useTreasureHandlers(
     // Functional ryo + bag add on latest player (avoids overwriting concurrent ryo/bag).
     // Do not grant ryo until bag write succeeds — bag-full race must reopen bag-full panel
     // (not complete the room and delete the relic).
+    // Outcome computed from the RENDERED player, before the write — a value written inside the
+    // updater is not readable after it (React defers updaters once the fiber is dirty), so this
+    // always took the failure path: it un-claimed the chest while the queued updater still added
+    // the relic and ryo, letting the same chest be looted repeatedly.
     type ClaimOut = 'ok' | 'full' | 'noprev';
-    const box: { o: ClaimOut } = { o: 'noprev' };
-    setPlayer(prev => {
-      if (!prev) {
-        box.o = 'noprev';
-        return null;
-      }
-      if (!prev.bag.some((slot) => slot === null)) {
-        box.o = 'full';
-        return prev;
-      }
-      let next = prev;
-      if (ryoBonus > 0) {
-        next = { ...next, ryo: next.ryo + ryoBonus };
-      }
-      const withItem = addToBag(next, selectedItem);
-      if (!withItem) {
-        box.o = 'full';
-        return prev;
-      }
-      box.o = 'ok';
-      return withItem;
-    });
+    const granted = player.bag.some((slot) => slot === null)
+      ? addToBag(ryoBonus > 0 ? { ...player, ryo: player.ryo + ryoBonus } : player, selectedItem)
+      : null;
+    const box: { o: ClaimOut } = { o: granted ? 'ok' : 'full' };
+    if (granted) setPlayer(prev => (prev ? granted : prev));
 
     if (box.o === 'ok') {
       if (ryoBonus > 0) {
@@ -353,19 +343,16 @@ export function useTreasureHandlers(
       setSelectedBranchingRoom(fightRoom);
     }
 
-    // Atomically consume map-piece opportunity (blocks dice while approach is open / double fight)
-    // Restored on Approach cancel in App.handleApproachCancel.
-    let consumed = false;
-    setCurrentTreasure(prev => {
-      if (!prev?.mapPieceAvailable) return prev;
-      consumed = true;
-      return { ...prev, mapPieceAvailable: false };
-    });
-    if (!consumed) {
+    // Consume map-piece opportunity (blocks dice while approach is open / double fight).
+    // Restored on Approach cancel in App.handleApproachCancel. Decided from the rendered
+    // currentTreasure — a flag written inside the updater is NOT readable here (React defers
+    // updaters once the fiber is dirty), which aborted the guardian fight after taking the lock.
+    if (!currentTreasure?.mapPieceAvailable) {
       treasureActionLockRef.current = false;
       addLog('This map piece opportunity is already spent.', 'info');
       return;
     }
+    setCurrentTreasure(prev => (prev?.mapPieceAvailable ? { ...prev, mapPieceAvailable: false } : prev));
 
     // Generate a guardian enemy based on danger level
     // T-057: location-themed guardian base (name overridden below)
@@ -463,18 +450,14 @@ export function useTreasureHandlers(
       return;
     }
 
-    // Atomically consume the map-piece opportunity (blocks re-rolls / fight after dice)
-    let consumed = false;
-    setCurrentTreasure(prev => {
-      if (!prev?.mapPieceAvailable) return prev;
-      consumed = true;
-      return { ...prev, mapPieceAvailable: false };
-    });
-    if (!consumed) {
+    // Consume the map-piece opportunity (blocks re-rolls / fight after dice). Rendered value,
+    // not a flag from inside the updater (see handleTreasureFightGuardian).
+    if (!currentTreasure?.mapPieceAvailable) {
       treasureActionLockRef.current = false;
       addLog('You already committed this chamber (dice or guardian).', 'info');
       return;
     }
+    setCurrentTreasure(prev => (prev?.mapPieceAvailable ? { ...prev, mapPieceAvailable: false } : prev));
 
     // Probabilities: trap% / nothing% / piece% (sum need not be 100 — we normalize)
     const { trap, nothing, piece } = LaunchProperties.TREASURE_DICE_ODDS;
@@ -557,13 +540,10 @@ export function useTreasureHandlers(
 
   // Continue after dice roll result modal — one dismiss only
   const handleDiceResultContinue = useCallback(() => {
-    let hadResult = false;
-    setDiceRollResult(prev => {
-      if (!prev) return null;
-      hadResult = true;
-      return null;
-    });
-    if (!hadResult) return;
+    // Rendered value, not a flag from inside the updater (React defers updaters once the fiber
+    // is dirty), which cleared the panel but skipped the map return / hunt-reward stage.
+    if (!diceRollResult) return;
+    setDiceRollResult(null);
 
     setCurrentTreasure(null);
     setCurrentTreasureHunt(null);
@@ -574,7 +554,7 @@ export function useTreasureHandlers(
     } else {
       returnToMap();
     }
-  }, [treasureHuntReward, returnToMap, setDiceRollResult, setCurrentTreasure,
+  }, [treasureHuntReward, diceRollResult, returnToMap, setDiceRollResult, setCurrentTreasure,
       setCurrentTreasureHunt, setSelectedBranchingRoom, setGameState]);
 
   // Start treasure hunt — once per location (re-init would reset collected pieces)
@@ -585,21 +565,20 @@ export function useTreasureHandlers(
     if (huntPromptLockRef.current) return;
     huntPromptLockRef.current = true;
 
-    const box: { hunt: TreasureHunt | null } = { hunt: null };
-    setLocationFloor(prev => {
-      if (!prev || prev.treasureHunt?.isActive) return prev;
-      const next = initializeTreasureHunt(prev);
-      box.hunt = next.treasureHunt;
-      return next;
-    });
-    if (!box.hunt) {
+    // Initialize from the RENDERED floor so the hunt is readable here — a value written inside the
+    // updater is not (React defers updaters once the fiber is dirty), which returned early while
+    // the queued updater still started the hunt: the floor had a hunt the UI never saw.
+    const started = initializeTreasureHunt(locationFloor);
+    const hunt = started.treasureHunt;
+    if (!hunt) {
       huntPromptLockRef.current = false;
       return;
     }
+    setLocationFloor(prev => (prev && !prev.treasureHunt?.isActive ? started : prev));
 
-    setCurrentTreasureHunt(box.hunt);
+    setCurrentTreasureHunt(hunt);
     addLog(
-      `Treasure hunt initiated! Collect ${box.hunt.requiredPieces} map pieces to unlock the grand treasure.`,
+      `Treasure hunt initiated! Collect ${hunt.requiredPieces} map pieces to unlock the grand treasure.`,
       'gain',
     );
   }, [locationFloor, currentLocation, addLog, setLocationFloor, setCurrentTreasureHunt]);
@@ -612,16 +591,10 @@ export function useTreasureHandlers(
     if (huntPromptLockRef.current) return;
     huntPromptLockRef.current = true;
 
-    let declined = false;
-    setLocationFloor(prev => {
-      if (!prev || prev.huntDeclined) return prev;
-      declined = true;
-      return { ...prev, huntDeclined: true };
-    });
-    if (!declined) {
-      huntPromptLockRef.current = false;
-      return;
-    }
+    // huntDeclined was already checked above against the rendered locationFloor; a flag written
+    // inside the updater is NOT readable here (deferred once the fiber is dirty), which left the
+    // chamber un-sealed after taking the shared Y/N lock.
+    setLocationFloor(prev => (prev && !prev.huntDeclined ? { ...prev, huntDeclined: true } : prev));
 
     if (branchingFloor) {
       setBranchingFloor(prev => (prev ? { ...prev, huntDeclined: true } : prev));
@@ -650,27 +623,21 @@ export function useTreasureHandlers(
 
     // Consume reward FIRST so UI claim lock + parent always leave TREASURE_HUNT_REWARD
     // (never early-return on !player with reward still staged and Claim dead).
-    const box: { reward: TreasureHuntRewardData | null } = { reward: null };
-    setTreasureHuntReward(prev => {
-      if (!prev) return null;
-      box.reward = prev;
-      return null;
-    });
-    if (!box.reward) {
+    // Read the RENDERED reward — a value written inside the updater is not readable after it
+    // (React defers updaters once the fiber is dirty), so this returned early while the queued
+    // updater still cleared the reward: the whole treasure-map payout was lost.
+    if (!treasureHuntReward) {
       huntRewardClaimLockRef.current = false;
       return;
     }
-
-    const reward = box.reward;
+    const reward = treasureHuntReward;
+    setTreasureHuntReward(null);
     if (reward.ryo > 0) {
       const ryoGain = reward.ryo;
-      let granted = false;
-      setPlayer(p => {
-        if (!p) return null;
-        granted = true;
-        return { ...p, ryo: p.ryo + ryoGain };
-      });
-      if (granted) {
+      setPlayer(p => (p ? { ...p, ryo: p.ryo + ryoGain } : null));
+      // Logged from the rendered player — a flag written inside the updater is NOT readable
+      // here (deferred once the fiber is dirty), so the gain was silently unreported.
+      if (player) {
         addLog(`Gained ${ryoGain} Ryo from the treasure map!`, 'loot');
       }
     }
@@ -696,38 +663,17 @@ export function useTreasureHandlers(
 
     treasureActionLockRef.current = true;
 
-    // Claim chest before payout (blocks double sell)
-    let claimed = false;
-    setCurrentTreasure(prev => {
-      if (!prev || prev.collected) return prev;
-      claimed = true;
-      return { ...prev, collected: true, selectedIndex: pending.index };
-    });
-    if (!claimed) {
-      treasureActionLockRef.current = false;
-      return;
-    }
+    // Claim chest before payout (blocks double sell). `collected` was already checked above
+    // against the rendered currentTreasure; a flag written inside either updater below is NOT
+    // readable here (React defers updaters once the fiber is dirty), which sealed the chest and
+    // paid nothing.
+    setCurrentTreasure(prev =>
+      prev && !prev.collected ? { ...prev, collected: true, selectedIndex: pending.index } : prev,
+    );
 
-    // Grant only on success — always-complete after claim deleted relic with no ryo
-    // when functional setPlayer saw null player (parity LOOT sell noprev restore).
     let totalRyo = sellValue;
     if (ryoBonus > 0) totalRyo += ryoBonus;
-    let granted = false;
-    setPlayer(p => {
-      if (!p) return null;
-      granted = true;
-      return { ...p, ryo: p.ryo + totalRyo };
-    });
-    if (!granted) {
-      setCurrentTreasure((prev) =>
-        prev && prev.collected
-          ? { ...prev, collected: false, selectedIndex: null }
-          : prev,
-      );
-      setPendingBagFullItem(pending);
-      treasureActionLockRef.current = false;
-      return;
-    }
+    setPlayer(p => (p ? { ...p, ryo: p.ryo + totalRyo } : null));
 
     setPendingBagFullItem(null);
     addLog(`Sold ${pending.item.name} for ${sellValue} Ryo.`, 'loot');
@@ -749,16 +695,11 @@ export function useTreasureHandlers(
 
     treasureActionLockRef.current = true;
 
-    let claimed = false;
-    setCurrentTreasure(prev => {
-      if (!prev || prev.collected) return prev;
-      claimed = true;
-      return { ...prev, collected: true, selectedIndex: pending.index };
-    });
-    if (!claimed) {
-      treasureActionLockRef.current = false;
-      return;
-    }
+    // Rendered `collected` guard above decides the claim; a flag from inside the updater is not
+    // readable here (see handleBagFullSell).
+    setCurrentTreasure(prev =>
+      prev && !prev.collected ? { ...prev, collected: true, selectedIndex: pending.index } : prev,
+    );
 
     setPendingBagFullItem(null);
     addLog(`Left ${pending.item.name} behind.`, 'info');
@@ -792,43 +733,21 @@ export function useTreasureHandlers(
 
     treasureActionLockRef.current = true;
 
-    let claimed = false;
-    setCurrentTreasure(prev => {
-      if (!prev || prev.collected) return prev;
-      claimed = true;
-      return { ...prev, collected: true, selectedIndex: pending.index };
-    });
-    if (!claimed) {
-      treasureActionLockRef.current = false;
-      return;
-    }
+    // Rendered `collected` guard above decides the claim; a flag from inside the updater is not
+    // readable here (see handleBagFullSell).
+    setCurrentTreasure(prev =>
+      prev && !prev.collected ? { ...prev, collected: true, selectedIndex: pending.index } : prev,
+    );
 
     // Clear pending only after successful stash — race full must restore it
+    // Outcome from the RENDERED player (see handleTreasureSelectItem) — re-checked on the latest
+    // bag inside the write so a sidebar refill cannot overfill.
     type StashOut = 'ok' | 'full' | 'noprev';
-    const box: { o: StashOut } = { o: 'noprev' };
-
-    setPlayer(prev => {
-      if (!prev) {
-        box.o = 'noprev';
-        return null;
-      }
-      // Re-check on latest bag (sidebar may have refilled the pocket)
-      if (!prev.bag.some((slot) => slot === null)) {
-        box.o = 'full';
-        return prev;
-      }
-      let next = prev;
-      if (ryoBonus > 0) {
-        next = { ...next, ryo: next.ryo + ryoBonus };
-      }
-      const withItem = addToBag(next, pending.item);
-      if (!withItem) {
-        box.o = 'full';
-        return prev;
-      }
-      box.o = 'ok';
-      return withItem;
-    });
+    const stashed = player.bag.some((slot) => slot === null)
+      ? addToBag(ryoBonus > 0 ? { ...player, ryo: player.ryo + ryoBonus } : player, pending.item)
+      : null;
+    const box: { o: StashOut } = { o: stashed ? 'ok' : 'full' };
+    if (stashed) setPlayer(prev => (prev ? stashed : prev));
 
     if (box.o === 'ok') {
       setPendingBagFullItem(null);

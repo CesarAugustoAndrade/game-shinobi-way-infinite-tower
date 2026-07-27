@@ -228,7 +228,11 @@ export function useInventoryHandlers(
     type EquipOut = 'ok' | 'fail' | 'noprev';
     const box: { o: EquipOut; reason?: string; replacedName?: string } = { o: 'noprev' };
 
-    setPlayer(prev => {
+    // Computed eagerly against the RENDERED player. Values written inside a setState updater are
+    // not readable after it (React defers updaters once the fiber is dirty — setIsProcessingLoot
+    // above guarantees that), so this always took the failure path below: it restored the spoil to
+    // the pile while the queued updater still equipped it, allowing endless re-equips.
+    const applyEquip = (prev: Player | null): Player | null => {
       if (!prev) {
         box.o = 'noprev';
         return null;
@@ -242,7 +246,9 @@ export function useInventoryHandlers(
       box.o = 'ok';
       box.replacedName = result.replacedItem?.name;
       return result.player;
-    });
+    };
+    const equippedPlayer = applyEquip(player);
+    if (box.o === 'ok') setPlayer(prev => (prev ? equippedPlayer : prev));
 
     if (box.o !== 'ok') {
       restoreToLootPile(item);
@@ -276,20 +282,18 @@ export function useInventoryHandlers(
     }
 
     const price = getSellPrice(item);
-    // Functional grant — restore spoil if player vanished mid-claim (parity equip/store)
-    let granted = false;
-    setPlayer(prev => {
-      if (!prev) return null;
-      granted = true;
-      // Loot sell: grant ryo only (item is not in bag yet)
-      return { ...prev, ryo: prev.ryo + price };
-    });
-    if (!granted) {
+    // Restore spoil if the player vanished mid-claim (parity equip/store). Decided from the
+    // rendered player: a flag written inside the updater is NOT readable here (React defers
+    // updaters once the fiber is dirty — setIsProcessingLoot above guarantees it), so this
+    // restored the item to the pile while the queued updater still paid the ryo (free money).
+    if (!player) {
       restoreToLootPile(item);
       lootClaimLockRef.current = false;
       setIsProcessingLoot(false);
       return;
     }
+    // Loot sell: grant ryo only (item is not in bag yet)
+    setPlayer(prev => (prev ? { ...prev, ryo: prev.ryo + price } : null));
     addLog(`Sold ${item.name} for ${price} Ryō.`, 'loot');
     settleLootClaim(remainingAfter);
   }, [player, isProcessingLoot, setPlayer, addLog, setIsProcessingLoot, claimFromLootPile, restoreToLootPile, settleLootClaim]);
@@ -312,7 +316,9 @@ export function useInventoryHandlers(
       return;
     }
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot) — reading box after the updater
+    // always failed, restoring the spoil while the queued updater still banked it.
+    const applyStore = (prev: Player | null): Player | null => {
       if (!prev) {
         box.o = 'noprev';
         return null;
@@ -324,7 +330,9 @@ export function useInventoryHandlers(
       }
       box.o = 'ok';
       return result;
-    });
+    };
+    const storedPlayer = applyStore(player);
+    if (box.o === 'ok') setPlayer(prev => (prev ? storedPlayer : prev));
 
     if (box.o !== 'ok') {
       restoreToLootPile(item);
@@ -498,7 +506,10 @@ export function useInventoryHandlers(
     type CraftOutcome = 'ok' | 'missing' | 'ryo' | 'space' | 'noprev';
     const craftBox: { o: CraftOutcome } = { o: 'noprev' };
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot) — reading craftBox after the updater
+    // always failed, releasing the material claims while the queued updater still consumed the
+    // materials and granted the product.
+    const applyCraft = (prev: Player | null): Player | null => {
       if (!prev) {
         craftBox.o = 'noprev';
         return null;
@@ -510,7 +521,9 @@ export function useInventoryHandlers(
       }
       craftBox.o = 'ok';
       return applied.player;
-    });
+    };
+    const craftedPlayer = applyCraft(player);
+    if (craftBox.o === 'ok') setPlayer(prev => (prev ? craftedPlayer : prev));
 
     if (craftBox.o !== 'ok') {
       releaseInventoryItemIds([compA.id, compB.id]);
@@ -548,7 +561,10 @@ export function useInventoryHandlers(
     type CraftOutcome = 'ok' | 'missing' | 'ryo' | 'space' | 'noprev';
     const craftBox: { o: CraftOutcome } = { o: 'noprev' };
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot) — reading craftBox after the updater
+    // always failed, releasing the material claims while the queued updater still consumed the
+    // materials and granted the product.
+    const applyCraft = (prev: Player | null): Player | null => {
       if (!prev) {
         craftBox.o = 'noprev';
         return null;
@@ -560,7 +576,9 @@ export function useInventoryHandlers(
       }
       craftBox.o = 'ok';
       return applied.player;
-    });
+    };
+    const craftedPlayer = applyCraft(player);
+    if (craftBox.o === 'ok') setPlayer(prev => (prev ? craftedPlayer : prev));
 
     if (craftBox.o !== 'ok') {
       releaseInventoryItemIds([compA.id, compB.id]);
@@ -596,7 +614,8 @@ export function useInventoryHandlers(
     type CraftOutcome = 'ok' | 'missing' | 'ryo' | 'space' | 'noprev';
     const craftBox: { o: CraftOutcome } = { o: 'noprev' };
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot).
+    const applyForge = (prev: Player | null): Player | null => {
       if (!prev) {
         craftBox.o = 'noprev';
         return null;
@@ -608,7 +627,9 @@ export function useInventoryHandlers(
       }
       craftBox.o = 'ok';
       return applied.player;
-    });
+    };
+    const forgedPlayer = applyForge(player);
+    if (craftBox.o === 'ok') setPlayer(prev => (prev ? forgedPlayer : prev));
 
     if (craftBox.o !== 'ok') {
       releaseInventoryItemIds([artifactA.id, artifactB.id]);
@@ -673,7 +694,10 @@ export function useInventoryHandlers(
     type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
     const outBox: { o: Outcome } = { o: 'noprev' };
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot) — reading outBox after the updater
+    // always failed, releasing the equip claim while the queued updater still moved the item
+    // (the slot emptied and the claim reopened, so the same item could be banked repeatedly).
+    const applyUnequip = (prev: Player | null): Player | null => {
       if (!prev) {
         outBox.o = 'noprev';
         return null;
@@ -695,7 +719,9 @@ export function useInventoryHandlers(
         equipment: { ...prev.equipment, [slot]: null },
         bag: newBag
       };
-    });
+    };
+    const unequippedPlayer = applyUnequip(player);
+    if (outBox.o === 'ok') setPlayer(prev => (prev ? unequippedPlayer : prev));
 
     if (outBox.o !== 'ok') {
       releaseEquipAction(slot, item.id);
@@ -720,7 +746,10 @@ export function useInventoryHandlers(
     type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
     const outBox: { o: Outcome } = { o: 'noprev' };
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot) — reading outBox after the updater
+    // always failed, releasing the equip claim while the queued updater still moved the item
+    // (the slot emptied and the claim reopened, so the same item could be banked repeatedly).
+    const applyUnequip = (prev: Player | null): Player | null => {
       if (!prev) {
         outBox.o = 'noprev';
         return null;
@@ -742,7 +771,9 @@ export function useInventoryHandlers(
         equipment: { ...prev.equipment, [slot]: null },
         bag: newBag
       };
-    });
+    };
+    const unequippedPlayer = applyUnequip(player);
+    if (outBox.o === 'ok') setPlayer(prev => (prev ? unequippedPlayer : prev));
 
     if (outBox.o !== 'ok') {
       releaseEquipAction(slot, item.id);
@@ -779,7 +810,8 @@ export function useInventoryHandlers(
     type Outcome = 'ok' | 'full' | 'missing' | 'noprev';
     const outBox: { o: Outcome } = { o: 'noprev' };
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot).
+    const applyDisassemble = (prev: Player | null): Player | null => {
       if (!prev) {
         outBox.o = 'noprev';
         return null;
@@ -801,7 +833,9 @@ export function useInventoryHandlers(
         equipment: { ...prev.equipment, [slot]: null },
         bag: newBag
       };
-    });
+    };
+    const disassembledPlayer = applyDisassemble(player);
+    if (outBox.o === 'ok') setPlayer(prev => (prev ? disassembledPlayer : prev));
 
     if (outBox.o !== 'ok') {
       releaseEquipAction(slot, item.id);
@@ -831,7 +865,9 @@ export function useInventoryHandlers(
     let didEquip = false;
     let failReason: string | null = null;
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot) — didEquip/failReason/swappedName are
+    // not readable after the updater, so the equip applied with no log and no failure message.
+    const applyBagEquip = (prev: Player | null): Player | null => {
       if (!prev) return null;
       if (prev.bag[bagIndex]?.id !== item.id) return prev;
 
@@ -860,7 +896,9 @@ export function useInventoryHandlers(
         bag: newBag,
         equipment: { ...prev.equipment, [targetSlot]: item }
       };
-    });
+    };
+    const bagEquippedPlayer = applyBagEquip(player);
+    if (didEquip) setPlayer(prev => (prev ? bagEquippedPlayer : prev));
 
     if (failReason) {
       addLog(failReason, 'danger');
@@ -885,7 +923,9 @@ export function useInventoryHandlers(
     const outBox: { o: Outcome } = { o: 'noprev' };
     let swappedName: string | null = null;
 
-    setPlayer(prev => {
+    // Eager against the RENDERED player (see equipFromLoot) — outBox/swappedName are not readable
+    // after the updater, so this always released the claim while the drag still applied.
+    const applyDrag = (prev: Player | null): Player | null => {
       if (!prev) {
         outBox.o = 'noprev';
         return null;
@@ -921,7 +961,11 @@ export function useInventoryHandlers(
         equipment: { ...prev.equipment, [slot]: null },
         bag: newBag
       };
-    });
+    };
+    const draggedPlayer = applyDrag(player);
+    if (outBox.o === 'ok' || outBox.o === 'swapped') {
+      setPlayer(prev => (prev ? draggedPlayer : prev));
+    }
 
     if (outBox.o === 'full' || outBox.o === 'missing' || outBox.o === 'noprev') {
       releaseEquipAction(slot, item.id);
@@ -944,9 +988,12 @@ export function useInventoryHandlers(
   const swapEquipment = useCallback((fromSlot: EquipmentSlot, toSlot: EquipmentSlot) => {
     if (fromSlot === toSlot) return;
 
-    let fromName: string | null = null;
-    let toName: string | null = null;
-    let didSwap = false;
+    // Names + swap decision come from the rendered player: values written inside the updater are
+    // NOT readable here (React defers updaters once the fiber is dirty), so the swap applied
+    // silently with no log feedback.
+    const fromName: string | null = player?.equipment[fromSlot]?.name ?? null;
+    const toName: string | null = player?.equipment[toSlot]?.name ?? null;
+    if (!fromName && !toName) return;
 
     setPlayer(prev => {
       if (!prev) return null;
@@ -954,9 +1001,6 @@ export function useInventoryHandlers(
       const toItem = prev.equipment[toSlot];
       if (!fromItem && !toItem) return prev;
 
-      fromName = fromItem?.name ?? null;
-      toName = toItem?.name ?? null;
-      didSwap = true;
       return {
         ...prev,
         equipment: {
@@ -967,7 +1011,6 @@ export function useInventoryHandlers(
       };
     });
 
-    if (!didSwap) return;
     if (fromName && toName) {
       addLog(`Swapped ${fromName} and ${toName}.`, 'info');
     } else if (fromName) {

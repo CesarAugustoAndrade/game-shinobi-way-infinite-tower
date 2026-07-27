@@ -18,7 +18,24 @@ Net effect: **resource consumed, reward never granted.** Verified against the re
 - **LOOT Learn/Upgrade destroyed the jutsu without learning it (P1)** (`App.tsx`): removed the dead `claimed` re-check; `learnSkill` already guards synchronously on the rendered `droppedSkill`.
 - **Treasure claim sealed the chest and granted nothing (P1)** (`useTreasureHandlers.ts`): select and reveal both already guard on the rendered `currentTreasure` + `treasureActionLockRef`; removed the broken flag re-checks so the grant path is reached. Reveal no longer unseals for free.
 
-Remaining instances of the same pattern (20 sites in training/scroll/elite session, sell/equip and treasure-hunt flows) are tracked as **R1-500** in `region1-polish-backlog.md`.
+Swept the whole class afterwards: **40 sites** across two variants. The first pass only matched the primitive
+form (`let claimed = false`); a second scan found 15 more in an object form (`const box: { o: Outcome } = …`) that a
+type annotation before `=` had hidden. Both are now zero repo-wide.
+
+The object form was the more damaging half — because the outcome always read as its failure value, each handler ran
+its **rollback while the queued updater still applied the mutation**, turning dead actions into duplication exploits:
+
+- **A completed location could not be left (P0)** (`useLocationCards.ts`): `confirmLocationComplete` always returned before `executeLocationComplete`, so Continue on the location-complete panel did nothing.
+- **Treasure-map payout lost (P1)** (`useTreasureHandlers.ts`): `handleTreasureHuntRewardClaim` returned early while the queued updater cleared the reward — items, jutsu and ryo all discarded.
+- **Merchant buy repeatable (P0)** (`useActivityHandlers.ts`): the outcome branch restored the listing while the player was still charged and given the item, so one listing could be bought over and over.
+- **Loot scroll re-learnable (P1)** (`App.tsx`): the fail branch restored the drop while the skill was still learned/upgraded.
+- **Treasure claim/stash repeatable (P1)** (`useTreasureHandlers.ts`): un-claimed the chest while the relic and ryo were still granted.
+- **Loot equip/store and bag craft/upgrade/forge/unequip/disassemble/drag (P1)** (`useInventoryHandlers.ts`): every one released its claim (restoring the spoil to the pile / freeing the material ids) while the mutation still applied.
+- **Rest / Intel Continue stalled the floor (P1)** (`App.tsx`): `returnToMap()` was never reached, re-breaking R1-REST-FIX from wave 1.
+- **Merchant reroll and slot purchase were dead (P1)**, **training always logged "faltered" on success (P1)**, **loot sell paid ryo and kept the item (P1)**, and **equipment swaps applied with no log (P2)**.
+
+Fix shape: decide from the rendered value before the write, or hoist the updater body into a function called eagerly
+against `player` and commit only on success — logic preserved verbatim. Tracked as **R1-500** in `region1-polish-backlog.md`.
 
 ### Fixed (scheduled bug hunt — claim locks)
 

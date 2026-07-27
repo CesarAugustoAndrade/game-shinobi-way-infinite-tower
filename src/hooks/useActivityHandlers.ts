@@ -234,42 +234,38 @@ export function useActivityHandlers(
     }
     setMerchantItems((prev) => prev.filter((i) => i.id !== item.id));
 
-    type BuyOutcome = 'ok' | 'ryo' | 'full' | 'noprev';
-    const box: { o: BuyOutcome } = { o: 'noprev' };
+    type BuyOutcome = 'ok' | 'ryo' | 'full';
 
-    setPlayer((prev) => {
-      if (!prev) {
-        box.o = 'noprev';
-        return null;
-      }
-      if (prev.ryo < price) {
-        box.o = 'ryo';
-        return prev;
-      }
-      const emptyIndex = prev.bag.findIndex((s) => s === null);
-      if (emptyIndex === -1) {
-        box.o = 'full';
-        return prev;
-      }
-      const newBag = [...prev.bag];
-      newBag[emptyIndex] = item;
-      box.o = 'ok';
-      return { ...prev, ryo: prev.ryo - price, bag: newBag };
-    });
+    // Outcome is decided from the RENDERED player, before the write. A value written inside the
+    // updater is not readable after it (React defers updaters once the fiber is dirty), so this
+    // branch always took the failure path: it restored the listing while the queued updater still
+    // charged the player and filled the bag — letting one listing be bought over and over.
+    const outcome: BuyOutcome =
+      player.ryo < price ? 'ryo' : player.bag.every((s) => s !== null) ? 'full' : 'ok';
 
-    if (box.o !== 'ok') {
+    if (outcome !== 'ok') {
       // Restore listing so a failed pay/bag race does not soft-delete stock
       setMerchantItems((prev) =>
         prev.some((i) => i.id === item.id) ? prev : [...prev, item],
       );
       unlock();
-      if (box.o === 'ryo') {
+      if (outcome === 'ryo') {
         addLog(`Purse runs short — need ${price} Ryō.`, 'danger');
-      } else if (box.o === 'full') {
+      } else {
         addLog('Bag is full! Equip or sell items to make room.', 'danger');
       }
       return null;
     }
+
+    // Re-validate against the latest player so a concurrent spend cannot overdraw.
+    setPlayer((prev) => {
+      if (!prev || prev.ryo < price) return prev;
+      const emptyIndex = prev.bag.findIndex((s) => s === null);
+      if (emptyIndex === -1) return prev;
+      const newBag = [...prev.bag];
+      newBag[emptyIndex] = item;
+      return { ...prev, ryo: prev.ryo - price, bag: newBag };
+    });
 
     addLog(`Bought ${item.name} for ${price} Ryō. Added to bag.`, 'loot');
     setTimeout(unlock, 100);
@@ -355,23 +351,13 @@ export function useActivityHandlers(
     const rerollEpoch = ++merchantLockEpochRef.current;
     setIsProcessingLoot(true);
 
-    let charged = false;
-    let treasureQuality = player.treasureQuality;
-    let itemCount = player.merchantSlots;
-    setPlayer(p => {
-      if (!p || p.ryo < cost) return p;
-      charged = true;
-      treasureQuality = p.treasureQuality;
-      itemCount = p.merchantSlots;
-      return { ...p, ryo: p.ryo - cost };
-    });
-    if (!charged) {
-      if (merchantLockEpochRef.current === rerollEpoch) {
-        merchantLockRef.current = false;
-        setIsProcessingLoot(false);
-      }
-      return;
-    }
+    // Affordability was already checked above against the rendered player. A flag written inside
+    // the updater below is NOT readable here — React defers updaters once the fiber is dirty, and
+    // setIsProcessingLoot above guarantees that — which used to abort every reroll after taking
+    // the lock. merchantLockRef still gates a concurrent reroll/buy.
+    const treasureQuality = player.treasureQuality;
+    const itemCount = player.merchantSlots;
+    setPlayer(p => (p && p.ryo >= cost ? { ...p, ryo: p.ryo - cost } : p));
 
     const newItems: Item[] = [];
     const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
@@ -408,23 +394,16 @@ export function useActivityHandlers(
     merchantLockRef.current = true;
     const slotEpoch = ++merchantLockEpochRef.current;
     setIsProcessingLoot(true);
-    let purchased = false;
-    let newSlots = player.merchantSlots;
+    // Slot cap + affordability were already checked above against the rendered player. A flag
+    // written inside the updater below is NOT readable here (deferred once the fiber is dirty —
+    // setIsProcessingLoot above guarantees it), which aborted every slot purchase.
+    const newSlots = player.merchantSlots + 1;
     setPlayer(p => {
       if (!p || p.merchantSlots >= MERCHANT.SLOT_COSTS.length) return p;
       const slotCost = MERCHANT.SLOT_COSTS[p.merchantSlots];
       if (p.ryo < slotCost) return p;
-      purchased = true;
-      newSlots = p.merchantSlots + 1;
-      return { ...p, ryo: p.ryo - slotCost, merchantSlots: newSlots };
+      return { ...p, ryo: p.ryo - slotCost, merchantSlots: p.merchantSlots + 1 };
     });
-    if (!purchased) {
-      if (merchantLockEpochRef.current === slotEpoch) {
-        merchantLockRef.current = false;
-        setIsProcessingLoot(false);
-      }
-      return;
-    }
     addLog(`Paid ${cost} Ryō. Merchants will now show ${newSlots} items!`, 'gain');
     setTimeout(() => {
       if (merchantLockEpochRef.current !== slotEpoch) return;
@@ -495,28 +474,24 @@ export function useActivityHandlers(
     trainingSessionLockRef.current = true;
 
     // Consume session first — always leave TRAINING after UI Continue committed
-    // (never gate leave on option/floor presence — UI lock already fired).
-    let claimed = false;
-    setTrainingData((prev: typeof trainingData) => {
-      if (!prev) return null;
-      claimed = true;
-      return null;
-    });
-    if (!claimed) {
-      trainingSessionLockRef.current = false;
-      return;
-    }
+    // (never gate leave on option/floor presence — UI lock already fired). The session was
+    // already snapshotted from the rendered trainingData above; a flag written inside this
+    // updater is NOT readable here (React defers updaters once the fiber is dirty).
+    setTrainingData(() => null);
 
     if (intensityData) {
       const { cost, gain } = intensityData;
       const statKey = String(stat).toLowerCase() as keyof Player['primaryStats'];
 
+      // Affordability is decided from the rendered player: a flag written inside the updater is
+      // NOT readable here (deferred once the fiber is dirty — the consume above guarantees it),
+      // so the log always reported "faltered" even when the gain applied.
+      const applied = !!player && player.currentHp > cost.hp && player.currentChakra >= cost.chakra;
+
       // Functional apply on latest player (affordability may race; still exit room)
-      let applied = false;
       setPlayer(p => {
         if (!p) return null;
         if (p.currentHp <= cost.hp || p.currentChakra < cost.chakra) return p;
-        applied = true;
         return {
           ...p,
           currentHp: Math.max(1, p.currentHp - cost.hp),
@@ -570,17 +545,14 @@ export function useActivityHandlers(
     if (trainingSessionLockRef.current) return;
     trainingSessionLockRef.current = true;
 
-    // Consume session so skip cannot double-complete the room
-    let hadSession = false;
-    setTrainingData((prev: typeof trainingData) => {
-      if (!prev) return null;
-      hadSession = true;
-      return null;
-    });
-    if (!hadSession) {
+    // Consume session so skip cannot double-complete the room. Decided from the rendered
+    // trainingData — a flag written inside the updater is NOT readable here (React defers
+    // updaters once the fiber is dirty), which skipped room completion and stalled the floor.
+    if (!trainingData) {
       trainingSessionLockRef.current = false;
       return;
     }
+    setTrainingData(() => null);
 
     // Prefer selected room; fall back to floor current (desync / chain race)
     const roomId =
@@ -633,17 +605,10 @@ export function useActivityHandlers(
     scrollSessionLockRef.current = true;
 
     // Consume session first — always leave SCROLL after UI Continue committed
-    // (never gate leave on floor presence — UI lock already fired).
-    let claimed = false;
-    setScrollDiscoveryData((prev: typeof scrollDiscoveryData) => {
-      if (!prev) return null;
-      claimed = true;
-      return null;
-    });
-    if (!claimed) {
-      scrollSessionLockRef.current = false;
-      return;
-    }
+    // (never gate leave on floor presence — UI lock already fired). The session was already read
+    // from the rendered scrollDiscoveryData above; a flag written inside this updater is NOT
+    // readable here (React defers updaters once the fiber is dirty).
+    setScrollDiscoveryData(() => null);
 
     // Functional learn on latest player (chakra / capacity may race; still exit room)
     type LearnOut = 'upgrade' | 'replace' | 'learn' | 'fail';
@@ -741,16 +706,12 @@ export function useActivityHandlers(
     if (scrollSessionLockRef.current) return;
     scrollSessionLockRef.current = true;
 
-    let hadSession = false;
-    setScrollDiscoveryData((prev: typeof scrollDiscoveryData) => {
-      if (!prev) return null;
-      hadSession = true;
-      return null;
-    });
-    if (!hadSession) {
+    // Rendered value, not a flag from inside the updater (see handleTrainingSkip).
+    if (!scrollDiscoveryData) {
       scrollSessionLockRef.current = false;
       return;
     }
+    setScrollDiscoveryData(() => null);
 
     const roomId =
       selectedBranchingRoom?.id ??
