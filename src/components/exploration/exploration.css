@@ -106,11 +106,6 @@
   gap: var(--sw-space-1);
 }
 
-.activity-icons__label {
-  font-size: var(--sw-text-xs);
-  color: var(--sw-text-muted);
-}
-
 .activity-icons__placeholder {
   font-size: var(--sw-text-sm);
   opacity: 0.4;

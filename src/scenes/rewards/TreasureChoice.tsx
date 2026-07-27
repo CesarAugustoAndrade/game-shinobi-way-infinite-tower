@@ -197,8 +197,10 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
         }
       }
 
+      // Gated on isLockedChest like the visible "Unseal All [R]" button and the Space/F/D keys —
+      // on a Treasure Hunter chamber there is nothing to reveal, so an ungated R just burned chakra.
       if (e.key === 'r' || e.key === 'R') {
-        if (!treasure.isRevealed && canAffordReveal) {
+        if (isLockedChest && !treasure.isRevealed && canAffordReveal) {
           onReveal();
         }
       }

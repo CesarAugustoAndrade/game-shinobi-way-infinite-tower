@@ -550,7 +550,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred payoff: mercy elsewhere is remembered on these streets
       {
         label: 'Spend Mercy Like Coin',
-        description: 'SAFE — Requires waves_mercy; families open doors without a fight',
+        description: 'SAFE — Mercy shown in Wave; families open doors without a fight',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { waves_mercy: 1 },
         hintText: 'Word travels faster than collectors when someone was saved.',
@@ -572,7 +572,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: cooked dock ledgers make the tax run late and loud
       {
         label: 'Exploit the Cooked Ledger',
-        description: 'SAFE — Requires ledger_sabotaged; collectors argue over names that no longer match',
+        description: 'SAFE — Ledger sabotaged; collectors argue over names that no longer match',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { ledger_sabotaged: 1 },
         hintText: 'A wrong sum is a shield if you know where it lies.',
@@ -594,7 +594,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: false merchant scales turn the tax into a public arithmetic fight
       {
         label: 'Weigh the False Scales',
-        description: 'SAFE — Requires false_scales; prove the cut is theft, not tax',
+        description: 'SAFE — False scales exposed; prove the cut is theft, not tax',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { false_scales: 1 },
         hintText: 'A crooked weight is a weapon if the street can see it.',
@@ -616,7 +616,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred punishment: cold hands leave a scent collectors buy
       {
         label: 'Face Your Cold Reputation',
-        description: 'HIGH RISK — Requires waves_cold; they already sold your silence',
+        description: 'HIGH RISK — You turned cold on Wave; they already sold your silence',
         riskLevel: RiskLevel.HIGH,
         requiresFlags: { waves_cold: 1 },
         hintText: 'Walking away is a signature. Collectors collect signatures.',
@@ -845,7 +845,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: tide omen maps where the mist will thicken first
       {
         label: 'Trust the Tide Omen',
-        description: 'SAFE — Requires mist_omen_read; hold where the grey will pool',
+        description: 'SAFE — Mist omen read; hold where the grey will pool',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { mist_omen_read: 1 },
         hintText: 'The gulls already died for this map.',
@@ -868,7 +868,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: riverside travelers sold a cut of the mist approach
       {
         label: 'Take the Traveler\'s Cut',
-        description: 'SAFE — Requires traveler_route; hold the approach they mapped',
+        description: 'SAFE — The traveler route is known; hold the approach they mapped',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { traveler_route: 1 },
         hintText: 'Roads sell silence too — if you paid the right fire.',
@@ -1087,7 +1087,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Mini-arc: bridge duty remembered at the compound
       {
         label: 'Strike for the Bridge',
-        description: 'SAFE — Requires bridge_held; leverage Wave\'s defiance for sure breach',
+        description: 'SAFE — Bridge held; leverage Wave\'s defiance for sure breach',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { bridge_held: 1 },
         hintText: 'You already denied him the span. Finish the arithmetic.',
@@ -1110,7 +1110,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: dock ledger sabotage / manor debt open soft doors
       {
         label: 'Walk the Cooked Books',
-        description: 'SAFE — Requires ledger_sabotaged; payroll chaos is a key',
+        description: 'SAFE — Ledger sabotaged; payroll chaos is a key',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { ledger_sabotaged: 1 },
         hintText: 'Mercenaries who cannot find their names cannot find their posts.',
@@ -1132,7 +1132,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Call the Manor\'s Debt',
-        description: 'SAFE — Requires manor_favor; the sold house still has keys',
+        description: 'SAFE — Manor favor earned; the sold house still has keys',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { manor_favor: 1 },
         hintText: 'Portraits remember who signed the bill of sale.',
@@ -1155,7 +1155,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: cowed outpost opens a quieter approach road
       {
         label: 'Walk the Cowed Road',
-        description: 'SAFE — Requires outpost_cowed; bandits look elsewhere tonight',
+        description: 'SAFE — Outpost cowed; bandits look elsewhere tonight',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { outpost_cowed: 1 },
         hintText: 'Fear you planted earlier is still on payroll.',
@@ -1178,7 +1178,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: cove smuggler manifest names a silent service gate
       {
         label: 'Follow the Silent Manifest',
-        description: 'SAFE — Requires cove_manifest; service gate opens without a knock',
+        description: 'SAFE — Cove manifest in hand; service gate opens without a knock',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { cove_manifest: 1 },
         hintText: 'Crates never docked. Gates never logged. Same ink.',
@@ -1270,7 +1270,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: Inari watched you without theater
       {
         label: 'Put Inari on the Books',
-        description: 'SAFE — Requires inspired_inari; give the boy a future that is not theater',
+        description: 'SAFE — Inari inspired; give the boy a future that is not theater',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { inspired_inari: 1 },
         hintText: 'Attention becomes inheritance if someone writes it down.',
@@ -1292,7 +1292,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: village stood
       {
         label: 'Fund the Village First',
-        description: 'SAFE — Requires village_defended; repair doors before coffers',
+        description: 'SAFE — Village defended; repair doors before coffers',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { village_defended: 1 },
         hintText: 'Planks before parades. Hunger before ledgers.',
@@ -1313,7 +1313,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: wreck whispers map the true treasury
       {
         label: 'Open the Hold Gato Hid',
-        description: 'SAFE — Requires shipwreck_listened; second coffer under false floor',
+        description: 'SAFE — You listened at the shipwreck; second coffer under false floor',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { shipwreck_listened: 1 },
         hintText: 'The drowned counted crates that never reached the pier.',
@@ -1335,7 +1335,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: drowned shrine black tide marks a vault the living ledgers omit
       {
         label: 'Claim the Black Tide Vault',
-        description: 'SAFE — Requires black_tide_read; shrine-named coffer under the compound',
+        description: 'SAFE — Black tide read; shrine-named coffer under the compound',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { black_tide_read: 1 },
         hintText: 'Gods keep accounts in salt. Gato only rented the margin.',
@@ -1357,7 +1357,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Deferred: cold walk-away costs coin to rewrite
       {
         label: 'Buy Back the Names You Left',
-        description: 'SAFE — Requires waves_cold; pay 150 ryo to strike your worst page',
+        description: 'SAFE — You turned cold on Wave; pay 150 ryo to strike your worst page',
         riskLevel: RiskLevel.SAFE,
         costs: { ryo: 150 },
         requiresFlags: { waves_cold: 1 },
@@ -1518,7 +1518,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       // Natural chain: cross-check bridge wages after meeting Tazuna
       {
         label: 'Cross-Check Tazuna\'s Board',
-        description: 'SAFE — Requires tazuna_met; chain into bridge labor ledger',
+        description: 'SAFE — Tazuna met; chain into bridge labor ledger',
         riskLevel: RiskLevel.SAFE,
         requiresFlags: { tazuna_met: 1 },
         excludesFlags: { bridge_labor: 1 },

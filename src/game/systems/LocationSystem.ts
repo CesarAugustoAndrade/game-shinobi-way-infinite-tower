@@ -1500,7 +1500,11 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   tier1Right.hasGeneratedChildren = true;
 
   if (!isFirstFloor) {
-    tier1Left.isCurrent = false;
+    // tier1Left IS this floor's currentRoomId (set below), so it must carry isCurrent or the
+    // "You are here" badge and current-room glow never render. Clearing both left every
+    // non-first floor with no current room — and Region 1 never has floor === 1
+    // (dangerToFloor yields >= 14), so no R1 location ever showed the badge on arrival.
+    tier1Left.isCurrent = true;
     tier1Right.isCurrent = false;
   }
 

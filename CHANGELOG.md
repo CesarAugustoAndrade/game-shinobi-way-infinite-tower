@@ -4,6 +4,20 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Fixed (Wave 14 — Region 1 polish pass)
+
+Found by a 7-lens exploration pass with adversarial verification; all registered as R1-5xx in
+`region1-polish-backlog.md`.
+
+- **Internal event-flag ids leaked into choice cards (P1)** (`wavesArcEvents.ts`): 17 choice descriptions read e.g. "Requires waves_mercy". Replaced with prose callbacks ("Mercy shown in Wave", "Bridge held", "Tazuna met", …) — written as callbacks rather than gates because `EventSystem.checkEventFlags` filters unmet choices, so the clause only ever renders to a player who already earned it.
+- **Game Guide contradicted the real approach thresholds (P1)** (`helpText.ts`): Silent Strike 10 (was 12), Mind Trap 11 (was 15), Terrain Trap 11 and +20% XP (was 14 / +25%), Shadow Passage 28 with no Body Flicker gate (was 35 + skill). Iron Guard added — all six approaches now documented. Combat already printed the true numbers, so the guide contradicted the game.
+- **Handbook difficulty table contradicted the Main Menu (P2)** (`helpText.ts`, `GameGuide.tsx`): shipped the pre-R1-007 four-band table (D 0-29 / C 30-59 / B 60-84 / S 85-100) against the menu's five bands. Now D 0-24 / C 25-44 / B 45-64 / A 65-84 / S 85-100, with a colour case for the new A band using the menu's own #ef4444.
+- **Region-map cards claimed "No activities" for full locations (P2)** (`ActivityIcons.tsx`): `getLocationActivities` only ever sets amenity flags, so sites like Bandit Outpost read "No activities" beside a "Rooms 10+ / Story Event" footer. Now reads "No amenities confirmed".
+- **"You are here" badge never appeared (P2)** (`LocationSystem.ts`): non-first floors cleared `isCurrent` on both tier-1 rooms while making `tier1Left` the floor's `currentRoomId`; since `dangerToFloor` yields ≥14, no Region 1 floor is ever floor 1, so the badge and current-room glow never rendered on arrival.
+- **[R] burned chakra on Treasure Hunter chambers (P2)** (`TreasureChoice.tsx`): the reveal hotkey was the only one not gated on `isLockedChest`, and the visible Unseal button renders only for locked chests — so R spent chakra and revealed nothing.
+- **Raw hazard enum shown to the player (P2)** (`ApproachSelector.tsx`, `LocationTerrainSystem.ts`): exit rooms read "CHAKRA_DRAIN hazard". Added shared `HAZARD_LABELS`/`getHazardLabel` in `constants/terrain.ts`, used at both sites.
+- **Clipboard emoji on every region-map card (P2)** (`ActivityIcons.tsx`): the last colour OS emoji on the exploration spine (missed by R1-EMOJI-PASS-2). Removed, along with the now-dead `.activity-icons__label` rule.
+
 ### Fixed (Wave 14 — React setState-updater regression in the claim locks)
 
 The claim-once locks below were implemented as `let claimed = false; setX(prev => { claimed = true; … }); if (!claimed) return;`.

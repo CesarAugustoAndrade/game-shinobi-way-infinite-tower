@@ -31,6 +31,7 @@ import {
   Zap,
   LogOut,
 } from 'lucide-react';
+import { getHazardLabel } from '../../game/constants/terrain';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './ApproachSelector.css';
 
@@ -505,7 +506,7 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
             )}
             {terrain.effects.hazard && (
               <span className="terrain-effects__item terrain-effects__item--hazard">
-                {terrain.effects.hazard.type} hazard
+                {getHazardLabel(terrain.effects.hazard.type)} hazard
               </span>
             )}
             {/* T-104: room combat conditions already applied at fight start */}

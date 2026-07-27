@@ -20,6 +20,8 @@ const getRankColorClass = (color: string): { card: string; label: string } => {
       return { card: 'game-guide__rank-card--yellow', label: 'game-guide__rank-label--yellow' };
     case 'orange-500':
       return { card: 'game-guide__rank-card--orange', label: 'game-guide__rank-label--orange' };
+    case 'red-500':
+      return { card: 'game-guide__rank-card--red-light', label: 'game-guide__rank-label--red-light' };
     case 'red-600':
       return { card: 'game-guide__rank-card--red', label: 'game-guide__rank-label--red' };
     default:

@@ -1025,6 +1025,7 @@
 .game-guide__rank-card--green  { border-color: rgba(34, 197, 94, 0.3); }
 .game-guide__rank-card--yellow { border-color: rgba(234, 179, 8, 0.3); }
 .game-guide__rank-card--orange { border-color: rgba(249, 115, 22, 0.3); }
+.game-guide__rank-card--red-light { border-color: rgba(239, 68, 68, 0.3); }
 .game-guide__rank-card--red    { border-color: rgba(220, 38, 38, 0.3); }
 
 .game-guide__rank-label {
@@ -1036,6 +1037,7 @@
 .game-guide__rank-label--green  { color: var(--sw-risk-safe-light); }
 .game-guide__rank-label--yellow { color: var(--sw-accent-tertiary); }
 .game-guide__rank-label--orange { color: var(--sw-category-body-light); }
+.game-guide__rank-label--red-light { color: #ef4444; }
 .game-guide__rank-label--red    { color: var(--sw-risk-high-light); }
 
 .game-guide__rank-range {

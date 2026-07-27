@@ -530,93 +530,93 @@
 - **notes**: Needs a balance decision — flagged for human review, deliberately NOT auto-fixed.
 
 ### R1-506 — Internal event-flag ids leak into R1 choice cards ("Requires waves_mercy")
-- **status**: open
+- **status**: done
 - **category**: Confuso
 - **priority**: P1
 - **files**: src/game/constants/events/wavesArcEvents.ts, src/scenes/activities/Event.tsx
-- **claimed_by**: none
+- **claimed_by**: claude-opus5-r1
 - **description**: 17 choice descriptions embed raw flag keys (lines 553, 575, 597, 619, 848, 871, 1090,
   1113, 1135, 1158, 1181, 1273, 1295, 1316, 1338, 1360, 1521), rendered verbatim at Event.tsx:319.
   Gated choices are filtered out when unmet, so the clause only ever shows to players who already
   satisfy it — debug-looking AND useless. Correct convention exists at line 825 ("Requires meeting Tazuna").
 - **done_when**: No player-visible string contains a raw snake_case flag id.
-- **notes**:
+- **notes**: 2026-07-27 claude-opus5-r1 — All 17 raw flag ids replaced with prose callbacks (Mercy shown in Wave, Ledger sabotaged, Bridge held, Tazuna met, ...). Written as callbacks rather than gates because EventSystem.checkEventFlags filters unmet choices, so the clause only ever renders to a player who already earned it. Scanner confirms 0 snake_case tokens left in any player-visible event string. Two replacements initially broke the build (apostrophes in "Traveler's"/"Manor's" terminated the single-quoted TS strings) — caught by tsc and rephrased.
 
 ### R1-507 — Game Guide approach requirements contradict real thresholds
-- **status**: open
+- **status**: done
 - **category**: Confuso
 - **priority**: P1
 - **files**: src/game/constants/helpText.ts, src/game/constants/approaches.ts
-- **claimed_by**: none
+- **claimed_by**: claude-opus5-r1
 - **description**: helpText.ts:254-260 vs approaches.ts — Silent Strike 12 vs 10, Mind Trap 15 vs 11,
   Terrain Trap 14 vs 11 and +25% vs +20% XP, Shadow Passage 35 + Body Flicker vs 28 and no skill gate.
   Iron Guard missing entirely (5 of 6 documented). Combat prints the true numbers, so it self-contradicts.
 - **done_when**: Guide matches approaches.ts exactly and lists all six.
-- **notes**:
+- **notes**: 2026-07-27 claude-opus5-r1 — helpText APPROACHES now matches approaches.ts exactly: Silent Strike 10 (was 12), Mind Trap 11 (was 15), Terrain Trap 11 and +20% XP (was 14 / +25%), Shadow Passage 28 with the Body Flicker gate removed (was 35 + skill). Iron Guard added — Willpower 10+, shield + WIL buff, +10% XP — so all six are documented. Confirmed no approach sets requiredSkill (it exists only in the checker).
 
 ### R1-508 — Region-map cards read "No activities" for full locations
-- **status**: open
+- **status**: done
 - **category**: Confuso
 - **priority**: P2
 - **files**: src/game/systems/RegionSystem.ts, src/components/exploration/ActivityIcons.tsx
-- **claimed_by**: none
+- **claimed_by**: claude-opus5-r1
 - **description**: `getLocationActivities` (RegionSystem.ts:182-201) sets only amenity flags; combat/
   event/treasure/scroll are structurally unreachable. Bandit Outpost and Sunken Ship therefore render
   "No activities" beside a "Rooms 10+" / "Story Event" footer on the primary decision screen.
 - **done_when**: No real location card can read "No activities" while advertising rooms/story content.
-- **notes**:
+- **notes**: 2026-07-27 claude-opus5-r1 — Empty row now reads "No amenities confirmed" instead of "No activities". getLocationActivities can only ever set merchant/rest/training/infoGathering/eliteChallenge, so the old text was simply false — every site still generates combat, treasure and events.
 
 ### R1-509 — Clipboard emoji (U+1F4CB) on every region-map card
-- **status**: open
+- **status**: done
 - **category**: Feo
 - **priority**: P2
 - **files**: src/components/exploration/ActivityIcons.tsx
-- **claimed_by**: none
+- **claimed_by**: claude-opus5-r1
 - **description**: Lines 40 and 52 emit `<span className="activity-icons__label">` with a clipboard emoji;
   not hidden by CSS. Only colour OS emoji left on the R1 exploration spine (missed by R1-EMOJI-PASS-2).
 - **done_when**: No emoji in src/components/exploration/.
-- **notes**:
+- **notes**: 2026-07-27 claude-opus5-r1 — Removed the U+1F4CB span from both branches of ActivityIcons and deleted the now-dead .activity-icons__label CSS rule. Scanner confirms the only glyphs left in src/components/exploration/ are text dingbats (U+2605/2666/2726) consistent with the pixel-arcade chrome.
 
 ### R1-510 — "You are here" badge missing on arrival at every location
-- **status**: open
+- **status**: done
 - **category**: Feo
 - **priority**: P2
 - **files**: src/game/systems/LocationSystem.ts
-- **claimed_by**: none
+- **claimed_by**: claude-opus5-r1
 - **description**: LocationSystem.ts:1502-1505 clears `isCurrent` when `!isFirstFloor`, while :1541 makes
   that same room current. `isFirstFloor = floor === 1` is never true in R1 (dangerToFloor yields >=14).
 - **done_when**: The current room shows its badge/glow on entering any R1 location.
-- **notes**:
+- **notes**: 2026-07-27 claude-opus5-r1 — LocationSystem now sets tier1Left.isCurrent = true on non-first floors (it is already that floor's currentRoomId). Previously both tier-1 rooms were cleared, and since dangerToFloor yields >= 14 no R1 floor is ever floor 1, so the badge never rendered. Accessibility and roomsVisited untouched; LocationSystem 25/25 green.
 
 ### R1-511 — [R] reveal hotkey charges chakra on Treasure Hunter chambers
-- **status**: open
+- **status**: done
 - **category**: Roto
 - **priority**: P2
 - **files**: src/scenes/rewards/TreasureChoice.tsx
-- **claimed_by**: none
+- **claimed_by**: claude-opus5-r1
 - **description**: TreasureChoice.tsx:200-204 — the r/R branch is not gated on `isLockedChest` while every
   other hotkey is, and the visible Unseal button only renders for locked chests. Chakra spent, nothing reveals.
 - **done_when**: R is a no-op on non-locked chests and never deducts chakra.
-- **notes**:
+- **notes**: 2026-07-27 claude-opus5-r1 — The r/R branch is now gated on isLockedChest, matching the visible "Unseal All [R]" button and the Space/F/D hotkeys. Pressing R on a Treasure Hunter chamber is a no-op and never deducts chakra.
 
 ### R1-512 — Handbook difficulty table contradicts Main Menu bands
-- **status**: open
+- **status**: done
 - **category**: Confuso
 - **priority**: P2
 - **files**: src/game/constants/helpText.ts, src/scenes/menu/GameGuide.tsx
-- **claimed_by**: none
+- **claimed_by**: claude-opus5-r1
 - **description**: helpText.ts:164-169 ships four bands (D 0-29 / C 30-59 / B 60-84 / S 85-100) but
   MainMenu.tsx:57-61 uses five (25/45/65/85) including Rank A. R1-007 fixed the menu, not the handbook.
 - **done_when**: Handbook lists D/C/B/A/S matching getRank thresholds.
-- **notes**:
+- **notes**: 2026-07-27 claude-opus5-r1 — DIFFICULTY_RANKS rewritten to five bands matching MainMenu.getRank (D 0-24 / C 25-44 / B 45-64 / A 65-84 / S 85-100). Added a red-500 case to getRankColorClass plus the two CSS rules, using the menu's own #ef4444 for A so the handbook and slider agree.
 
 ### R1-513 — Raw hazard enum ("CHAKRA_DRAIN hazard") on every R1 exit room
-- **status**: open
+- **status**: done
 - **category**: Feo
 - **priority**: P2
 - **files**: src/components/combat/ApproachSelector.tsx, src/game/systems/LocationTerrainSystem.ts
-- **claimed_by**: none
+- **claimed_by**: claude-opus5-r1
 - **description**: ApproachSelector.tsx:508 and LocationTerrainSystem.ts:307 interpolate the SCREAMING_SNAKE
   union straight into player text. Every exit room is a BOSS_GATE, so R1 exposure is near-universal.
 - **done_when**: A shared label map renders hazard prose at both sites.
-- **notes**:
+- **notes**: 2026-07-27 claude-opus5-r1 — Added HAZARD_LABELS + getHazardLabel to constants/terrain.ts and used it at both sites (ApproachSelector and LocationTerrainSystem), so exit rooms read "Chakra drain hazard" instead of "CHAKRA_DRAIN hazard".

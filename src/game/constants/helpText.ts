@@ -161,10 +161,13 @@ export const HELP_TEXT = {
         { danger: 7, difficulty: 100, text: "Danger 7, 10 locations, Diff 100: 1.98 × 1.40 × 0.90 × 0.85 = 2.12×" }
       ]
     },
+    // Bands MUST match MainMenu.getRank (25 / 45 / 65 / 85) — the handbook previously shipped the
+    // pre-R1-007 four-band table and contradicted the rank shown on the menu slider.
     DIFFICULTY_RANKS: [
-      { rank: "D", range: "0-29", color: "green-500", desc: "Thin pressure; low stat scaling" },
-      { rank: "C", range: "30-59", color: "yellow-500", desc: "Usual pressure; moderate scaling" },
-      { rank: "B", range: "60-84", color: "orange-500", desc: "Hard edge; significant scaling" },
+      { rank: "D", range: "0-24", color: "green-500", desc: "Thin pressure; low stat scaling" },
+      { rank: "C", range: "25-44", color: "yellow-500", desc: "Usual pressure; moderate scaling" },
+      { rank: "B", range: "45-64", color: "orange-500", desc: "Hard edge; significant scaling" },
+      { rank: "A", range: "65-84", color: "red-500", desc: "Severe pressure; heavy scaling" },
       { rank: "S", range: "85-100", color: "red-600", desc: "Maximum pressure; full scaling" }
     ],
     RESOURCES: [
@@ -253,10 +256,11 @@ export const HELP_TEXT = {
     ],
     APPROACHES: [
       { type: "Frontal Assault", desc: "Always available. Face the enemy head-on with no bonuses or penalties.", color: "gray" },
-      { type: "Silent Strike", desc: "Requires Speed 12+. On success: first hit deals 2× damage, high initiative, chance to stun. +15% XP. Location stealth_bonus improves success chance (shown on the approach panel).", color: "green" },
-      { type: "Mind Trap", desc: "Requires Calmness 15+. Costs chakra. On success: enemy starts confused and slowed. +20% XP.", color: "blue" },
-      { type: "Terrain Trap", desc: "Requires Intelligence 14+ and trap-friendly room terrain. On success: enemy loses 20% HP before combat. +25% XP.", color: "red" },
-      { type: "Shadow Passage", desc: "Requires Speed 35+ and Body Flicker. On success: skip the fight entirely (no XP/loot).", color: "green" }
+      { type: "Silent Strike", desc: "Requires Speed 10+. On success: first hit deals 2× damage, high initiative, chance to stun. +15% XP. Location stealth_bonus improves success chance (shown on the approach panel).", color: "green" },
+      { type: "Mind Trap", desc: "Requires Calmness 11+. Costs chakra. On success: enemy starts confused and slowed. +20% XP.", color: "blue" },
+      { type: "Terrain Trap", desc: "Requires Intelligence 11+ and trap-friendly room terrain. On success: enemy loses HP before combat. +20% XP.", color: "red" },
+      { type: "Iron Guard", desc: "Requires Willpower 10+. Costs chakra. On success: start with a shield and a Willpower buff. +10% XP.", color: "blue" },
+      { type: "Shadow Passage", desc: "Requires Speed 28+. On success: skip the fight entirely (no XP/loot).", color: "green" }
     ],
     /**
      * T-076: real location terrainEffects (LocationTerrainSystem), not fluff biomes.
