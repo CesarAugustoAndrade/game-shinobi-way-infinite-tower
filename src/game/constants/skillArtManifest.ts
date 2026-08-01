@@ -598,7 +598,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_mind_body_disturbing.png",
+    "src": "/assets/skill_mind_destruction.png",
     "quality": "painted-png"
   },
   {
@@ -708,8 +708,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/icons/skills/bug_swarm.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_bug_swarm.png",
+    "quality": "painted-png"
   },
   {
     "id": "expansion",
@@ -718,8 +718,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/icons/skills/expansion.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_expansion.png",
+    "quality": "painted-png"
   },
   {
     "id": "64_palms",
@@ -738,8 +738,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/icons/skills/sand_burial.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_sand_burial.png",
+    "quality": "painted-png"
   },
   {
     "id": "curse_mark_1",
@@ -758,8 +758,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "SIDE",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/icons/skills/sand_shield.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_sand_shield.png",
+    "quality": "painted-png"
   },
   {
     "id": "sharingan_predict",
@@ -798,8 +798,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/icons/skills/summon_manda.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_summon_manda.png",
+    "quality": "painted-png"
   },
   {
     "id": "puppet_crow",
@@ -808,8 +808,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/icons/skills/puppet_crow.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_puppet_crow.png",
+    "quality": "painted-png"
   },
   {
     "id": "shadow_clone",
@@ -818,7 +818,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "SIDE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_shadow_clones.png",
+    "src": "/assets/skill_shadow_clone.png",
     "quality": "painted-png"
   },
   {
@@ -858,8 +858,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/icons/skills/sand_coffin.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_sand_coffin.png",
+    "quality": "painted-png"
   },
   {
     "id": "water_dragon",
@@ -958,8 +958,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/icons/skills/curse_mark_2.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_curse_mark_2.png",
+    "quality": "painted-png"
   },
   {
     "id": "curse_surge",
@@ -968,8 +968,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "SIDE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/icons/skills/curse_surge.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_curse_surge.png",
+    "quality": "painted-png"
   },
   {
     "id": "gate_prep",
@@ -1028,8 +1028,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "TRUE",
     "emoji": "👁️",
-    "src": "/assets/icons/skills/tsukuyomi.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_tsukuyomi.png",
+    "quality": "painted-png"
   },
   {
     "id": "reaper_death_seal",
@@ -1038,8 +1038,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "TRUE",
     "emoji": "👁️",
-    "src": "/assets/icons/skills/reaper_death_seal.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_reaper_death_seal.png",
+    "quality": "painted-png"
   },
   {
     "id": "edo_tensei",
@@ -1048,8 +1048,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/icons/skills/edo_tensei.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_edo_tensei.png",
+    "quality": "painted-png"
   },
   {
     "id": "gate_of_limit",
@@ -1058,8 +1058,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/icons/skills/gate_of_limit.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_gate_of_limit.png",
+    "quality": "painted-png"
   },
   {
     "id": "shukaku_arm",
@@ -1068,8 +1068,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/icons/skills/shukaku_arm.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_shukaku_arm.png",
+    "quality": "painted-png"
   },
   {
     "id": "copy_jutsu",
@@ -1088,8 +1088,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "TRUE",
     "emoji": "🪨",
-    "src": "/assets/icons/skills/c4_karura.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_c4_karura.png",
+    "quality": "painted-png"
   },
   {
     "id": "rasenshuriken",
@@ -1098,8 +1098,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "TRUE",
     "emoji": "🌪️",
-    "src": "/assets/icons/skills/rasenshuriken.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_rasenshuriken.png",
+    "quality": "painted-png"
   },
   {
     "id": "amaterasu",
@@ -1108,8 +1108,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/icons/skills/amaterasu.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_amaterasu.png",
+    "quality": "painted-png"
   },
   {
     "id": "kirin",
@@ -1118,8 +1118,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "ELEMENTAL",
     "emoji": "⚡",
-    "src": "/assets/icons/skills/kirin.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_kirin.png",
+    "quality": "painted-png"
   },
   {
     "id": "shinra_tensei",
@@ -1128,8 +1128,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "TRUE",
     "emoji": "🌪️",
-    "src": "/assets/icons/skills/shinra_tensei.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_shinra_tensei.png",
+    "quality": "painted-png"
   },
   {
     "id": "kamui_impact",
@@ -1138,8 +1138,8 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "TRUE",
     "emoji": "👊",
-    "src": "/assets/icons/skills/kamui_impact.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_kamui_impact.png",
+    "quality": "painted-png"
   },
   {
     "id": "tengai_shinsei",
@@ -1148,7 +1148,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "MAIN",
     "dmg": "TRUE",
     "emoji": "🪨",
-    "src": "/assets/icons/skills/tengai_shinsei.jpg",
-    "quality": "imagine-jpg"
+    "src": "/assets/skill_tengai_shinsei.png",
+    "quality": "painted-png"
   }
 ];

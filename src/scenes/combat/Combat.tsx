@@ -42,6 +42,7 @@ import { getEnemyArt } from '../../game/constants/artRegistry';
 import {
   ARCHETYPE_DESCRIPTIONS,
   ELEMENT_ICONS,
+  ELEMENT_AFFINITY_ART,
   ELEMENT_COLORS,
 } from '../../game/constants/enemyArchetypes';
 import './Combat.css';
@@ -409,6 +410,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   const activeEffects = enemy.activeBuffs.filter(b => b?.effect);
   const elementColor = ELEMENT_COLORS[enemy.element] ?? '#a1a1aa';
   const elementIcon = ELEMENT_ICONS[enemy.element] ?? '◈';
+  const elementArtSrc = ELEMENT_AFFINITY_ART[enemy.element];
 
   // ── Portrait + cutout + chakra aura (T-013) ──────────────────────────────
   // Resolve display portrait once (explicit enemy.image, else art registry).
@@ -437,7 +439,19 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       {/* Row 1: reticle + name + level badge */}
       <div className="combat__ip-name-row">
         <span className="combat__ip-target-icon" aria-hidden="true" title="Target">
-          <span className="combat__ip-target-reticle" />
+          <img
+            className="combat__ip-target-reticle-img"
+            src="/assets/icons/ui/target_reticle.jpg"
+            alt=""
+            width={16}
+            height={16}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+              if (fallback) fallback.hidden = false;
+            }}
+          />
+          <span className="combat__ip-target-reticle" hidden />
         </span>
         <h2 className="combat__ip-name">{enemy.name}</h2>
         {enemy.dangerLevel != null && (
@@ -451,7 +465,23 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       <div className="combat__ip-tags-row">
         <span className="combat__ip-tier-tag">{enemy.tier}</span>
         <span className="combat__ip-affinity-tag" style={{ color: elementColor }}>
-          AFFINITY: {enemy.element} {elementIcon}
+          AFFINITY: {enemy.element}{' '}
+          {elementArtSrc ? (
+            <img
+              className="combat__ip-affinity-icon"
+              src={elementArtSrc}
+              alt=""
+              width={14}
+              height={14}
+              aria-hidden="true"
+              title={enemy.element}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : (
+            elementIcon
+          )}
         </span>
       </div>
 
@@ -521,21 +551,45 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       >
         <div className="combat__ip-stats-row" role="button" aria-label="View enemy stats detail">
           <div className="combat__ip-stat combat__ip-stat--phys">
-            <span className="combat__ip-stat-icon" aria-hidden="true" title="Physical">⚔</span>
+            <img
+              className="combat__ip-stat-icon"
+              src="/assets/icons/ui/phys_def.jpg"
+              alt=""
+              width={16}
+              height={16}
+              aria-hidden="true"
+              title="Physical"
+            />
             <div className="combat__ip-stat-body">
               <span className="combat__ip-stat-label">PHYS</span>
               <span className="combat__ip-stat-value">{enemyStats.derived.physicalDefenseFlat}<span className="combat__ip-stat-pct">+{Math.round(enemyStats.derived.physicalDefensePercent * 100)}%</span></span>
             </div>
           </div>
           <div className="combat__ip-stat combat__ip-stat--elem">
-            <span className="combat__ip-stat-icon" aria-hidden="true" title="Elemental">※</span>
+            <img
+              className="combat__ip-stat-icon"
+              src="/assets/icons/ui/elem_def.jpg"
+              alt=""
+              width={16}
+              height={16}
+              aria-hidden="true"
+              title="Elemental"
+            />
             <div className="combat__ip-stat-body">
               <span className="combat__ip-stat-label">ELEM</span>
               <span className="combat__ip-stat-value">{enemyStats.derived.elementalDefenseFlat}<span className="combat__ip-stat-pct">+{Math.round(enemyStats.derived.elementalDefensePercent * 100)}%</span></span>
             </div>
           </div>
           <div className="combat__ip-stat combat__ip-stat--mnd">
-            <span className="combat__ip-stat-icon" aria-hidden="true" title="Mental">◎</span>
+            <img
+              className="combat__ip-stat-icon"
+              src="/assets/icons/ui/mind_def.jpg"
+              alt=""
+              width={16}
+              height={16}
+              aria-hidden="true"
+              title="Mental"
+            />
             <div className="combat__ip-stat-body">
               <span className="combat__ip-stat-label">MND</span>
               <span className="combat__ip-stat-value">{enemyStats.derived.mentalDefenseFlat}<span className="combat__ip-stat-pct">+{Math.round(enemyStats.derived.mentalDefensePercent * 100)}%</span></span>
@@ -555,7 +609,20 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
               if (!buff) {
                 return (
                   <div key={i} className="combat__ip-slot combat__ip-slot--empty" aria-label="Empty seal slot">
-                    <span className="combat__ip-slot-mark" aria-hidden="true" />
+                    <img
+                      className="combat__ip-slot-empty-img"
+                      src="/assets/icons/ui/status_slot_empty.jpg"
+                      alt=""
+                      width={28}
+                      height={28}
+                      aria-hidden="true"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+                        if (fallback) fallback.hidden = false;
+                      }}
+                    />
+                    <span className="combat__ip-slot-mark" hidden aria-hidden="true" />
                   </div>
                 );
               }

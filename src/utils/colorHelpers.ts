@@ -168,7 +168,7 @@ export interface LaminaPaths {
  *       foreground: '/assets/lamina_fg_mist_covered_bridge.png' }
  */
 /** Bump when lamina PNGs are re-keyed so browsers/Vite pick up new pixels without hard-clear. */
-const LAMINA_ASSET_REV = 'r2wave2a3';
+const LAMINA_ASSET_REV = 'r10fire10';
 
 /**
  * Region 1 default when biome is missing/blank — Coastal Harbor is the Waves

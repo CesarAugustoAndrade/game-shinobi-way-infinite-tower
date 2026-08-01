@@ -154,7 +154,6 @@ const formatOutcomeText = (
   if (effects.removeRandomItem) parts.push('Lose item');
   if (effects.upgradeTreasureQuality) parts.push('Treasure ↑');
   if (effects.addMerchantSlot) parts.push('+1 Merchant slot');
-  // T-088: fog-honest intel preview (matches resolve path)
   if (effects.intelGain) {
     const base = effects.intelGain;
     const effective = applyVisibilityToIntelGain(base, locationTerrainMods);
@@ -168,8 +167,13 @@ const formatOutcomeText = (
   return parts.length > 0 ? parts.join(' · ') : 'The story continues…';
 };
 
+const prefersReducedMotion = (): boolean => {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
+
 /* ===========================================
-   Risk Meter (badge + segmented bar)
+   Risk Meter
    =========================================== */
 
 const RiskMeter: React.FC<{ riskLevel: RiskLevel }> = ({ riskLevel }) => {
@@ -192,7 +196,7 @@ const RiskMeter: React.FC<{ riskLevel: RiskLevel }> = ({ riskLevel }) => {
 };
 
 /* ===========================================
-   Outcome Preview (revealed when selected)
+   Outcome Preview
    =========================================== */
 
 const OutcomePreview: React.FC<{
@@ -234,9 +238,10 @@ interface ChoiceCardProps {
   isSelected: boolean;
   isDimmed: boolean;
   index: number;
+  staggerIndex: number;
+  enter: boolean;
   onSelect: () => void;
   onConfirm: () => void;
-  /** T-088: fog mods for outcome preview */
   locationTerrainMods?: LocationTerrainMods | null;
 }
 
@@ -247,6 +252,8 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
   isSelected,
   isDimmed,
   index,
+  staggerIndex,
+  enter,
   onSelect,
   onConfirm,
   locationTerrainMods,
@@ -256,7 +263,6 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
   const isDisabled = !meetsRequirements || !canAffordCost;
   const riskClass = getRiskClass(choice.riskLevel);
 
-  // Presentation-only gate reason (does not touch the engine).
   const gateReason = ((): string => {
     if (!meetsRequirements) {
       if (choice.requirements?.minStat) {
@@ -272,15 +278,12 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
     return 'Unavailable';
   })();
 
-  // Click flow without inline expansion: first click selects, a click on the
-  // already-selected card confirms it. Enter/1-4 are handled at scene level.
   const handleCardClick = useCallback(() => {
     if (isDisabled || isDimmed) return;
     if (isSelected) onConfirm();
     else onSelect();
   }, [isDisabled, isDimmed, isSelected, onSelect, onConfirm]);
 
-  // Clicks inside the outcomes affordance must not select/confirm the card.
   const stopClick = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
 
   const statRequirement = choice.requirements?.minStat;
@@ -291,21 +294,21 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
     <div
       className={`choice-card choice-card--${riskClass} ${
         isSelected ? 'choice-card--selected' : ''
-      } ${isDimmed ? 'choice-card--dimmed' : ''} ${isDisabled ? 'choice-card--disabled' : ''}`}
+      } ${isDimmed ? 'choice-card--dimmed' : ''} ${isDisabled ? 'choice-card--disabled' : ''} ${
+        enter ? 'choice-card--enter' : ''
+      }`}
+      style={{ ['--choice-stagger' as string]: String(staggerIndex) }}
       onClick={handleCardClick}
       role="button"
       aria-pressed={isSelected}
       tabIndex={isDisabled || isDimmed ? -1 : 0}
       onKeyDown={(e) => {
-        // Confirm is owned by the scene-level Enter handler (avoids double-fire);
-        // here Enter/Space only selects an unselected, focused card.
         if ((e.key === 'Enter' || e.key === ' ') && !isDisabled && !isDimmed && !isSelected) {
           e.preventDefault();
           onSelect();
         }
       }}
     >
-      {/* Header */}
       <div className="choice-card__header">
         <div className="choice-card__header-left">
           <span className="choice-card__index">{index + 1}</span>
@@ -314,13 +317,11 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
         <RiskMeter riskLevel={choice.riskLevel} />
       </div>
 
-      {/* Body */}
       <div className="choice-card__body">
         <p className="choice-card__description">{choice.description}</p>
 
         {choice.hintText && <p className="choice-card__hint">"{choice.hintText}"</p>}
 
-        {/* Requirement / cost read-out */}
         {statRequirement && (
           <div className="choice-card__requirements">
             <span
@@ -341,7 +342,6 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
           </div>
         )}
 
-        {/* Gated indicator */}
         {isDisabled && (
           <div className="choice-card__gate">
             <Lock size={13} />
@@ -349,7 +349,6 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
           </div>
         )}
 
-        {/* Possible outcomes — revealed as a hover/focus tooltip, no layout shift. */}
         {!isDisabled && choice.outcomes && choice.outcomes.length > 0 && (
           <div
             className="choice-card__outcomes-wrap"
@@ -370,7 +369,6 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
           </div>
         )}
 
-        {/* Confirm affordance (selected) — absolute, does not expand the card. */}
         {isSelected && !isDisabled && (
           <span className="choice-card__confirm-tag" aria-hidden="true">
             Confirm ▸
@@ -382,7 +380,7 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
 };
 
 /* ===========================================
-   Main Event Scene
+   Main Event Scene — split poster + path (mockup style)
    =========================================== */
 
 const Event: React.FC<EventProps> = ({
@@ -395,30 +393,31 @@ const Event: React.FC<EventProps> = ({
   background,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  /** UI disable after confirm (re-render lag). */
   const [choiceLocked, setChoiceLocked] = useState(false);
-  /**
-   * Sync mutex — choiceLocked state alone lags one frame. Double Enter / Enter+click
-   * same-tick both saw choiceLocked=false → double resolveEventChoice (double HP/ryo/flags).
-   */
   const choiceLockRef = useRef(false);
+  const [choicesEnter, setChoicesEnter] = useState(() => prefersReducedMotion());
 
-  // T-008: hide choices gated out by the player's run flags. Requirement/cost
-  // gating still shows-but-disables; flag gating removes the choice entirely.
   const availableChoices = useMemo(() => {
     const gated = player ? getAvailableChoices(activeEvent, player) : activeEvent.choices;
-    // Anti-softlock guard: never open an event with zero selectable options.
     return gated.length > 0 ? gated : activeEvent.choices;
   }, [activeEvent, player]);
 
-  // Some paths were hidden by flag gating → hint the player their run matters.
   const hasHiddenPaths = availableChoices.length < activeEvent.choices.length;
+  const eventArt = useMemo(() => getEventArt(activeEvent.id), [activeEvent.id]);
 
-  // Reset selection whenever the event changes (e.g. a chain advances).
   useEffect(() => {
     setSelectedIndex(null);
     setChoiceLocked(false);
     choiceLockRef.current = false;
+    if (prefersReducedMotion()) {
+      setChoicesEnter(true);
+      return;
+    }
+    setChoicesEnter(false);
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setChoicesEnter(true));
+    });
+    return () => cancelAnimationFrame(id);
   }, [activeEvent]);
 
   const handleSelect = useCallback((index: number) => {
@@ -428,7 +427,6 @@ const Event: React.FC<EventProps> = ({
 
   const handleConfirm = useCallback((choice: EventChoice) => {
     if (choiceLockRef.current || choiceLocked) return;
-    // Lock first (same-tick Enter+click) — parent returns false on failed gate so we re-arm
     choiceLockRef.current = true;
     setChoiceLocked(true);
     const applied = onChoice(choice);
@@ -486,9 +484,12 @@ const Event: React.FC<EventProps> = ({
   if (!player) return null;
 
   return (
-    <SceneBackdrop background={background} dim={0.32}>
-      <div className="event">
-        {/* Chain ribbon */}
+    <SceneBackdrop background={background} dim={0.22}>
+      <div
+        className={`event${cameFromChain ? ' event--chained' : ''}`}
+        role="region"
+        aria-label={activeEvent.title}
+      >
         {cameFromChain && (
           <div className="event__chain" role="status">
             <span className="event__chain-glyph" aria-hidden="true">›</span>
@@ -496,67 +497,80 @@ const Event: React.FC<EventProps> = ({
           </div>
         )}
 
-        {/* Cinematic header — plate art as scene of choice */}
-        <header className="event__header">
-          <div className="event__plate" aria-hidden="true">
-            <div className="event__plate-frame">
-              <ArtIcon art={getEventArt(activeEvent.id)} size="xl" title={activeEvent.title} />
+        <div className="event__split">
+          {/* ── LEFT: vertical cinematic poster ── */}
+          <aside className="event__poster" aria-hidden={false}>
+            <div className="event__poster-frame">
+              <div className="event__poster-art">
+                <ArtIcon art={eventArt} size="fill" title={activeEvent.title} />
+              </div>
+              <div className="event__poster-scrim" aria-hidden="true" />
+              <div className="event__poster-copy">
+                <span className="event__plate-tag">Scene of Choice</span>
+                <h1 className="event__title">{activeEvent.title}</h1>
+                {activeEvent.mysteryFlavor && (
+                  <p className="event__mystery-flavor">{activeEvent.mysteryFlavor}</p>
+                )}
+                <p className="event__description">{activeEvent.description}</p>
+              </div>
             </div>
-            <span className="event__plate-tag">Scene of Choice</span>
-          </div>
-          <h1 className="event__title">{activeEvent.title}</h1>
-          {activeEvent.mysteryFlavor && (
-            <p className="event__mystery-flavor">{activeEvent.mysteryFlavor}</p>
-          )}
-          <p className="event__description">{activeEvent.description}</p>
-        </header>
+          </aside>
 
-        {/* Divider + keyboard hints */}
-        <div className="event__path-bar">
-          <div className="event__divider">▸ Choose Your Path</div>
-          <div className="event__hints">
-            <span className="event__hint">
-              <span className="sw-shortcut">1</span>-<span className="sw-shortcut">4</span> Select
-            </span>
-            <span className="event__hint">
-              <span className="sw-shortcut">Enter</span> Confirm
-            </span>
-            <span className="event__hint">
-              <span className="sw-shortcut">Esc</span> Deselect
-            </span>
-          </div>
+          {/* ── RIGHT: path bar + choices ── */}
+          <section className={`event__decision${choicesEnter ? ' event__decision--enter' : ''}`}>
+            <div className="event__path-bar">
+              <div className="event__divider">▸ Choose Your Path</div>
+              <div className="event__hints">
+                <span className="event__hint">
+                  <span className="sw-shortcut">1</span>-<span className="sw-shortcut">4</span> Select
+                </span>
+                <span className="event__hint">
+                  <span className="sw-shortcut">Enter</span> Confirm
+                </span>
+                <span className="event__hint">
+                  <span className="sw-shortcut">Esc</span> Deselect
+                </span>
+                <span className="event__hint">
+                  <span className="sw-shortcut">I</span> Bag
+                </span>
+                <span className="event__hint">
+                  <span className="sw-shortcut">C</span> Character
+                </span>
+              </div>
+            </div>
+
+            <div className="event__choices" role="list">
+              {availableChoices.length === 0 ? (
+                <p className="event__empty-choices" role="status">
+                  No paths are open for this moment.
+                </p>
+              ) : (
+                availableChoices.map((choice, idx) => (
+                  <ChoiceCard
+                    key={`${activeEvent.id}-${idx}`}
+                    choice={choice}
+                    player={player}
+                    playerStats={playerStats || null}
+                    isSelected={selectedIndex === idx}
+                    isDimmed={selectedIndex !== null && selectedIndex !== idx}
+                    index={idx}
+                    staggerIndex={idx}
+                    enter={choicesEnter}
+                    onSelect={() => handleSelect(idx)}
+                    onConfirm={() => handleConfirm(choice)}
+                    locationTerrainMods={locationTerrainMods}
+                  />
+                ))
+              )}
+            </div>
+
+            {hasHiddenPaths && (
+              <p className="event__hidden-note">
+                Some paths stay sealed until your earlier choices open them.
+              </p>
+            )}
+          </section>
         </div>
-
-        {/* Choice cards */}
-        <div className="event__choices">
-          {availableChoices.length === 0 ? (
-            <p className="event__empty-choices" role="status">
-              No paths are open for this moment.
-            </p>
-          ) : (
-            availableChoices.map((choice, idx) => (
-              <ChoiceCard
-                key={idx}
-                choice={choice}
-                player={player}
-                playerStats={playerStats || null}
-                isSelected={selectedIndex === idx}
-                isDimmed={selectedIndex !== null && selectedIndex !== idx}
-                index={idx}
-                onSelect={() => handleSelect(idx)}
-                onConfirm={() => handleConfirm(choice)}
-                locationTerrainMods={locationTerrainMods}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Hidden-path hint */}
-        {hasHiddenPaths && (
-          <p className="event__hidden-note">
-            Some paths stay sealed until your earlier choices open them.
-          </p>
-        )}
       </div>
     </SceneBackdrop>
   );

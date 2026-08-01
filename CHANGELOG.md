@@ -4,6 +4,33 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Removed
+- **Orphan art cleanup** (runtime-unreferenced plates deleted from `public/assets/` + `assets/` mirrors):
+  - `background_parchment.png`, `background_next_chamber.png`, `button_enter_location.png`, `translucent_begin_journey.png`
+  - `event_fishing_village_event.png`, `event_gatos_compound_event.png` (no event ids; climax plates use dedicated files)
+  - `skill_shadow_clones.png` (manifest uses `skill_shadow_clone.png`)
+  - `assets/ui_seinen-sublime-atmosferico_1767723116286.png` (sidebar plate already removed in code)
+- **Legacy Imagine JPG trees deleted** (runtime uses painted PNGs via manifests; no `src/` refs): `public/assets/icons/skills/` (~117) + `icons/events/` (~40) and mirrors under `assets/icons/`. Canonical skill faces = `skill_*.png`; event plates = `event_*.png`. Stale path mentions may remain only in `todos/*-art-manifest.json` / old scripts.
+
+### Changed
+- **Alpha / cutout pipeline audit + generalized black-key tool** (`scripts/flood_blackkey_cutouts.py`; thin wrapper `scripts/flood_blackkey_enemy_cutouts.py`):
+  - Audited all `enemy_cut_*` (44), `hero_cut_*` (5), `lamina_mid_*` (14), `lamina_fg_*` (14) under `public/assets/` + `assets/` (mirrors byte-identical).
+  - **All classes already true RGBA** — exterior opaque leak = 0% (no leftover black matte outside silhouette). High near-black opaque % is dark clothing/fur inside the body; border flood correctly preserves it. Opaque corners = subject touching frame edge, not matte.
+  - Metrics (public): enemy_cut a0 med≈40.5% leak max 0%; hero_cut a0 med≈63.5% corners transparent leak 0%; laminas residual_any 0%, center stage holes intentional.
+  - Hero/lamina: skip reprocess (already good). Enemy: force re-key from `enemy_*.png` sources via wrapper (historical behaviour); post-pass exterior_leak still 0%, a0 med unchanged, mirrors in sync.
+  - Tool: `--class enemy|hero|lamina|all`, `--audit`, `--force`, `--dry-run`; laminas border-flood **without** hole-fill (stage oval). New art still uses green `#00FF00` chroma (AGENTS.md), not black matte.
+- **Hero cutout + lamina alpha tooling** (`scripts/audit_hero_lamina_alpha.py`, `scripts/flood_blackkey_heroes.py`): PIL audit for all `hero_cut_*` / `lamina_mid_*` / `lamina_fg_*` (corner alpha, A==0 %, residual opaque near-black, exterior vs deep residual). Hero flood is **edge-only** (≤3px of existing transparent) — full interior flood rejected because Uchiha/Lee dark clothing reads as “matte” and would erase ~20–44% of silhouette. Micro edge pass on `hero_cut_uchiha` only (matte 9.60%→9.59%); other heroes skipped (exterior residual &lt; threshold). Laminas: 0% solid black exterior matte; center holes intentional; no lamina rekey.
+- **Art direction canon (combat content)** (`docs/guia_direccion_de_arte_combate.md`, `.agents/skills/combat-art/SKILL.md`, `references/asset-prompts.md`, `references/css-implementation.css`, `docs/VISION-8-AGENTES.md`): official style lock — **painted HQ** neo-retro (sprites, posters, skills, laminas) + **pixel-arcade chrome** (HUD/UI); prompts no longer primary-lock characters as 16-bit SNES sprites; no forced `image-rendering: pixelated` on painted cutouts; chroma key rules unchanged.
+- **Global explore chrome** (`App.tsx`): Exploration HUD (HP/CP, ryo, bag **I**, character **C**) + overlays on every in-shell run screen (combat, loot, merchant, treasure, elite, scroll, event, training, maps); sidebars hidden. Combat keeps **C** as hand slot (open sheet via HUD button).
+- **Bag + character side-by-side** (`App.tsx`, `InventoryOverlay.tsx`, `CharacterSheetOverlay.tsx`, `exploreOverlays.css`): bag and character sheet open independently (I and C) and can stay open together — sheet left, bag right.
+- **Training overhaul** (`Training.tsx` / `.css`, `types.ts`, `LocationSystem.ts`, `useActivityHandlers.ts`, `App.tsx`): explore HUD + bag/character (I/C) on TRAINING; three regimens — each costs a different resource (HP, CP, or ryo) for a primary-stat gain; intensity matrix removed.
+- **Event screen restyle (split layout)** (`Event.tsx` / `Event.css`, `App.tsx`, `App.css`): mockup-matched stage — vertical poster left, choices right with staggered entrance and risk rails; explore HUD stays on EVENT (HP/CP, ryo, bag **I**, character **C**). Poster prompt docs + pipeline in `docs/event-poster-prompts-*.md`.
+- **Event poster art refresh (2:3 vertical key art)** (`public/assets/event_*.png`, `assets/event_*.png`, `eventArtManifest.ts`): regenerated HQ painted neo-retro posters for Waves spine, residuals (dedicated plates for former aliases), category plates, generic/academy, exams/rogue/war arcs; aliases like `tazuna_road_mist` / residual sides now own dedicated files.
+- **Exploration chrome cleanup** (`LocationMap.tsx`, `RegionMap.tsx`, `RoomCard.tsx`, `App.css`, `exploration.css`): removed remaining dark scrim filters on explore stage (gradient + inset vignette + location scrim); dropped Cleared badge/overlay on rooms; removed bottom coach/keys dock (location) and region progress footer.
+- **Enemy cutouts re-keyed from black matte** (`assets/enemy_cut_*.png`, `public/assets/enemy_cut_*.png`, `scripts/flood_blackkey_enemy_cutouts.py`): regenerated all 44 combat cutouts as true RGBA — adaptive border flood-fill removes the black/near-black background while preserving dark clothing, with soft fringe + hole fill. Mirrors `assets/` ↔ `public/assets/`.
+- **Exploration maps: removed CRT filter** (`LocationMap.tsx`, `RegionMap.tsx`, `exploration.css`, `App.css`): dropped scanlines + vignette visor layers and disabled `center-stage` grit overlay on explore so the painted map art is no longer covered by a dark filter panel.
+- **Character Select remake (portrait-first)** (`CharacterSelect.tsx` / `.css`, `artRegistry.ts`): cards lead with unused `hero_cut_*` → `hero_*` art cascade (clan crest fallback); nested “Enter the Mist” CTA removed (whole card is the only hit target, R1-003); triad ranks compact row; tip/back use design tokens + hard shadows; background plate less crushed. Removed orphan `translucent_begin_journey.png`.
+
 ### Fixed (Wave 15 — confirming pass, incl. a Wave-14 regression)
 
 Ran after the Wave-14 backlog hit zero, using six deliberately different lenses plus an adversarial

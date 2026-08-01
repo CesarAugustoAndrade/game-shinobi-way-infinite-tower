@@ -36,3 +36,8 @@ simulation-output
 *.sln
 *.sw?
 nul
+
+# Local art pipeline staging (do not push)
+_stage_gen/
+scripts/__pycache__/
+

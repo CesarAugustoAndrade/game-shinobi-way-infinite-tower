@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import {
   GameState, Player, Clan, Skill, Enemy, Item, Rarity, DamageType,
-  ApproachType, BranchingRoom, BranchingFloor, PrimaryStat, TrainingActivity, TrainingIntensity, LogEntry,
+  ApproachType, BranchingRoom, BranchingFloor, PrimaryStat, TrainingActivity, LogEntry,
   EquipmentSlot, MAX_BAG_SLOTS, ScrollDiscoveryActivity,
   GameEvent, EventChoice, EventOutcome,
   TreasureQuality, DEFAULT_MERCHANT_SLOTS, MAX_MERCHANT_SLOTS,
@@ -184,8 +184,9 @@ const App: React.FC = () => {
   const [selectedComponent, setSelectedComponent] = useState<Item | null>(null);
   /** Bumps when equipment → bag synthesis starts so Bag arms synthesisMode. */
   const [bagSynthesisSession, setBagSynthesisSession] = useState(0);
-  /** T-022: cinematic exploration overlays — bag (I) / character sheet (C) */
-  const [exploreOverlay, setExploreOverlay] = useState<'none' | 'bag' | 'character'>('none');
+  /** T-022: explore overlays — bag (I) and character (C) can be open together */
+  const [exploreBagOpen, setExploreBagOpen] = useState(false);
+  const [exploreCharacterOpen, setExploreCharacterOpen] = useState(false);
   /** T-023: campaign index into REGION_ORDER + interlude boons */
   const [campaignRegionIndex, setCampaignRegionIndex] = useState(0);
   const [regionsCompleted, setRegionsCompleted] = useState(0);
@@ -712,7 +713,8 @@ const App: React.FC = () => {
     setRegionsCompleted(0);
     setInterludeBoons([]);
     setInterludeMeta(null);
-    setExploreOverlay('none');
+    setExploreBagOpen(false);
+    setExploreCharacterOpen(false);
     setRunMode(mode);
     setInfiniteFloor(0);
     // Drop prior-run modals / activity payloads — leftover combatReward/dice/rest
@@ -1457,7 +1459,9 @@ const App: React.FC = () => {
   };
 
   // --- Layout flags + hooks MUST run before any early return (Rules of Hooks) ---
-  // Hide sidebars: combat (full stage) + exploration maps (T-022 cinematic full-bleed)
+  // Explore chrome (HUD + bag I + character C) is global for every in-shell scene with a run.
+  // Full-screen exits (MENU / CHAR_SELECT / GUIDE / GAME_OVER / INTERLUDE / VICTORY) return early
+  // and never render this shell.
   const isCombat = gameState === GameState.COMBAT;
   const isExplorationMap =
     gameState === GameState.REGION_MAP || gameState === GameState.LOCATION_EXPLORE;
@@ -1465,32 +1469,41 @@ const App: React.FC = () => {
   const isMissionScene =
     isCombat ||
     gameState === GameState.EVENT ||
+    gameState === GameState.TRAINING ||
     gameState === GameState.ELITE_CHALLENGE ||
     gameState === GameState.LOOT ||
     gameState === GameState.MERCHANT ||
-    gameState === GameState.TRAINING ||
     gameState === GameState.SCROLL_DISCOVERY ||
     gameState === GameState.TREASURE ||
     gameState === GameState.TREASURE_HUNT_REWARD;
-  const hideSidebars = isCombat || isExplorationMap;
   // Keep as && chain (not Boolean()) so TS can narrow player/playerStats at use sites with re-checks
-  const showExploreChrome = isExplorationMap && !!player && !!playerStats;
+  const showExploreChrome = !!player && !!playerStats;
+  // No dual sidebars when explore HUD owns bag/character (all shell scenes with a player)
+  const hideSidebars = showExploreChrome || isCombat || isExplorationMap;
   const centerStageClass = [
-    // Exploration maps stretch full stage; other scenes stay centered.
+    // Exploration maps stretch full stage; mission scenes full-bleed under HUD; else centered.
     'flex-1 flex flex-col relative overflow-y-auto center-stage',
     isExplorationMap
       ? 'center-stage--explore items-stretch justify-stretch min-h-0 p-0'
-      : 'items-center justify-center',
+      : isMissionScene
+        ? 'center-stage--event items-stretch justify-stretch min-h-0 p-0'
+        : showExploreChrome
+          ? 'center-stage--event items-stretch justify-stretch min-h-0 p-0'
+          : 'items-center justify-center',
     isMissionScene ? 'center-stage--mission' : '',
-    !isExplorationMap ? 'p-6' : '',
+    !isExplorationMap && !isMissionScene && !showExploreChrome ? 'p-6' : '',
+    showExploreChrome && !isExplorationMap && !isMissionScene ? 'p-4' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
-  // Close explore overlays when leaving map screens
+  // Close explore overlays when leaving a run shell (no player / full-screen exit)
   useEffect(() => {
-    if (!isExplorationMap) setExploreOverlay('none');
-  }, [isExplorationMap]);
+    if (!showExploreChrome) {
+      setExploreBagOpen(false);
+      setExploreCharacterOpen(false);
+    }
+  }, [showExploreChrome]);
 
   // Close bag/character when a higher result/approach modal owns the screen
   // (prevents stuck-under-modal overlay + I/C keyboard trap feel)
@@ -1503,7 +1516,10 @@ const App: React.FC = () => {
       Boolean(locationCompleteResult) ||
       Boolean(diceRollResult) ||
       showApproachSelector;
-    if (blocking) setExploreOverlay('none');
+    if (blocking) {
+      setExploreBagOpen(false);
+      setExploreCharacterOpen(false);
+    }
   }, [
     combatReward,
     eventOutcome,
@@ -1514,10 +1530,11 @@ const App: React.FC = () => {
     showApproachSelector,
   ]);
 
-  // I / C / Esc for exploration overlays (T-022)
-  // Do not open bag/character under result/approach modals (keyboard trap / stuck feel).
+  // I / C / Esc — bag & character independent (both can stay open)
+  // Combat: C is hand slot 3 — only open character via HUD button, not C key.
+  // Do not open bag/character under result/approach modals.
   useEffect(() => {
-    if (!isExplorationMap) return;
+    if (!showExploreChrome) return;
     const onKey = (event: KeyboardEvent) => {
       const t = event.target as HTMLElement | null;
       if (
@@ -1532,22 +1549,25 @@ const App: React.FC = () => {
       );
       const key = event.key.toLowerCase();
       if (key === 'i') {
-        // Allow I only when no higher result/approach modal owns the screen
         if (blockingModal) return;
         event.preventDefault();
-        setExploreOverlay((prev) => (prev === 'bag' ? 'none' : 'bag'));
+        setExploreBagOpen((prev) => !prev);
       } else if (key === 'c') {
+        // Combat hand uses C for the 3rd skill card
+        if (isCombat) return;
         if (blockingModal) return;
         event.preventDefault();
-        setExploreOverlay((prev) => (prev === 'character' ? 'none' : 'character'));
-      } else if (event.key === 'Escape' && exploreOverlay !== 'none') {
+        setExploreCharacterOpen((prev) => !prev);
+      } else if (event.key === 'Escape' && (exploreBagOpen || exploreCharacterOpen)) {
+        // Progressive close: bag first, then character (overlays may also handle Esc)
         event.preventDefault();
-        setExploreOverlay('none');
+        if (exploreBagOpen) setExploreBagOpen(false);
+        else setExploreCharacterOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isExplorationMap, exploreOverlay]);
+  }, [showExploreChrome, isCombat, exploreBagOpen, exploreCharacterOpen]);
 
   // --- Full-screen scenes (no game shell) — only after all hooks ---
   if (gameState === GameState.MENU) {
@@ -1761,23 +1781,24 @@ const App: React.FC = () => {
             maxChakra={playerStats.derived.maxChakra}
             onOpenBag={() => {
               if (exploreModalBlocksHud) return;
-              setExploreOverlay((p) => (p === 'bag' ? 'none' : 'bag'));
+              setExploreBagOpen((p) => !p);
             }}
             onOpenCharacter={() => {
               if (exploreModalBlocksHud) return;
-              setExploreOverlay((p) => (p === 'character' ? 'none' : 'character'));
+              setExploreCharacterOpen((p) => !p);
             }}
-            bagOpen={exploreOverlay === 'bag'}
-            characterOpen={exploreOverlay === 'character'}
+            bagOpen={exploreBagOpen}
+            characterOpen={exploreCharacterOpen}
             lootTheme={region?.lootTheme}
             locationLabel={
-              gameState === GameState.LOCATION_EXPLORE
-                ? (currentLocation?.name ?? null)
+              gameState === GameState.LOCATION_EXPLORE || isMissionScene
+                ? (currentLocation?.name ?? region?.name ?? null)
                 : (region?.name ?? null)
             }
             dangerLevel={
-              gameState === GameState.LOCATION_EXPLORE
-                ? (currentLocation?.dangerLevel ?? null)
+              currentLocation &&
+              (gameState === GameState.LOCATION_EXPLORE || isMissionScene)
+                ? currentLocation.dangerLevel
                 : null
             }
           />
@@ -2102,19 +2123,25 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* T-022: exploration overlays (bag / character sheet) */}
-      {showExploreChrome && exploreOverlay === 'bag' && player && (
+      {/* T-022: bag (right) + character sheet (left) — both can be open together */}
+      {showExploreChrome && exploreBagOpen && player && (
         <InventoryOverlay
           {...inventoryOverlayProps}
-          onClose={() => setExploreOverlay('none')}
+          onClose={() => setExploreBagOpen(false)}
+          side="right"
+          showBackdrop={!exploreCharacterOpen}
+          trapFocus={!exploreCharacterOpen}
         />
       )}
-      {showExploreChrome && exploreOverlay === 'character' && player && playerStats && (
+      {showExploreChrome && exploreCharacterOpen && player && playerStats && (
         <CharacterSheetOverlay
           player={player}
           playerStats={playerStats}
-          onClose={() => setExploreOverlay('none')}
+          onClose={() => setExploreCharacterOpen(false)}
           lootTheme={region?.lootTheme}
+          side="left"
+          showBackdrop={!exploreBagOpen}
+          trapFocus={!exploreBagOpen}
         />
       )}
 

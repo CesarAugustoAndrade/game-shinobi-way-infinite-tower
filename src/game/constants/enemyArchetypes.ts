@@ -25,6 +25,15 @@ export const ELEMENT_ICONS: Record<string, string> = {
   Mental: '👁',
 };
 
+/** Raster affinity icons (Imagine UI set) — emoji remains a11y / missing-art fallback. */
+export const ELEMENT_AFFINITY_ART: Record<string, string> = {
+  Fire: '/assets/icons/ui/affinity_fire.jpg',
+  Wind: '/assets/icons/ui/affinity_wind.jpg',
+  Lightning: '/assets/icons/ui/affinity_lightning.jpg',
+  Earth: '/assets/icons/ui/affinity_earth.jpg',
+  Water: '/assets/icons/ui/affinity_water.jpg',
+};
+
 /** CSS inline color values for each element (used in the panel without Tailwind classes). */
 export const ELEMENT_COLORS: Record<string, string> = {
   Fire: '#ef4444',

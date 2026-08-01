@@ -253,58 +253,23 @@ const LocationMap: React.FC<LocationMapProps> = ({
   };
 
   // A4: location-as-transform — biome location_*.png first, map exploring fallback.
-  // Always include void underplate + map plate so the panel never reads empty.
+  // No dark scrim filter over the painted plate.
   const locationStageBg = useMemo(() => {
     const mapFallback = 'url(/assets/background_map_exploring.png)';
-    const scrim =
-      'linear-gradient(180deg, rgba(5,6,8,0.58) 0%, rgba(5,6,8,0.22) 40%, rgba(5,6,8,0.78) 100%)';
     if (!branchingFloor.biome) {
       return {
         backgroundColor: '#050608',
-        backgroundImage: [scrim, mapFallback].join(', '),
+        backgroundImage: mapFallback,
       };
     }
     const { background } = resolveLaminaPaths(branchingFloor.biome);
     return {
       backgroundColor: '#050608',
-      backgroundImage: [scrim, `url(${background})`, mapFallback].join(', '),
+      backgroundImage: [`url(${background})`, mapFallback].join(', '),
     };
   }, [branchingFloor.biome]);
 
   const dangerLevel = branchingFloor.dangerLevel;
-
-  // StS first-run clarity: one next meaningful action from map state.
-  const nextActionCoach = useMemo(() => {
-    // A4 wave7: never claim Guardian still lives once exit is cleared
-    if (floorComplete) {
-      return 'Location cleared. Space / Enter — return to the ops table (veiled routes may surface).';
-    }
-    if (!selectedRoom) {
-      return 'You stand in the glow. Press Enter Room — or branch above (1–2).';
-    }
-    if (selectedRoom.isExit && selectedRoom.isAccessible && !selectedRoom.isCleared) {
-      return 'Guardian ahead — Enter Room to finish this location.';
-    }
-    if (selectedRoom.isAccessible && !selectedRoom.isCleared) {
-      if (currentRoom && selectedRoom.id === currentRoom.id) {
-        return 'Enter Room to film the next beat (Space / Enter).';
-      }
-      return `Path set: ${selectedRoom.name}. Space / Enter to step forward.`;
-    }
-    if (selectedRoom.isCleared) {
-      if (childRooms.some((r) => r.isAccessible && !r.isCleared)) {
-        return 'This node is spent. Space / Enter marks the next path (or press 1–2).';
-      }
-      if (currentRoom?.isExit && !currentRoom.isCleared) {
-        return 'Floor exit — defeat the Guardian to clear this location.';
-      }
-      return 'Room cleared. Wait for the next path to open.';
-    }
-    if (!selectedRoom.isAccessible) {
-      return 'That path is sealed — Space / Enter snaps to a reachable room (or 1–2).';
-    }
-    return 'Mark a room, then Enter.';
-  }, [selectedRoom, currentRoom, childRooms, floorComplete]);
 
   return (
     <div
@@ -316,10 +281,6 @@ const LocationMap: React.FC<LocationMapProps> = ({
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* Visor chrome — CRT scanlines + vignette (pointer-events none) */}
-      <div className="location-map__scanlines" aria-hidden="true" />
-      <div className="location-map__vignette" aria-hidden="true" />
-
       {/* Header */}
       <div className="location-map__header">
         <div className="location-map__header-content">
@@ -630,11 +591,6 @@ const LocationMap: React.FC<LocationMapProps> = ({
                   {selectedRoom.isExit ? 'Enter Guardian' : 'Enter Room'}
                 </button>
               )}
-              {selectedRoom.isCleared && !floorComplete && (
-                <span className={getActionButtonClass()}>
-                  Cleared
-                </span>
-              )}
               {floorComplete && onLeaveLocation && (
                 <button
                   type="button"
@@ -672,25 +628,6 @@ const LocationMap: React.FC<LocationMapProps> = ({
         </div>
       )}
 
-      {/* Coach + keys — right dock (selected room stays left) */}
-      <div className="location-map__hud-right">
-        <div className="location-map__coach" role="status">
-          <p className="location-map__coach-text">{nextActionCoach}</p>
-        </div>
-        <div className="location-map__instructions">
-          {floorComplete ? (
-            <>
-              <span className="location-map__key">Space</span> / <span className="location-map__key">Enter</span> return to region
-            </>
-          ) : (
-            <>
-              <span className="location-map__key">1–2</span> choose path
-              <span className="location-map__sep">♦</span>
-              <span className="location-map__key">Space</span> / <span className="location-map__key">Enter</span> enter room
-            </>
-          )}
-        </div>
-      </div>
     </div>
   );
 };

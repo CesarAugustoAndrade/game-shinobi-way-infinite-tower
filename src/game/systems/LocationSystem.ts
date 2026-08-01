@@ -558,21 +558,30 @@ function generateTrainingActivity(
     PrimaryStat.SPEED, PrimaryStat.ACCURACY, PrimaryStat.DEXTERITY,
   ];
 
-  const shuffled = [...allStats].sort(() => Math.random() - 0.5);
-  const selectedStats = shuffled.slice(0, 3);
+  const shuffledStats = [...allStats].sort(() => Math.random() - 0.5);
+  const selectedStats = shuffledStats.slice(0, 3);
 
-  const baseHpCost = 10 + floor * 2;
-  const baseChakraCost = 5 + floor;
+  // One offer per resource so the player picks the toll (HP / CP / ryo).
+  const costTypes: Array<'hp' | 'chakra' | 'ryo'> = ['hp', 'chakra', 'ryo'];
+  const shuffledCosts = [...costTypes].sort(() => Math.random() - 0.5);
+
   const baseGain = 1 + Math.floor(floor / 10);
+  const hpCost = 10 + floor * 2;
+  const chakraCost = Math.max(1, Math.round(8 + floor * 1.5));
+  const ryoCost = 15 + floor * 5;
+
+  const costFor = (t: 'hp' | 'chakra' | 'ryo'): number => {
+    if (t === 'hp') return hpCost;
+    if (t === 'chakra') return chakraCost;
+    return ryoCost;
+  };
 
   return {
-    options: selectedStats.map(stat => ({
+    options: selectedStats.map((stat, i) => ({
       stat,
-      intensities: {
-        light: { cost: { hp: baseHpCost, chakra: baseChakraCost }, gain: baseGain },
-        medium: { cost: { hp: baseHpCost * 2, chakra: baseChakraCost * 2 }, gain: baseGain * 2 },
-        intense: { cost: { hp: baseHpCost * 3, chakra: baseChakraCost * 3 }, gain: baseGain * 3 },
-      },
+      costType: shuffledCosts[i],
+      cost: costFor(shuffledCosts[i]),
+      gain: baseGain,
     })),
     completed: false,
   };

@@ -1,4 +1,4 @@
-/* T-028 Lot F: Imagine raster migration — all events converted to imagine-jpg */
+/* T-028 Lot F: Event art — painted-png plates where on disk; category/residual reuse painted plates */
 export interface EventArtManifestEntry {
   key: string;
   id: string;
@@ -16,8 +16,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_combat",
     "emoji": "⚔️",
     "label": "Combat Event",
-    "src": "/assets/icons/events/cat_combat.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_cat_combat.png",
+    "quality": "painted-png",
     "kind": "category",
     "category": "combat"
   },
@@ -26,8 +26,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_reward",
     "emoji": "💎",
     "label": "Reward Event",
-    "src": "/assets/icons/events/cat_reward.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_cat_reward.png",
+    "quality": "painted-png",
     "kind": "category",
     "category": "reward"
   },
@@ -36,8 +36,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_story",
     "emoji": "📖",
     "label": "Story Event",
-    "src": "/assets/icons/events/cat_story.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_cat_story.png",
+    "quality": "painted-png",
     "kind": "category",
     "category": "story"
   },
@@ -46,8 +46,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_danger",
     "emoji": "☠️",
     "label": "Danger Event",
-    "src": "/assets/icons/events/cat_danger.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_cat_danger.png",
+    "quality": "painted-png",
     "kind": "category",
     "category": "danger"
   },
@@ -56,8 +56,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_generic",
     "emoji": "🌀",
     "label": "Event",
-    "src": "/assets/icons/events/cat_generic.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_cat_generic.png",
+    "quality": "painted-png",
     "kind": "category",
     "category": "generic"
   },
@@ -66,8 +66,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "forbidden_scroll_library",
     "emoji": "📜",
     "label": "forbidden scroll library",
-    "src": "/assets/icons/events/forbidden_scroll_library.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_forbidden_scroll_library.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -76,8 +76,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "bullying_incident",
     "emoji": "📖",
     "label": "bullying incident",
-    "src": "/assets/icons/events/bullying_incident.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_bullying_incident.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
@@ -86,8 +86,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "secret_training_ground",
     "emoji": "💎",
     "label": "secret training ground",
-    "src": "/assets/icons/events/secret_training_ground.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_secret_training_ground.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -96,8 +96,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "bridge_worker_plea",
     "emoji": "🌉",
     "label": "bridge worker plea",
-    "src": "/assets/icons/events/bridge_worker_plea.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_bridge_worker_plea.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "combat"
   },
@@ -106,8 +106,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "mist_ambush_cache",
     "emoji": "🌫️",
     "label": "mist ambush cache",
-    "src": "/assets/icons/events/mist_ambush_cache.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_mist_ambush_cache.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -116,8 +116,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "tazuna_request",
     "emoji": "👷",
     "label": "tazuna request",
-    "src": "/assets/icons/events/tazuna_request.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_tazuna_request.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
@@ -126,8 +126,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "forest_death_trap",
     "emoji": "🌲",
     "label": "forest death trap",
-    "src": "/assets/icons/events/forest_death_trap.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_forest_death_trap.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "danger"
   },
@@ -136,8 +136,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "rival_team_encounter",
     "emoji": "⚔️",
     "label": "rival team encounter",
-    "src": "/assets/icons/events/rival_team_encounter.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_rival_team_encounter.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "combat"
   },
@@ -146,8 +146,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "giant_serpent_nest",
     "emoji": "☠️",
     "label": "giant serpent nest",
-    "src": "/assets/icons/events/giant_serpent_nest.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_giant_serpent_nest.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "danger"
   },
@@ -156,8 +156,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "scroll_merchant",
     "emoji": "💎",
     "label": "scroll merchant",
-    "src": "/assets/icons/events/scroll_merchant.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_scroll_merchant.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -166,8 +166,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "sound_four_ritual",
     "emoji": " Crowley",
     "label": "sound four ritual",
-    "src": "/assets/icons/events/sound_four_ritual.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_sound_four_ritual.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "danger"
   },
@@ -176,8 +176,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "curse_mark_amplifier",
     "emoji": "☠️",
     "label": "curse mark amplifier",
-    "src": "/assets/icons/events/curse_mark_amplifier.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_curse_mark_amplifier.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "danger"
   },
@@ -186,8 +186,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "valley_vision",
     "emoji": "📖",
     "label": "valley vision",
-    "src": "/assets/icons/events/valley_vision.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_valley_vision.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
@@ -196,8 +196,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "orochimaru_experiment",
     "emoji": "🐍",
     "label": "orochimaru experiment",
-    "src": "/assets/icons/events/orochimaru_experiment.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_orochimaru_experiment.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "danger"
   },
@@ -206,8 +206,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "orochimaru_experiment_result",
     "emoji": "📖",
     "label": "orochimaru experiment result",
-    "src": "/assets/icons/events/orochimaru_experiment_result.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_orochimaru_experiment_result.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
@@ -216,8 +216,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "white_zetsu_paranoia",
     "emoji": "☠️",
     "label": "white zetsu paranoia",
-    "src": "/assets/icons/events/white_zetsu_paranoia.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_white_zetsu_paranoia.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "danger"
   },
@@ -226,8 +226,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "bijuu_chakra_fragment",
     "emoji": "🦊",
     "label": "bijuu chakra fragment",
-    "src": "/assets/icons/events/bijuu_chakra_fragment.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_bijuu_chakra_fragment.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -236,8 +236,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "reanimated_envoy",
     "emoji": "💀",
     "label": "reanimated envoy",
-    "src": "/assets/icons/events/reanimated_envoy.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_reanimated_envoy.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
@@ -246,8 +246,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "reanimated_envoy_fate",
     "emoji": "⚔️",
     "label": "reanimated envoy fate",
-    "src": "/assets/icons/events/reanimated_envoy_fate.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_reanimated_envoy_fate.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "combat"
   },
@@ -256,8 +256,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "envoy_gratitude_repaid",
     "emoji": "💎",
     "label": "envoy gratitude repaid",
-    "src": "/assets/icons/events/envoy_gratitude_repaid.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_envoy_gratitude_repaid.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -266,8 +266,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "scavengers_field",
     "emoji": "⚔️",
     "label": "scavengers field",
-    "src": "/assets/icons/events/scavengers_field.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_scavengers_field.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "combat"
   },
@@ -276,8 +276,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "abandoned_supply_cache",
     "emoji": "💎",
     "label": "abandoned supply cache",
-    "src": "/assets/icons/events/abandoned_supply_cache.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_abandoned_supply_cache.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -286,8 +286,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "ancient_treasure_map",
     "emoji": "💎",
     "label": "ancient treasure map",
-    "src": "/assets/icons/events/ancient_treasure_map.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_ancient_treasure_map.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -296,8 +296,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "traveling_merchant_caravan",
     "emoji": "💎",
     "label": "traveling merchant caravan",
-    "src": "/assets/icons/events/traveling_merchant_caravan.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_traveling_merchant_caravan.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -306,8 +306,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "hidden_shrine_blessing",
     "emoji": "⛩️",
     "label": "hidden shrine blessing",
-    "src": "/assets/icons/events/hidden_shrine_blessing.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_hidden_shrine_blessing.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "reward"
   },
@@ -316,12 +316,12 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "intelligence_network",
     "emoji": "📡",
     "label": "intelligence network",
-    "src": "/assets/icons/events/intelligence_network.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_intelligence_network.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
-  // Land of Waves story plates (Grok swarm Imagine 16:9)
+  // Land of Waves story plates
   {
     "key": "event:meet_tazuna",
     "id": "meet_tazuna",
@@ -337,8 +337,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "tazuna_road_mist",
     "emoji": "🌫️",
     "label": "tazuna road mist",
-    // Same fog-corridor beat as meet_tazuna (reuse plate — no new art)
-    "src": "/assets/event_meet_tazuna.png",
+    "src": "/assets/event_tazuna_road_mist.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -403,7 +402,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "kind": "event",
     "category": "story"
   },
-  // A5 WAVE2 residual R1 sides — reuse existing plates (no new image_gen)
+  // A5 WAVE2 residual R1 sides — dedicated plates on disk
   {
     "key": "event:docks_collector_ledger",
     "id": "docks_collector_ledger",
@@ -444,14 +443,14 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "kind": "event",
     "category": "story"
   },
-  // A5 WAVE3 residual R1 sides — reuse existing plates (no new image_gen)
+  // A5 WAVE3 residual R1 sides — map to closest painted plates
   {
     "key": "event:corrupt_merchant_scales",
     "id": "corrupt_merchant_scales",
     "emoji": "⚖️",
     "label": "false scales",
-    "src": "/assets/icons/events/traveling_merchant_caravan.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_corrupt_merchant_scales.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
@@ -460,8 +459,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "riverside_traveler_pact",
     "emoji": "🔥",
     "label": "ashfire pact",
-    "src": "/assets/icons/events/intelligence_network.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_riverside_traveler_pact.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
@@ -470,19 +469,19 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "bandit_outpost_toll",
     "emoji": "⚔️",
     "label": "toll of stakes",
-    "src": "/assets/icons/events/mist_ambush_cache.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_bandit_outpost_toll.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "danger"
   },
-  // A5 WAVE4 residual R1 secrets — reuse existing plates (no new image_gen)
+  // A5 WAVE4 residual R1 secrets — dedicated poster plates
   {
     "key": "event:hidden_cove_silent_drop",
     "id": "hidden_cove_silent_drop",
     "emoji": "🛥️",
     "label": "silent drop",
-    "src": "/assets/icons/events/intelligence_network.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_hidden_cove_silent_drop.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "story"
   },
@@ -491,8 +490,8 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "drowned_shrine_black_tide",
     "emoji": "🏛️",
     "label": "black tide vow",
-    "src": "/assets/icons/events/hidden_shrine_blessing.jpg",
-    "quality": "imagine-jpg",
+    "src": "/assets/event_drowned_shrine_black_tide.png",
+    "quality": "painted-png",
     "kind": "event",
     "category": "danger"
   }

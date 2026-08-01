@@ -1,7 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 import {
   Player, Item, Skill, GameState, BranchingRoom, BranchingFloor,
-  CharacterStats, PrimaryStat, TrainingIntensity, GameEvent, EventChoice,
+  CharacterStats, PrimaryStat, TrainingCostType, GameEvent, EventChoice,
   Enemy, Region, LogEntry, TreasureQuality, ApproachType
 } from '../game/types';
 import {
@@ -454,16 +454,18 @@ export function useActivityHandlers(
     }, 150);
   }, [player, isProcessingLoot, setPlayer, setIsProcessingLoot, addLog]);
 
-  const handleTrainingComplete = useCallback((stat: PrimaryStat, intensity: TrainingIntensity) => {
+  const handleTrainingComplete = useCallback((stat: PrimaryStat, costType: TrainingCostType) => {
     // Ref first — UI resultContinueLock already true when Continue fires; any early-return
     // without consuming session leaves TRAINING stuck (result cleared, train re-entry blocked).
     if (trainingSessionLockRef.current) return;
     if (!trainingData) return;
 
-    // Snapshot regimen before consume (stat/intensity may not match if data raced)
+    // Snapshot regimen before consume (stat/cost may not match if data raced)
     const session = trainingData;
-    const option = session.options.find((o: any) => o.stat === stat);
-    const intensityData = option?.intensities?.[intensity];
+    const offer = session.options.find(
+      (o: { stat: PrimaryStat; costType: TrainingCostType }) =>
+        o.stat === stat && o.costType === costType,
+    );
 
     // Prefer selected room; fall back to floor current (lost pointer must not soft-lock TRAINING)
     const roomId =
@@ -479,35 +481,60 @@ export function useActivityHandlers(
     // updater is NOT readable here (React defers updaters once the fiber is dirty).
     setTrainingData(() => null);
 
-    if (intensityData) {
-      const { cost, gain } = intensityData;
+    if (offer) {
+      const { cost, gain, costType: paidType } = offer;
       const statKey = String(stat).toLowerCase() as keyof Player['primaryStats'];
 
-      // Affordability is decided from the rendered player: a flag written inside the updater is
-      // NOT readable here (deferred once the fiber is dirty — the consume above guarantees it),
-      // so the log always reported "faltered" even when the gain applied.
-      const applied = !!player && player.currentHp > cost.hp && player.currentChakra >= cost.chakra;
+      const canAffordRendered = !!player && (
+        paidType === 'hp'
+          ? player.currentHp > cost
+          : paidType === 'chakra'
+            ? player.currentChakra >= cost
+            : player.ryo >= cost
+      );
 
-      // Functional apply on latest player (affordability may race; still exit room)
       setPlayer(p => {
         if (!p) return null;
-        if (p.currentHp <= cost.hp || p.currentChakra < cost.chakra) return p;
+        if (paidType === 'hp') {
+          if (p.currentHp <= cost) return p;
+          return {
+            ...p,
+            currentHp: Math.max(1, p.currentHp - cost),
+            primaryStats: {
+              ...p.primaryStats,
+              [statKey]: p.primaryStats[statKey] + gain,
+            },
+          };
+        }
+        if (paidType === 'chakra') {
+          if (p.currentChakra < cost) return p;
+          return {
+            ...p,
+            currentChakra: Math.max(0, p.currentChakra - cost),
+            primaryStats: {
+              ...p.primaryStats,
+              [statKey]: p.primaryStats[statKey] + gain,
+            },
+          };
+        }
+        // ryo
+        if (p.ryo < cost) return p;
         return {
           ...p,
-          currentHp: Math.max(1, p.currentHp - cost.hp),
-          currentChakra: Math.max(0, p.currentChakra - cost.chakra),
+          ryo: p.ryo - cost,
           primaryStats: {
             ...p.primaryStats,
-            [statKey]: p.primaryStats[statKey] + gain
-          }
+            [statKey]: p.primaryStats[statKey] + gain,
+          },
         };
       });
 
-      const intensityLabel = intensity.charAt(0).toUpperCase() + intensity.slice(1);
-      if (applied) {
-        addLog(`${intensityLabel} training complete! ${stat} +${gain}`, 'gain');
+      if (canAffordRendered) {
+        const paidLabel =
+          paidType === 'hp' ? `${cost} HP` : paidType === 'chakra' ? `${cost} CP` : `${cost} ryo`;
+        addLog(`Training complete! ${stat} +${gain} — paid ${paidLabel}.`, 'gain');
       } else {
-        addLog('Training faltered — not enough HP or Chakra.', 'danger');
+        addLog('Training faltered — not enough resources for that regimen.', 'danger');
       }
     } else {
       addLog('Training regimen no longer available.', 'danger');

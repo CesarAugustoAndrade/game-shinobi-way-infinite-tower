@@ -5,8 +5,8 @@
  *   dedicated src → category/archetype fallback → emoji → mystery '?'
  *
  * Path convention (Vite public/):
- *   /assets/icons/{components|artifacts|locations|activities|clans|skills|enemies|events}/
- *   Painted: /assets/skill_*.png, /assets/enemy_*.png
+ *   /assets/icons/{components|artifacts|locations|activities|clans|enemies|ui}/
+ *   Painted: /assets/skill_*.png, /assets/event_*.png, /assets/enemy_*.png (+ cutouts)
  */
 
 import { Clan, ComponentId, Item, Skill } from '../types';
@@ -307,6 +307,31 @@ export function getClanArt(clan: Clan): ArtEntry {
   return getArt(clanArtKey(clan));
 }
 
+/** Filesystem slug for hero / hero_cut painted plates (R1-201). */
+export function clanSlug(clan: Clan): string {
+  const key = clanArtKey(clan);
+  const slug = key.includes(':') ? key.slice(key.indexOf(':') + 1) : key;
+  return slug === 'unknown' ? 'uzumaki' : slug;
+}
+
+/**
+ * Full-plate hero portrait (`/assets/hero_<slug>.png`).
+ * Falls back to clan crest emoji when the file is missing (consumer onError).
+ */
+export function getHeroArt(clan: Clan): ArtEntry {
+  const crest = getClanArt(clan);
+  return entry(crest.emoji, crest.label ?? String(clan), `/assets/hero_${clanSlug(clan)}.png`);
+}
+
+/**
+ * Transparent hero cutout (`/assets/hero_cut_<slug>.png`).
+ * CharacterSelect prefers cutout → portrait → crest cascade.
+ */
+export function getHeroCutout(clan: Clan): ArtEntry {
+  const crest = getClanArt(clan);
+  return entry(crest.emoji, crest.label ?? String(clan), `/assets/hero_cut_${clanSlug(clan)}.png`);
+}
+
 /**
  * Runtime location ids are `location-<configId>-<timestamp>-<rand>` (RegionSystem).
  * Art keys are config ids only (`the_docks`, `gatos_compound`, …).
@@ -526,7 +551,7 @@ export const ART_BACKLOG_NOTES = {
   T020_skills:
     'skill:* (114) registered — 93 painted PNG faces under /assets/skill_*.png (WAVE12: no new paint; R1 clan loadout 35/35 ON_DISK; FREE_FIRST toggle parity + silence/empty-hand pass feedback; endgame 21 jpg held; WAVE9–11 cost/block/FloatingText held).',
   T021_enemies_events:
-    'enemy: painted portraits + enemy_cut_* (WAVE15: archetype_tank shinobi regen; pool_mist_ninja plate-owner key; mist-keyword → pool_mist_ninja; WAVE14 residual 15 JPGs deleted + P0/P1 regen + 5 DEDICATE plates). Soft-share KEEP: job_ninja/shinobi→exhausted_shinobi; guard_dog→war_dog; hidden_guard→mist_ninja; assassin→hired_assassin. event: 11 dedicated painted plates + tazuna_road_mist reuses meet_tazuna.',
+    'enemy: painted portraits + enemy_cut_* (WAVE15: archetype_tank shinobi regen; pool_mist_ninja plate-owner key; mist-keyword → pool_mist_ninja; WAVE14 residual 15 JPGs deleted + P0/P1 regen + 5 DEDICATE plates). Soft-share KEEP: job_ninja/shinobi→exhausted_shinobi; guard_dog→war_dog; hidden_guard→mist_ninja; assassin→hired_assassin. event: 44 on-disk event_*.png plates wired painted-png (5 cat + 39 event/alias keys; residual R1 reuses meet_tazuna/caravan/intel/mist_ambush/shrine).',
   T_laminas_r1:
-    'All 14 R1 location slugs have location_ + lamina_mid_ + lamina_fg_ plates (A3 wave2 closed mid/fg residual). resolveLaminaPaths + LAMINA_ASSET_REV=r2wave2a3.',
+    'All 14 R1 location slugs have location_ + lamina_mid_ + lamina_fg_ plates (A3 wave2 closed mid/fg residual). resolveLaminaPaths + LAMINA_ASSET_REV=r5fire6.',
 } as const;

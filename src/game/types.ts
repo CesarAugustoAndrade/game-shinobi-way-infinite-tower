@@ -1126,27 +1126,22 @@ export interface RestActivity {
   completed: boolean;
 }
 
-export type TrainingIntensity = 'light' | 'medium' | 'intense';
+/** Resource paid for one training offer (each session has one offer per type). */
+export type TrainingCostType = 'hp' | 'chakra' | 'ryo';
 
-export interface TrainingIntensityData {
-  cost: { hp: number; chakra: number };
+/** One of three regimens offered at a training ground. */
+export interface TrainingOffer {
+  stat: PrimaryStat;
+  costType: TrainingCostType;
+  cost: number;
   gain: number;
 }
 
-export interface TrainingStatOption {
-  stat: PrimaryStat;
-  intensities: {
-    light: TrainingIntensityData;
-    medium: TrainingIntensityData;
-    intense: TrainingIntensityData;
-  };
-}
-
 export interface TrainingActivity {
-  options: TrainingStatOption[];  // Multiple stats to choose from
+  options: TrainingOffer[]; // length 3 — pick one
   completed: boolean;
-  selectedStat?: PrimaryStat;     // Track what was chosen
-  selectedIntensity?: TrainingIntensity;
+  selectedStat?: PrimaryStat;
+  selectedCostType?: TrainingCostType;
 }
 
 // ============================================================================

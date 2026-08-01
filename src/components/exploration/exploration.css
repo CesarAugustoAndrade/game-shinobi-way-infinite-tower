@@ -1101,32 +1101,6 @@
 .location-map--rogue { background-color: #0a0605; }
 .location-map--war { background-color: #0a0505; }
 
-/* Visor chrome — matches RegionMap CRT language */
-.location-map__scanlines {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0.14) 3px,
-    rgba(0, 0, 0, 0) 4px
-  );
-  opacity: 0.45;
-}
-
-.location-map__vignette {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  /* Soft cinematic edge — do not box the room board into a dark oval */
-  background: radial-gradient(ellipse 92% 88% at 50% 48%, transparent 62%, rgba(0, 0, 0, 0.42) 100%);
-  opacity: 0.85;
-}
-
 /*
  * HUD-on-film: no solid scrim bars. Text rides the painted background edge-to-edge
  * (to the yellow viewscreen frame). Soft text shadow only for readability.
@@ -1138,13 +1112,7 @@
   padding: var(--sw-space-2) var(--sw-space-4) var(--sw-space-1);
   border-bottom: none;
   background: transparent;
-  /* faint top fade only — not a panel box */
-  background-image: linear-gradient(
-    180deg,
-    rgba(5, 6, 8, 0.55) 0%,
-    rgba(5, 6, 8, 0.12) 70%,
-    transparent 100%
-  );
+  background-image: none;
 }
 
 .location-map__header-content {
@@ -1880,42 +1848,18 @@
     inset 0 0 0 1px rgba(232, 228, 220, 0.03);
 }
 
-/* Arc void underplates — mist/abyss climate; CRT scanlines supply instrument */
+/* Arc void underplates — mist/abyss climate */
 .region-map--waves { background: radial-gradient(ellipse at 50% 0%, rgba(26, 38, 51, 0.55), #050608 72%); }
 .region-map--exams { background: radial-gradient(ellipse at 50% 0%, rgba(20, 40, 32, 0.5), #050608 72%); }
 .region-map--rogue { background: radial-gradient(ellipse at 50% 0%, rgba(50, 28, 20, 0.5), #050608 72%); }
 .region-map--war { background: radial-gradient(ellipse at 50% 0%, rgba(48, 18, 18, 0.5), #050608 72%); }
 .region-map--default { background: radial-gradient(ellipse at 50% 0%, rgba(26, 38, 51, 0.45), #050608 72%); }
 
-/* Decorative CRT layers (above content, never intercept clicks) */
-.region-map__scanlines {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0.16) 3px,
-    rgba(0, 0, 0, 0) 4px
-  );
-  opacity: 0.5;
-}
-
-.region-map__vignette {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 52%, rgba(0, 0, 0, 0.7) 100%);
-}
-
 .region-map__header {
   position: relative;
   z-index: 2;
   padding: var(--sw-space-6) var(--sw-space-4) var(--sw-space-4);
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+  background: transparent;
 }
 
 .region-map__header-content {

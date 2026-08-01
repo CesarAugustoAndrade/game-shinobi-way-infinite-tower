@@ -116,11 +116,6 @@ const RegionMap: React.FC<RegionMapProps> = ({
     }
   };
 
-  // Progress calculation
-  const progressPercent = region.totalLocations > 0
-    ? Math.min(100, Math.round((region.locationsCompleted / region.totalLocations) * 100))
-    : 0;
-
   const selectedCard = resolvedIndex !== null ? drawnCards[resolvedIndex] : null;
   const selectedDisplay = selectedCard ? getCardDisplayInfo(selectedCard) : null;
   const mapBg = REGION_MAP_BG[region.arc] ?? '/assets/background_map_exploring.png';
@@ -184,10 +179,6 @@ const RegionMap: React.FC<RegionMapProps> = ({
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* Visor chrome — CRT scanlines + vignette (instrument, not world neon) */}
-      <div className="region-map__scanlines" aria-hidden="true" />
-      <div className="region-map__vignette" aria-hidden="true" />
-
       {/* Header */}
       <div className="region-map__header">
         <div className="region-map__header-content">
@@ -388,42 +379,6 @@ const RegionMap: React.FC<RegionMapProps> = ({
         )}
       </div>
 
-      {/* Footer - Progress & Instructions */}
-      <div className="region-map__footer">
-        {/* Progress */}
-        <div className="region-map__progress">
-          <span className="region-map__progress-label">Region Progress:</span>
-          <div className="region-map__progress-bar-container">
-            <div className="region-map__progress-bar">
-              <div
-                className="region-map__progress-fill"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="region-map__progress-value">{progressPercent}%</span>
-          </div>
-          <span className="region-map__progress-count">
-            ({region.locationsCompleted}/{region.totalLocations})
-          </span>
-        </div>
-        {progressPercent < 75 && (
-          <p className="region-map__boss-gate" role="status">
-            Region boss path opens after ~75% progress ({Math.max(0, 75 - progressPercent)}% to go).
-          </p>
-        )}
-        {progressPercent >= 75 && (
-          <p className="region-map__boss-gate region-map__boss-gate--open" role="status">
-            Boss route available — watch for Gato&apos;s Compound on the cards.
-          </p>
-        )}
-
-        {/* Instructions */}
-        <div className="region-map__instructions">
-          <span className="region-map__key">1-3</span> Select destination
-          <span className="region-map__sep">♦</span>
-          <span className="region-map__key">Space</span> / <span className="region-map__key">Enter</span> go there
-        </div>
-      </div>
     </div>
   );
 };
