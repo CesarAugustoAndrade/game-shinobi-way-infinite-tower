@@ -5,7 +5,7 @@ import { LaunchProperties } from '../../config/featureFlags';
 
 /**
  * Create a new player with starting stats for the given clan.
- * Starting loadout mixes MAIN/SIDE/TOGGLE/PASSIVE cards under the AP economy.
+ * Starting loadout mixes ACTIVE/TOGGLE/PASSIVE cards under the AP economy.
  */
 export const createPlayer = (clan: Clan): Player => {
   const baseStats = CLAN_STATS[clan];

@@ -72,15 +72,25 @@ This document defines the canonical terms used throughout the SHINOBI WAY codeba
 ### Action Type System (AP Economy)
 
 Combat spends **Action Points (AP)** per card; the turn ends when AP is exhausted
-(or the player ends turn). Action types set the default AP cost and card role —
-they do **not** force end-of-turn or free actions.
+(or the player ends turn). Card types: **ACTIVE**, **TOGGLE**, **PASSIVE**.
+Each skill authors its own `apCost` (fallback: ACTIVE/TOGGLE → 2, PASSIVE → 0).
+MAIN/SIDE were collapsed into ACTIVE — there is no MAIN/SIDE phase.
 
 | Term | Definition | Default AP | Usage |
 |------|------------|------------|-------|
-| **MAIN** | Heavy techniques / primary attacks | 2 | Attacks, main jutsu |
-| **TOGGLE** | Stance skills; pay AP to activate, upkeep each turn | 2 | Sharingan, Byakugan |
-| **SIDE** | Light support / setup cards | 1 | Buffs, positioning |
-| **PASSIVE** | Always active, never played as a card | 0 | Clan traits |
+| **ACTIVE** | Playable combat cards (attacks, utility, setup) | 2 (or explicit `apCost`) | Taijutsu, ninjutsu, tools |
+| **TOGGLE** | Stance / dojutsu; pay AP to activate, upkeep each turn | 2 | Sharingan, Byakugan, stances |
+| **PASSIVE** | Always active, never enters the deck | 0 | Clan traits, affinities |
+
+### Deck & Hand
+
+| Term | Definition |
+|------|------------|
+| **Deck** | Non-passive skills (ACTIVE + TOGGLE); start ~8, max 20 |
+| **Hand** | Up to 4 cards drawn each turn (posture-weighted) |
+| **Open learn** | Any clan can learn skills without `requirements.clan` if stats match |
+| **Clan favorites** | Higher scroll/loot weight for preferred skill ids (bias only) |
+| **Stance bonus** | Optional damage (or reserved AP) reward when posture matches |
 
 ## Treasure & Synthesis System
 

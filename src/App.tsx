@@ -710,7 +710,7 @@ const App: React.FC = () => {
   const startGame = (clan: Clan) => {
     if (startGameLockRef.current) return;
     startGameLockRef.current = true;
-    // Full clan loadout (MAIN/SIDE/TOGGLE/PASSIVE) via createPlayer / getClanStartingSkills
+    // Full clan loadout (ACTIVE/TOGGLE/PASSIVE) via createPlayer / getClanStartingSkills
     const newPlayer = createPlayer(clan);
     const mode = pendingRunMode;
 

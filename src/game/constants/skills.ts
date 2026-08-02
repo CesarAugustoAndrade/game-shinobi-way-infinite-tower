@@ -1887,7 +1887,7 @@ export const SKILLS: Record<string, Skill> = {
   },
 
   // ==========================================
-  // HIDDEN TIER - SIDE ACTIONS (NEW)
+  // HIDDEN TIER - ACTIVE (utility)
   // ==========================================
   SAND_SHIELD: {
     id: 'sand_shield',
@@ -2299,7 +2299,7 @@ export const SKILLS: Record<string, Skill> = {
   },
 
   // ==========================================
-  // FORBIDDEN TIER - MAIN ACTIONS (NEW)
+  // FORBIDDEN TIER - ACTIVE
   // ==========================================
   HIDDEN_LOTUS: {
     id: 'hidden_lotus',
@@ -2469,7 +2469,7 @@ export const SKILLS: Record<string, Skill> = {
   },
 
   // ==========================================
-  // FORBIDDEN TIER - SIDE ACTIONS (NEW)
+  // FORBIDDEN TIER - ACTIVE (utility)
   // ==========================================
   CURSE_SURGE: {
     id: 'curse_surge',

@@ -25,7 +25,7 @@ describe('getCardCategory', () => {
     expect(getCardCategory(SKILLS.ROTATION)).toBe('defensive');
   });
 
-  it('classifies a damage skill (Senbon Rain, 0.8 mult MAIN) as offensive', () => {
+  it('classifies a damage skill (Senbon Rain, 0.8 mult ACTIVE) as offensive', () => {
     expect(SKILLS.SENBON_RAIN.damageMult).toBe(0.8);
     expect(getCardCategory(SKILLS.SENBON_RAIN)).toBe('offensive');
   });

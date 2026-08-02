@@ -1090,15 +1090,11 @@
   color: var(--sw-bone-muted, #7a766c);
 }
 
-.combat-tooltip__action--side {
-  color: var(--sw-chakra-color);
-}
-
 .combat-tooltip__action--toggle {
   color: var(--sw-rust-light, #c2410c);
 }
 
-.combat-tooltip__action--main {
+.combat-tooltip__action--active {
   color: var(--sw-category-body-light);
 }
 

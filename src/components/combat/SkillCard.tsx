@@ -115,7 +115,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
       classes.push('skill-card--toggle');
       if (isActive) classes.push('skill-card--active');
     } else {
-      classes.push('skill-card--main'); // ACTIVE playable cards share the main face style
+      classes.push('skill-card--active-type'); // ACTIVE playable face (not toggle-on state)
     }
 
     // State modifiers
@@ -142,7 +142,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
         ? { text: 'ACTIVE', className: 'skill-card__action-badge--toggle-active' }
         : { text: 'TOGGLE', className: 'skill-card__action-badge--toggle' };
     }
-    return { text: 'ACTIVE', className: 'skill-card__action-badge--main' };
+    return { text: 'ACTIVE', className: 'skill-card__action-badge--active' };
   };
 
   const actionBadge = getActionBadge();

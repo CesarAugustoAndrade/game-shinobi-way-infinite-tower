@@ -4,6 +4,9 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Changed
+- **Card combat debt cleanup:** SkillCard/Combat CSS MAIN/SIDE classes → ACTIVE; `skillArtManifest` action MAIN/SIDE→ACTIVE; `GLOSSARY.md` Action Type + deck/hand/open learn docs; stale MAIN/SIDE comments.
+
 ### Added
 - **Card combat polish (20-agent review pass):** multi-stat `requirements.stats` full catalog migration (~64 skills); ScrollDiscovery/Loot forget-at-20 UI; Hand tooltip `stanceBonus`/`stanceShift` + stance dmg in damage preview; BuildGenerator/ProgressionSimulator academy-first + `canLearnSkill` (no Yamanaka Tsukuyomi); ~20 skills with stance match bonuses; Byakugan/Sharingan explicit `apCost`.
 - **Card combat vision (foundation)** — deckbuilder model aligned to live AP combat:

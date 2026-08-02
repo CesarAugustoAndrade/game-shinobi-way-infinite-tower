@@ -196,7 +196,7 @@ export const Hand: React.FC<HandProps> = ({
                     <span className="combat-tooltip__tier">{skill.tier}</span>
                     <span className={
                       skill.actionType === ActionType.TOGGLE ? 'combat-tooltip__action--toggle' :
-                      'combat-tooltip__action--main'
+                      'combat-tooltip__action--active'
                     }>
                       {skill.actionType || ActionType.ACTIVE} · {apCost} AP
                     </span>
