@@ -2,16 +2,24 @@
  * Progression Simulator - Simulates full game runs with level/skill progression
  *
  * Features:
- * - Starts at level 1 with basic skillset
+ * - Starts at level 1 with clan academy loadout (getClanStartingSkills)
  * - Levels up every N battles (configurable)
- * - Acquires new skills every M battles (based on INT requirement)
+ * - Acquires skills via canLearnSkill (multi-stat + open learn + clan hard-gates)
+ * - Prefers CLAN_FAVORITE_SKILLS when multiple options are eligible
  * - Tracks win rate by level to identify difficulty breakpoints
  */
 
-import { Clan, PrimaryAttributes, SkillTier } from '../game/types';
-import { CLAN_STATS, CLAN_GROWTH, CLAN_ELEMENTS, SKILLS } from '../game/constants';
+import { Clan, PrimaryAttributes } from '../game/types';
+import { CLAN_ELEMENTS } from '../game/constants';
+import { LaunchProperties } from '../config/featureFlags';
 import { runBattles } from './BattleSimulator';
 import { EnemyArchetype, getAllArchetypes } from './EnemyArchetypes';
+import {
+  calculatePlayerStats,
+  getClanStartingSkillIds,
+  resolveSkillById,
+  selectNextProgressionSkill,
+} from './BuildGenerator';
 import {
   ProgressionConfig,
   ProgressionState,
@@ -32,113 +40,7 @@ import {
  * Calculate primary stats for a clan at a specific level
  */
 function calculateStatsAtLevel(clan: Clan, level: number): PrimaryAttributes {
-  const baseStats = CLAN_STATS[clan];
-  const growth = CLAN_GROWTH[clan];
-
-  return {
-    willpower: baseStats.willpower + (growth.willpower || 0) * (level - 1),
-    chakra: baseStats.chakra + (growth.chakra || 0) * (level - 1),
-    strength: baseStats.strength + (growth.strength || 0) * (level - 1),
-    spirit: baseStats.spirit + (growth.spirit || 0) * (level - 1),
-    intelligence: baseStats.intelligence + (growth.intelligence || 0) * (level - 1),
-    calmness: baseStats.calmness + (growth.calmness || 0) * (level - 1),
-    speed: baseStats.speed + (growth.speed || 0) * (level - 1),
-    accuracy: baseStats.accuracy + (growth.accuracy || 0) * (level - 1),
-    dexterity: baseStats.dexterity + (growth.dexterity || 0) * (level - 1)
-  };
-}
-
-// ============================================================================
-// SKILL SELECTION
-// ============================================================================
-
-/**
- * Get all skills from SKILLS database as an array
- */
-function getAllSkillsArray() {
-  return Object.values(SKILLS);
-}
-
-/**
- * Build skill pool based on intelligence requirements
- */
-function buildSkillPool(): string[] {
-  return getAllSkillsArray()
-    .filter(skill => {
-      // Exclude basic attack (starting skill)
-      if (skill.id === 'basic_atk') return false;
-      // Include skills with INT requirement or no requirement
-      return true;
-    })
-    .map(skill => skill.id);
-}
-
-/**
- * Get skills available based on current intelligence
- */
-function getAvailableSkills(
-  intelligence: number,
-  currentSkillIds: string[],
-  skillPool: string[]
-): string[] {
-  return skillPool.filter(skillId => {
-    const skill = SKILLS[skillId.toUpperCase()] ||
-      Object.values(SKILLS).find(s => s.id === skillId);
-    if (!skill) return false;
-
-    // Already known
-    if (currentSkillIds.includes(skillId)) return false;
-
-    // Check intelligence requirement
-    if (skill.requirements?.intelligence &&
-        intelligence < skill.requirements.intelligence) {
-      return false;
-    }
-
-    // Don't include clan-locked skills for wrong clans (handled in caller)
-    if (skill.requirements?.clan) return false;
-
-    return true;
-  });
-}
-
-/**
- * Tier priority for skill selection
- * Tier order: BASIC → ADVANCED → HIDDEN → FORBIDDEN → KINJUTSU
- */
-function getTierPriority(tier: SkillTier): number {
-  switch (tier) {
-    case SkillTier.KINJUTSU: return 5;
-    case SkillTier.FORBIDDEN: return 4;
-    case SkillTier.HIDDEN: return 3;
-    case SkillTier.ADVANCED: return 2;
-    case SkillTier.BASIC: return 1;
-    default: return 0;
-  }
-}
-
-/**
- * Select best available skill (prioritize by tier)
- */
-function selectBestSkill(availableSkillIds: string[]): string | null {
-  if (availableSkillIds.length === 0) return null;
-
-  const skills = availableSkillIds
-    .map(id => {
-      const skill = SKILLS[id.toUpperCase()] ||
-        Object.values(SKILLS).find(s => s.id === id);
-      return skill ? { id, skill } : null;
-    })
-    .filter((s): s is { id: string; skill: typeof SKILLS[keyof typeof SKILLS] } => s !== null)
-    .sort((a, b) => getTierPriority(b.skill.tier) - getTierPriority(a.skill.tier));
-
-  if (skills.length === 0) return null;
-
-  // Pick from top tier with some randomness
-  const topTier = skills[0].skill.tier;
-  const topTierSkills = skills.filter(s => s.skill.tier === topTier);
-
-  return topTierSkills[Math.floor(Math.random() * topTierSkills.length)].id;
+  return calculatePlayerStats(clan, level);
 }
 
 // ============================================================================
@@ -187,15 +89,21 @@ export function runProgressionSimulation(
   config: ProgressionConfig,
   runId: number
 ): ProgressionRunResult {
-  // Build skill pool if not provided
-  const skillPool = config.skillPool.length > 0
-    ? config.skillPool
-    : buildSkillPool();
+  // Academy-first: default start is full clan kit unless caller overrides
+  const startingSkillIds =
+    config.startingSkillIds.length > 0
+      ? [...config.startingSkillIds]
+      : getClanStartingSkillIds(clan);
+
+  const maxSkills =
+    config.maxSkills > 0
+      ? config.maxSkills
+      : LaunchProperties.MAX_DECK_SIZE + 4; // playable deck + passives room
 
   // Initialize state
   let state: ProgressionState = {
     currentLevel: config.startLevel,
-    currentSkillIds: [...config.startingSkillIds],
+    currentSkillIds: startingSkillIds,
     battleCount: 0,
     battlesUntilLevelUp: config.battlesPerLevelUp,
     battlesUntilSkillGain: config.battlesPerSkillGain,
@@ -250,20 +158,18 @@ export function runProgressionSimulation(
       leveledUp = true;
     }
 
-    // Process skill gain
-    if (state.battlesUntilSkillGain <= 0 && state.currentSkillIds.length < config.maxSkills) {
-      const available = getAvailableSkills(
-        state.currentIntelligence,
+    // Process skill gain — favorites + open learn by full stats; clan gates only when matching
+    if (state.battlesUntilSkillGain <= 0 && state.currentSkillIds.length < maxSkills) {
+      const stats = calculateStatsAtLevel(clan, state.currentLevel);
+      const newSkillId = selectNextProgressionSkill(
+        stats,
+        clan,
         state.currentSkillIds,
-        skillPool
+        state.currentLevel
       );
-
-      if (available.length > 0) {
-        const newSkillId = selectBestSkill(available);
-        if (newSkillId) {
-          state.currentSkillIds.push(newSkillId);
-          skillGained = newSkillId;
-        }
+      if (newSkillId) {
+        state.currentSkillIds.push(newSkillId);
+        skillGained = newSkillId;
       }
       state.battlesUntilSkillGain = config.battlesPerSkillGain;
     }
@@ -285,7 +191,7 @@ export function runProgressionSimulation(
   // Calculate results
   const wins = battles.filter(b => b.won).length;
   const skillsAcquired = state.currentSkillIds.filter(
-    s => !config.startingSkillIds.includes(s)
+    s => !startingSkillIds.includes(s)
   );
 
   return {
@@ -442,8 +348,7 @@ export function printProgressionSummary(summaries: ProgressionSummary[]): void {
     if (sortedSkills.length > 0) {
       console.log('\n  Top Skills Acquired:');
       for (const [skillId, rate] of sortedSkills) {
-        const skill = SKILLS[skillId.toUpperCase()] ||
-          Object.values(SKILLS).find(s => s.id === skillId);
+        const skill = resolveSkillById(skillId);
         const name = skill?.name || skillId;
         console.log(`    ${name}: ${(rate * 100).toFixed(0)}% of runs`);
       }

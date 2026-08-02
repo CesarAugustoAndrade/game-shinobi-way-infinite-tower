@@ -330,6 +330,7 @@ export function useCombatVictory(
           difficulty,
           currentLocation?.lootTable,
           region?.lootTheme,
+          player?.clan,
         );
         setTreasureHuntReward({
           items: reward.items,

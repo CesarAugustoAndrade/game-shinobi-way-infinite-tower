@@ -50,7 +50,7 @@
   /* Stage floor: keep cinematic tall enough that deck never crushes the foe
      (reference: big enemy + left glass panel need vertical presence). */
   --cb-stage-min: clamp(260px, 40vh, 560px);
-  --cb-deck-bg: var(--sw-void-glass, rgba(5, 6, 8, 0.96));
+  --cb-deck-bg: rgba(5, 6, 8, 0.74);
   --cb-deck-border: var(--sw-metal, #2d3d4a);
   --cb-deck-pad-x: var(--sw-space-6);
   --cb-deck-pad-y: var(--sw-space-3);
@@ -82,8 +82,19 @@
   overflow-x: hidden;
   overflow-y: hidden;
   z-index: var(--sw-z-base);
-  background: var(--sw-void, #050608);
+  isolation: isolate;
+  background-color: var(--sw-void, #050608);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
   color: var(--cb-bone);
+}
+
+/* The biome plate belongs to the whole combat room, below the global HUD.
+   CinematicViewscreen keeps sprites/panels/FX but no longer paints a second,
+   differently cropped copy of the same background over the stage. */
+.combat .cinematic {
+  background: transparent;
 }
 
 /* ============================================================

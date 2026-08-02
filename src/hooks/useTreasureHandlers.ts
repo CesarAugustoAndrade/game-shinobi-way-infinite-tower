@@ -515,6 +515,7 @@ export function useTreasureHandlers(
           // T-072: location loot + region theme bias for hunt completion rewards
           state.currentLocation?.lootTable ?? locationFloor?.lootTable,
           region?.lootTheme ?? locationFloor?.lootTheme,
+          player?.clan,
         );
         setTreasureHuntReward({
           items: reward.items,

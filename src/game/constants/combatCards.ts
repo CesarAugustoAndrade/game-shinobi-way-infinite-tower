@@ -104,28 +104,23 @@ export function getCardCategory(skill: Skill): CardCategory {
 
 /**
  * Derive the default Action Point cost for a card from its `ActionType`.
- * Used as a fallback when `Skill.apCost` is not explicitly set.
+ * Used only as a safety fallback when `Skill.apCost` is not set.
+ * Catalog skills should author `apCost` explicitly.
  *
- * - MAIN   → 2 (heavy techniques / primary attacks)
- * - TOGGLE → 2 (activating a stance)
- * - SIDE   → 1 (light support actions)
- * - PASSIVE → 0 (never played as a card; always active)
- *
- * @param skill - The skill to price.
- * @returns The AP cost to play this card.
+ * - ACTIVE  → 2
+ * - TOGGLE  → 2
+ * - PASSIVE → 0
  */
 export function getDefaultApCost(skill: Skill): number {
   switch (skill.actionType) {
-    case ActionType.MAIN:
+    case ActionType.ACTIVE:
       return 2;
     case ActionType.TOGGLE:
       return 2;
-    case ActionType.SIDE:
-      return 1;
     case ActionType.PASSIVE:
       return 0;
     default:
-      return 1;
+      return 2;
   }
 }
 

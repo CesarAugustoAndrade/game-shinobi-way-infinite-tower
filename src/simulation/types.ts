@@ -298,9 +298,11 @@ export const DEFAULT_PROGRESSION_CONFIG: ProgressionConfig = {
   maxLevel: 50,
   battlesPerLevelUp: 2,
   battlesPerSkillGain: 3,
-  startingSkillIds: ['basic_atk'],
-  maxSkills: 4,
-  skillPool: [],  // Will be populated from SKILLS
+  // Empty → runProgressionSimulation uses getClanStartingSkillIds(clan) (academy kit)
+  startingSkillIds: [],
+  // Playable deck cap + room for passives (LaunchProperties.MAX_DECK_SIZE is 20)
+  maxSkills: 24,
+  skillPool: [],  // Unused when using BuildGenerator selectNextProgressionSkill
   maxBattles: 500,
   runsToSimulate: 100
 };

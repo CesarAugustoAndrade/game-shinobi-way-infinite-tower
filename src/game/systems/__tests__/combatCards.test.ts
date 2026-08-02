@@ -33,7 +33,7 @@ describe('getCardCategory', () => {
   it('classifies a zero-damage buff to a survival stat (WILLPOWER) as defensive', () => {
     const guard = createMockSkill({
       damageMult: 0,
-      actionType: ActionType.SIDE,
+      actionType: ActionType.ACTIVE,
       effects: [
         { type: EffectType.BUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.3, duration: 1, chance: 1.0 },
       ],
@@ -44,7 +44,7 @@ describe('getCardCategory', () => {
   it('classifies a zero-damage buff to a survival stat (CALMNESS) as defensive', () => {
     const calm = createMockSkill({
       damageMult: 0,
-      actionType: ActionType.SIDE,
+      actionType: ActionType.ACTIVE,
       effects: [
         { type: EffectType.BUFF, targetStat: PrimaryStat.CALMNESS, value: 0.5, duration: 3, chance: 1.0 },
       ],
@@ -55,7 +55,7 @@ describe('getCardCategory', () => {
   it('classifies a zero-damage buff to an offensive stat (STRENGTH) as utility', () => {
     const attackBuff = createMockSkill({
       damageMult: 0,
-      actionType: ActionType.SIDE,
+      actionType: ActionType.ACTIVE,
       effects: [
         { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.25, duration: 2, chance: 1.0 },
       ],
@@ -66,20 +66,18 @@ describe('getCardCategory', () => {
 
 describe('getApCost', () => {
   it('respects an explicit apCost on the skill', () => {
-    const skill = createMockSkill({ actionType: ActionType.MAIN, apCost: 3 });
+    const skill = createMockSkill({ actionType: ActionType.ACTIVE, apCost: 3 });
     expect(getApCost(skill)).toBe(3);
   });
 
   it('derives default cost from ActionType when apCost is absent', () => {
-    expect(getDefaultApCost(createMockSkill({ actionType: ActionType.MAIN }))).toBe(2);
+    expect(getDefaultApCost(createMockSkill({ actionType: ActionType.ACTIVE }))).toBe(2);
     expect(getDefaultApCost(createMockSkill({ actionType: ActionType.TOGGLE }))).toBe(2);
-    expect(getDefaultApCost(createMockSkill({ actionType: ActionType.SIDE }))).toBe(1);
     expect(getDefaultApCost(createMockSkill({ actionType: ActionType.PASSIVE }))).toBe(0);
   });
 
   it('falls back to the ActionType default through getApCost', () => {
-    expect(getApCost(createMockSkill({ actionType: ActionType.MAIN, apCost: undefined }))).toBe(2);
-    expect(getApCost(createMockSkill({ actionType: ActionType.SIDE, apCost: undefined }))).toBe(1);
+    expect(getApCost(createMockSkill({ actionType: ActionType.ACTIVE, apCost: undefined }))).toBe(2);
   });
 });
 

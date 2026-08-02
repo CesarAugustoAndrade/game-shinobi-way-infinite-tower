@@ -396,11 +396,6 @@
   background: var(--sw-risk-high-bg);
 }
 
-.scroll-card__warning--slots {
-  color: var(--sw-rust-light, #c47a52);
-  background: var(--sw-rust-bg, rgba(166, 93, 63, 0.18));
-}
-
 .scroll-card__warning--chakra {
   font-size: var(--sw-text-3xs);
   color: var(--sw-risk-high-light);
@@ -477,11 +472,20 @@
   color: var(--sw-risk-high-light);
 }
 
-/* Replace Skill Grid */
+/* Replace / Forget Skill Grid (deck full) */
 .scroll-card__replace-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--sw-space-2);
+}
+
+.scroll-card__replace-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-rust-light, #c47a52);
+  text-align: center;
+  line-height: 1.35;
 }
 
 .scroll-card__btn--replace {

@@ -783,7 +783,12 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   })();
 
   return (
-    <div className="combat">
+    <div
+      className="combat"
+      style={background ? {
+        backgroundImage: `linear-gradient(180deg, rgba(5, 6, 8, 0.08) 0%, rgba(5, 6, 8, 0.16) 58%, rgba(5, 6, 8, 0.38) 100%), url("${background}")`,
+      } : undefined}
+    >
       {openBanner && (
         <div
           className={`combat-open-banner ${openBanner.success ? 'combat-open-banner--success' : 'combat-open-banner--fail'}`}
@@ -873,7 +878,6 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         <CinematicViewscreen
           enemyImage={enemyPortrait}
           enemyCutout={enemyCutout}
-          backgroundImage={background}
           midgroundImage={midgroundImage}
           foregroundImage={foregroundImage}
           chakraAuraColor={chakraAuraColor}

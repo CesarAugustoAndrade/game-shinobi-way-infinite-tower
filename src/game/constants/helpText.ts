@@ -241,12 +241,13 @@ export const HELP_TEXT = {
   COMBAT_MECHANICS: {
     DECK_ECONOMY: {
       title: "Deck, Hand & Action Points",
-      overview: "Combat is a card-based system. Your known jutsu form a deck; each turn you draw a hand and spend Action Points (AP) to play cards.",
+      overview: "Combat is a card-based system. Your known jutsu form a deck; each turn you draw a hand and spend Action Points (AP) to play cards. There is no MAIN/SIDE phase — only AP.",
       points: [
-        { label: "Deck", desc: "Built from your skill list (MAIN, SIDE, TOGGLE, PASSIVE). Every jutsu you know can appear as a card." },
-        { label: "Hand", desc: "You draw 4 cards at the start of each turn. Posture biases which kinds of cards appear." },
-        { label: "Action Points (AP)", desc: "Base 3 AP/turn + 1 per 10 Speed. Each card costs AP; when AP is gone, your turn ends. Harsh location terrain (movement penalty) can cut your AP budget — the combat HUD shows Terrain −N when that happens." },
-        { label: "Playing cards", desc: "MAIN skills are attacks/heals; SIDE are setups/utility; TOGGLE shift combat posture; PASSIVES stay on your character." }
+        { label: "Deck (8–20)", desc: "Playable jutsu (ACTIVE + TOGGLE) form your draw pile. Academy kits start ~8 cards; hard cap 20. PASSIVES stay always-on and never enter the deck." },
+        { label: "Hand", desc: "You draw 4 cards at the start of each turn. Posture biases which kinds of cards appear (offensive / utility / defensive)." },
+        { label: "Action Points (AP)", desc: "Base 3 AP/turn + 1 per 10 Speed. Each card costs AP (and often CP); when AP is gone, your turn ends. Harsh location terrain (movement penalty) can cut your AP budget — the combat HUD shows Terrain −N when that happens." },
+        { label: "Card types", desc: "ACTIVE — attacks, utility, and setups (each card has its own AP cost). TOGGLE — modes: pay AP to activate, then upkeep each turn. PASSIVE — always on, not drawn. Some ACTIVE cards deal bonus damage when your combat posture matches their stance bonus." },
+        { label: "Learning", desc: "Most techniques are open to any clan if you meet the stat requirements. Bloodline skills (e.g. Sharingan, Byakugan) stay clan-locked. Your clan's favorite techniques appear more often on scrolls and loot." }
       ]
     },
     POSTURES: [

@@ -2,7 +2,7 @@ import { useCallback, useRef, useEffect } from 'react';
 import {
   Player, Item, Skill, GameState, BranchingRoom, BranchingFloor,
   CharacterStats, PrimaryStat, TrainingCostType, GameEvent, EventChoice,
-  Enemy, Region, LogEntry, TreasureQuality, ApproachType
+  Enemy, Region, LogEntry, TreasureQuality, ApproachType, ActionType,
 } from '../game/types';
 import {
   completeActivity, getCurrentRoom
@@ -18,6 +18,7 @@ import { generateEnemy } from '../game/systems/EnemySystem';
 import { generateMerchantItem } from '../game/systems/LootSystem';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { canLearnSkill } from '../game/systems/StatSystem';
+import { canAddPlayableSkill } from '../game/systems/DeckSystem';
 import { ApproachResult } from '../game/systems/ApproachSystem';
 import { TERRAIN_DEFINITIONS } from '../game/constants/terrain';
 import { MERCHANT } from '../game/config';
@@ -648,7 +649,7 @@ export function useActivityHandlers(
       if (playerStats) {
         const checkResult = canLearnSkill(
           skill,
-          playerStats.effectivePrimary.intelligence,
+          playerStats.effectivePrimary,
           p.level,
           p.clan
         );
@@ -673,11 +674,22 @@ export function useActivityHandlers(
         box.detail = existing.name;
         box.level = currentLevel + 1;
       } else if (slotIndex !== undefined && nextSkills[slotIndex]) {
+        const replaced = nextSkills[slotIndex];
+        if (
+          skill.actionType !== ActionType.PASSIVE &&
+          !canAddPlayableSkill(nextSkills) &&
+          replaced.actionType === ActionType.PASSIVE
+        ) {
+          return p;
+        }
         box.o = 'replace';
-        box.detail = nextSkills[slotIndex].name;
+        box.detail = replaced.name;
         nextSkills = [...nextSkills];
         nextSkills[slotIndex] = { ...skill, level: 1 };
-      } else if (nextSkills.length < 4) {
+      } else if (
+        skill.actionType === ActionType.PASSIVE ||
+        canAddPlayableSkill(nextSkills)
+      ) {
         nextSkills = [...nextSkills, { ...skill, level: 1 }];
         box.o = 'learn';
       } else {

@@ -7,6 +7,7 @@ import {
   ScrollDiscoveryActivity,
   CharacterStats,
   RegionLootTheme,
+  ActionType,
 } from '../../game/types';
 import { Scroll, Zap, Brain, Sparkles } from 'lucide-react';
 import Tooltip from '../../components/shared/Tooltip';
@@ -22,6 +23,9 @@ import { isFocusStat } from '../../game/utils/itemFocusMatch';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import ArtIcon from '../../components/shared/ArtIcon';
 import { getSkillArt } from '../../game/constants/artRegistry';
+import { canLearnSkill } from '../../game/systems/StatSystem';
+import { canAddPlayableSkill } from '../../game/systems/DeckSystem';
+import { LaunchProperties } from '../../config/featureFlags';
 import './ScrollDiscovery.css';
 
 interface ScrollDiscoveryProps {
@@ -125,7 +129,8 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
 
   // Check if player already knows the skill
   const alreadyKnows = (skill: Skill) => player.skills.some(s => s.id === skill.id);
-  const skillSlotsFull = player.skills.length >= 4;
+  // Combat deck cap: non-PASSIVE cards (see LaunchProperties.MAX_DECK_SIZE)
+  const deckHasRoom = canAddPlayableSkill(player.skills);
 
   // T-051: preview result then apply via parent on continue
   const prepareLearn = useCallback(
@@ -209,23 +214,15 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onSkip, result, handleResultContinue]);
 
-  // Check skill requirements
+  // Multi-stat + clan hard-gates via shared canLearnSkill
   const meetsRequirements = (skill: Skill): { meets: boolean; reason?: string } => {
-    if (!skill.requirements) return { meets: true };
-
-    if (skill.requirements.intelligence &&
-        playerStats.effectivePrimary.intelligence < skill.requirements.intelligence) {
-      return {
-        meets: false,
-        reason: `Requires ${skill.requirements.intelligence} INT (you have ${Math.floor(playerStats.effectivePrimary.intelligence)})`
-      };
-    }
-
-    if (skill.requirements.clan && skill.requirements.clan !== player.clan) {
-      return { meets: false, reason: `Requires ${skill.requirements.clan} bloodline` };
-    }
-
-    return { meets: true };
+    const { canLearn, reason } = canLearnSkill(
+      skill,
+      playerStats.effectivePrimary,
+      player.level,
+      player.clan,
+    );
+    return { meets: canLearn, reason };
   };
 
   // T-051: learn/upgrade/replace result beat before parent unmounts
@@ -341,7 +338,6 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
         {scrollDiscovery.availableScrolls.map((skill) => {
           const known = alreadyKnows(skill);
           const reqCheck = meetsRequirements(skill);
-          const canLearn = canAfford && reqCheck.meets && (!skillSlotsFull || known);
           const themed = isThemedScroll(skill);
 
           return (
@@ -449,15 +445,9 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
                   </div>
                 )}
 
-                {skillSlotsFull && !known && (
-                  <div className="scroll-card__warning scroll-card__warning--slots">
-                    Skill slots full (4/4) - will replace existing skill
-                  </div>
-                )}
-
                 <div className="scroll-card__actions">
-                  {/* Upgrade or Learn button */}
-                  {(known || (!skillSlotsFull && reqCheck.meets)) && (
+                  {/* Known → upgrade always available (deck size irrelevant) */}
+                  {known ? (
                     <button
                       type="button"
                       disabled={!canAfford || !reqCheck.meets}
@@ -465,30 +455,56 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
                       className={`scroll-card__btn scroll-card__btn--learn ${!canAfford || !reqCheck.meets ? 'scroll-card__btn--learn:disabled' : ''}`}
                     >
                       <Sparkles size={14} />
-                      {known ? 'Upgrade Skill' : 'Learn Technique'}
+                      Upgrade Skill
                       {chakraCost > 0 && (
                         <span className={`scroll-card__btn-cost ${canAfford ? 'scroll-card__btn-cost--affordable' : 'scroll-card__btn-cost--insufficient'}`}>
                           (-{chakraCost} Chakra)
                         </span>
                       )}
                     </button>
-                  )}
-
-                  {/* Replacement buttons when slots are full */}
-                  {!known && player.skills.length > 0 && reqCheck.meets && (
-                    <div className="scroll-card__replace-grid">
-                      {player.skills.map((s, idx) => (
+                  ) : (
+                    <>
+                      {/* Under deck cap → Learn */}
+                      {deckHasRoom && reqCheck.meets && (
                         <button
                           type="button"
-                          key={idx}
                           disabled={!canAfford}
-                          onClick={() => prepareLearn(skill, idx)}
-                          className="scroll-card__btn--replace"
+                          onClick={() => prepareLearn(skill)}
+                          className={`scroll-card__btn scroll-card__btn--learn ${!canAfford ? 'scroll-card__btn--learn:disabled' : ''}`}
                         >
-                          Replace {s.name}
+                          <Sparkles size={14} />
+                          Learn Technique
+                          {chakraCost > 0 && (
+                            <span className={`scroll-card__btn-cost ${canAfford ? 'scroll-card__btn-cost--affordable' : 'scroll-card__btn-cost--insufficient'}`}>
+                              (-{chakraCost} Chakra)
+                            </span>
+                          )}
                         </button>
-                      ))}
-                    </div>
+                      )}
+
+                      {/* Deck full → forget a non-PASSIVE card, then learn */}
+                      {!deckHasRoom && player.skills.length > 0 && reqCheck.meets && (
+                        <div className="scroll-card__replace-grid">
+                          <p className="scroll-card__replace-hint">
+                            Deck full ({LaunchProperties.MAX_DECK_SIZE}). Forget a card to learn this:
+                          </p>
+                          {player.skills
+                            .map((s, idx) => ({ s, idx }))
+                            .filter(({ s }) => s.actionType !== ActionType.PASSIVE)
+                            .map(({ s, idx }) => (
+                              <button
+                                type="button"
+                                key={s.id}
+                                disabled={!canAfford}
+                                onClick={() => prepareLearn(skill, idx)}
+                                className="scroll-card__btn--replace"
+                              >
+                                Forget {s.name}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {!canAfford && (

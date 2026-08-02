@@ -74,13 +74,14 @@ import {
   ItemStatBonus,
   SkillTier,
   Player,
+  Clan,
   DISASSEMBLE_RETURN_RATE,
   MAX_BAG_SLOTS,
   SLOT_MAPPING,
   TreasureQuality,
   PassiveEffect
 } from '../types';
-import { SKILLS } from '../constants';
+import { SKILLS, CLAN_FAVORITE_SKILLS } from '../constants';
 import { COMPONENT_DEFINITIONS, COMPONENT_DROP_WEIGHTS } from '../constants/components';
 import { findRecipe, SYNTHESIS_RECIPES } from '../constants/synthesis';
 import { DIFFICULTY, CRAFTING_COSTS, BALANCE, LOOT_BALANCE } from '../config';
@@ -112,7 +113,9 @@ export const generateSkillLoot = (
   enemyTier: string,
   currentFloor: number,
   /** T-114: optional region theme (same bias as generateSkillForFloor) */
-  lootTheme?: import('../types').RegionLootTheme | null,
+  lootTheme?: RegionLootTheme | null,
+  /** Optional clan — favorites get higher drop weight; wrong clan-locks filtered */
+  clan?: Clan | null,
 ): Skill | null => {
   // Tier mapping: BASIC → ADVANCED → HIDDEN → FORBIDDEN → KINJUTSU
   let possibleTiers: SkillTier[] = [SkillTier.BASIC];
@@ -121,20 +124,32 @@ export const generateSkillLoot = (
   else if (enemyTier === 'Akatsuki' || enemyTier === 'Kage Level' || enemyTier.includes('S-Rank')) possibleTiers = [SkillTier.HIDDEN, SkillTier.FORBIDDEN];
   else if (enemyTier === 'Guardian') possibleTiers = [SkillTier.FORBIDDEN, SkillTier.KINJUTSU];
 
-  const candidates = Object.values(SKILLS).filter(s => possibleTiers.includes(s.tier));
+  let candidates = Object.values(SKILLS).filter(s => possibleTiers.includes(s.tier));
+  if (clan) {
+    candidates = candidates.filter(
+      (s) => !s.requirements?.clan || s.requirements.clan === clan,
+    );
+  }
   if (candidates.length === 0) return SKILLS.SHURIKEN;
-  if (!lootTheme) return pick(candidates) ?? SKILLS.SHURIKEN;
+
+  const favorites = clan
+    ? new Set(CLAN_FAVORITE_SKILLS[clan] ?? [])
+    : null;
+  const favWeight = LaunchProperties.CLAN_FAVORITE_SKILL_WEIGHT;
+
+  if (!lootTheme && !favorites) return pick(candidates) ?? SKILLS.SHURIKEN;
 
   const focus = new Set(
-    (lootTheme.equipmentFocus ?? []).map((s) => s.toLowerCase()),
+    (lootTheme?.equipmentFocus ?? []).map((s) => s.toLowerCase()),
   );
-  const preferred = lootTheme.primaryElement;
+  const preferred = lootTheme?.primaryElement;
   return (
     weightedPick(candidates, (skill) => {
       let w = 1;
       if (preferred && skill.element === preferred) w *= 1.85;
       const scale = String(skill.scalingStat).toLowerCase();
       if (focus.size > 0 && focus.has(scale)) w *= 1.6;
+      if (favorites?.has(skill.id)) w *= favWeight;
       return w;
     }) ?? SKILLS.SHURIKEN
   );
@@ -149,7 +164,8 @@ export const generateSkillLoot = (
  */
 export const generateSkillForFloor = (
   floor: number,
-  lootTheme?: import('../types').RegionLootTheme | null,
+  lootTheme?: RegionLootTheme | null,
+  clan?: Clan | null,
 ): Skill => {
   // Tier mapping: BASIC → ADVANCED → HIDDEN → FORBIDDEN → KINJUTSU
   let possibleTiers: SkillTier[];
@@ -166,14 +182,25 @@ export const generateSkillForFloor = (
     possibleTiers = [SkillTier.FORBIDDEN, SkillTier.KINJUTSU];
   }
 
-  const candidates = Object.values(SKILLS).filter(s => possibleTiers.includes(s.tier));
+  let candidates = Object.values(SKILLS).filter(s => possibleTiers.includes(s.tier));
+  if (clan) {
+    candidates = candidates.filter(
+      (s) => !s.requirements?.clan || s.requirements.clan === clan,
+    );
+  }
   if (candidates.length === 0) return SKILLS.SHURIKEN;
-  if (!lootTheme) return pick(candidates) ?? SKILLS.SHURIKEN;
+
+  const favorites = clan
+    ? new Set(CLAN_FAVORITE_SKILLS[clan] ?? [])
+    : null;
+  const favWeight = LaunchProperties.CLAN_FAVORITE_SKILL_WEIGHT;
+
+  if (!lootTheme && !favorites) return pick(candidates) ?? SKILLS.SHURIKEN;
 
   const focus = new Set(
-    (lootTheme.equipmentFocus ?? []).map((s) => s.toLowerCase()),
+    (lootTheme?.equipmentFocus ?? []).map((s) => s.toLowerCase()),
   );
-  const preferred = lootTheme.primaryElement;
+  const preferred = lootTheme?.primaryElement;
   const picked = weightedPick(candidates, (skill) => {
     let w = 1;
     // Affinity: matching skill element (e.g. Waves → Water)
@@ -181,6 +208,7 @@ export const generateSkillForFloor = (
     // Focus: scaling stat in region equipmentFocus (e.g. Speed)
     const scale = String(skill.scalingStat).toLowerCase();
     if (focus.size > 0 && focus.has(scale)) w *= 1.6;
+    if (favorites?.has(skill.id)) w *= favWeight;
     return w;
   });
   return picked ?? SKILLS.SHURIKEN;

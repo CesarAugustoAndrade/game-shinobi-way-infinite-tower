@@ -20,7 +20,10 @@ import {
   applyClanTraitToDamageContext,
 } from '../../game/systems/EquipmentPassiveSystem';
 import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
-import { postureDamageMod } from '../../game/systems/PostureSystem';
+import {
+  postureDamageMod,
+  stanceBonusDamageMult,
+} from '../../game/systems/PostureSystem';
 import {
   skillLocationDamageMult,
   applyEnemyDefenseBonus,
@@ -164,7 +167,8 @@ export const Hand: React.FC<HandProps> = ({
     }
     const predictedDamage = Math.floor(
       Math.floor(modified * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER) *
-        postureDamageMod(posture)
+        postureDamageMod(posture) *
+        stanceBonusDamageMult(skill, posture)
     );
 
     const effectiveness = getElementEffectiveness(skill.element, enemy.element);
@@ -191,11 +195,10 @@ export const Hand: React.FC<HandProps> = ({
                   <div className="combat-tooltip__subtitle">
                     <span className="combat-tooltip__tier">{skill.tier}</span>
                     <span className={
-                      skill.actionType === ActionType.SIDE ? 'combat-tooltip__action--side' :
                       skill.actionType === ActionType.TOGGLE ? 'combat-tooltip__action--toggle' :
                       'combat-tooltip__action--main'
                     }>
-                      {skill.actionType || ActionType.MAIN} · {apCost} AP
+                      {skill.actionType || ActionType.ACTIVE} · {apCost} AP
                     </span>
                   </div>
                 </div>
@@ -207,6 +210,29 @@ export const Hand: React.FC<HandProps> = ({
             <div className="combat-tooltip__section">
               <div className="combat-tooltip__description">{skill.description}</div>
             </div>
+
+            {(skill.stanceBonus || skill.stanceShift) && (
+              <div className="combat-tooltip__section">
+                <div className="combat-tooltip__section-title">Stance</div>
+                {skill.stanceBonus && (
+                  <div className="combat-tooltip__description">
+                    Match {skill.stanceBonus.posture}
+                    {skill.stanceBonus.damageMultBonus
+                      ? `: +${Math.round(skill.stanceBonus.damageMultBonus * 100)}% dmg`
+                      : ''}
+                    {skill.stanceBonus.apDiscount
+                      ? `${skill.stanceBonus.damageMultBonus ? ' · ' : ': '}-${skill.stanceBonus.apDiscount} AP`
+                      : ''}
+                    {skill.stanceBonus.posture === posture ? ' · active' : ''}
+                  </div>
+                )}
+                {skill.stanceShift && (
+                  <div className="combat-tooltip__description">
+                    On play → shift to {skill.stanceShift}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Strike force */}
             <div className="combat-tooltip__section">

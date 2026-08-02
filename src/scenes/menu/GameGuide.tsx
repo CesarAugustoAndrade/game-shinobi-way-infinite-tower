@@ -338,7 +338,7 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
                   <Shield size={18} /> Combat Posture
                 </h3>
                 <p className="game-guide__approaches-intro">
-                  Switch posture during your turn (costs 1 AP). Some skills shift posture for free. Posture biases card draws and lightly scales damage dealt/taken.
+                  Switch posture during your turn (costs 1 AP). Some skills shift posture for free on play; others deal bonus damage when posture matches. Posture also biases card draws and lightly scales damage dealt/taken.
                 </p>
                 <div className="game-guide__approaches-grid">
                   {HELP_TEXT.COMBAT_MECHANICS.POSTURES.map((posture, idx) => {

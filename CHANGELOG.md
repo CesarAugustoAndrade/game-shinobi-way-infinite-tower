@@ -4,6 +4,24 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Added
+- **Card combat polish (20-agent review pass):** multi-stat `requirements.stats` full catalog migration (~64 skills); ScrollDiscovery/Loot forget-at-20 UI; Hand tooltip `stanceBonus`/`stanceShift` + stance dmg in damage preview; BuildGenerator/ProgressionSimulator academy-first + `canLearnSkill` (no Yamanaka Tsukuyomi); ~20 skills with stance match bonuses; Byakugan/Sharingan explicit `apCost`.
+- **Card combat vision (foundation)** — deckbuilder model aligned to live AP combat:
+  - `ActionType.ACTIVE | TOGGLE | PASSIVE` (MAIN/SIDE removed from the type system)
+  - Explicit per-skill `apCost` (fallback defaults by action type in combat card helpers)
+  - Playable deck band **8–20**: academy kits target ~8 (`START_DECK_TARGET`); hard cap `MAX_DECK_SIZE` 20; PASSIVES never enter the deck
+  - `stanceBonus` (posture-match damage mult) + expanded `stanceShift` on more skills
+  - Multi-stat `SkillRequirements` + `canLearnSkill` open-learn (only `requirements.clan` bloodline/hiden hard-gates)
+  - `CLAN_FAVORITE_SKILLS` weight bias on scrolls/loot (not a hard gate)
+  - New skills: `Taijutsu: Heavy Kick`; `Adamantine Attacking Chains` (playable skill alongside the existing synthesis artifact)
+  - Generic stance toggles on Uzumaki / Lee / Yamanaka starters (`Defensive Posture`, `Aggressive Stance`, `Focused Stance`)
+
+### Changed
+- **Simulation builds academy-first** (`BuildGenerator.ts`, `ProgressionSimulator.ts`, `types.ts`): loadouts start from `getClanStartingSkills` / `CLAN_START_LOADOUT`; learn checks use `canLearnSkill` (multi-stat + open learn; clan hard-gates only when matching — e.g. no Tsukuyomi on Yamanaka); progression picks prefer `CLAN_FAVORITE_SKILLS`; skill resolve by `Skill.id` (`basic_atk`); preset mid-run lists filtered for learnability; progression default maxSkills 24 and empty start → full academy kit per clan.
+- **Handbook + select UI: card combat vocabulary** (`helpText.ts`, `GameGuide.tsx`, `CharacterSelect.tsx`): combat guide documents ACTIVE/TOGGLE/PASSIVE (no MAIN/SIDE), deck **8–20**, posture-match damage, open learn + clan favorites. CharacterSelect loadout rows use Cards / Toggle / Passive.
+- **Location room map: 2→4 binary only** (`LocationSystem.ts`, `LocationMap.tsx`): removed playable single-room START parking. Every floor uses an internal entry hub + always **2** path choices with **2** children each (map reads **2→4** foresight). Fogged sight still reserves **4 `???` slots** (2 under each path) so the diamond never collapses to 2–2. Exit spawn is a **batch roll** from `roomsVisited >= min` (always ≥3; danger still stretches), **intel +0–40%**, terrain secrets bonus, force after min+5; if the roll hits, **exactly one of the two children** is the exit (uniform). Hub is not counted in `roomsVisited`.
+- **Location path-board UI** (`LocationMap.tsx`, `exploration.css`): replaced flat 2-row diamond with **two fork columns** (foresight pair → Y-stem → choice card), branch select highlight, hotkey badges 1/2, smaller dim foresight vs hero choices.
+
 ### Removed
 - **Orphan art cleanup** (runtime-unreferenced plates deleted from `public/assets/` + `assets/` mirrors):
   - `background_parchment.png`, `background_next_chamber.png`, `button_enter_location.png`, `translucent_begin_journey.png`

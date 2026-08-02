@@ -15,6 +15,8 @@ import {
   isFloorComplete,
   getRoomById,
   getCurrentRoom,
+  calculateExitProbability,
+  generateChildrenForRoom,
 } from '../LocationSystem';
 import { BranchingRoomType, ACTIVITY_ORDER } from '../../types';
 import { createMockPlayer } from './testFixtures';
@@ -33,45 +35,51 @@ describe('generateBranchingFloor', () => {
     expect(floor.biome).toBeDefined();
   });
 
-  it('floor 1 has START room', () => {
-    const floor = generateBranchingFloor(1, 50, player);
-    const startRoom = floor.rooms.find(r => r.type === BranchingRoomType.START);
+  it('always has an internal entry hub (START), pre-cleared and not visited', () => {
+    for (const floorNum of [1, 2, 14]) {
+      const floor = generateBranchingFloor(floorNum, 50, player);
+      const hub = floor.rooms.find(r => r.type === BranchingRoomType.START);
 
-    expect(startRoom).toBeDefined();
-    expect(startRoom!.tier).toBe(0);
-    expect(startRoom!.isCleared).toBe(true); // Start is pre-cleared
+      expect(hub).toBeDefined();
+      expect(hub!.tier).toBe(0);
+      expect(hub!.isCleared).toBe(true);
+      expect(hub!.isVisible).toBe(false);
+      expect(floor.currentRoomId).toBe(hub!.id);
+      expect(floor.roomsVisited).toBe(0);
+      expect(hub!.childIds.length).toBe(2);
+    }
   });
 
-  it('floor 2+ does not have START room', () => {
-    const floor = generateBranchingFloor(2, 50, player);
-    const startRoom = floor.rooms.find(r => r.type === BranchingRoomType.START);
-
-    expect(startRoom).toBeUndefined();
-  });
-
-  it('generates branching structure (1 -> 2 -> 4)', () => {
+  it('generates branching structure hub → 2 → 4', () => {
     const floor = generateBranchingFloor(1, 50, player);
 
-    // Tier 0: 1 room (START)
     const tier0 = floor.rooms.filter(r => r.tier === 0);
     expect(tier0.length).toBe(1);
 
-    // Tier 1: 2 rooms
     const tier1 = floor.rooms.filter(r => r.tier === 1);
     expect(tier1.length).toBe(2);
 
-    // Tier 2: 4 rooms
     const tier2 = floor.rooms.filter(r => r.tier === 2);
     expect(tier2.length).toBe(4);
+
+    // Every playable parent has exactly 2 children
+    tier1.forEach(room => {
+      expect(room.childIds.length).toBe(2);
+    });
   });
 
-  it('tier 1 rooms are accessible from start', () => {
+  it('tier 1 rooms are accessible from the entry hub', () => {
     const floor = generateBranchingFloor(1, 50, player);
     const tier1Rooms = floor.rooms.filter(r => r.tier === 1);
 
     tier1Rooms.forEach(room => {
       expect(room.isAccessible).toBe(true);
     });
+  });
+
+  it('minRoomsBeforeExit is at least 3', () => {
+    const floor = generateBranchingFloor(1, 50, player);
+    expect(floor.minRoomsBeforeExit).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -84,14 +92,14 @@ describe('isRoomAccessible', () => {
     expect(isRoomAccessible(floor, floor.currentRoomId)).toBe(true);
   });
 
-  it('child rooms accessible after current room is cleared', () => {
-    let floor = generateBranchingFloor(1, 50, player);
+  it('entry paths accessible from cleared hub', () => {
+    const floor = generateBranchingFloor(1, 50, player);
     const currentRoom = getCurrentRoom(floor);
 
     expect(currentRoom).toBeDefined();
-    expect(currentRoom!.isCleared).toBe(true); // START is pre-cleared
+    expect(currentRoom!.isCleared).toBe(true); // entry hub pre-cleared
+    expect(currentRoom!.type).toBe(BranchingRoomType.START);
 
-    // Child rooms should be accessible
     currentRoom!.childIds.forEach(childId => {
       expect(isRoomAccessible(floor, childId)).toBe(true);
     });
@@ -103,46 +111,45 @@ describe('moveToRoom', () => {
 
   it('updates current room when moving', () => {
     let floor = generateBranchingFloor(1, 50, player);
-    const startRoom = getCurrentRoom(floor);
-    const targetId = startRoom!.childIds[0];
+    const hub = getCurrentRoom(floor);
+    const targetId = hub!.childIds[0];
 
     floor = moveToRoom(floor, targetId);
 
     expect(floor.currentRoomId).toBe(targetId);
   });
 
-  it('increments rooms visited counter', () => {
+  it('increments rooms visited counter on first real room (hub does not count)', () => {
     let floor = generateBranchingFloor(1, 50, player);
-    const initialVisited = floor.roomsVisited;
-    const startRoom = getCurrentRoom(floor);
-    const targetId = startRoom!.childIds[0];
+    expect(floor.roomsVisited).toBe(0);
+    const hub = getCurrentRoom(floor);
+    const targetId = hub!.childIds[0];
 
     floor = moveToRoom(floor, targetId);
 
-    expect(floor.roomsVisited).toBe(initialVisited + 1);
+    expect(floor.roomsVisited).toBe(1);
   });
 
   it('does not increment rooms visited when re-entering same room', () => {
     let floor = generateBranchingFloor(1, 50, player);
-    const currentRoomId = floor.currentRoomId;
+    const hub = getCurrentRoom(floor);
+    const targetId = hub!.childIds[0];
+    floor = moveToRoom(floor, targetId);
     const initialVisited = floor.roomsVisited;
 
-    // Try to move to the same room (re-entry for remaining activities)
-    floor = moveToRoom(floor, currentRoomId);
+    floor = moveToRoom(floor, targetId);
 
-    // roomsVisited should NOT have incremented
     expect(floor.roomsVisited).toBe(initialVisited);
   });
 
-  it('does not move to inaccessible room', () => {
+  it('does not move to inaccessible foresight room from hub', () => {
     let floor = generateBranchingFloor(1, 50, player);
     const tier2Room = floor.rooms.find(r => r.tier === 2);
 
-    // Tier 2 is not directly accessible from START
+    // Tier 2 is not accessible until its parent is entered/cleared
     const originalRoomId = floor.currentRoomId;
     floor = moveToRoom(floor, tier2Room!.id);
 
-    // Should not have moved (tier 2 not accessible yet)
     expect(floor.currentRoomId).toBe(originalRoomId);
   });
 });
@@ -164,10 +171,10 @@ describe('getCurrentActivity', () => {
 
   it('returns null when all activities completed', () => {
     const floor = generateBranchingFloor(1, 50, player);
-    const startRoom = getCurrentRoom(floor)!;
+    const hub = getCurrentRoom(floor)!;
 
-    // START room has no activities
-    const activity = getCurrentActivity(startRoom);
+    // Entry hub has no activities
+    const activity = getCurrentActivity(hub);
     expect(activity).toBeNull();
   });
 });
@@ -286,6 +293,73 @@ describe('isFloorComplete', () => {
         expect(isFloorComplete(floor)).toBe(false);
       }
     }
+  });
+});
+
+describe('calculateExitProbability', () => {
+  it('is zero before the 3rd room (and before danger min)', () => {
+    expect(calculateExitProbability(0, 1)).toBe(0);
+    expect(calculateExitProbability(1, 1)).toBe(0);
+    expect(calculateExitProbability(2, 1)).toBe(0);
+    // D4 min is 6
+    expect(calculateExitProbability(5, 4)).toBe(0);
+  });
+
+  it('opens at min rooms and rises with intel', () => {
+    const atMinNoIntel = calculateExitProbability(3, 1, 0, 0);
+    const atMinFullIntel = calculateExitProbability(3, 1, 0, 100);
+    expect(atMinNoIntel).toBeCloseTo(0.25, 5);
+    expect(atMinFullIntel).toBeCloseTo(0.65, 5); // 0.25 + 0.40 intel
+    expect(atMinFullIntel).toBeGreaterThan(atMinNoIntel);
+  });
+
+  it('caps at 0.9', () => {
+    const p = calculateExitProbability(50, 1, 0.5, 100);
+    expect(p).toBe(0.9);
+  });
+});
+
+describe('generateChildrenForRoom exit batch', () => {
+  const player = createMockPlayer();
+
+  it('never places exit before min rooms visited', () => {
+    let floor = generateBranchingFloor(1, 50, player);
+    // Force high intel so exit would fire if allowed
+    floor = { ...floor, currentIntel: 100, roomsVisited: 0 };
+
+    const hub = getCurrentRoom(floor)!;
+    const entryId = hub.childIds[0];
+    // Entry already has children; generate for a tier-2 parent with no kids yet
+    floor = moveToRoom(floor, entryId, player);
+    const entry = getCurrentRoom(floor)!;
+    // Complete entry so we can go deeper without caring about activities for this unit
+    for (const actKey of ACTIVITY_ORDER) {
+      if (entry.activities[actKey]) {
+        floor = completeActivity(floor, entry.id, actKey);
+      }
+    }
+    const childId = entry.childIds[0];
+    floor = moveToRoom(floor, childId, player);
+    // roomsVisited is 2 here — still below min 3 for D from floor 1
+    floor = { ...floor, roomsVisited: 2, currentIntel: 100, exitRoomId: null };
+
+    const parent = getCurrentRoom(floor)!;
+    // Clear prior children flag to re-generate (clone without children)
+    const stripped = {
+      ...floor,
+      rooms: floor.rooms.map((r) =>
+        r.id === parent.id
+          ? { ...r, hasGeneratedChildren: false, childIds: [] }
+          : r,
+      ).filter((r) => r.parentId !== parent.id),
+      exitRoomId: null,
+    };
+
+    const next = generateChildrenForRoom(stripped, parent.id, player);
+    expect(next.exitRoomId).toBeNull();
+    const kids = next.rooms.filter((r) => r.parentId === parent.id);
+    expect(kids.length).toBe(2);
+    expect(kids.every((k) => !k.isExit)).toBe(true);
   });
 });
 

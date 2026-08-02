@@ -931,36 +931,85 @@ export function resistStatus(
 // ============================================================================
 // SKILL REQUIREMENT CHECK
 // ============================================================================
+/**
+ * Check whether a player may learn a skill.
+ *
+ * - Open learn: any skill without `requirements.clan` is available to all clans.
+ * - Clan hard-gate: if `requirements.clan` is set, only that clan may learn it.
+ * - Stats: `requirements.stats` (any PrimaryStat) plus legacy `intelligence`.
+ *
+ * @param skill - Skill to learn
+ * @param primaryStats - Player effective primary stats (or a partial with at least intelligence for legacy callers)
+ * @param playerLevel - Player level
+ * @param playerClan - Player clan string
+ */
 export function canLearnSkill(
   skill: Skill,
-  playerIntelligence: number,
+  primaryStats: Partial<PrimaryAttributes> | number,
   playerLevel: number,
   playerClan: string
 ): { canLearn: boolean; reason?: string } {
+  // Legacy overload: second arg was playerIntelligence: number
+  const stats: Record<string, number> =
+    typeof primaryStats === 'number'
+      ? { Intelligence: primaryStats, intelligence: primaryStats }
+      : Object.fromEntries(
+          Object.entries(primaryStats as object).filter(
+            ([, v]) => typeof v === 'number',
+          ) as [string, number][],
+        );
+
+  const getStat = (name: string): number => {
+    const direct = stats[name];
+    if (typeof direct === 'number') return direct;
+    // Case-insensitive / enum-value lookup
+    const hit = Object.entries(stats).find(
+      ([k]) => k.toLowerCase() === name.toLowerCase()
+    );
+    return typeof hit?.[1] === 'number' ? hit[1] : 0;
+  };
+
   if (!skill.requirements) {
     return { canLearn: true };
   }
 
   const req = skill.requirements;
 
-  if (req.intelligence && playerIntelligence < req.intelligence) {
-    return { 
-      canLearn: false, 
-      reason: `Requires ${req.intelligence} Intelligence (you have ${playerIntelligence})` 
-    };
+  if (req.stats) {
+    for (const [statKey, min] of Object.entries(req.stats)) {
+      if (min === undefined) continue;
+      const have = getStat(statKey);
+      if (have < min) {
+        return {
+          canLearn: false,
+          reason: `Requires ${min} ${statKey} (you have ${Math.floor(have)})`,
+        };
+      }
+    }
+  }
+
+  // Legacy intelligence field (catalog migration)
+  if (req.intelligence !== undefined) {
+    const have = getStat('Intelligence') || getStat('intelligence');
+    if (have < req.intelligence) {
+      return {
+        canLearn: false,
+        reason: `Requires ${req.intelligence} Intelligence (you have ${Math.floor(have)})`,
+      };
+    }
   }
 
   if (req.level && playerLevel < req.level) {
-    return { 
-      canLearn: false, 
-      reason: `Requires Level ${req.level}` 
+    return {
+      canLearn: false,
+      reason: `Requires Level ${req.level}`,
     };
   }
 
   if (req.clan && req.clan !== playerClan) {
-    return { 
-      canLearn: false, 
-      reason: `Requires ${req.clan} bloodline` 
+    return {
+      canLearn: false,
+      reason: `Requires ${req.clan} bloodline`,
     };
   }
 

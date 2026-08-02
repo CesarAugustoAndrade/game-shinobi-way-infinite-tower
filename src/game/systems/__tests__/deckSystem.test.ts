@@ -30,7 +30,7 @@ const defensiveCard = (id: string): Skill =>
     id,
     name: id,
     damageMult: 0,
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
     effects: [{ type: EffectType.SHIELD, value: 40, duration: 2, chance: 1.0 }],
   });
 

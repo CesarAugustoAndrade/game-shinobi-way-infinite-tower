@@ -109,7 +109,7 @@ describe('useSkill', () => {
       chakraCost: 5,
       apCost: 3,
       damageMult: 2.0,
-      actionType: ActionType.MAIN,
+      actionType: ActionType.ACTIVE,
     });
     const player = createMockPlayer({ currentChakra: 100, currentHp: 200, skills: [skill] });
     const enemy = createMockEnemy({ currentHp: 500 });

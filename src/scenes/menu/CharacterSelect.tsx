@@ -181,7 +181,7 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({
           const stats = CLAN_STATS[clan];
           const loadout = CLAN_START_LOADOUT[clan];
           const startingSkills = getClanStartingSkills(clan);
-          const signatureSkills = loadout.main.filter(s => s.id !== 'basic_atk').slice(0, 2);
+          const signatureSkills = loadout.active.filter(s => s.id !== 'basic_atk').slice(0, 2);
           const loadoutLabel = signatureSkills.map(s => s.name).join(' · ') || startingSkills[0]?.name;
 
           const bodyRank = getStatRank(stats, BODY_KEYS);
@@ -203,23 +203,17 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({
                     Starting loadout ({startingSkills.length})
                   </div>
                   <div className="clan-tooltip__loadout">
-                    {loadout.main.length > 0 && (
+                    {loadout.active.length > 0 && (
                       <div className="clan-tooltip__loadout-row">
-                        <span className="clan-tooltip__loadout-label">Main</span>
+                        <span className="clan-tooltip__loadout-label">Active</span>
                         <span className="clan-tooltip__loadout-skills">
-                          {loadout.main.map((s) => (
+                          {loadout.active.map((s) => (
                             <span key={s.id} className="clan-tooltip__loadout-skill">
                               <ArtIcon art={getSkillArt(s)} size="xs" title={s.name} />
                               {s.name}
                             </span>
                           ))}
                         </span>
-                      </div>
-                    )}
-                    {loadout.side.length > 0 && (
-                      <div className="clan-tooltip__loadout-row">
-                        <span className="clan-tooltip__loadout-label">Side</span>
-                        <span>{loadout.side.map(s => s.name).join(', ')}</span>
                       </div>
                     )}
                     {loadout.toggle.length > 0 && (

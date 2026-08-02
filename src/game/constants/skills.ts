@@ -21,10 +21,11 @@ export const SKILLS: Record<string, Skill> = {
   // ==========================================
   BASIC_ATTACK: {
     id: 'basic_atk',
-    name: 'Taijutsu',
+    name: 'Taijutsu: Strike',
     tier: SkillTier.BASIC,
     description: 'A disciplined martial arts strike using raw physical power. Reliable and effective.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -34,15 +35,38 @@ export const SKILLS: Record<string, Skill> = {
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
-    element: ElementType.PHYSICAL
+    element: ElementType.PHYSICAL,
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.15 },
+  },
+
+  HEAVY_KICK: {
+    id: 'heavy_kick',
+    name: 'Taijutsu: Heavy Kick',
+    tier: SkillTier.BASIC,
+    description: 'A committed rising kick. Hits harder when you lean Aggressive.',
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
+    chakraCost: 0,
+    hpCost: 0,
+    cooldown: 1,
+    currentCooldown: 0,
+    damageMult: 2.4,
+    scalingStat: PrimaryStat.STRENGTH,
+    damageType: DamageType.PHYSICAL,
+    damageProperty: DamageProperty.NORMAL,
+    attackMethod: AttackMethod.MELEE,
+    element: ElementType.PHYSICAL,
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.25 },
+    stanceShift: Posture.AGGRESSIVE,
   },
 
   SHURIKEN: {
     id: 'shuriken',
-    name: 'Shuriken',
+    name: 'Ninja Tool: Shuriken',
     tier: SkillTier.BASIC,
     description: 'A swift throw of sharpened steel stars. Targets weak points for high critical chance.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -53,7 +77,8 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
-    critBonus: 25
+    critBonus: 25,
+    stanceBonus: { posture: Posture.BALANCED, damageMultBonus: 0.1 },
   },
 
   MUD_WALL: {
@@ -61,7 +86,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Mud Wall',
     tier: SkillTier.BASIC,
     description: 'Spits mud that hardens into a barricade. Creates a Shield.',
-    actionType: ActionType.SIDE,  // Light support (1 AP)
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
+    stanceShift: Posture.DEFENSIVE,
+    stanceBonus: { posture: Posture.DEFENSIVE, apDiscount: 1 },
     chakraCost: 15,
     hpCost: 0,
     cooldown: 4,
@@ -72,7 +100,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.EARTH,
-    requirements: { intelligence: 8 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 8,
+        [PrimaryStat.SPIRIT]: 8,
+      },
+    },
     effects: [{ type: EffectType.SHIELD, value: 40, duration: 3, chance: 1.0 }]
   },
 
@@ -81,7 +114,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Phoenix Flower',
     tier: SkillTier.BASIC,
     description: 'Volleys of small fireballs. Chance to burn.',
-    actionType: ActionType.SIDE,  // Light offensive card (1 AP)
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 20,
     hpCost: 0,
     cooldown: 2,
@@ -92,7 +126,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.FIRE,
-    requirements: { intelligence: 10 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 10,
+        [PrimaryStat.SPIRIT]: 10,
+      },
+    },
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.15 },
     effects: [{
       type: EffectType.BURN,
       value: 8,      // BUFFED: Was 5 - burn should be meaningful
@@ -108,7 +148,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Body Replacement',
     tier: SkillTier.BASIC,
     description: 'Switch places with a log. The log absorbs damage while you reposition.',
-    actionType: ActionType.SIDE,  // Light defensive card (1 AP)
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
+    stanceShift: Posture.DEFENSIVE,
+    stanceBonus: { posture: Posture.DEFENSIVE, apDiscount: 1 },
     chakraCost: 10,
     hpCost: 0,
     cooldown: 4,
@@ -130,7 +173,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Clone Technique',
     tier: SkillTier.BASIC,
     description: 'Creates illusory copies to distract the enemy. Slight Evasion boost.',
-    actionType: ActionType.SIDE,  // Light buff card (1 AP)
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 3,
@@ -149,7 +193,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Transformation',
     tier: SkillTier.BASIC,
     description: 'Transform into an object or person for a surprise attack.',
-    actionType: ActionType.SIDE,  // Crit setup buff
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 4,
@@ -168,7 +213,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Body Flicker',
     tier: SkillTier.BASIC,
     description: 'High-speed movement to close gaps. Greatly boosts Initiative.',
-    actionType: ActionType.SIDE,  // Speed buff setup
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 15,
     hpCost: 0,
     cooldown: 3,
@@ -187,8 +233,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Release',
     tier: SkillTier.BASIC,
     description: 'Disrupts chakra flow to break illusions. Boosts Genjutsu Resistance.',
-    actionType: ActionType.SIDE,  // Dispel + buff
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     stanceShift: Posture.BALANCED,  // releasing the technique re-centers your stance
+    stanceBonus: { posture: Posture.BALANCED, apDiscount: 1 },
     chakraCost: 10,
     hpCost: 0,
     cooldown: 2,
@@ -210,7 +258,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Leaf Whirlwind',
     tier: SkillTier.BASIC,
     description: 'A spinning kick that disrupts enemy accuracy.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -229,8 +278,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Dynamic Entry',
     tier: SkillTier.BASIC,
     description: 'A powerful flying kick! Guaranteed first strike with high crit chance.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     stanceShift: Posture.AGGRESSIVE,  // committing rush drops you into an aggressive stance
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     chakraCost: 0,
     hpCost: 0,
     cooldown: 3,
@@ -249,7 +300,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Leaf Rising Wind',
     tier: SkillTier.BASIC,
     description: 'An upward kick that sets up a follow-up attack.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -268,7 +320,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Strong Fist Combo',
     tier: SkillTier.BASIC,
     description: 'A rapid two-hit combo at 75% damage each.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -286,7 +339,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Sweeping Kick',
     tier: SkillTier.BASIC,
     description: 'A low sweep with a chance to stun.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -305,7 +359,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Elbow Strike',
     tier: SkillTier.BASIC,
     description: 'A close-range elbow strike that ignores flat defense.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -323,7 +378,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Feint Strike',
     tier: SkillTier.BASIC,
     description: 'A deceptive attack that cannot be evaded.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -341,7 +397,9 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Counter Stance',
     tier: SkillTier.BASIC,
     description: 'Prepare to counter-attack if hit this turn.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
+    stanceShift: Posture.DEFENSIVE,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 4,
@@ -360,7 +418,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Shadow of Dancing Leaf',
     tier: SkillTier.BASIC,
     description: 'Position behind target for devastating follow-up.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 3,
@@ -382,7 +441,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Focused Breathing',
     tier: SkillTier.BASIC,
     description: 'Regulate breathing to recover chakra.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     stanceShift: Posture.DEFENSIVE,  // centering your breathing eases you into a guard
     chakraCost: 0,
     hpCost: 0,
@@ -405,7 +465,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Kunai Slash',
     tier: SkillTier.BASIC,
     description: 'A quick slash with a kunai. Chance to cause bleeding.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -424,7 +485,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Kunai Throw',
     tier: SkillTier.BASIC,
     description: 'Throw a kunai at the enemy. Basic ranged attack.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -442,7 +504,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Shuriken Barrage',
     tier: SkillTier.BASIC,
     description: 'Throw three shuriken at 40% damage each.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 2,
@@ -460,7 +523,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Windmill Shuriken',
     tier: SkillTier.BASIC,
     description: 'A large shuriken that ignores shields with armor penetration.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 3,
@@ -479,7 +543,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Senbon Needle',
     tier: SkillTier.BASIC,
     description: 'A precise needle throw. High chance to silence.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -498,7 +563,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Senbon Rain',
     tier: SkillTier.BASIC,
     description: 'A barrage of poisoned needles. Five hits with poison chance.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 3,
@@ -517,7 +583,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Explosive Tag',
     tier: SkillTier.BASIC,
     description: 'Throw an explosive tag. Fire element damage.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -535,7 +602,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Explosive Barrage',
     tier: SkillTier.BASIC,
     description: 'Multiple explosive tags that reduce enemy evasion.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 4,
@@ -554,7 +622,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Sword Slash',
     tier: SkillTier.BASIC,
     description: 'A powerful sword strike with bleeding chance.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -573,7 +642,9 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Iaido',
     tier: SkillTier.BASIC,
     description: 'A lightning-fast quick draw attack. +40% crit if first action.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     chakraCost: 5,
     hpCost: 0,
     cooldown: 3,
@@ -589,10 +660,12 @@ export const SKILLS: Record<string, Skill> = {
 
   WIRE_SETUP: {
     id: 'wire_setup',
-    name: 'Wire Trap Setup',
+    name: 'Ninja Tool: Wire Trap',
     tier: SkillTier.BASIC,
-    description: 'Set up wire traps. Next MAIN attack deals +20% damage and causes bleed.',
-    actionType: ActionType.SIDE,
+    description: 'Set up wire traps. Next attack deals +20% damage and causes bleed.',
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
+    stanceShift: Posture.DEFENSIVE,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 4,
@@ -614,7 +687,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Poison Coat',
     tier: SkillTier.BASIC,
     description: 'Coat weapon with poison. Next attack applies poison.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 4,
@@ -636,7 +710,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Smoke Bomb',
     tier: SkillTier.BASIC,
     description: 'Create a smoke screen for evasion boost and enemy accuracy reduction.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 3,
@@ -658,7 +733,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Flash Bomb',
     tier: SkillTier.BASIC,
     description: 'Blind the enemy with a flash. Chance to reduce their accuracy.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 4,
@@ -677,7 +753,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Analyze Enemy',
     tier: SkillTier.BASIC,
     description: 'Study the enemy for weaknesses. Increases damage dealt.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
+    stanceShift: Posture.BALANCED,
+    stanceBonus: { posture: Posture.BALANCED, apDiscount: 1 },
     chakraCost: 0,
     hpCost: 0,
     cooldown: 5,
@@ -696,8 +775,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Brace',
     tier: SkillTier.BASIC,
     description: 'Prepare for impact. Gain +30% defense until next turn.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     stanceShift: Posture.DEFENSIVE,  // settling in to guard shifts you defensive
+    stanceBonus: { posture: Posture.DEFENSIVE, apDiscount: 1 },
     chakraCost: 0,
     hpCost: 0,
     cooldown: 3,
@@ -716,7 +797,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Cloak of Invisibility',
     tier: SkillTier.BASIC,
     description: 'Become nearly invisible. +60% evasion and next hit auto-crits.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 4,
@@ -738,7 +820,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Basic Medical Jutsu',
     tier: SkillTier.BASIC,
     description: 'Heal wounds with medical chakra. Removes poison and bleeding.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
+    stanceShift: Posture.BALANCED,
+    stanceBonus: { posture: Posture.BALANCED, apDiscount: 1 },
     chakraCost: 20,
     hpCost: 0,
     cooldown: 5,
@@ -761,6 +846,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.BASIC,
     description: 'A stance focused on precision. +20% ACC, +15% Crit.',
     actionType: ActionType.TOGGLE,
+    apCost: 2,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 5,
@@ -785,6 +871,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.BASIC,
     description: 'A defensive stance. +25% Defense, -15% Speed.',
     actionType: ActionType.TOGGLE,
+    apCost: 2,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 5,
@@ -809,6 +896,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.BASIC,
     description: 'An offensive stance. +30% STR, -20% Defense.',
     actionType: ActionType.TOGGLE,
+    apCost: 2,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 5,
@@ -846,7 +934,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 10 },
+    requirements: {
+      stats: {
+        [PrimaryStat.DEXTERITY]: 10,
+      },
+    },
     passiveEffect: {
       damageBonus: 0.1
     }
@@ -868,7 +960,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 10 },
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 10,
+      },
+    },
     passiveEffect: {
       damageBonus: 0.1
     }
@@ -890,7 +986,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 15 },
+    requirements: {
+      stats: {
+        [PrimaryStat.SPEED]: 15,
+      },
+    },
     passiveEffect: {
       statBonus: { speed: 5 }
     }
@@ -912,7 +1012,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 15 },
+    requirements: {
+      stats: {
+        [PrimaryStat.WILLPOWER]: 15,
+        [PrimaryStat.STRENGTH]: 12,
+      },
+    },
     passiveEffect: {
       defenseBonus: 0.05
     }
@@ -934,7 +1039,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 15 },
+    requirements: {
+      stats: {
+        [PrimaryStat.CHAKRA]: 15,
+      },
+    },
     passiveEffect: {
       regenBonus: { chakra: 3 }
     }
@@ -956,7 +1065,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 15 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 15,
+        [PrimaryStat.CALMNESS]: 15,
+      },
+    },
     passiveEffect: {
       statBonus: { calmness: 10 }
     }
@@ -978,7 +1092,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 15 },
+    requirements: {
+      stats: {
+        [PrimaryStat.ACCURACY]: 15,
+      },
+    },
     passiveEffect: {
       statBonus: { accuracy: 5 }
     }
@@ -1012,7 +1130,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Air Palm',
     tier: SkillTier.ADVANCED,
     description: 'Hyuga ranged technique. Fires a burst of chakra.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 15,
     hpCost: 0,
     cooldown: 2,
@@ -1023,7 +1142,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WIND,
-    requirements: { intelligence: 12, clan: Clan.HYUGA }
+    requirements: {
+      stats: {
+        [PrimaryStat.ACCURACY]: 12,
+      },
+      clan: Clan.HYUGA,
+    },
   },
 
   // ==== RARE / ADVANCED ====
@@ -1032,8 +1156,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Rasengan',
     tier: SkillTier.ADVANCED,
     description: 'A swirling sphere of pure wind chakra that grinds into the target. PIERCING damage ignores flat defense.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     stanceShift: Posture.AGGRESSIVE,  // an all-in signature strike commits you to the offensive
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     chakraCost: 35,
     hpCost: 0,
     cooldown: 3,
@@ -1044,7 +1170,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING, // Ignores flat armor!
     attackMethod: AttackMethod.MELEE,
     element: ElementType.WIND,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 12,
+        [PrimaryStat.SPIRIT]: 10,
+      },
+    },
     effects: [{
       type: EffectType.DEBUFF,
       targetStat: PrimaryStat.STRENGTH,
@@ -1054,13 +1185,45 @@ export const SKILLS: Record<string, Skill> = {
     }]
   },
 
+  ADAMANTINE_CHAINS: {
+    id: 'adamantine_chains',
+    name: 'Adamantine Attacking Chains',
+    tier: SkillTier.HIDDEN,
+    description: 'Uzumaki sealing chains lash the target — physical damage plus a chance to bind and suppress chakra.',
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
+    chakraCost: 30,
+    hpCost: 0,
+    cooldown: 4,
+    currentCooldown: 0,
+    damageMult: 2.8,
+    scalingStat: PrimaryStat.CHAKRA,
+    damageType: DamageType.PHYSICAL,
+    damageProperty: DamageProperty.NORMAL,
+    attackMethod: AttackMethod.RANGED,
+    element: ElementType.PHYSICAL,
+    requirements: {
+      stats: {
+        [PrimaryStat.CHAKRA]: 12,
+        [PrimaryStat.INTELLIGENCE]: 10,
+      },
+    },
+    stanceBonus: { posture: Posture.DEFENSIVE, damageMultBonus: 0.15 },
+    effects: [
+      { type: EffectType.STUN, duration: 1, chance: 0.35 },
+      { type: EffectType.DEBUFF, targetStat: PrimaryStat.CHAKRA, value: 0.2, duration: 2, chance: 0.6 },
+    ],
+  },
+
   FIREBALL: {
     id: 'fireball',
-    name: 'Fireball Jutsu',
+    name: 'Katon: Great Fireball',
     tier: SkillTier.ADVANCED,
     description: 'A massive, searing projectile of flame. Leaves the target burning.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     stanceShift: Posture.AGGRESSIVE,  // unleashing a fire nuke pushes you onto the attack
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     chakraCost: 25,
     hpCost: 0,
     cooldown: 3,
@@ -1071,7 +1234,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.FIRE,
-    requirements: { intelligence: 12 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 10,
+        [PrimaryStat.SPIRIT]: 10,
+      },
+    },
     effects: [{
       type: EffectType.BURN,
       value: 15,
@@ -1087,8 +1255,10 @@ export const SKILLS: Record<string, Skill> = {
     name: '8 Trigrams Rotation',
     tier: SkillTier.HIDDEN,
     description: 'Expels chakra while spinning to repel attacks. Reflects damage.',
-    actionType: ActionType.SIDE,  // Light defensive card (1 AP)
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     stanceShift: Posture.DEFENSIVE,  // the spinning guard locks you into a defensive stance
+    stanceBonus: { posture: Posture.DEFENSIVE, damageMultBonus: 0.15 },
     chakraCost: 25,
     hpCost: 0,
     cooldown: 4,
@@ -1112,6 +1282,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.HIDDEN,
     description: 'The All-Seeing White Eye. Drastically improves Accuracy and Crit Chance.',
     actionType: ActionType.TOGGLE,  // Toggle ability
+    apCost: 2,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 5,
@@ -1136,7 +1307,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Gentle Fist',
     tier: SkillTier.ADVANCED,
     description: 'Precise strikes to chakra points. True damage + Chakra Drain.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 15,
     hpCost: 0,
     cooldown: 2,
@@ -1147,7 +1319,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 12 },
+    requirements: {
+      stats: {
+        [PrimaryStat.ACCURACY]: 12,
+      },
+    },
     effects: [{ type: EffectType.CHAKRA_DRAIN, value: 20, duration: 1, chance: 1.0 }]
   },
 
@@ -1157,6 +1333,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.ADVANCED,
     description: 'Visual prowess that perceives attack trajectories. Toggle: Increases Speed and Dexterity.',
     actionType: ActionType.TOGGLE,  // Toggle ability
+    apCost: 2,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 5,
@@ -1167,7 +1344,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.FIRE,
-    requirements: { intelligence: 14, clan: Clan.UCHIHA },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.CALMNESS]: 12,
+      },
+      clan: Clan.UCHIHA,
+    },
     isToggle: true,
     upkeepCost: 5,
     effects: [
@@ -1181,7 +1364,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Water Prison',
     tier: SkillTier.ADVANCED,
     description: 'Traps the enemy in a sphere of heavy water. High stun chance.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 30,
     hpCost: 0,
     cooldown: 5,
@@ -1192,7 +1376,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WATER,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.SPIRIT]: 12,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 2, chance: 0.7 }]
   },
 
@@ -1201,7 +1390,9 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Water Wall',
     tier: SkillTier.ADVANCED,
     description: 'Expels water to form a defensive barrier. Creates a Shield.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
+    stanceShift: Posture.DEFENSIVE,
     chakraCost: 25,
     hpCost: 0,
     cooldown: 4,
@@ -1223,7 +1414,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Hell Viewing Technique',
     tier: SkillTier.ADVANCED,
     description: 'A Genjutsu that reveals the target\'s worst fears. MENTAL damage bypasses physical defense, resisted by Calmness.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 25,
     hpCost: 0,
     cooldown: 4,
@@ -1234,7 +1426,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO, // Genjutsu auto-hits
     element: ElementType.MENTAL,
-    requirements: { intelligence: 16 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 16,
+        [PrimaryStat.CALMNESS]: 14,
+      },
+    },
     effects: [{
       type: EffectType.DEBUFF,
       targetStat: PrimaryStat.STRENGTH,
@@ -1249,7 +1446,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Mind Body Disturbance',
     tier: SkillTier.ADVANCED,
     description: 'Sends chakra into the opponent\'s nervous system to confuse their movement. MENTAL damage, causes confusion.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 30,
     hpCost: 0,
     cooldown: 4,
@@ -1260,7 +1458,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING, // Pierces mental flat def
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 18 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 18,
+        [PrimaryStat.CALMNESS]: 16,
+      },
+    },
     effects: [{ type: EffectType.CONFUSION, duration: 3, chance: 1.0 }],
     image: '/assets/skill_mind_body_disturbing.png'
   },
@@ -1273,7 +1476,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Dragon Flame Bomb',
     tier: SkillTier.ADVANCED,
     description: 'A dragon-shaped fireball that causes severe burns.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 30,
     hpCost: 0,
     cooldown: 3,
@@ -1284,7 +1488,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.FIRE,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.SPIRIT]: 12,
+      },
+    },
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.15 },
     effects: [{ type: EffectType.BURN, value: 10, duration: 3, chance: 0.7, damageType: DamageType.ELEMENTAL, damageProperty: DamageProperty.NORMAL }]
   },
 
@@ -1293,7 +1503,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Hidden Mist Jutsu',
     tier: SkillTier.ADVANCED,
     description: 'Creates a dense mist for evasion and enemy accuracy reduction.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 20,
     hpCost: 0,
     cooldown: 5,
@@ -1304,7 +1515,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.WATER,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.SPIRIT]: 12,
+      },
+    },
     effects: [
       { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.5, duration: 3, chance: 1.0 },
       { type: EffectType.DEBUFF, targetStat: PrimaryStat.ACCURACY, value: 0.3, duration: 3, chance: 1.0 }
@@ -1316,7 +1532,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Water Clone Jutsu',
     tier: SkillTier.ADVANCED,
     description: 'Creates a water clone for a strength buff.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 25,
     hpCost: 0,
     cooldown: 4,
@@ -1327,7 +1544,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.WATER,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.SPIRIT]: 12,
+      },
+    },
     effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.4, duration: 2, chance: 1.0 }]
   },
 
@@ -1336,7 +1558,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Lightning Ball',
     tier: SkillTier.ADVANCED,
     description: 'A ball of lightning with stun chance.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 22,
     hpCost: 0,
     cooldown: 3,
@@ -1347,7 +1570,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.LIGHTNING,
-    requirements: { intelligence: 12 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 12,
+        [PrimaryStat.SPIRIT]: 10,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 1, chance: 0.4 }]
   },
 
@@ -1356,7 +1584,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Inner Decapitation',
     tier: SkillTier.ADVANCED,
     description: 'Pull enemy underground with high stun chance.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 20,
     hpCost: 0,
     cooldown: 3,
@@ -1367,7 +1596,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.EARTH,
-    requirements: { intelligence: 12 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 12,
+        [PrimaryStat.SPIRIT]: 10,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 1, chance: 0.6 }]
   },
 
@@ -1376,7 +1610,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Great Breakthrough',
     tier: SkillTier.ADVANCED,
     description: 'A powerful gust of wind that reduces enemy accuracy.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 22,
     hpCost: 0,
     cooldown: 3,
@@ -1387,7 +1622,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WIND,
-    requirements: { intelligence: 12 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 12,
+        [PrimaryStat.SPIRIT]: 10,
+      },
+    },
     effects: [{ type: EffectType.DEBUFF, targetStat: PrimaryStat.ACCURACY, value: 0.25, duration: 2, chance: 1.0 }]
   },
 
@@ -1396,7 +1636,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Air Bullet',
     tier: SkillTier.ADVANCED,
     description: 'Compressed air projectile that reduces enemy defense.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 18,
     hpCost: 0,
     cooldown: 2,
@@ -1407,7 +1648,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WIND,
-    requirements: { intelligence: 10 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 10,
+        [PrimaryStat.SPIRIT]: 8,
+      },
+    },
     effects: [{ type: EffectType.DEBUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.15, duration: 2, chance: 1.0 }]
   },
 
@@ -1419,7 +1665,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Fang Over Fang',
     tier: SkillTier.ADVANCED,
     description: 'Inuzuka dual rotation attack. Hits twice at 50% each.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 20,
     hpCost: 0,
     cooldown: 3,
@@ -1430,7 +1677,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 10 }
+    requirements: {
+      stats: {
+        [PrimaryStat.SPEED]: 10,
+        [PrimaryStat.STRENGTH]: 8,
+      },
+    },
   },
 
   MIND_TRANSFER: {
@@ -1438,7 +1690,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Mind Transfer Jutsu',
     tier: SkillTier.ADVANCED,
     description: 'Yamanaka mind control. 70% stun for 2 turns. Miss = self stun.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 40,
     hpCost: 0,
     cooldown: 6,
@@ -1449,7 +1702,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 14, clan: Clan.YAMANAKA },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.CALMNESS]: 12,
+      },
+      clan: Clan.YAMANAKA,
+    },
     effects: [{ type: EffectType.STUN, duration: 2, chance: 0.7 }]
   },
 
@@ -1458,7 +1717,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Shadow Possession',
     tier: SkillTier.ADVANCED,
     description: 'Nara shadow binding. High stun chance with reflect.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 30,
     hpCost: 0,
     cooldown: 5,
@@ -1469,7 +1729,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.CALMNESS]: 12,
+      },
+    },
     effects: [
       { type: EffectType.STUN, duration: 2, chance: 0.8 },
       { type: EffectType.REFLECTION, value: 0.3, duration: 2, chance: 1.0 }
@@ -1481,7 +1746,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Parasitic Insects',
     tier: SkillTier.ADVANCED,
     description: 'Aburame insect attack. Drains chakra and poisons.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 25,
     hpCost: 0,
     cooldown: 4,
@@ -1492,7 +1758,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 12 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 12,
+      },
+    },
     effects: [
       { type: EffectType.CHAKRA_DRAIN, value: 25, duration: 1, chance: 1.0 },
       { type: EffectType.POISON, value: 8, duration: 3, chance: 1.0, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL }
@@ -1504,7 +1774,10 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Expansion Jutsu',
     tier: SkillTier.ADVANCED,
     description: 'Akimichi body expansion. Big damage with strength buff.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
+    stanceShift: Posture.AGGRESSIVE,
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     chakraCost: 25,
     hpCost: 0,
     cooldown: 4,
@@ -1515,7 +1788,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 10 },
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 10,
+        [PrimaryStat.WILLPOWER]: 8,
+      },
+    },
     effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.5, duration: 2, chance: 1.0 }]
   },
 
@@ -1527,7 +1805,8 @@ export const SKILLS: Record<string, Skill> = {
     name: '8 Trigrams 64 Palms',
     tier: SkillTier.HIDDEN,
     description: 'Hyuga ultimate technique. TRUE damage that drains chakra and debuffs all stats.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 40,
     hpCost: 0,
     cooldown: 5,
@@ -1538,7 +1817,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 16, clan: Clan.HYUGA },
+    requirements: {
+      stats: {
+        [PrimaryStat.ACCURACY]: 16,
+      },
+      clan: Clan.HYUGA,
+    },
     effects: [
       { type: EffectType.CHAKRA_DRAIN, value: 40, duration: 1, chance: 1.0 },
       { type: EffectType.DEBUFF, targetStat: PrimaryStat.STRENGTH, value: 0.3, duration: 3, chance: 1.0 },
@@ -1551,7 +1835,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Sand Burial',
     tier: SkillTier.HIDDEN,
     description: 'Execute attack. +100% damage if target below 25% HP.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 30,
     hpCost: 0,
     cooldown: 3,
@@ -1562,7 +1847,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.EARTH,
-    requirements: { intelligence: 16 }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 16,
+        [PrimaryStat.SPIRIT]: 14,
+      },
+    },
   },
 
   CURSE_MARK_1: {
@@ -1571,6 +1861,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.HIDDEN,
     description: 'Toggle: +40% STR, +30% SPD. Costs HP to activate and upkeep.',
     actionType: ActionType.TOGGLE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 15,
     cooldown: 5,
@@ -1581,7 +1872,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.WILLPOWER]: 14,
+        [PrimaryStat.STRENGTH]: 12,
+      },
+    },
     isToggle: true,
     upkeepCost: 5,  // HP cost per turn
     effects: [
@@ -1598,7 +1894,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Sand Shield',
     tier: SkillTier.HIDDEN,
     description: 'Automatic sand defense. Creates 80 shield.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 20,
     hpCost: 0,
     cooldown: 3,
@@ -1609,7 +1906,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.EARTH,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.SPIRIT]: 12,
+      },
+    },
     effects: [{ type: EffectType.SHIELD, value: 80, duration: 2, chance: 1.0 }]
   },
 
@@ -1618,7 +1920,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Sharingan: Predict',
     tier: SkillTier.HIDDEN,
     description: 'See enemy\'s next move. +25% Evasion.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 3,
@@ -1629,7 +1932,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 14, clan: Clan.UCHIHA },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.CALMNESS]: 12,
+      },
+      clan: Clan.UCHIHA,
+    },
     effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.25, duration: 2, chance: 1.0 }]
   },
 
@@ -1637,8 +1946,9 @@ export const SKILLS: Record<string, Skill> = {
     id: 'byakugan_scan',
     name: 'Tenketsu Scan',
     tier: SkillTier.HIDDEN,
-    description: 'Scan chakra points. Next MAIN ignores 30% defense.',
-    actionType: ActionType.SIDE,
+    description: 'Scan chakra points. Next attack ignores 30% defense.',
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 10,
     hpCost: 0,
     cooldown: 3,
@@ -1649,7 +1959,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 14, clan: Clan.HYUGA },
+    requirements: {
+      stats: {
+        [PrimaryStat.ACCURACY]: 14,
+      },
+      clan: Clan.HYUGA,
+    },
     effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.ACCURACY, value: 0.3, duration: 1, chance: 1.0 }]
   },
 
@@ -1661,7 +1976,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Summoning: Gamabunta',
     tier: SkillTier.HIDDEN,
     description: 'Summon the great toad. Big water damage + shield.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 60,
     hpCost: 0,
     cooldown: 8,
@@ -1672,7 +1988,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WATER,
-    requirements: { intelligence: 18 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 18,
+        [PrimaryStat.CHAKRA]: 16,
+      },
+    },
     effects: [{ type: EffectType.SHIELD, value: 80, duration: 3, chance: 1.0 }]
   },
 
@@ -1681,7 +2002,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Summoning: Manda',
     tier: SkillTier.HIDDEN,
     description: 'Summon the great snake. High damage + TRUE poison.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 50,
     hpCost: 20,
     cooldown: 7,
@@ -1692,7 +2014,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 18 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 18,
+        [PrimaryStat.SPIRIT]: 16,
+      },
+    },
     effects: [{ type: EffectType.POISON, value: 15, duration: 4, chance: 1.0, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL }]
   },
 
@@ -1701,7 +2028,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Puppet: Crow',
     tier: SkillTier.HIDDEN,
     description: 'Deploy puppet with poison and bleed.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 30,
     hpCost: 0,
     cooldown: 4,
@@ -1712,7 +2040,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.DEXTERITY]: 14,
+      },
+    },
     effects: [
       { type: EffectType.POISON, value: 10, duration: 3, chance: 1.0, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL },
       { type: EffectType.BLEED, value: 10, duration: 3, chance: 1.0, damageType: DamageType.PHYSICAL, damageProperty: DamageProperty.NORMAL }
@@ -1725,7 +2057,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Shadow Clone Jutsu',
     tier: SkillTier.HIDDEN,
     description: 'Creates solid clones to overwhelm the enemy. Massive stat buffs but deals NO direct damage.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 50,
     hpCost: 0,
     cooldown: 6,
@@ -1736,7 +2069,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 18 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 18,
+        [PrimaryStat.CHAKRA]: 16,
+      },
+    },
     effects: [
       { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.6, duration: 3, chance: 1.0 },  // BUFFED: Was 0.5
       { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.4, duration: 3, chance: 1.0 }  // BUFFED: Was 0.3
@@ -1748,7 +2086,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Primary Lotus',
     tier: SkillTier.HIDDEN,
     description: 'A forbidden technique unlocking the body\'s limits. Devastating PIERCING physical damage at the cost of HP.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 15,  // T-006 B.2: 25→15 — the self-damage was disproportionately punishing the squishy Speed Demon (low HP) that leans on this skill
     cooldown: 4,
@@ -1759,7 +2098,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING, // Ignores flat phys def
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 6 }, // Lee can use it!
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 10,
+        [PrimaryStat.SPEED]: 10,
+      },
+    },
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     image: '/assets/skill_primary_lotus.png',
     effects: [{
       type: EffectType.BUFF,
@@ -1775,7 +2120,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Chidori',
     tier: SkillTier.HIDDEN,
     description: 'A crackling assassination technique. High speed thrust that deals PIERCING elemental damage.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 35,
     hpCost: 0,
     cooldown: 4,
@@ -1786,7 +2132,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.LIGHTNING,
-    requirements: { intelligence: 16 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 16,
+        [PrimaryStat.SPIRIT]: 14,
+      },
+    },
     critBonus: 15,
     penetration: 0.2, // Also ignores 20% of % defense
     image: '/assets/skill_chidori.png'
@@ -1797,7 +2148,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Chidori Stream',
     tier: SkillTier.HIDDEN,
     description: 'Releases lightning chakra in all directions, paralyzing nearby foes.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 40,
     hpCost: 0,
     cooldown: 4,
@@ -1808,7 +2160,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO, // AoE effect
     element: ElementType.LIGHTNING,
-    requirements: { intelligence: 18 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 18,
+        [PrimaryStat.SPIRIT]: 16,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 1, chance: 0.8 }]
   },
 
@@ -1817,7 +2174,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Sand Coffin',
     tier: SkillTier.HIDDEN,
     description: 'Encases the enemy in crushing waves of sand. ARMOR_BREAK ignores % defense.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 40,
     hpCost: 0,
     cooldown: 5,
@@ -1828,7 +2186,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.ARMOR_BREAK, // Ignores % def!
     attackMethod: AttackMethod.RANGED,
     element: ElementType.EARTH,
-    requirements: { intelligence: 16 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 16,
+        [PrimaryStat.SPIRIT]: 14,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 1, chance: 0.7 }]
   },
 
@@ -1837,7 +2200,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Water Dragon Jutsu',
     tier: SkillTier.HIDDEN,
     description: 'Manifests a majestic dragon of water to crash down upon the foe.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 30,
     hpCost: 0,
     cooldown: 4,
@@ -1848,7 +2212,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WATER,
-    requirements: { intelligence: 18 }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 18,
+        [PrimaryStat.SPIRIT]: 16,
+      },
+    },
   },
 
   ICE_MIRRORS: {
@@ -1856,7 +2225,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Demonic Ice Mirrors',
     tier: SkillTier.HIDDEN,
     description: 'Creates a dome of ice mirrors. Traps the target and deals multiple strikes.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 40,
     hpCost: 0,
     cooldown: 4,
@@ -1867,7 +2237,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.WATER,
-    requirements: { intelligence: 16 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 16,
+        [PrimaryStat.SPIRIT]: 14,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 1, chance: 0.5 }]
   },
 
@@ -1876,7 +2251,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'False Surroundings',
     tier: SkillTier.HIDDEN,
     description: 'Alters the perception of the environment. MENTAL damage with high confusion chance.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 45,
     hpCost: 0,
     cooldown: 5,
@@ -1887,7 +2263,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 20 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 20,
+        [PrimaryStat.CALMNESS]: 18,
+      },
+    },
     effects: [{ type: EffectType.CONFUSION, duration: 3, chance: 0.8 }]
   },
 
@@ -1896,7 +2277,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Temple of Nirvana',
     tier: SkillTier.HIDDEN,
     description: 'Descending feathers induce a deep, magical slumber. Guaranteed MENTAL stun.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 50,
     hpCost: 0,
     cooldown: 6,
@@ -1907,7 +2289,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 22 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 22,
+        [PrimaryStat.CALMNESS]: 20,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 2, chance: 1.0 }]
   },
 
@@ -1919,7 +2306,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Hidden Lotus',
     tier: SkillTier.FORBIDDEN,
     description: 'Ultimate taijutsu. TRUE damage at massive HP cost. Self-stuns after use.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 3,
     chakraCost: 0,
     hpCost: 50,
     cooldown: 6,
@@ -1930,7 +2318,14 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 6 }
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 16,
+        [PrimaryStat.SPEED]: 14,
+        [PrimaryStat.WILLPOWER]: 12,
+      },
+    },
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.25 },
   },
 
   WATER_VORTEX: {
@@ -1938,7 +2333,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Giant Water Vortex',
     tier: SkillTier.FORBIDDEN,
     description: 'Massive water attack that severely slows the enemy.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 45,
     hpCost: 0,
     cooldown: 5,
@@ -1949,7 +2345,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WATER,
-    requirements: { intelligence: 18 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 18,
+        [PrimaryStat.SPIRIT]: 16,
+      },
+    },
     effects: [{ type: EffectType.DEBUFF, targetStat: PrimaryStat.SPEED, value: 0.4, duration: 3, chance: 1.0 }]
   },
 
@@ -1958,7 +2359,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Clone Great Explosion',
     tier: SkillTier.FORBIDDEN,
     description: 'Exploding clone. Cannot be evaded.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 40,
     hpCost: 10,
     cooldown: 5,
@@ -1969,7 +2371,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,  // Cannot be evaded
     element: ElementType.FIRE,
-    requirements: { intelligence: 16 }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 16,
+        [PrimaryStat.SPIRIT]: 14,
+      },
+    },
   },
 
   THOUSAND_YEARS: {
@@ -1977,7 +2384,8 @@ export const SKILLS: Record<string, Skill> = {
     name: '1000 Years of Death',
     tier: SkillTier.FORBIDDEN,
     description: 'The forbidden poke. 100% stun, 60% confusion.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 5,
@@ -2003,6 +2411,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.FORBIDDEN,
     description: 'Open the 3rd gate. +80% STR, +60% SPD. Heavy HP cost.',
     actionType: ActionType.TOGGLE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 25,
     cooldown: 6,
@@ -2013,7 +2422,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 4 },
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 12,
+        [PrimaryStat.WILLPOWER]: 10,
+      },
+    },
     isToggle: true,
     upkeepCost: 10,  // HP cost per turn
     effects: [
@@ -2028,6 +2442,7 @@ export const SKILLS: Record<string, Skill> = {
     tier: SkillTier.FORBIDDEN,
     description: 'Full transformation. +80% STR/SPD/SPI. Heavy HP cost.',
     actionType: ActionType.TOGGLE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 30,
     cooldown: 6,
@@ -2038,7 +2453,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 16 },
+    requirements: {
+      stats: {
+        [PrimaryStat.WILLPOWER]: 16,
+        [PrimaryStat.STRENGTH]: 14,
+      },
+    },
     isToggle: true,
     upkeepCost: 10,  // HP cost per turn
     effects: [
@@ -2055,8 +2475,9 @@ export const SKILLS: Record<string, Skill> = {
     id: 'curse_surge',
     name: 'Curse Mark Surge',
     tier: SkillTier.FORBIDDEN,
-    description: '+30% damage on next MAIN. HP cost.',
-    actionType: ActionType.SIDE,
+    description: '+30% damage on next attack. HP cost.',
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 0,
     hpCost: 10,
     cooldown: 4,
@@ -2067,7 +2488,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.WILLPOWER]: 14,
+        [PrimaryStat.STRENGTH]: 12,
+      },
+    },
     effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.3, duration: 1, chance: 1.0 }]
   },
 
@@ -2076,7 +2502,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Gate Release Prep',
     tier: SkillTier.FORBIDDEN,
     description: 'Prepare for gate opening. Next gate activation: -50% HP cost.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 0,
     hpCost: 15,
     cooldown: 5,
@@ -2087,7 +2514,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 4 },
+    requirements: {
+      stats: {
+        [PrimaryStat.WILLPOWER]: 10,
+        [PrimaryStat.STRENGTH]: 8,
+      },
+    },
     effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.5, duration: 2, chance: 1.0 }]
   },
 
@@ -2096,7 +2528,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Killing Intent',
     tier: SkillTier.FORBIDDEN,
     description: 'Release murderous aura. 30% chance enemy skips turn.',
-    actionType: ActionType.SIDE,
+    actionType: ActionType.ACTIVE,
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 6,
@@ -2107,7 +2540,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 16 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 16,
+        [PrimaryStat.CALMNESS]: 14,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 1, chance: 0.3 }]
   },
 
@@ -2117,7 +2555,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Demon Slash',
     tier: SkillTier.FORBIDDEN,
     description: 'A brutal, sweeping cleave with the Executioner Blade. Causes BLEED.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -2128,7 +2567,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 10 },
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 10,
+        [PrimaryStat.DEXTERITY]: 8,
+      },
+    },
     effects: [{
       type: EffectType.BLEED,
       value: 15,
@@ -2144,7 +2588,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Dance of Clematis',
     tier: SkillTier.FORBIDDEN,
     description: 'A macabre dance manipulating bone density into a piercing spear. TRUE damage.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 10,
     cooldown: 3,
@@ -2155,7 +2600,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 8 },
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 8,
+        [PrimaryStat.WILLPOWER]: 6,
+      },
+    },
     critBonus: 30
   },
 
@@ -2164,7 +2614,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Ibuse Poison Fog',
     tier: SkillTier.FORBIDDEN,
     description: 'Exhales a cloud of toxic gas. POISON ignores 50% of defense.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 20,
     hpCost: 0,
     cooldown: 3,
@@ -2175,7 +2626,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.FIRE, // Poison is Fire-adjacent
-    requirements: { intelligence: 14 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 14,
+        [PrimaryStat.SPIRIT]: 12,
+      },
+    },
     effects: [{
       type: EffectType.POISON,
       value: 18,
@@ -2191,7 +2647,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Tsukuyomi',
     tier: SkillTier.FORBIDDEN,
     description: 'Traps the target in an illusion of torture. Massive TRUE MENTAL damage.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 80,
     hpCost: 15,
     cooldown: 6,
@@ -2202,7 +2659,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 24, clan: Clan.UCHIHA },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 24,
+        [PrimaryStat.CALMNESS]: 22,
+      },
+      clan: Clan.UCHIHA,
+    },
     effects: [{ type: EffectType.STUN, duration: 1, chance: 1.0 }]
   },
 
@@ -2214,7 +2677,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Reaper Death Seal',
     tier: SkillTier.KINJUTSU,
     description: 'Sacrifice your life to instantly kill the target. Both die.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 9999,  // All HP
     cooldown: 99,
@@ -2225,7 +2689,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 20 }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 20,
+        [PrimaryStat.WILLPOWER]: 18,
+      },
+    },
   },
 
   EDO_TENSEI: {
@@ -2233,7 +2702,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Edo Tensei',
     tier: SkillTier.KINJUTSU,
     description: 'Summon an ally at 50% stats for 5 turns.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 100,
     hpCost: 30,
     cooldown: 10,
@@ -2244,7 +2714,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    requirements: { intelligence: 22 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 22,
+      },
+    },
     effects: [
       { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.5, duration: 5, chance: 1.0 },
       { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.5, duration: 5, chance: 1.0 }
@@ -2256,7 +2730,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Gate of Limit (5th Gate)',
     tier: SkillTier.KINJUTSU,
     description: 'Open the 5th gate. +150% STR/SPD but bleed 20/turn.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 0,
     hpCost: 40,
     cooldown: 99,
@@ -2267,7 +2742,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 4 },
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 18,
+        [PrimaryStat.SPEED]: 16,
+        [PrimaryStat.WILLPOWER]: 14,
+      },
+    },
     effects: [
       { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 1.5, duration: 5, chance: 1.0 },
       { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 1.5, duration: 5, chance: 1.0 },
@@ -2280,7 +2761,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Shukaku Arm',
     tier: SkillTier.KINJUTSU,
     description: 'Partial Bijuu transformation. ARMOR_BREAK + shield, double damage if <30% HP.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 50,
     hpCost: 0,
     cooldown: 6,
@@ -2291,7 +2773,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.ARMOR_BREAK,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.EARTH,
-    requirements: { intelligence: 18 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 18,
+        [PrimaryStat.SPIRIT]: 16,
+      },
+    },
     effects: [{ type: EffectType.SHIELD, value: 100, duration: 2, chance: 1.0 }]
   },
 
@@ -2300,7 +2787,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Sharingan: Copy',
     tier: SkillTier.KINJUTSU,
     description: 'Copy enemy\'s last skill at 80% power.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 30,
     hpCost: 0,
     cooldown: 8,
@@ -2311,7 +2799,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 16, clan: Clan.UCHIHA }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 16,
+      },
+      clan: Clan.UCHIHA,
+    },
   },
 
   // ==== FORBIDDEN ====
@@ -2320,7 +2813,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'C4 Karura',
     tier: SkillTier.FORBIDDEN,
     description: 'Microscopic clay spiders that disintegrate the target on a cellular level. TRUE damage.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 100,
     hpCost: 0,
     cooldown: 6,
@@ -2331,7 +2825,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.EARTH,
-    requirements: { intelligence: 22 }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 22,
+        [PrimaryStat.SPIRIT]: 20,
+      },
+    },
   },
 
   RASENSHURIKEN: {
@@ -2339,7 +2838,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Rasenshuriken',
     tier: SkillTier.KINJUTSU,
     description: 'A microscopic wind blade vortex that severs chakra channels. PIERCING + TRUE damage hybrid.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 120,
     hpCost: 0,
     cooldown: 5,
@@ -2350,7 +2850,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WIND,
-    requirements: { intelligence: 20 }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 20,
+        [PrimaryStat.SPIRIT]: 18,
+      },
+    },
   },
 
   AMATERASU: {
@@ -2358,7 +2863,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Amaterasu',
     tier: SkillTier.KINJUTSU,
     description: 'Inextinguishable black flames. Deals initial PIERCING damage + massive TRUE DoT.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 80,
     hpCost: 20,
     cooldown: 5,
@@ -2369,7 +2875,13 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.FIRE,
-    requirements: { intelligence: 22, clan: Clan.UCHIHA },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 22,
+        [PrimaryStat.SPIRIT]: 20,
+      },
+      clan: Clan.UCHIHA,
+    },
     effects: [{
       type: EffectType.BURN,
       value: 50,
@@ -2385,7 +2897,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Kirin',
     tier: SkillTier.KINJUTSU,
     description: 'Harnesses natural lightning from the heavens. Unavoidable ARMOR_BREAK strike.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 150,
     hpCost: 0,
     cooldown: 8,
@@ -2396,7 +2909,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.ARMOR_BREAK, // Ignores % def
     attackMethod: AttackMethod.AUTO, // Cannot be dodged
     element: ElementType.LIGHTNING,
-    requirements: { intelligence: 24 }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 24,
+        [PrimaryStat.SPIRIT]: 22,
+      },
+    },
   },
 
   SHINRA_TENSEI: {
@@ -2404,7 +2922,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Shinra Tensei',
     tier: SkillTier.KINJUTSU,
     description: 'Almighty Push. Repels everything with crushing gravitational force. TRUE damage.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 80,
     hpCost: 0,
     cooldown: 5,
@@ -2415,7 +2934,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.WIND,
-    requirements: { intelligence: 26 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 26,
+        [PrimaryStat.SPIRIT]: 24,
+      },
+    },
     effects: [{ type: EffectType.STUN, duration: 1, chance: 0.5 }]
   },
 
@@ -2424,7 +2948,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Kamui',
     tier: SkillTier.KINJUTSU,
     description: 'Space-Time Ninjutsu that warps reality. TRUE damage that cannot miss.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 60,
     hpCost: 0,
     cooldown: 4,
@@ -2435,7 +2960,12 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    requirements: { intelligence: 24 },
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 24,
+        [PrimaryStat.CALMNESS]: 22,
+      },
+    },
     effects: [{
       type: EffectType.DEBUFF,
       targetStat: PrimaryStat.SPEED,
@@ -2450,7 +2980,8 @@ export const SKILLS: Record<string, Skill> = {
     name: 'Tengai Shinsei',
     tier: SkillTier.KINJUTSU,
     description: 'Summons a massive meteorite from the atmosphere. Catastrophic TRUE damage.',
-    actionType: ActionType.MAIN,
+    actionType: ActionType.ACTIVE,
+    apCost: 2,
     chakraCost: 150,
     hpCost: 0,
     cooldown: 8,
@@ -2461,6 +2992,11 @@ export const SKILLS: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.EARTH,
-    requirements: { intelligence: 28 }
+    requirements: {
+      stats: {
+        [PrimaryStat.INTELLIGENCE]: 28,
+        [PrimaryStat.SPIRIT]: 26,
+      },
+    },
   }
 };

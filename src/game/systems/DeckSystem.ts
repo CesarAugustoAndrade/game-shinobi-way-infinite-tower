@@ -24,6 +24,21 @@
 
 import { ActionType, Posture, Skill } from '../types';
 import { weightFor } from '../constants/combatCards';
+import { LaunchProperties } from '../../config/featureFlags';
+
+/**
+ * Count skills that enter the combat deck (non-PASSIVE).
+ */
+export function getPlayableDeckSize(skills: Skill[]): number {
+  return skills.filter((skill) => skill.actionType !== ActionType.PASSIVE).length;
+}
+
+/**
+ * Whether the player can add another playable skill without forgetting one.
+ */
+export function canAddPlayableSkill(skills: Skill[]): boolean {
+  return getPlayableDeckSize(skills) < LaunchProperties.MAX_DECK_SIZE;
+}
 
 /**
  * Build the draw pile from a player's skills: every non-PASSIVE skill becomes a

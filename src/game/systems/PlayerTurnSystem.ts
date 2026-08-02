@@ -72,7 +72,11 @@ import {
 } from './EquipmentPassiveSystem';
 import { getEventFlagRunModifiers } from './EventSystem';
 import { getApCost } from '../constants/combatCards';
-import { postureDamageMod, stanceShiftFromSkill } from './PostureSystem';
+import {
+  postureDamageMod,
+  stanceBonusDamageMult,
+  stanceShiftFromSkill,
+} from './PostureSystem';
 import { drawNewTurnHand } from './DeckSystem';
 import { checkLethalDamage } from './EnemyTurnSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
@@ -485,6 +489,14 @@ export function useSkill(
     // T-004: light posture modifier on outgoing damage (base math untouched).
     modifiedDamage = Math.floor(modifiedDamage * postureDamageMod(posture));
 
+    // Card-combat plan: stanceBonus match (multiplicative on final pre-mitigation dmg).
+    const stanceCardMult = stanceBonusDamageMult(skill, posture);
+    let stanceMatchNote = '';
+    if (stanceCardMult !== 1) {
+      modifiedDamage = Math.floor(modifiedDamage * stanceCardMult);
+      stanceMatchNote = ` Stance match (${posture}): ×${stanceCardMult.toFixed(2)} dmg.`;
+    }
+
     // Apply Mitigation Logic
     const mitigation = applyMitigation(enemy.activeBuffs, modifiedDamage, enemy.name);
     finalDamageToEnemy = mitigation.finalDamage;
@@ -549,6 +561,9 @@ export function useSkill(
       logMsg = `Used ${skill.name} for ${finalDamageToEnemy} dmg`;
     } else {
       logMsg = `Used ${skill.name}`;
+    }
+    if (stanceMatchNote) {
+      logMsg += stanceMatchNote;
     }
     // Add execute message
     if (checkExecuteThreshold(player, enemy, enemyMaxHp) && enemy.currentHp <= enemyMaxHp * 0.2) {

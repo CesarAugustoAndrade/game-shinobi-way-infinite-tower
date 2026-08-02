@@ -11,6 +11,7 @@ import {
   // Treasure system types
   TreasureActivity, TreasureHunt, TreasureType, DiceRollResult,
   CombatModifierType,
+  ActionType,
 } from './game/types';
 import { CLAN_GROWTH } from './game/constants';
 import { COMBAT_MODIFIER_EFFECTS } from './game/constants/roomTypes';
@@ -19,6 +20,10 @@ import {
   getPlayerFullStats,
   canLearnSkill
 } from './game/systems/StatSystem';
+import {
+  canAddPlayableSkill,
+  getPlayableDeckSize,
+} from './game/systems/DeckSystem';
 import { applyLevelUp } from './game/systems/LevelSystem';
 import { generateEnemy } from './game/systems/EnemySystem';
 
@@ -131,6 +136,14 @@ import { FeatureFlags, LaunchProperties } from './config/featureFlags';
 
 // Center-stage void plate + left-panel chrome
 import './App.css';
+
+const getFullCombatBackground = (locationBackground: string): string => {
+  const match = locationBackground.match(/\/assets\/location_([^?]+)\.png/);
+  const slug = match?.[1] ?? 'coastal_harbor';
+  return slug === 'coastal_harbor'
+    ? '/assets/combat_background_coastal_harbor_v3.png'
+    : `/assets/combat_background_${slug}.png`;
+};
 
 const App: React.FC = () => {
   // --- Core State ---
@@ -372,8 +385,10 @@ const App: React.FC = () => {
     return resolveLaminaPaths(biome);
   }, [currentLocation, region]);
   const combatBackground = combatLamina.background;
-  const combatMidground = combatLamina.midground;
-  const combatForeground = combatLamina.foreground;
+  const fullCombatBackground = useMemo(
+    () => getFullCombatBackground(combatBackground),
+    [combatBackground],
+  );
 
   // Create game context value for child components
   const gameContextValue = useMemo((): GameContextValue => ({
@@ -1368,15 +1383,27 @@ const App: React.FC = () => {
     // Already claimed this skill drop
     if (!droppedSkill || droppedSkill.id !== skill.id) return;
 
-    const checkResult = canLearnSkill(skill, playerStats.effectivePrimary.intelligence, player.level, player.clan);
+    const checkResult = canLearnSkill(
+      skill,
+      playerStats.effectivePrimary,
+      player.level,
+      player.clan,
+    );
     if (!checkResult.canLearn) {
       addLog(`Cannot learn ${skill.name}: ${checkResult.reason}`, 'danger');
       return;
     }
 
-    // Need a replace slot when bar is full and skill is new
+    // Deck full (20 playable): must pick a card to forget (slotIndex) before learning a new playable skill
     const alreadyKnown = player.skills.some(s => s.id === skill.id);
-    if (!alreadyKnown && slotIndex === undefined && player.skills.length >= 4) {
+    const isPlayable = skill.actionType !== ActionType.PASSIVE;
+    if (
+      !alreadyKnown &&
+      isPlayable &&
+      slotIndex === undefined &&
+      !canAddPlayableSkill(player.skills)
+    ) {
+      addLog(`Deck full (${getPlayableDeckSize(player.skills)}/20). Forget a technique to learn ${skill.name}.`, 'danger');
       return;
     }
 
@@ -1397,6 +1424,7 @@ const App: React.FC = () => {
     // skill, letting the same scroll be learned/upgraded over and over.
     const priorSkills = player.skills;
     const existingIndex = priorSkills.findIndex(s => s.id === skill.id);
+    const playableSkill = skill.actionType !== ActionType.PASSIVE;
     const box: { kind: LearnKind; detail?: string; level?: number } =
       existingIndex !== -1
         ? {
@@ -1406,7 +1434,7 @@ const App: React.FC = () => {
           }
         : slotIndex !== undefined && priorSkills[slotIndex]
           ? { kind: 'replace', detail: priorSkills[slotIndex].name }
-          : priorSkills.length < 4
+          : !playableSkill || canAddPlayableSkill(priorSkills)
             ? { kind: 'learn' }
             : { kind: 'fail' };
 
@@ -1427,16 +1455,26 @@ const App: React.FC = () => {
         return { ...prev, skills: newSkills };
       }
       if (slotIndex !== undefined && newSkills[slotIndex]) {
+        const replaced = newSkills[slotIndex];
+        // When playable deck is full, only allow replacing a playable slot (not a passive)
+        if (
+          skill.actionType !== ActionType.PASSIVE &&
+          !canAddPlayableSkill(newSkills) &&
+          replaced.actionType === ActionType.PASSIVE
+        ) {
+          return prev;
+        }
         newSkills[slotIndex] = { ...skill, level: 1 };
         return { ...prev, skills: newSkills };
       }
-      if (newSkills.length < 4) {
+      if (skill.actionType === ActionType.PASSIVE || canAddPlayableSkill(newSkills)) {
         newSkills.push({ ...skill, level: 1 });
         return { ...prev, skills: newSkills };
       }
       return prev;
     });
 
+    // Recompute replace fail if box said replace but player was not updated (passive overwrite blocked)
     if (box.kind === 'upgrade') {
       addLog(`Upgraded ${box.detail} to Level ${box.level}!`, 'gain');
     } else if (box.kind === 'replace') {
@@ -1827,9 +1865,7 @@ const App: React.FC = () => {
                 autoCombatEnabled={autoCombatEnabled}
                 onToggleAutoCombat={() => setAutoCombatEnabled(prev => !prev)}
                 autoPassTimeRemaining={autoPassTimeRemaining}
-                background={combatBackground}
-                midgroundImage={combatMidground}
-                foregroundImage={combatForeground}
+                background={fullCombatBackground}
                 logs={logs}
                 approachResult={approachResult}
                 locationTerrainLines={(() => {

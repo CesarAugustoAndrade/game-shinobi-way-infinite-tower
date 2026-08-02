@@ -248,7 +248,7 @@ export const createMockSkill = (overrides: Partial<Skill> = {}): Skill => ({
   name: 'Test Skill',
   tier: SkillTier.BASIC,
   description: 'A test skill',
-  actionType: ActionType.MAIN,
+  actionType: ActionType.ACTIVE,
   chakraCost: 10,
   hpCost: 0,
   cooldown: 0,

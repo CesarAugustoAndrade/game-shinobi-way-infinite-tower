@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   BranchingFloor,
   BranchingRoom,
+  BranchingRoomType,
   Player,
   CharacterStats,
 } from '../../game/types';
@@ -60,9 +61,23 @@ const LocationMap: React.FC<LocationMapProps> = ({
     [branchingFloor],
   );
 
-  // First entry / after advancing: auto-select current room so Enter Room is visible
+  // Entry hub (START) is structural only — auto-select first open path so the map
+  // is 2 choices, not a dead "you are here" on an invisible node.
+  // After leaving a cleared room, prefer next open child; otherwise current.
   useEffect(() => {
     if (!currentRoom) return;
+
+    const isEntryHub = currentRoom.type === BranchingRoomType.START;
+    if (isEntryHub || currentRoom.isCleared) {
+      const nextPath =
+        childRooms.find((r) => r.isAccessible && !r.isCleared) ?? childRooms[0];
+      if (nextPath) {
+        setSelectedRoomId(nextPath.id);
+        onRoomSelect(nextPath);
+        return;
+      }
+    }
+
     setSelectedRoomId(currentRoom.id);
     onRoomSelect(currentRoom);
     // Only re-run when player position changes — do not override manual path picks.
@@ -391,94 +406,120 @@ const LocationMap: React.FC<LocationMapProps> = ({
         </div>
       </div>
 
-      {/* Map Area - RELATIVE VIEW: Current at bottom, children middle, grandchildren top */}
+      {/* Path board — two branch columns: foresight (2) → stem → choice (1) */}
       <div className="location-map__area">
-        {/* Mission diamond: path choices ahead, not a spreadsheet */}
-        <div className="location-map__rooms location-map__rooms--diamond">
-          {/* Grandchildren — T-080: fogged when current room visibilityRange < 2 */}
-          <div className="location-map__row">
-            {childRooms.map((child) => {
-              const childGrandchildren = getChildRooms(branchingFloor, child.id);
-              return (
-                <div key={`gc-group-${child.id}`} className="location-map__row-group">
-                  {showGrandchildren ? (
-                    <>
-                      {childGrandchildren.map((room) => (
-                        <RoomCard
-                          key={room.id}
-                          room={room}
-                          isSelected={selectedRoomId === room.id}
-                          onClick={() => handleRoomClick(room)}
-                        />
-                      ))}
-                      {childGrandchildren.length === 0 && (
-                        <div className="location-map__placeholder">...</div>
+        <div className="location-map__rooms location-map__rooms--path">
+          {childRooms.length > 0 ? (
+            <div className="location-map__path-board" role="group" aria-label="Path choices">
+              {childRooms.map((child, branchIndex) => {
+                const childGrandchildren = getChildRooms(branchingFloor, child.id);
+                const foresightSlots = 2;
+                const branchSelected =
+                  selectedRoomId === child.id ||
+                  childGrandchildren.some((g) => g.id === selectedRoomId);
+                return (
+                  <div
+                    key={child.id}
+                    className={[
+                      'location-map__branch',
+                      branchSelected ? 'location-map__branch--selected' : '',
+                      child.isCleared ? 'location-map__branch--cleared' : '',
+                      !child.isAccessible ? 'location-map__branch--locked' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    data-path={branchIndex + 1}
+                  >
+                    <div className="location-map__branch-foresight">
+                      {showGrandchildren ? (
+                        <>
+                          {childGrandchildren.map((room) => (
+                            <div key={room.id} className="location-map__foresight-slot">
+                              <RoomCard
+                                room={room}
+                                isSelected={selectedRoomId === room.id}
+                                onClick={() => handleRoomClick(room)}
+                              />
+                            </div>
+                          ))}
+                          {Array.from(
+                            { length: Math.max(0, foresightSlots - childGrandchildren.length) },
+                            (_, i) => (
+                              <div
+                                key={`ph-${child.id}-${i}`}
+                                className="location-map__placeholder location-map__foresight-slot"
+                                aria-hidden="true"
+                              >
+                                ...
+                              </div>
+                            ),
+                          )}
+                        </>
+                      ) : (
+                        Array.from({ length: foresightSlots }, (_, i) => (
+                          <div
+                            key={`fog-${child.id}-${i}`}
+                            className="location-map__fog location-map__foresight-slot"
+                            title="Fogged intel — advance to scout (threat unreadable, not empty)"
+                            aria-label="Path ahead obscured by terrain"
+                          >
+                            ???
+                          </div>
+                        ))
                       )}
-                    </>
-                  ) : (
-                    <div
-                      className="location-map__fog"
-                      title="Fogged intel — advance to scout (threat unreadable, not empty)"
-                      aria-label="Path ahead obscured by terrain"
-                    >
-                      ???
                     </div>
-                  )}
+
+                    {/* Y-junction: two arms into one trunk */}
+                    <div className="location-map__branch-stem" aria-hidden="true">
+                      <span className="location-map__branch-stem-y" />
+                      <span className="location-map__branch-stem-trunk" />
+                    </div>
+
+                    <div className="location-map__branch-choice">
+                      <RoomCard
+                        room={child}
+                        isSelected={selectedRoomId === child.id}
+                        onClick={() => handleRoomClick(child)}
+                      />
+                      <span className="location-map__branch-hotkey" aria-hidden="true">
+                        {branchIndex + 1}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="location-map__path-fallback">
+              {currentRoom?.isExit && !currentRoom.isCleared && (
+                <div className="location-map__exit-message">
+                  Floor exit — defeat the Guardian to clear this location
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Children - Middle (2 rooms) - Immediate choices */}
-          <div className="location-map__row">
-            {childRooms.map((room) => (
-              <RoomCard
-                key={room.id}
-                room={room}
-                isSelected={selectedRoomId === room.id}
-                onClick={() => handleRoomClick(room)}
-              />
-            ))}
-            {childRooms.length === 0 && currentRoom?.isExit && !currentRoom.isCleared && (
-              <div className="location-map__exit-message">
-                Floor exit — defeat the Guardian to clear this location
-              </div>
-            )}
-            {childRooms.length === 0 && currentRoom?.isExit && currentRoom.isCleared && (
-              <div className="location-map__exit-message location-map__exit-message--clear">
-                Guardian fallen — location clear
-              </div>
-            )}
-            {childRooms.length === 0 && !currentRoom?.isExit && (
-              <div
-                className="location-map__void-plate"
-                title="No branch visible — void underplate holds the frame"
-                aria-hidden="true"
-              >
-                <span className="location-map__void-plate-mark">···</span>
-              </div>
-            )}
-          </div>
-
-          {/* Current Room - Bottom (1 room) - You are here */}
-          <div className="location-map__row">
-            {currentRoom ? (
-              <RoomCard
-                key={currentRoom.id}
-                room={currentRoom}
-                isSelected={selectedRoomId === currentRoom.id}
-                onClick={() => handleRoomClick(currentRoom)}
-              />
-            ) : (
-              <div
-                className="location-map__void-plate location-map__void-plate--here"
-                title="Position resolving"
-                aria-hidden="true"
-              >
-                <span className="location-map__void-plate-mark">?</span>
-              </div>
-            )}
-          </div>
+              )}
+              {currentRoom?.isExit && currentRoom.isCleared && (
+                <div className="location-map__exit-message location-map__exit-message--clear">
+                  Guardian fallen — location clear
+                </div>
+              )}
+              {currentRoom && !currentRoom.isExit && !currentRoom.isCleared && (
+                <RoomCard
+                  key={currentRoom.id}
+                  room={currentRoom}
+                  isSelected={selectedRoomId === currentRoom.id}
+                  onClick={() => handleRoomClick(currentRoom)}
+                />
+              )}
+              {currentRoom?.isCleared && !currentRoom.isExit && (
+                <div
+                  className="location-map__void-plate"
+                  title="No branch visible — void underplate holds the frame"
+                  aria-hidden="true"
+                >
+                  <span className="location-map__void-plate-mark">···</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

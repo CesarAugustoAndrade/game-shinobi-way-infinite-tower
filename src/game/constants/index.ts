@@ -191,56 +191,118 @@ export const CLAN_START_SKILL: Record<Clan, Skill> = {
 };
 
 // ============================================================================
-// CLAN STARTING LOADOUTS (Full Jutsu Card System)
-// Each clan starts with a balanced loadout of skills by action type
+// CLAN STARTING LOADOUTS — academy-first card combat kits (~8 playable)
+// ACTIVE = playable cards; TOGGLE = stance/dojutsu; PASSIVE = always-on
 // ============================================================================
 export interface ClanLoadout {
-  main: Skill[];      // Primary attack skills
-  side: Skill[];      // Setup/utility skills
-  toggle: Skill[];    // Stance/transformation skills
-  passive: Skill[];   // Permanent bonus skills
+  active: Skill[];    // Playable deck cards (was main + side)
+  toggle: Skill[];    // Stance / dojutsu toggles
+  passive: Skill[];   // Permanent bonus skills (not in deck)
 }
 
+/** Shared academy core (~6) + clan delta keep start near START_DECK_TARGET (8). */
+const ACADEMY_CORE: Skill[] = [
+  SKILLS.BASIC_ATTACK,
+  SKILLS.HEAVY_KICK,
+  SKILLS.SHURIKEN,
+  SKILLS.WIRE_SETUP,
+  SKILLS.KAWARIMI,
+  SKILLS.BUNSHIN,
+];
+
 export const CLAN_START_LOADOUT: Record<Clan, ClanLoadout> = {
-  // Uzumaki: Tank/Sustain - High chakra, shadow clones, healing
+  // Uzumaki: sustain academy + medical; mid signatures learned in run
   [Clan.UZUMAKI]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.RASENGAN, SKILLS.BASIC_MEDICAL],
-    side: [SKILLS.BUNSHIN, SKILLS.SHUNSHIN, SKILLS.BRACE, SKILLS.SHADOW_CLONE],
-    toggle: [],
-    passive: [SKILLS.CHAKRA_RESERVES]
+    active: [...ACADEMY_CORE, SKILLS.BASIC_MEDICAL],
+    toggle: [SKILLS.DEFENSIVE_POSTURE],
+    passive: [SKILLS.CHAKRA_RESERVES],
   },
 
-  // Uchiha: Glass Cannon - High damage, fire ninjutsu, sharingan
+  // Uchiha: tools + simple fire; Great Fireball / Chidori mid-run
   [Clan.UCHIHA]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.SHURIKEN, SKILLS.FIREBALL],
-    side: [SKILLS.WIRE_SETUP, SKILLS.SMOKE_BOMB, SKILLS.SHARINGAN_PREDICT, SKILLS.PHOENIX_FLOWER],
+    active: [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.HEAVY_KICK,
+      SKILLS.SHURIKEN,
+      SKILLS.WIRE_SETUP,
+      SKILLS.SMOKE_BOMB,
+      SKILLS.KAWARIMI,
+      SKILLS.PHOENIX_FLOWER,
+    ],
     toggle: [SKILLS.SHARINGAN_2TOMOE],
-    passive: [SKILLS.FIRE_AFFINITY, SKILLS.PRECISION]
+    passive: [SKILLS.FIRE_AFFINITY],
   },
 
-  // Hyuga: Precision Fighter - TRUE damage, chakra disruption, defensive
+  // Hyuga: Gentle Fist + Byakugan; 64/Kaiten/Air mid-run
   [Clan.HYUGA]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.GENTLE_FIST, SKILLS.SIXTY_FOUR_PALMS, SKILLS.AIR_PALM],
-    side: [SKILLS.ROTATION, SKILLS.BYAKUGAN_SCAN, SKILLS.ANALYZE],
+    active: [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.HEAVY_KICK,
+      SKILLS.SHURIKEN,
+      SKILLS.KAWARIMI,
+      SKILLS.ANALYZE,
+      SKILLS.GENTLE_FIST,
+      SKILLS.BRACE,
+    ],
     toggle: [SKILLS.BYAKUGAN],
-    passive: [SKILLS.PRECISION, SKILLS.TAIJUTSU_TRAINING]
+    passive: [SKILLS.PRECISION],
   },
 
-  // Lee: Pure Taijutsu - No ninjutsu, extreme physical stats, gates
+  // Lee: pure tai academy; Lotus/Gates mid-run (no INT gates)
   [Clan.LEE]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.LEAF_WHIRLWIND, SKILLS.DYNAMIC_ENTRY, SKILLS.PRIMARY_LOTUS],
-    side: [SKILLS.DANCING_LEAF, SKILLS.FOCUSED_BREATHING, SKILLS.BRACE],
-    toggle: [],
-    passive: [SKILLS.TAIJUTSU_TRAINING, SKILLS.IRON_BODY]
+    active: [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.HEAVY_KICK,
+      SKILLS.LEAF_WHIRLWIND,
+      SKILLS.DYNAMIC_ENTRY,
+      SKILLS.FOCUSED_BREATHING,
+      SKILLS.BRACE,
+      SKILLS.SHURIKEN,
+    ],
+    toggle: [SKILLS.AGGRESSIVE_STANCE],
+    passive: [SKILLS.TAIJUTSU_TRAINING],
   },
 
-  // Yamanaka: Mind Controller - CC focus, genjutsu, debuffs
+  // Yamanaka: analyze/kai tools; Mind Transfer mid (still clan-locked)
   [Clan.YAMANAKA]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.SHURIKEN, SKILLS.MIND_TRANSFER, SKILLS.HELL_VIEWING],
-    side: [SKILLS.BUNSHIN, SKILLS.ANALYZE, SKILLS.KAI],
-    toggle: [],
-    passive: [SKILLS.MENTAL_FORTITUDE]
-  }
+    active: [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.HEAVY_KICK,
+      SKILLS.SHURIKEN,
+      SKILLS.BUNSHIN,
+      SKILLS.ANALYZE,
+      SKILLS.KAI,
+      SKILLS.HELL_VIEWING,
+    ],
+    toggle: [SKILLS.FOCUSED_STANCE],
+    passive: [SKILLS.MENTAL_FORTITUDE],
+  },
+};
+
+/**
+ * Skills this clan is more likely to see in scrolls/loot (bias only).
+ * Not a hard gate — open learn still applies except requirements.clan.
+ */
+export const CLAN_FAVORITE_SKILLS: Record<Clan, readonly string[]> = {
+  [Clan.UZUMAKI]: [
+    'basic_medical', 'bunshin', 'shadow_clone', 'rasengan', 'rasenshuriken',
+    'adamantine_chains', 'brace', 'focused_breathing',
+  ],
+  [Clan.UCHIHA]: [
+    'phoenix_flower', 'fireball', 'chidori', 'sharingan_predict',
+    'sharingan_2', 'fire_affinity', 'amaterasu',
+  ],
+  [Clan.HYUGA]: [
+    'gentle_fist', 'air_palm', 'kaiten', '64_palms', 'byakugan',
+    'byakugan_scan', 'analyze',
+  ],
+  [Clan.LEE]: [
+    'leaf_whirlwind', 'dynamic_entry', 'heavy_kick', 'primary_lotus',
+    'hidden_lotus', 'gate_of_life', 'gate_prep', 'gate_of_limit', 'dancing_leaf',
+  ],
+  [Clan.YAMANAKA]: [
+    'analyze', 'kai', 'hell_viewing', 'mind_transfer', 'mind_destruction',
+  ],
 };
 
 /**
@@ -250,10 +312,9 @@ export const CLAN_START_LOADOUT: Record<Clan, ClanLoadout> = {
 export const getClanStartingSkills = (clan: Clan): Skill[] => {
   const loadout = CLAN_START_LOADOUT[clan];
   return [
-    ...loadout.main,
-    ...loadout.side,
+    ...loadout.active,
     ...loadout.toggle,
-    ...loadout.passive
+    ...loadout.passive,
   ];
 };
 

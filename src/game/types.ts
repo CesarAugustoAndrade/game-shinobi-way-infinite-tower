@@ -20,7 +20,7 @@ export enum GameState {
   GUIDE,
   // Region exploration system states
   REGION_MAP,       // Region overview showing all locations
-  LOCATION_EXPLORE, // Inside a location (10-room diamond exploration)
+  LOCATION_EXPLORE, // Inside a location (binary room branching exploration)
   // Treasure system states
   TREASURE,              // Treasure choice screen (locked chests OR treasure hunter)
   TREASURE_HUNT_REWARD,  // Map completion reward screen
@@ -224,15 +224,14 @@ export enum SkillTier {
 }
 
 // ============================================================================
-// ACTION TYPE SYSTEM - Card category for the AP economy (T-004)
+// ACTION TYPE SYSTEM - Card category for the AP economy (T-004 / card-combat plan)
 // ============================================================================
-// Action types no longer gate "ends turn" / "free action" rules. Combat spends
-// Action Points (AP) per card; the turn ends when AP is exhausted (or the player
-// ends turn). Defaults: MAIN/TOGGLE ≈ 2 AP, SIDE ≈ 1 AP (see combatCards.ts).
+// Combat spends Action Points (AP) per card; the turn ends when AP is exhausted
+// (or the player ends turn). MAIN/SIDE collapsed into ACTIVE — AP is authored
+// per skill via Skill.apCost (fallback defaults in combatCards.ts).
 export enum ActionType {
-  MAIN = 'Main',       // Heavy techniques / primary attacks (default 2 AP)
+  ACTIVE = 'Active',   // Playable combat cards (attacks, utility, setup)
   TOGGLE = 'Toggle',   // Stance skills: pay AP to activate, upkeep each turn
-  SIDE = 'Side',       // Light support / setup cards (default 1 AP)
   PASSIVE = 'Passive'  // Always active, never played as a card (0 AP)
 }
 
@@ -403,9 +402,29 @@ export interface Buff {
 // SKILLS / JUTSU
 // ============================================================================
 export interface SkillRequirements {
-  intelligence?: number;  // Minimum INT to learn
+  /** Preferred: any primary-stat floors (INT still the most common for ninjutsu). */
+  stats?: Partial<Record<PrimaryStat, number>>;
+  /** @deprecated Prefer stats[PrimaryStat.INTELLIGENCE]. Still checked for catalog migration. */
+  intelligence?: number;
   level?: number;         // Minimum player level
-  clan?: Clan;            // Clan restriction
+  /** Hard gate only (bloodline/hiden). Omit for open-learn shared techniques. */
+  clan?: Clan;
+}
+
+/**
+ * Optional bonus when the player's combat posture matches `posture`.
+ * MVP wires damageMultBonus; other fields are reserved infra.
+ */
+export interface StanceBonus {
+  posture: Posture;
+  /** Multiplicative: effective damageMult *= (1 + damageMultBonus). */
+  damageMultBonus?: number;
+  /** Reserved: reduce AP cost when matched (min 1). */
+  apDiscount?: number;
+  /** Reserved: add to effect apply chance. */
+  effectChanceBonus?: number;
+  /** Reserved: extra effects on match. */
+  extraEffects?: EffectDefinition[];
 }
 
 // Passive skill effect for PASSIVE action type skills
@@ -451,13 +470,14 @@ export interface Skill {
   tier: SkillTier;
   description: string;
 
-  // ACTION TYPE - Determines when/how skill can be used
-  actionType: ActionType;        // MAIN/TOGGLE/SIDE/PASSIVE (required)
+  // ACTION TYPE - ACTIVE (playable) / TOGGLE / PASSIVE
+  actionType: ActionType;
 
-  // DECKBUILDER / AP ECONOMY (T-004) - optional during migration.
-  // When omitted, callers derive a default cost from ActionType (see combatCards.ts).
+  // DECKBUILDER / AP ECONOMY (T-004)
+  // Prefer explicit apCost on every playable skill; fallback in combatCards.ts.
   apCost?: number;               // Action Point cost to play this card
-  stanceShift?: Posture;         // If set, landing this card shifts the player's posture (free)
+  stanceShift?: Posture;         // If set, playing this card shifts posture (free)
+  stanceBonus?: StanceBonus;     // Optional reward when posture matches
 
   // Costs
   chakraCost: number;
@@ -1483,7 +1503,7 @@ export interface UnlockCondition {
 // ============================================================================
 // LOCATION
 // ============================================================================
-// Each location contains 10 rooms in a diamond pattern (1→2→4→2→1)
+// Each location uses binary branching (always 2 children); map foresight reads 2→4
 // Player visits 5 rooms per location before reaching Room 10 (elite/boss fight)
 
 export interface LocationFlags {
@@ -1531,7 +1551,7 @@ export interface Location {
   biome: string;
   backgroundImage?: string;
 
-  // Room structure (10 rooms, diamond pattern)
+  // Room structure (binary 2-child branching + dynamic exit)
   rooms: BranchingRoom[];
   currentRoomId: string | null;
   roomsCleared: number;

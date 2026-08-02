@@ -92,6 +92,34 @@ export function stanceShiftFromSkill(skill: Skill): Posture | undefined {
   return skill.stanceShift;
 }
 
+/**
+ * True when the skill has a stanceBonus and the active posture matches it.
+ */
+export function stanceBonusMatches(skill: Skill, posture: Posture): boolean {
+  return skill.stanceBonus?.posture === posture;
+}
+
+/**
+ * Multiplier applied to outgoing skill damage when stanceBonus matches.
+ * MVP: (1 + damageMultBonus). Returns 1 when no match or no bonus.
+ */
+export function stanceBonusDamageMult(skill: Skill, posture: Posture): number {
+  if (!stanceBonusMatches(skill, posture)) return 1;
+  const bonus = skill.stanceBonus?.damageMultBonus ?? 0;
+  return 1 + bonus;
+}
+
+/**
+ * Effective AP cost after reserved stance apDiscount (min 1 for playable cards).
+ * Callers may use this when apDiscount is authored; MVP combat still uses getApCost.
+ */
+export function stanceBonusApCost(baseApCost: number, skill: Skill, posture: Posture): number {
+  if (baseApCost <= 0) return baseApCost;
+  if (!stanceBonusMatches(skill, posture)) return baseApCost;
+  const discount = skill.stanceBonus?.apDiscount ?? 0;
+  return Math.max(1, baseApCost - discount);
+}
+
 // ============================================================================
 // DISPLAY DESCRIPTOR
 // ============================================================================

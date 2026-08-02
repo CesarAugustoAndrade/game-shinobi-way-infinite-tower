@@ -1303,20 +1303,23 @@
 }
 
 .location-map__fog {
-  min-width: clamp(5.5rem, 10vw, 9rem);
-  min-height: clamp(4rem, 8vw, 6.5rem);
-  width: clamp(7.25rem, 12vw, 10.5rem);
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed rgba(138, 145, 153, 0.45);
+  border: 2px dashed rgba(138, 145, 153, 0.4);
+  border-radius: 3px;
   background:
-    radial-gradient(ellipse at 50% 50%, rgba(45, 61, 74, 0.35), rgba(5, 6, 8, 0.75));
+    radial-gradient(ellipse at 50% 50%, rgba(45, 61, 74, 0.4), rgba(5, 6, 8, 0.88));
   color: #8a9199;
   font-family: var(--sw-font-display, Silkscreen, monospace);
-  font-size: 14px;
-  letter-spacing: 0.18em;
-  box-shadow: 2px 2px 0 #000, inset 0 0 16px rgba(0, 0, 0, 0.4);
+  font-size: clamp(10px, 1.1vw, 13px);
+  letter-spacing: 0.14em;
+  box-shadow: 2px 2px 0 #000, inset 0 0 12px rgba(0, 0, 0, 0.45);
 }
 
 .location-map__stats {
@@ -1469,7 +1472,7 @@
 .location-map__rooms {
   position: relative;
   z-index: 10;
-  flex: 0 0 auto; /* size to content; never fill/center the stage */
+  flex: 0 0 auto;
   width: 100%;
   height: auto;
   min-height: 0;
@@ -1482,70 +1485,182 @@
 }
 
 /*
- * Mission diamond — packed tight under the title strip.
+ * Path board — two fork columns (binary tree, not a flat diamond).
+ * Each branch: foresight pair → Y-stem → choice card.
  */
-.location-map__rooms--diamond {
-  gap: clamp(0.4rem, 1.4vh, 0.9rem);
-  padding: 0 clamp(0.75rem, 3vw, 2rem) 0;
-  border: none;
-  border-radius: 0;
+.location-map__rooms--path {
+  padding: clamp(0.25rem, 1vh, 0.75rem) clamp(0.75rem, 3vw, 2rem) 0;
   width: 100%;
-  height: auto;
-  justify-content: flex-start;
-  /* Nudge board up toward the location title */
-  margin-top: clamp(-0.5rem, -1.5vh, 0);
   box-sizing: border-box;
-  background: transparent;
-  box-shadow: none;
+  margin-top: clamp(-0.25rem, -1vh, 0);
 }
 
-.location-map__rooms--diamond .location-map__row:first-child {
-  opacity: 0.9;
-  transform: scale(0.96);
-  filter: saturate(0.88);
-  width: 100%;
-  max-width: 72rem;
-}
-
-.location-map__rooms--diamond .location-map__row:nth-child(2) {
-  gap: clamp(1.5rem, 6vw, 4.5rem);
+.location-map__path-board {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(1.75rem, 5.5vw, 4.5rem);
   width: 100%;
   max-width: 56rem;
+  margin: 0 auto;
 }
 
-.location-map__rooms--diamond .location-map__row:last-child {
-  margin-top: 0;
+.location-map__branch {
+  --branch-accent: rgba(148, 163, 184, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 1 auto;
+  width: clamp(11.5rem, 22vw, 16.5rem);
+  min-width: 10.5rem;
+  position: relative;
+  transition: filter 0.15s ease;
+}
+
+.location-map__branch--selected {
+  --branch-accent: #fbbf24;
+}
+
+.location-map__branch--selected .location-map__branch-stem-y,
+.location-map__branch--selected .location-map__branch-stem-trunk {
+  border-color: rgba(251, 191, 36, 0.75);
+  background-color: rgba(251, 191, 36, 0.35);
+}
+
+.location-map__branch--selected .location-map__branch-hotkey {
+  color: #0a0a0c;
+  background: #fbbf24;
+  border-color: #04060d;
+  box-shadow: 2px 2px 0 #04060d;
+}
+
+.location-map__branch--locked {
+  opacity: 0.72;
+  filter: saturate(0.75);
+}
+
+.location-map__branch--cleared {
+  opacity: 0.85;
+}
+
+/* Two foresight slots above the choice */
+.location-map__branch-foresight {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(0.35rem, 1vw, 0.55rem);
+  width: 100%;
+  opacity: 0.88;
+  filter: saturate(0.82);
+}
+
+.location-map__foresight-slot {
+  width: 100%;
+  aspect-ratio: 5 / 6.5;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+/* Shrink RoomCards inside foresight so the choice card dominates */
+.location-map__foresight-slot .room-card {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0;
+  min-height: 0;
+  font-size: 0.85em;
+}
+
+.location-map__foresight-slot .room-card__name {
+  font-size: clamp(8px, 0.85vw, 11px);
+}
+
+.location-map__foresight-slot .room-card__icon-container {
+  transform: scale(0.85);
+}
+
+/* Y-junction stem: arms over the two foresight slots → trunk into choice */
+.location-map__branch-stem {
   position: relative;
   width: 100%;
-  max-width: 28rem;
-}
-
-.location-map__rooms--diamond .location-map__row:last-child::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: -0.65rem;
-  width: 1px;
-  height: 0.55rem;
-  transform: translateX(-50%);
-  background: linear-gradient(to bottom, transparent, rgba(138, 145, 153, 0.45));
+  height: clamp(1.35rem, 2.8vh, 1.85rem);
+  margin: 0.1rem 0 0.15rem;
   pointer-events: none;
 }
 
-.location-map__row {
+.location-map__branch-stem-y {
+  position: absolute;
+  left: 25%;
+  right: 25%;
+  top: 0;
+  height: 55%;
+  border-left: 2px solid var(--branch-accent);
+  border-right: 2px solid var(--branch-accent);
+  border-bottom: 2px solid var(--branch-accent);
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+  box-sizing: border-box;
+}
+
+.location-map__branch-stem-trunk {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--branch-accent);
+  box-shadow: 1px 0 0 #000;
+}
+
+.location-map__branch-choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 11.5rem;
+}
+
+.location-map__branch-choice .room-card {
+  width: 100% !important;
+  max-width: 11.5rem;
+  height: auto !important;
+  aspect-ratio: 5 / 6.8;
+  min-height: clamp(9.5rem, 16vw, 12.5rem);
+}
+
+.location-map__branch-hotkey {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.35rem;
+  z-index: 2;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sw-font-display, Silkscreen, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: #e2e8f0;
+  background: #1a1f28;
+  border: 2px solid #04060d;
+  border-radius: 3px;
+  box-shadow: 2px 2px 0 #04060d;
+  line-height: 1;
+}
+
+.location-map__path-fallback {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: var(--sw-space-8);
-  flex-wrap: wrap;
   width: 100%;
-}
-
-.location-map__row-group {
-  display: flex;
-  gap: var(--sw-space-2);
-  flex-wrap: wrap;
-  justify-content: center;
+  min-height: 8rem;
+  padding: var(--sw-space-4);
 }
 
 .location-map__exit-message {
@@ -1554,6 +1669,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
+  text-align: center;
 }
 
 /* A4 wave7: exit already cleared — bone/rust clear signal (not "defeat Guardian") */
@@ -1563,9 +1679,11 @@
 
 /* Empty grandchild slot — same void language as fog cells (never bare) */
 .location-map__placeholder {
-  min-width: clamp(5.5rem, 10vw, 9rem);
-  min-height: clamp(4rem, 8vw, 6.5rem);
-  width: clamp(7.25rem, 12vw, 10.5rem);
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1573,10 +1691,11 @@
   color: rgba(138, 145, 153, 0.55);
   font-size: var(--sw-text-xs);
   font-style: italic;
-  border: 1px dashed rgba(45, 61, 74, 0.5);
+  border: 2px dashed rgba(45, 61, 74, 0.55);
+  border-radius: 3px;
   background:
-    radial-gradient(ellipse at 50% 50%, rgba(26, 38, 51, 0.35), rgba(5, 6, 8, 0.88));
-  box-shadow: 2px 2px 0 #000, inset 0 0 14px rgba(0, 0, 0, 0.45);
+    radial-gradient(ellipse at 50% 50%, rgba(26, 38, 51, 0.4), rgba(5, 6, 8, 0.9));
+  box-shadow: 2px 2px 0 #000, inset 0 0 12px rgba(0, 0, 0, 0.45);
 }
 
 /* Ambient void plate when a diamond row has no rooms yet */
@@ -2329,17 +2448,17 @@
     letter-spacing: var(--sw-tracking-wide);
   }
 
-  .location-map__rooms--diamond {
-    padding: var(--sw-space-2) var(--sw-space-2);
-    gap: var(--sw-space-2);
+  .location-map__rooms--path {
+    padding: var(--sw-space-2);
   }
 
-  .location-map__rooms--diamond .location-map__row:nth-child(2) {
-    gap: var(--sw-space-6);
+  .location-map__path-board {
+    gap: clamp(1rem, 3vw, 2rem);
   }
 
-  .location-map__row {
-    gap: var(--sw-space-4);
+  .location-map__branch {
+    width: clamp(10rem, 28vw, 14rem);
+    min-width: 9.5rem;
   }
 
   .location-map__area {
@@ -2416,14 +2535,20 @@
     text-align: center;
   }
 
-  /* Diamond: shrink mission tiles so 2-up path row fits without horizontal clip */
-  .room-card {
-    width: 6.25rem;
-    height: 8.25rem;
+  /* Path board: keep two forks side-by-side when possible */
+  .location-map__path-board {
+    gap: 0.75rem;
   }
 
-  .location-map__fog,
-  .location-map__placeholder,
+  .location-map__branch {
+    width: min(46vw, 11rem);
+    min-width: 8.5rem;
+  }
+
+  .location-map__branch-choice .room-card {
+    min-height: 8rem;
+  }
+
   .location-map__void-plate {
     min-width: 4.75rem;
   }
@@ -2433,11 +2558,4 @@
     min-height: 8.25rem;
   }
 
-  .location-map__rooms--diamond .location-map__row:nth-child(2) {
-    gap: var(--sw-space-3);
-  }
-
-  .location-map__rooms--diamond .location-map__row:first-child {
-    transform: scale(0.9);
-  }
 }

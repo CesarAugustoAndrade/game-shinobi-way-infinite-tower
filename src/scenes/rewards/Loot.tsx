@@ -11,7 +11,11 @@ import {
   SLOT_MAPPING,
   RegionLootTheme,
   ComponentId,
+  ActionType,
 } from '../../game/types';
+import { canLearnSkill } from '../../game/systems/StatSystem';
+import { canAddPlayableSkill } from '../../game/systems/DeckSystem';
+import { LaunchProperties } from '../../config/featureFlags';
 import { Scroll, Package } from 'lucide-react';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import {
@@ -462,11 +466,48 @@ const Loot: React.FC<LootProps> = ({
                   <span className="item-tooltip__label">Element</span>
                   <span className={getElementColor(droppedSkill.element)}>{droppedSkill.element}</span>
                 </div>
+                {droppedSkill.requirements?.stats &&
+                  Object.entries(droppedSkill.requirements.stats).map(([stat, min]) => {
+                    if (min === undefined) return null;
+                    const have =
+                      playerStats?.effectivePrimary?.[
+                        stat.toLowerCase() as keyof typeof playerStats.effectivePrimary
+                      ] ?? 0;
+                    const met = have >= min;
+                    return (
+                      <div className="item-tooltip__row" key={stat}>
+                        <span className="item-tooltip__label">Requires {stat}</span>
+                        <span
+                          className={
+                            met
+                              ? 'loot-card__skill-stat-value--requirement-met'
+                              : 'loot-card__skill-stat-value--requirement-not-met'
+                          }
+                        >
+                          {min}
+                        </span>
+                      </div>
+                    );
+                  })}
                 {droppedSkill.requirements?.intelligence && (
                   <div className="item-tooltip__row">
                     <span className="item-tooltip__label">Requires INT</span>
                     <span className={playerStats.effectivePrimary.intelligence >= droppedSkill.requirements.intelligence ? 'loot-card__skill-stat-value--requirement-met' : 'loot-card__skill-stat-value--requirement-not-met'}>
                       {droppedSkill.requirements.intelligence}
+                    </span>
+                  </div>
+                )}
+                {droppedSkill.requirements?.clan && (
+                  <div className="item-tooltip__row">
+                    <span className="item-tooltip__label">Clan</span>
+                    <span
+                      className={
+                        player?.clan === droppedSkill.requirements.clan
+                          ? 'loot-card__skill-stat-value--requirement-met'
+                          : 'loot-card__skill-stat-value--requirement-not-met'
+                      }
+                    >
+                      {droppedSkill.requirements.clan}
                     </span>
                   </div>
                 )}
@@ -531,31 +572,58 @@ const Loot: React.FC<LootProps> = ({
                 </button>
               ) : (
                 <>
-                  {player && player.skills.length < 4 && (
-                    <button
-                      type="button"
-                      disabled={isProcessing}
-                      onClick={() => onLearnSkill(droppedSkill)}
-                      className="loot-card__btn loot-card__btn--learn"
-                    >
-                      Learn
-                    </button>
-                  )}
-                  {player && player.skills.length > 0 && (
-                    <div className="loot-card__replace-grid">
-                      {player.skills.map((s, idx) => (
-                        <button
-                          type="button"
-                          key={idx}
-                          disabled={isProcessing}
-                          onClick={() => onLearnSkill(droppedSkill, idx)}
-                          className="loot-card__btn loot-card__btn--replace"
-                        >
-                          Replace {s.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {player && playerStats && (() => {
+                    const learnCheck = canLearnSkill(
+                      droppedSkill,
+                      playerStats.effectivePrimary,
+                      player.level,
+                      player.clan,
+                    );
+                    const roomInDeck =
+                      droppedSkill.actionType === ActionType.PASSIVE ||
+                      canAddPlayableSkill(player.skills);
+                    const deckFull =
+                      droppedSkill.actionType !== ActionType.PASSIVE &&
+                      !canAddPlayableSkill(player.skills);
+                    return (
+                      <>
+                        {!learnCheck.canLearn && (
+                          <p className="loot-card__replace-hint">{learnCheck.reason}</p>
+                        )}
+                        {learnCheck.canLearn && roomInDeck && (
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={() => onLearnSkill(droppedSkill)}
+                            className="loot-card__btn loot-card__btn--learn"
+                          >
+                            Learn
+                          </button>
+                        )}
+                        {learnCheck.canLearn && deckFull && (
+                          <div className="loot-card__replace-grid">
+                            <p className="loot-card__replace-hint">
+                              Deck full ({LaunchProperties.MAX_DECK_SIZE}). Forget a card to learn this:
+                            </p>
+                            {player.skills
+                              .map((s, idx) => ({ s, idx }))
+                              .filter(({ s }) => s.actionType !== ActionType.PASSIVE)
+                              .map(({ s, idx }) => (
+                                <button
+                                  type="button"
+                                  key={s.id}
+                                  disabled={isProcessing}
+                                  onClick={() => onLearnSkill(droppedSkill, idx)}
+                                  className="loot-card__btn loot-card__btn--replace"
+                                >
+                                  Forget {s.name}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </div>
