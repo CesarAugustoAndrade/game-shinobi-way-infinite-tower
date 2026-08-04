@@ -188,6 +188,7 @@ import {
   TreasureQuality,
   DEFAULT_MERCHANT_SLOTS,
   MAX_BAG_SLOTS,
+  ApproachType,
 } from '../../types';
 
 // ============================================================================
@@ -218,6 +219,8 @@ export const createMockPlayer = (overrides: Partial<Player> = {}): Player => ({
   merchantSlots: DEFAULT_MERCHANT_SLOTS,
   locationsCleared: 0,
   eventFlags: {},
+  preferredApproach: ApproachType.FRONTAL_ASSAULT,
+    clanLevel: 0,
   ...overrides,
 });
 

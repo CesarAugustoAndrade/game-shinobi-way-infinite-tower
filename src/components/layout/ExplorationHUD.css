@@ -253,6 +253,35 @@
   letter-spacing: 0.02em;
 }
 
+.explore-hud__btn-label {
+  font-size: 10px;
+  font-family: var(--sw-font-mono, monospace);
+  opacity: 0.95;
+  letter-spacing: 0.02em;
+  max-width: 4.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.explore-hud__btn--approach {
+  color: #c4b5fd;
+}
+
+.explore-hud__btn--approach:hover {
+  color: #e8b84a;
+}
+
+.explore-hud__approach-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(196, 181, 253, 0.45);
+}
+
 .explore-hud__btn-key {
   font-size: 10px;
   opacity: 0.75;

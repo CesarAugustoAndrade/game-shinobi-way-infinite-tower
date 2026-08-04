@@ -35,7 +35,8 @@ export type ArtCategory =
   | 'clan'
   | 'skill'
   | 'enemy'
-  | 'event';
+  | 'event'
+  | 'approach';
 
 // ============================================================================
 // HELPERS
@@ -237,6 +238,16 @@ const EVENT_ENTRIES: Record<string, ArtEntry> = Object.fromEntries(
   EVENT_ART_MANIFEST.map((m) => [m.key, entry(m.emoji, m.label, m.src)]),
 );
 
+/** Pre-combat approach icons (Imagine UI set). Keys match ApproachType enum values lowercased. */
+const APPROACHES: Record<string, ArtEntry> = {
+  FRONTAL_ASSAULT: entry('⚔️', 'Frontal Assault', iconPath('approaches', 'frontal_assault', 'jpg')),
+  STEALTH_AMBUSH: entry('🗡️', 'Silent Strike', iconPath('approaches', 'silent_strike', 'jpg')),
+  GENJUTSU_SETUP: entry('🌀', 'Mind Trap', iconPath('approaches', 'mind_trap', 'jpg')),
+  ENVIRONMENTAL: entry('🪤', 'Terrain Trap', iconPath('approaches', 'terrain_trap', 'jpg')),
+  IRON_GUARD: entry('🛡️', 'Iron Guard', iconPath('approaches', 'iron_guard', 'jpg')),
+  SHADOW_BYPASS: entry('👤', 'Shadow Passage', iconPath('approaches', 'shadow_passage', 'jpg')),
+};
+
 /** Flat registry: `category:id` → ArtEntry */
 export const ART_REGISTRY: Record<string, ArtEntry> = {
   ...Object.fromEntries(Object.entries(COMPONENTS).map(([id, e]) => [artKey('component', id), e])),
@@ -247,6 +258,7 @@ export const ART_REGISTRY: Record<string, ArtEntry> = {
   ...Object.fromEntries(Object.entries(SKILLS).map(([id, e]) => [artKey('skill', id), e])),
   ...ENEMY_ENTRIES,
   ...EVENT_ENTRIES,
+  ...Object.fromEntries(Object.entries(APPROACHES).map(([id, e]) => [artKey('approach', id), e])),
 };
 
 const MYSTERY: ArtEntry = { emoji: '❓', label: 'Unknown' };
@@ -356,6 +368,11 @@ export function getActivityArt(activityKey: string): ArtEntry {
 
 export function getComponentArt(componentId: ComponentId | string): ArtEntry {
   return getArt(artKey('component', componentId));
+}
+
+/** ApproachType enum value → art entry (Imagine icons). */
+export function getApproachArt(approachType: string): ArtEntry {
+  return getArt(artKey('approach', approachType));
 }
 
 export function getArtifactArt(name: string): ArtEntry {

@@ -7,16 +7,13 @@ import {
   DamageType,
   CharacterStats,
   Rarity,
-  ActionType,
   Posture,
   LogEntry,
 } from '../../game/types';
 import StatBar from '../../components/shared/StatBar';
 import Tooltip from '../../components/shared/Tooltip';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
-import PlayerHUD from '../../components/character/PlayerHUD';
 import FloatingText, { FloatingTextItem, FloatingTextType } from '../../components/combat/FloatingText';
-import GameLog from '../../components/combat/GameLog';
 import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
 import { PostureIndicator } from '../../components/combat/PostureIndicator';
 import { FeatureFlags } from '../../config/featureFlags';
@@ -24,7 +21,7 @@ import { getApCost } from '../../game/constants/combatCards';
 import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
 import { ApproachResult } from '../../game/systems/ApproachSystem';
 import { describePosture } from '../../game/systems/PostureSystem';
-import { Hourglass, Zap, ZapOff } from 'lucide-react';
+import { Hourglass } from 'lucide-react';
 import { formatPercent } from '../../game/systems/StatSystem';
 import {
   getEffectColor,
@@ -208,7 +205,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   // T-054: show opening approach/posture banner until first action or timeout
   const [showOpenBanner, setShowOpenBanner] = useState(Boolean(approachResult));
   const enemyRef = useRef<HTMLDivElement>(null);
-  const playerHudRef = useRef<HTMLDivElement>(null);
+  /** Anchor for player-side floating text (HP/CP live on ExplorationHUD). */
+  const playerFloatRef = useRef<HTMLDivElement>(null);
   const hitFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -243,7 +241,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     type: FloatingTextType,
     options?: FloatingTextOptions,
   ) => {
-    const targetRef = target === 'enemy' ? enemyRef : playerHudRef;
+    const targetRef = target === 'enemy' ? enemyRef : playerFloatRef;
     const rect = targetRef.current?.getBoundingClientRect();
     if (!rect) return;
 
@@ -786,7 +784,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     <div
       className="combat"
       style={background ? {
-        backgroundImage: `linear-gradient(180deg, rgba(5, 6, 8, 0.08) 0%, rgba(5, 6, 8, 0.16) 58%, rgba(5, 6, 8, 0.38) 100%), url("${background}")`,
+        /* Bright full-bleed biome — no dark gradient crushing the plate */
+        backgroundImage: `url("${background}")`,
       } : undefined}
     >
       {openBanner && (
@@ -873,7 +872,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         </div>
       )}
 
-      {/* ROW 1 (1fr): Stage — cinematic viewscreen with floating info panel */}
+      {/* ROW 1 (1fr): Stage — bright biome + enemy + floating info panel only */}
       <div className="combat__stage" ref={enemyRef}>
         <CinematicViewscreen
           enemyImage={enemyPortrait}
@@ -885,27 +884,12 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           hitFlash={hitFlash}
           intentLabel={enemy.intendedSkillName}
         />
-        {/* Mini combat log (recent lines + aria-live) — bottom-left of stage */}
-        {logs.length > 0 && (
-          <div className="combat__mini-log">
-            <GameLog logs={logs} maxLines={4} compact />
-          </div>
-        )}
       </div>
 
-      {/* ROW 2 (auto): Deck — 2 visual bands: command bar + hand (T-014 v4) */}
-      <div className="combat__deck">
-        {/* BAND 1: Command bar — compact HUD (left) + econ/turn controls (right) */}
+      {/* ROW 2: AP + stance + End Turn over hand — no dark plates / no player HUD */}
+      <div className="combat__deck" ref={playerFloatRef}>
         <div className="combat__command">
-          <PlayerHUD
-            ref={playerHudRef}
-            player={player}
-            playerStats={playerStats}
-            compact
-          />
-
           <div className="combat__econ-bar">
-            {/* Action Points */}
             <div className="combat__ap" aria-label={`Action Points ${currentAp} of ${maxAp}`}>
               <span className="combat__ap-label">AP</span>
               <div className="combat__ap-pips">
@@ -917,7 +901,6 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
                 ))}
               </div>
               <span className="combat__ap-value">{currentAp}/{maxAp}</span>
-              {/* T-075: explain movement_penalty AP cut */}
               {typeof baseMaxAp === 'number' && baseMaxAp > maxAp && (
                 <span className="combat__ap-terrain" title={`Natural budget ${baseMaxAp}`}>
                   Terrain −{baseMaxAp - maxAp}
@@ -925,7 +908,6 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
               )}
             </div>
 
-            {/* Posture Control */}
             <PostureIndicator
               posture={posture}
               currentAp={currentAp}
@@ -933,49 +915,6 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
               onChangePosture={onChangePosture}
             />
 
-            {/* Passive Skills Summary */}
-            {player.skills.filter(s => s.actionType === ActionType.PASSIVE).length > 0 && (
-              <Tooltip
-                content={
-                  <div className="combat-tooltip">
-                    <div className="combat-tooltip__passives-title">Active Passives</div>
-                    {player.skills.filter(s => s.actionType === ActionType.PASSIVE).map(skill => (
-                      <div key={skill.id} className="combat-tooltip__passive">
-                        <span className="combat-tooltip__passive-name">{skill.name}</span> - {skill.description}
-                      </div>
-                    ))}
-                  </div>
-                }
-              >
-                <div className="combat__passives-summary">
-                  {player.skills.filter(s => s.actionType === ActionType.PASSIVE).length} Passives
-                </div>
-              </Tooltip>
-            )}
-
-            {/* Keyboard whisper — cards already carry their Z/X/C/V badges */}
-            <span className="combat__whisper" aria-hidden="true">
-              SPACE end turn · TAB auto-end (pass only)
-            </span>
-
-            {/* Auto-end turn toggle — countdown + pass (does NOT auto-play skills) */}
-            <button
-              type="button"
-              onClick={onToggleAutoCombat}
-              className={`combat__auto-btn ${autoCombatEnabled ? 'combat__auto-btn--active' : ''}`}
-              title={autoCombatEnabled ? 'Auto-end enabled — ends your turn after a short delay' : 'Enable auto-end: automatically pass the turn (not full auto-combat)'}
-              aria-label={autoCombatEnabled ? 'Disable auto-end' : 'Enable auto-end'}
-            >
-              {autoCombatEnabled ? <Zap size={14} /> : <ZapOff size={14} />}
-              <span className="combat__auto-label">Auto-end</span>
-              {autoCombatEnabled && autoPassTimeRemaining != null && turnState === 'PLAYER' && (
-                <span className="combat__auto-timer">
-                  {(autoPassTimeRemaining / 1000).toFixed(1)}s
-                </span>
-              )}
-            </button>
-
-            {/* Pass Turn Button (TASK-R12 + WAVE12 empty/blocked hand highlight) */}
             <button
               type="button"
               onClick={onPassTurn}
@@ -1002,7 +941,6 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           </div>
         </div>
 
-        {/* BAND 2: Hand — full width, cards take the stage */}
         <Hand
           cards={handCards}
           player={player}

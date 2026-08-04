@@ -12,7 +12,7 @@
  * | Approach          | Primary Stats          | Risk/Reward        |
  * |-------------------|------------------------|-------------------|
  * | FRONTAL_ASSAULT   | None (always works)    | Low risk, no bonus |
- * | STEALTH_AMBUSH    | Speed, Dexterity       | First hit bonus    |
+ * | STEALTH_AMBUSH    | Dexterity, Speed       | 1.5× first hit     |
  * | GENJUTSU_SETUP    | Intelligence, Calmness | Debuff enemy       |
  * | ENVIRONMENTAL_TRAP| Accuracy, Intelligence | HP reduction       |
  * | IRON_GUARD        | Willpower              | Pre-fight shield   |

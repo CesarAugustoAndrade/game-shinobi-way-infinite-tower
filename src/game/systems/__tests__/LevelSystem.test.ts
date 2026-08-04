@@ -19,6 +19,7 @@ import {
   EquipmentSlot,
   TreasureQuality,
   DEFAULT_MERCHANT_SLOTS,
+  ApproachType,
 } from '../../types';
 
 // ============================================================================
@@ -52,6 +53,8 @@ function makePlayer(clan: Clan, overrides: Partial<Player> = {}): Player {
     merchantSlots: DEFAULT_MERCHANT_SLOTS,
     locationsCleared: 0,
     eventFlags: {},
+    preferredApproach: ApproachType.FRONTAL_ASSAULT,
+    clanLevel: 0,
     ...overrides,
   };
 }

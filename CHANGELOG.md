@@ -4,7 +4,16 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Fixed
+- **Combat viewscreen divider:** removed `border-bottom` on `.cinematic` in [`CinematicViewscreen.css`](file:///C:/Users/PC/workspace/SHINOBI-WAY-the-inifinite-tower/src/components/layout/CinematicViewscreen.css) to eliminate the horizontal line floating across the middle of the screen above the action dock.
+
 ### Changed
+- **Sell only at merchant:** removed Sell from bag, equipment menu, loot pile, and treasure bag-full. Shop has a **Fence bag** list to sell bag items for ryo. Unequip → bag → shop to fence worn gear.
+- **Scroll rooms → Vendor + Clan Rite:** one activity, two modes. **Vendor** (common): buy 2–3 scrolls with **ryo**, **forget a skill** (costs ryo), leave. **Clan Rite** (~22% when eligible): free ascend `clanLevel` (cap 5, once/location) then pick 1 of 2–3 clan skills. Event-style split UI. `Player.clanLevel`, `floor.clanRiteUsed`, `CLAN_LEVEL_SKILL_POOL`.
+- **Treasure vault overhaul:** Event-style split (poster | options). Entry: **Open Vault** (chakra) or **Take Map Piece** (free, no fight/dice). Open → 3 mixed sealed faces (item / HP / ryo / scroll); unseal with chakra; claim one. Hunt Y/N + guardian + dice removed from treasure UI. Poster: `treasure_vault_poster.jpg`.
+- **Merchant shop overhaul (event layout):** split panel like Event — left **shop poster** key-art (`merchant_shop_poster.jpg`), right path bar (purse/quality/slots) + horizontal stock option rows + services + Leave. Stock reads as choice cards, not a grid of tall tiles.
+- **Approach balance overhaul + icons:** Silent Strike is a **DEX path** (Dexterity 16 + Speed 12; Uchiha/Hyuga open, others gear/level). Success: **1.5×** first hit (was 2.0×), +22 init, **8 chakra**, +5% XP; fail: seize init, +20% dmg taken, DEX/Speed debuffs. Mind Trap / Terrain Trap / Iron Guard / Shadow Passage re-tuned (higher gates, lower free power, clearer fail costs). Multi-stat `minStats` supported. Imagine approach icons under `public/assets/icons/approaches/`.
+- **Persistent approach (HUD):** Choose Your Approach is no longer a per-encounter gate. Top exploration HUD has an **Approach** button (key **A**) next to bag/stats; setting an approach applies to **all** fights (map combat, elite, treasure guardian, event combat) until changed. Unavailable rooms (terrain, elite bypass, missing stats) fall back to Frontal Assault with a log note.
 - **Card combat debt cleanup:** SkillCard/Combat CSS MAIN/SIDE classes → ACTIVE; `skillArtManifest` action MAIN/SIDE→ACTIVE; `GLOSSARY.md` Action Type + deck/hand/open learn docs; stale MAIN/SIDE comments.
 
 ### Added
@@ -24,6 +33,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - **Handbook + select UI: card combat vocabulary** (`helpText.ts`, `GameGuide.tsx`, `CharacterSelect.tsx`): combat guide documents ACTIVE/TOGGLE/PASSIVE (no MAIN/SIDE), deck **8–20**, posture-match damage, open learn + clan favorites. CharacterSelect loadout rows use Cards / Toggle / Passive.
 - **Location room map: 2→4 binary only** (`LocationSystem.ts`, `LocationMap.tsx`): removed playable single-room START parking. Every floor uses an internal entry hub + always **2** path choices with **2** children each (map reads **2→4** foresight). Fogged sight still reserves **4 `???` slots** (2 under each path) so the diamond never collapses to 2–2. Exit spawn is a **batch roll** from `roomsVisited >= min` (always ≥3; danger still stretches), **intel +0–40%**, terrain secrets bonus, force after min+5; if the roll hits, **exactly one of the two children** is the exit (uniform). Hub is not counted in `roomsVisited`.
 - **Location path-board UI** (`LocationMap.tsx`, `exploration.css`): replaced flat 2-row diamond with **two fork columns** (foresight pair → Y-stem → choice card), branch select highlight, hotkey badges 1/2, smaller dim foresight vs hero choices.
+- **Combat UI declutter** (`Combat.tsx` / `.css`, `CinematicViewscreen.css`): strip dark plates — no mini-log, no deck PlayerHUD, no Auto-End chrome, transparent dock; bright full-bleed biome (no root gradient / CRT/vignette/scanlines in combat). Keep enemy cutout, left info+NEXT panel, hand, AP, stances, End Turn; player HP/CP via ExplorationHUD.
 
 ### Removed
 - **Orphan art cleanup** (runtime-unreferenced plates deleted from `public/assets/` + `assets/` mirrors):

@@ -1,4 +1,4 @@
-import { Player, Clan, EquipmentSlot, TreasureQuality, DEFAULT_MERCHANT_SLOTS, MAX_BAG_SLOTS } from '../types';
+import { Player, Clan, EquipmentSlot, TreasureQuality, DEFAULT_MERCHANT_SLOTS, MAX_BAG_SLOTS, ApproachType } from '../types';
 import { CLAN_STATS, CLAN_GROWTH, CLAN_ELEMENTS, getClanStartingSkills } from '../constants';
 import { calculateDerivedStats, getPlayerFullStats } from '../systems/StatSystem';
 import { LaunchProperties } from '../../config/featureFlags';
@@ -38,7 +38,9 @@ export const createPlayer = (clan: Clan): Player => {
     treasureQuality: TreasureQuality.BROKEN,  // Start with broken quality drops
     merchantSlots: DEFAULT_MERCHANT_SLOTS,     // Start with 1 merchant slot
     locationsCleared: 0,                       // Global progression counter
+    clanLevel: 0,                              // Bloodline track (Clan Rite rooms)
     eventFlags: {},                            // T-008: no narrative flags at run start
+    preferredApproach: ApproachType.FRONTAL_ASSAULT, // HUD default; applies to all encounters
   };
 };
 

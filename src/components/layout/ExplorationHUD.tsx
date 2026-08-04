@@ -1,12 +1,14 @@
 /**
  * Minimal persistent HUD for cinematic exploration (T-022).
- * name/Lv · HP/CP compact · ryo · bag (I) · character sheet (C)
+ * name/Lv · HP/CP compact · ryo · approach (A) · bag (I) · character sheet (C)
  * T-040: story-run flag chips (eventFlags → combat/loot mods, same as T-037 combat HUD)
  */
 
 import React from 'react';
-import { Player, RegionLootTheme, MAX_BAG_SLOTS } from '../../game/types';
-import { Coins, Backpack, ScrollText } from 'lucide-react';
+import { Player, RegionLootTheme, MAX_BAG_SLOTS, ApproachType } from '../../game/types';
+import { Coins, Backpack, ScrollText, Crosshair } from 'lucide-react';
+import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
+import { getApproachArt } from '../../game/constants/artRegistry';
 import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
 import './ExplorationHUD.css';
 
@@ -16,8 +18,11 @@ interface ExplorationHUDProps {
   maxChakra: number;
   onOpenBag: () => void;
   onOpenCharacter: () => void;
+  /** Open preferred-approach picker (applies to all encounters) */
+  onOpenApproach?: () => void;
   bagOpen?: boolean;
   characterOpen?: boolean;
+  approachOpen?: boolean;
   /**
    * T-100: region lootTheme for cinematic chrome (sidebars often hidden).
    * Same Affinity / Focus / Ryo language as LocationPanel (T-099).
@@ -34,17 +39,25 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
   maxChakra,
   onOpenBag,
   onOpenCharacter,
+  onOpenApproach,
   bagOpen = false,
   characterOpen = false,
-  lootTheme = null,
+  approachOpen = false,
+  lootTheme: _lootTheme = null,
   locationLabel = null,
   dangerLevel = null,
 }) => {
+  void _lootTheme;
   const hpPct = maxHp > 0 ? Math.min(100, (player.currentHp / maxHp) * 100) : 0;
   const cpPct = maxChakra > 0 ? Math.min(100, (player.currentChakra / maxChakra) * 100) : 0;
   const runFlagLabels = getEventFlagRunModifiers(player).activeLabels;
   const bagUsed = player.bag.filter((s) => s != null).length;
   const bagFull = bagUsed >= MAX_BAG_SLOTS;
+  const preferred =
+    player.preferredApproach ?? ApproachType.FRONTAL_ASSAULT;
+  const approachDef = APPROACH_DEFINITIONS[preferred];
+  const approachShort =
+    approachDef?.name?.split(' ')[0] ?? 'Approach';
 
   return (
     <div className="explore-hud" role="toolbar" aria-label="Exploration HUD">
@@ -99,40 +112,41 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
         </div>
       )}
 
-      {/* T-100: region theme (persistent when left sidebar hidden) */}
-      {lootTheme && (
-        <div
-          className="explore-hud__theme"
-          title="Region theme — Affinity / Focus / Ryo"
-          aria-label="Region theme"
-        >
-          {lootTheme.primaryElement && (
-            <span className="explore-hud__theme-chip explore-hud__theme-chip--affinity">
-              {lootTheme.primaryElement}
-            </span>
-          )}
-          {lootTheme.equipmentFocus?.length > 0 && (
-            <span className="explore-hud__theme-chip explore-hud__theme-chip--focus">
-              Focus{' '}
-              {lootTheme.equipmentFocus
-                .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                .join(' · ')}
-            </span>
-          )}
-          {lootTheme.goldMultiplier !== 1 && (
-            <span className="explore-hud__theme-chip explore-hud__theme-chip--gold">
-              Ryo ×{lootTheme.goldMultiplier}
-            </span>
-          )}
-        </div>
-      )}
-
       <div className="explore-hud__ryo" title="Ryo">
         <Coins size={14} aria-hidden />
         <span>{player.ryo.toLocaleString()}</span>
       </div>
 
       <div className="explore-hud__actions">
+        {onOpenApproach && (() => {
+          const approachArt = getApproachArt(preferred);
+          return (
+          <button
+            type="button"
+            className={`explore-hud__btn explore-hud__btn--approach ${approachOpen ? 'explore-hud__btn--active' : ''}`}
+            onClick={onOpenApproach}
+            title={`Approach: ${approachDef?.name ?? 'Frontal Assault'} (A) — applies to all encounters`}
+            aria-pressed={approachOpen}
+            aria-label={`Set approach, currently ${approachDef?.name ?? 'Frontal Assault'}`}
+          >
+            {approachArt.src ? (
+              <img
+                src={approachArt.src}
+                alt=""
+                className="explore-hud__approach-icon"
+                aria-hidden
+                draggable={false}
+              />
+            ) : (
+              <Crosshair size={16} aria-hidden />
+            )}
+            <span className="explore-hud__btn-label" aria-hidden="true">
+              {approachShort}
+            </span>
+            <span className="explore-hud__btn-key">A</span>
+          </button>
+          );
+        })()}
         <button
           type="button"
           className={`explore-hud__btn ${bagOpen ? 'explore-hud__btn--active' : ''} ${bagFull ? 'explore-hud__btn--warn' : ''}`}

@@ -3,6 +3,7 @@ import {
   Player, Item, Skill, GameState, BranchingRoom, BranchingFloor,
   CharacterStats, PrimaryStat, TrainingCostType, GameEvent, EventChoice,
   Enemy, Region, LogEntry, TreasureQuality, ApproachType, ActionType,
+  TerrainType,
 } from '../game/types';
 import {
   completeActivity, getCurrentRoom
@@ -19,7 +20,13 @@ import { generateMerchantItem } from '../game/systems/LootSystem';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { canLearnSkill } from '../game/systems/StatSystem';
 import { canAddPlayableSkill } from '../game/systems/DeckSystem';
-import { ApproachResult } from '../game/systems/ApproachSystem';
+import {
+  ApproachResult,
+  executeApproach,
+  applyApproachCosts,
+  applyEnemyHpReduction,
+} from '../game/systems/ApproachSystem';
+import { resolvePreferredApproach } from '../game/constants/approaches';
 import { TERRAIN_DEFINITIONS } from '../game/constants/terrain';
 import { MERCHANT } from '../game/config';
 import type { EnemyArchetype } from '../game/systems/EnemySystem';
@@ -30,6 +37,7 @@ import { buildOutcomeChanges, OutcomeChange } from '../components/modals/eventOu
 import {
   applyVisibilityToIntelGain,
   getLocationTerrainMods,
+  locationStealthBonusPoints,
 } from '../game/systems/LocationTerrainSystem';
 
 export interface ActivityState {
@@ -81,6 +89,12 @@ export interface ActivitySetters {
   setRegion: React.Dispatch<React.SetStateAction<Region | null>>;
 }
 
+/** Optional engage callback for elite/treasure paths (preferred approach auto-apply) */
+export type EngageCombatFn = (
+  room: BranchingRoom,
+  explicitEnemy?: Enemy | null,
+) => void;
+
 export interface ActivityDeps {
   addLog: (text: string, type?: LogEntry['type']) => void;
   checkLevelUp: (p: Player) => any;
@@ -106,6 +120,8 @@ export interface ActivityDeps {
     locationTerrainMods?: import('../game/systems/LocationTerrainSystem').LocationTerrainMods | null,
     roomCombatModifiers?: import('../game/types').CombatModifierType[] | null,
   ) => void;
+  /** Preferred approach → combat (elite fight / escape fail) */
+  onEngageCombat?: EngageCombatFn;
 }
 
 export function useActivityHandlers(
@@ -130,7 +146,7 @@ export function useActivityHandlers(
 
   const {
     addLog, checkLevelUp, handleCombatVictory, returnToMap, returnToMapActivityComplete,
-    eventOutcome, startCombat,
+    eventOutcome, startCombat, onEngageCombat,
   } = deps;
 
   /** Sync mutex — isProcessingLoot state alone lags one frame behind double-clicks. */
@@ -616,49 +632,76 @@ export function useActivityHandlers(
     }
   }, [branchingFloor, selectedBranchingRoom, locationFloor, region, setBranchingFloor, setLocationFloor, setTrainingData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
 
+  const finishScrollRoom = useCallback((roomId: string | undefined, isClan: boolean) => {
+    if (roomId) {
+      logActivityComplete(roomId, 'scrollDiscovery');
+    }
+    logStateChange('SCROLL_DISCOVERY', 'LOCATION_EXPLORE|REGION_MAP', 'scroll done');
+
+    if (branchingFloor && roomId) {
+      let updatedFloor = completeActivity(branchingFloor, roomId, 'scrollDiscovery');
+      if (isClan) updatedFloor = { ...updatedFloor, clanRiteUsed: true };
+      setBranchingFloor(updatedFloor);
+    }
+
+    let updatedLocationFloor: BranchingFloor | undefined;
+    if (locationFloor && region && roomId) {
+      updatedLocationFloor = completeActivity(locationFloor, roomId, 'scrollDiscovery');
+      if (isClan) updatedLocationFloor = { ...updatedLocationFloor, clanRiteUsed: true };
+      setLocationFloor(updatedLocationFloor);
+    } else if (locationFloor && isClan) {
+      setLocationFloor({ ...locationFloor, clanRiteUsed: true });
+    }
+
+    if (updatedLocationFloor && region?.currentLocationId) {
+      returnToMapActivityComplete(updatedLocationFloor);
+    } else if (locationFloor && region?.currentLocationId) {
+      setSelectedBranchingRoom(null);
+      setGameState(GameState.LOCATION_EXPLORE);
+    } else {
+      setSelectedBranchingRoom(null);
+      setGameState(GameState.REGION_MAP);
+    }
+  }, [branchingFloor, locationFloor, region, setBranchingFloor, setLocationFloor, setSelectedBranchingRoom, setGameState, returnToMapActivityComplete]);
+
+  /** Vendor buy (ryo) or clan skill pick (free + clanLevel++) */
   const handleLearnScroll = useCallback((skill: Skill, slotIndex?: number) => {
-    // Ref first — UI resultContinueLock already true on Continue; early-return without
-    // consuming session leaves SCROLL stuck (result cleared, re-learn blocked).
     if (scrollSessionLockRef.current) return;
     if (!scrollDiscoveryData) return;
 
-    const chakraCost = scrollDiscoveryData.cost?.chakra || 0;
+    const mode = scrollDiscoveryData.mode ?? 'vendor';
+    const isClan = mode === 'clan';
+    const ryoPrice = isClan
+      ? 0
+      : (scrollDiscoveryData.prices?.[skill.id] ?? scrollDiscoveryData.cost?.ryo ?? 0);
 
-    // Prefer selected room; fall back to floor current (lost pointer must not soft-lock SCROLL)
     const roomId =
       selectedBranchingRoom?.id ??
       (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
       (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined);
 
     scrollSessionLockRef.current = true;
-
-    // Consume session first — always leave SCROLL after UI Continue committed
-    // (never gate leave on floor presence — UI lock already fired). The session was already read
-    // from the rendered scrollDiscoveryData above; a flag written inside this updater is NOT
-    // readable here (React defers updaters once the fiber is dirty).
     setScrollDiscoveryData(() => null);
 
-    // Functional learn on latest player (chakra / capacity may race; still exit room)
-    type LearnOut = 'upgrade' | 'replace' | 'learn' | 'fail';
+    type LearnOut = 'upgrade' | 'replace' | 'learn' | 'fail' | 'clan';
     const box: { o: LearnOut; detail?: string; level?: number } = { o: 'fail' };
 
-    setPlayer(p => {
+    setPlayer((p) => {
       if (!p) return null;
-      if (p.currentChakra < chakraCost) return p;
+      if (!isClan && p.ryo < ryoPrice) return p;
 
       if (playerStats) {
         const checkResult = canLearnSkill(
           skill,
           playerStats.effectivePrimary,
           p.level,
-          p.clan
+          p.clan,
         );
         if (!checkResult.canLearn) return p;
       }
 
-      const newSkills = [...p.skills];
-      const existingIndex = newSkills.findIndex(s => s.id === skill.id);
-      let nextSkills = newSkills;
+      let nextSkills = [...p.skills];
+      const existingIndex = nextSkills.findIndex((s) => s.id === skill.id);
 
       if (existingIndex !== -1) {
         const existing = nextSkills[existingIndex];
@@ -668,9 +711,9 @@ export function useActivityHandlers(
         nextSkills[existingIndex] = {
           ...existing,
           level: currentLevel + 1,
-          damageMult: existing.damageMult + growth
+          damageMult: existing.damageMult + growth,
         };
-        box.o = 'upgrade';
+        box.o = isClan ? 'clan' : 'upgrade';
         box.detail = existing.name;
         box.level = currentLevel + 1;
       } else if (slotIndex !== undefined && nextSkills[slotIndex]) {
@@ -691,54 +734,73 @@ export function useActivityHandlers(
         canAddPlayableSkill(nextSkills)
       ) {
         nextSkills = [...nextSkills, { ...skill, level: 1 }];
-        box.o = 'learn';
+        box.o = isClan ? 'clan' : 'learn';
       } else {
         return p;
       }
 
       return {
         ...p,
-        currentChakra: p.currentChakra - chakraCost,
+        ryo: isClan ? p.ryo : p.ryo - ryoPrice,
         skills: nextSkills,
+        clanLevel: isClan
+          ? Math.min(5, (p.clanLevel ?? 0) + 1)
+          : (p.clanLevel ?? 0),
       };
     });
 
     if (box.o === 'upgrade') {
-      addLog(`Upgraded ${skill.name} to Level ${box.level}!`, 'gain');
+      addLog(`Bought upgrade: ${skill.name} → Lv ${box.level} (−${ryoPrice} Ryo).`, 'gain');
     } else if (box.o === 'replace') {
-      addLog(`Forgot ${box.detail} to learn ${skill.name}!`, 'loot');
+      addLog(`Forgot ${box.detail} to learn ${skill.name} (−${ryoPrice} Ryo).`, 'loot');
     } else if (box.o === 'learn') {
-      addLog(`Learned ${skill.name}!`, 'gain');
+      addLog(`Bought ${skill.name} for ${ryoPrice} Ryo.`, 'gain');
+    } else if (box.o === 'clan') {
+      addLog(`Clan rite: learned ${skill.name}. Clan level rose.`, 'gain');
     } else {
-      addLog('Could not learn from the scroll — requirements or capacity blocked it.', 'danger');
+      addLog('Could not take that technique — blocked by requirements or deck space.', 'danger');
     }
 
-    if (roomId) {
-      logActivityComplete(roomId, 'scrollDiscovery');
-    }
-    logStateChange('SCROLL_DISCOVERY', 'LOCATION_EXPLORE|REGION_MAP', 'scroll learned');
+    finishScrollRoom(roomId, isClan);
+  }, [scrollDiscoveryData, playerStats, selectedBranchingRoom, branchingFloor, locationFloor, setPlayer, setScrollDiscoveryData, addLog, finishScrollRoom]);
 
-    if (branchingFloor && roomId) {
-      const updatedFloor = completeActivity(branchingFloor, roomId, 'scrollDiscovery');
-      setBranchingFloor(updatedFloor);
+  /** Vendor: pay ryo to forget a skill (deck hygiene) */
+  const handleForgetScrollSkill = useCallback((skillId: string) => {
+    if (scrollSessionLockRef.current) return;
+    if (!scrollDiscoveryData || (scrollDiscoveryData.mode ?? 'vendor') !== 'vendor') return;
+    if (!player) return;
+
+    const cost = scrollDiscoveryData.forgetCostRyo ?? 40;
+    const skill = player.skills.find((s) => s.id === skillId);
+    if (!skill) return;
+    if (player.ryo < cost) {
+      addLog('Not enough ryo to forget that technique.', 'danger');
+      return;
+    }
+    // Keep at least one skill
+    if (player.skills.length <= 1) {
+      addLog('You cannot forget your last technique.', 'danger');
+      return;
     }
 
-    let updatedLocationFloor: BranchingFloor | undefined;
-    if (locationFloor && region && roomId) {
-      updatedLocationFloor = completeActivity(locationFloor, roomId, 'scrollDiscovery');
-      setLocationFloor(updatedLocationFloor);
-    }
+    scrollSessionLockRef.current = true;
+    const roomId =
+      selectedBranchingRoom?.id ??
+      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined);
 
-    if (updatedLocationFloor && region?.currentLocationId) {
-      returnToMapActivityComplete(updatedLocationFloor);
-    } else if (locationFloor && region?.currentLocationId) {
-      setSelectedBranchingRoom(null);
-      setGameState(GameState.LOCATION_EXPLORE);
-    } else {
-      setSelectedBranchingRoom(null);
-      setGameState(GameState.REGION_MAP);
-    }
-  }, [scrollDiscoveryData, playerStats, selectedBranchingRoom, branchingFloor, region, locationFloor, setPlayer, setBranchingFloor, setLocationFloor, setScrollDiscoveryData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
+    setScrollDiscoveryData(() => null);
+    setPlayer((p) => {
+      if (!p || p.ryo < cost) return p;
+      return {
+        ...p,
+        ryo: p.ryo - cost,
+        skills: p.skills.filter((s) => s.id !== skillId),
+      };
+    });
+    addLog(`Forgot ${skill.name} (−${cost} Ryo).`, 'info');
+    finishScrollRoom(roomId, false);
+  }, [scrollDiscoveryData, player, selectedBranchingRoom, locationFloor, branchingFloor, setPlayer, setScrollDiscoveryData, addLog, finishScrollRoom]);
 
   const handleScrollDiscoverySkip = useCallback(() => {
     // Ref first — Space/Enter/Esc all call skip; setState consume alone is not enough
@@ -793,17 +855,22 @@ export function useActivityHandlers(
     const challenge = eliteChallengeData;
     setEliteChallengeData(null);
     logExplorationCheckpoint('Elite Fight chosen', { enemy: challenge.enemy.name, artifact: challenge.artifact.name });
-    logModalOpen('ApproachSelector', { source: 'eliteChallenge', enemy: challenge.enemy.name });
     setPendingArtifact(challenge.artifact);
     setSelectedBranchingRoom(challenge.room);
-    setShowApproachSelector(true);
-    // Map behind ApproachSelector (never EXPLORE — no UI for that state)
+    // Map behind combat (never EXPLORE — no UI for that state)
     if (locationFloor && region && region.currentLocationId) {
       setGameState(GameState.LOCATION_EXPLORE);
     } else {
       setGameState(GameState.REGION_MAP);
     }
-  }, [eliteChallengeData, locationFloor, region, setPendingArtifact, setSelectedBranchingRoom, setShowApproachSelector, setEliteChallengeData, setGameState]);
+    addLog(`Elite challenge: ${challenge.enemy.name}. Engaging with preferred approach...`, 'info');
+    if (onEngageCombat) {
+      onEngageCombat(challenge.room, challenge.enemy);
+    } else {
+      logModalOpen('ApproachSelector', { source: 'eliteChallenge', enemy: challenge.enemy.name });
+      setShowApproachSelector(true);
+    }
+  }, [eliteChallengeData, locationFloor, region, setPendingArtifact, setSelectedBranchingRoom, setShowApproachSelector, setEliteChallengeData, setGameState, addLog, onEngageCombat]);
 
   const handleEliteEscape = useCallback(() => {
     if (!player || !playerStats) return;
@@ -860,18 +927,22 @@ export function useActivityHandlers(
       }
     } else {
       logExplorationCheckpoint('Elite Escape failed - must fight');
-      logModalOpen('ApproachSelector', { source: 'eliteEscapeFailed', enemy: challenge.enemy.name });
       addLog(result.message, 'danger');
       setPendingArtifact(challenge.artifact);
       setSelectedBranchingRoom(challenge.room);
-      setShowApproachSelector(true);
       if (locationFloor && region && region.currentLocationId) {
         setGameState(GameState.LOCATION_EXPLORE);
       } else {
         setGameState(GameState.REGION_MAP);
       }
+      if (onEngageCombat) {
+        onEngageCombat(challenge.room, challenge.enemy);
+      } else {
+        logModalOpen('ApproachSelector', { source: 'eliteEscapeFailed', enemy: challenge.enemy.name });
+        setShowApproachSelector(true);
+      }
     }
-  }, [player, playerStats, eliteChallengeData, branchingFloor, locationFloor, region, setBranchingFloor, setLocationFloor, setEliteChallengeData, setGameState, addLog, setPendingArtifact, setSelectedBranchingRoom, setShowApproachSelector, returnToMapActivityComplete]);
+  }, [player, playerStats, eliteChallengeData, branchingFloor, locationFloor, region, setBranchingFloor, setLocationFloor, setEliteChallengeData, setGameState, addLog, setPendingArtifact, setSelectedBranchingRoom, setShowApproachSelector, returnToMapActivityComplete, onEngageCombat]);
 
   /**
    * Sync mutex for event confirm — UI choiceLocked state lagged one frame so
@@ -1037,34 +1108,74 @@ export function useActivityHandlers(
       const combatTerrain = currentRoom ? TERRAIN_DEFINITIONS[currentRoom.terrain] : undefined;
 
       if (FeatureFlags.ENABLE_MANUAL_COMBAT) {
-        // Event combat has no pre-fight approach, so hand a neutral FRONTAL_ASSAULT
-        // result (no buffs/debuffs, 1.0 multipliers) to the single combat-start
-        // entry point. startCombat seeds the T-004 deck from the player's skills,
-        // draws the opening hand and fills AP — the previous inline setEnemy/
-        // setGameState path left combatState null, so the fight opened with AP 0/0
-        // and an empty hand.
-        const neutralResult: ApproachResult = {
-          approach: ApproachType.FRONTAL_ASSAULT,
-          success: true,
-          successChance: 100,
-          roll: 0,
-          skipCombat: false,
-          guaranteedFirst: false,
-          initiativeBonus: 0,
-          firstHitMultiplier: 1.0,
-          enemyHpReduction: 0,
-          playerBuffs: [],
-          enemyDebuffs: [],
-          chakraCost: 0,
-          hpCost: 0,
-          xpMultiplier: 1.0,
-          description: '',
+        // Apply run preferred approach (same as map combat). Fallback frontal if locked out.
+        const terrainDef =
+          combatTerrain ?? TERRAIN_DEFINITIONS[TerrainType.TRAINING_FIELD];
+        const terrainKey = currentRoom?.terrain ?? TerrainType.TRAINING_FIELD;
+        const statsFlat = {
+          speed: playerStats.primary.speed,
+          dexterity: playerStats.primary.dexterity,
+          intelligence: playerStats.primary.intelligence,
+          calmness: playerStats.primary.calmness,
+          accuracy: playerStats.primary.accuracy,
+          willpower: playerStats.primary.willpower,
+          strength: playerStats.primary.strength,
+          spirit: playerStats.primary.spirit,
+          chakra: playerStats.primary.chakra,
         };
+        const skillIds = postEventPlayer.skills.map((s) => s.id);
+        const isEliteOrBoss =
+          combatEnemy.tier === 'Jonin' ||
+          combatEnemy.tier === 'Guardian' ||
+          Boolean(combatEnemy.isBoss);
+        const resolved = resolvePreferredApproach(
+          postEventPlayer.preferredApproach,
+          statsFlat,
+          skillIds,
+          terrainKey,
+          isEliteOrBoss,
+        );
+        if (resolved.fellBack) {
+          addLog(
+            resolved.reason ?? 'Preferred approach unavailable — frontal assault.',
+            'info',
+          );
+        }
+        const stealthPts = locationStealthBonusPoints(eventLocMods);
+        const approachResult = executeApproach(
+          resolved.approach,
+          postEventPlayer,
+          playerStats,
+          combatEnemy,
+          terrainDef,
+          stealthPts,
+        );
+        if (approachResult.description) {
+          addLog(approachResult.description, approachResult.success ? 'gain' : 'danger');
+        }
+        let playerAfterCosts = applyApproachCosts(postEventPlayer, approachResult);
+        setPlayer(playerAfterCosts);
+        let fightEnemy = combatEnemy;
+        if (approachResult.enemyHpReduction > 0) {
+          fightEnemy = applyEnemyHpReduction(combatEnemy, approachResult);
+        }
+        // Shadow bypass on event combat: still enter fight (event nodes rarely skip)
+        // unless skipCombat — treat skip as neutral open if no room to complete.
+        if (approachResult.skipCombat) {
+          addLog('You slip past the event foe — no fight.', 'gain');
+          setActiveEvent(null);
+          if (locationFloor) {
+            setGameState(GameState.LOCATION_EXPLORE);
+          } else {
+            setGameState(GameState.REGION_MAP);
+          }
+          return true;
+        }
         setActiveEvent(null);
         startCombat(
-          combatEnemy,
-          neutralResult,
-          postEventPlayer,
+          fightEnemy,
+          approachResult,
+          playerAfterCosts,
           combatTerrain,
           eventLocMods,
           // T-102: event fights use current room combat modifiers if any
@@ -1294,6 +1405,7 @@ export function useActivityHandlers(
     handleTrainingComplete,
     handleTrainingSkip,
     handleLearnScroll,
+    handleForgetScrollSkill,
     handleScrollDiscoverySkip,
     handleEliteFight,
     handleEliteEscape,

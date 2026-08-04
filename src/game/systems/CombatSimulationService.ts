@@ -362,7 +362,7 @@ function executeAttack(
     damage = Math.floor(damage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
   }
 
-  // Opening ambush first-hit mult (STEALTH_AMBUSH success → 2.0× from APPROACH_DEFINITIONS)
+  // Opening ambush first-hit mult (STEALTH_AMBUSH success → 1.5× from APPROACH_DEFINITIONS)
   if (isPlayer && ctx.isFirstTurn && ctx.firstHitMultiplier > 1.0) {
     damage = Math.floor(damage * ctx.firstHitMultiplier);
   }

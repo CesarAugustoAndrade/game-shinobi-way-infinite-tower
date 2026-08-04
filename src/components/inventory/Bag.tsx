@@ -9,7 +9,7 @@ import {
   getArtifactArt,
   getComponentArt,
 } from '../../game/constants/artRegistry';
-import { getSellPrice, getCraftCombination, CraftCombination } from '../../game/systems/LootSystem';
+import { getCraftCombination, CraftCombination } from '../../game/systems/LootSystem';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import {
   itemMatchesEquipmentFocus,
@@ -43,7 +43,7 @@ export interface CraftResultInfo {
 
 /** T-058: short bag action feedback toast */
 interface BagActionToast {
-  kind: 'equip' | 'sell';
+  kind: 'equip';
   item: Item;
   detail: string;
 }
@@ -51,8 +51,8 @@ interface BagActionToast {
 interface BagProps {
   items: (Item | null)[];
   onSelectComponent: (item: Item | null) => void;
-  /** T-058: may return sell price for toast */
-  onSellComponent: (item: Item) => number | null | void;
+  /** Sell is merchant-only; prop kept optional for call-site compatibility */
+  onSellComponent?: (item: Item) => number | null | void;
   selectedComponent: Item | null;
   /** T-032: may return crafted item for reveal panel */
   onSynthesize?: (componentA: Item, componentB: Item) => Item | null | void;
@@ -76,10 +76,8 @@ interface BagSlotProps {
   isSelected: boolean;
   canCombine: boolean;
   isMenuOpen: boolean;
-  sellValue: number;
   globalDragging: boolean;
   onItemClick: (item: Item) => void;
-  onContextMenu: (e: React.MouseEvent, item: Item) => void;
   getRarityColor: (r: Rarity) => string;
   getCompatibleRecipes: (item: Item) => { name: string; recipe: [ComponentId, ComponentId] }[];
   children?: React.ReactNode;
@@ -94,13 +92,11 @@ const BagSlot: React.FC<BagSlotProps> = ({
   canCombine,
   globalDragging,
   onItemClick,
-  onContextMenu,
   getRarityColor,
   getCompatibleRecipes,
   children,
   equipmentFocus = null,
 }) => {
-  const sellValue = item ? getSellPrice(item) : 0;
   const isFocusItem = item ? itemMatchesEquipmentFocus(item, equipmentFocus) : false;
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
@@ -222,8 +218,7 @@ const BagSlot: React.FC<BagSlotProps> = ({
                   })}
                 </div>
               )}
-              <div className="bag__tooltip-sell">Fence for {sellValue} Ryo</div>
-              <div className="bag__tooltip-hint">Drag to shift · click to act</div>
+              <div className="bag__tooltip-hint">Drag to shift · click to act · sell at shop</div>
             </div>
           ) : (
             <div className="bag__tooltip-hint">Hollow pocket — the mist holds nothing yet</div>
@@ -238,7 +233,8 @@ const BagSlot: React.FC<BagSlotProps> = ({
           onClick={() => item && onItemClick(item)}
           onContextMenu={(e) => {
             e.preventDefault();
-            if (item) onContextMenu(e, item);
+            // Open action menu (equip/synth) — sell is merchant-only
+            if (item) onItemClick(item);
           }}
           className={getSlotClasses()}
         >
@@ -264,7 +260,6 @@ const BagSlot: React.FC<BagSlotProps> = ({
 const Bag: React.FC<BagProps> = ({
   items,
   onSelectComponent,
-  onSellComponent,
   selectedComponent,
   onSynthesize,
   onEquipFromBag,
@@ -384,29 +379,6 @@ const Bag: React.FC<BagProps> = ({
     setActiveMenu(null);
   };
 
-  const handleSell = (e: React.MouseEvent, item: Item) => {
-    e.stopPropagation();
-    const sold = onSellComponent(item);
-    setSynthesisMode(false);
-    setActiveMenu(null);
-    if (typeof sold === 'number' && sold >= 0) {
-      // Clear craft reveal if the sold item was the craft result (stale equip CTA)
-      setCraftResult(prev => (prev?.item.id === item.id ? null : prev));
-      showActionToast({ kind: 'sell', item, detail: `+${sold} Ryō` });
-    }
-  };
-
-  const handleSellFromMenu = (item: Item) => {
-    const sold = onSellComponent(item);
-    setSynthesisMode(false);
-    setActiveMenu(null);
-    if (typeof sold === 'number' && sold >= 0) {
-      // Clear craft reveal if the sold item was the craft result (stale equip CTA)
-      setCraftResult(prev => (prev?.item.id === item.id ? null : prev));
-      showActionToast({ kind: 'sell', item, detail: `+${sold} Ryō` });
-    }
-  };
-
   const cancelSynthesis = () => {
     setSynthesisMode(false);
     setActiveMenu(null);
@@ -456,7 +428,6 @@ const Bag: React.FC<BagProps> = ({
           const isSelected = selectedComponent?.id === item?.id;
           const canCombine = item ? canCombineWithSelected(item) : false;
           const isMenuOpen = item && activeMenu === item.id && !synthesisMode;
-          const sellValue = item ? getSellPrice(item) : 0;
 
           return (
             <BagSlot
@@ -466,11 +437,9 @@ const Bag: React.FC<BagProps> = ({
               isSelected={isSelected}
               canCombine={canCombine}
               isMenuOpen={!!isMenuOpen}
-              sellValue={sellValue}
               equipmentFocus={equipmentFocus}
               globalDragging={globalDragging}
               onItemClick={handleComponentClick}
-              onContextMenu={handleSell}
               getRarityColor={getRarityColor}
               getCompatibleRecipes={getCompatibleRecipes}
             >
@@ -496,14 +465,6 @@ const Bag: React.FC<BagProps> = ({
                   )}
                   <button
                     type="button"
-                    onClick={() => handleSellFromMenu(item)}
-                    className="bag__menu-btn bag__menu-btn--sell"
-                  >
-                    <span>Sell</span>
-                    <span className="bag__menu-price">+{sellValue}</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setActiveMenu(null)}
                     className="bag__menu-btn bag__menu-btn--cancel"
                   >
@@ -517,7 +478,7 @@ const Bag: React.FC<BagProps> = ({
       </div>
 
       <div className="bag__help">
-        Drag to shift or equip · click to act · right-click to fence
+        Drag to shift or equip · click to act · sell only at the merchant
       </div>
 
       {synthesisMode && selectedComponent && (() => {

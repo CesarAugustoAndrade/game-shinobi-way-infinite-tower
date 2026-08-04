@@ -25,7 +25,7 @@ import { chance } from '../game/utils/rng';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { logVictory, logRewardModal, logFlowCheckpoint } from '../game/utils/combatDebug';
 import { logActivityComplete, logIntelGain } from '../game/utils/explorationDebug';
-import { resolveExploreReturnState } from './useExploration';
+import { resolveExploreReturnState } from './exploreReturnState';
 
 export interface VictoryState {
   player: Player | null;

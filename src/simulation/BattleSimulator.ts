@@ -148,6 +148,8 @@ export function createSimPlayer(config: PlayerBuildConfig): Player {
     merchantSlots: DEFAULT_MERCHANT_SLOTS,
     locationsCleared: 0,
     eventFlags: {},
+    preferredApproach: ApproachType.FRONTAL_ASSAULT,
+    clanLevel: 0,
   };
 }
 

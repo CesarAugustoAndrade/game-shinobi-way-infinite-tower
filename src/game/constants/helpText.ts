@@ -256,12 +256,12 @@ export const HELP_TEXT = {
       { type: "Defensive", desc: "Favors guard/utility cards. Deal −15% damage, take −15% damage.", color: "blue" }
     ],
     APPROACHES: [
-      { type: "Frontal Assault", desc: "Always available. Face the enemy head-on with no bonuses or penalties.", color: "gray" },
-      { type: "Silent Strike", desc: "Requires Speed 10+. On success: first hit deals 2× damage, high initiative, chance to stun. +15% XP. Location stealth_bonus improves success chance (shown on the approach panel).", color: "green" },
-      { type: "Mind Trap", desc: "Requires Calmness 11+. Costs chakra. On success: enemy starts confused and slowed. +20% XP.", color: "blue" },
-      { type: "Terrain Trap", desc: "Requires Intelligence 11+ and trap-friendly room terrain. On success: enemy loses HP before combat. +20% XP.", color: "red" },
-      { type: "Iron Guard", desc: "Requires Willpower 10+. Costs chakra. On success: start with a shield and a Willpower buff. +10% XP.", color: "blue" },
-      { type: "Shadow Passage", desc: "Requires Speed 28+. On success: skip the fight entirely (no XP/loot).", color: "green" }
+      { type: "Frontal Assault", desc: "Always available. Safe baseline — no bonuses, no risk. Default approach from the HUD.", color: "gray" },
+      { type: "Silent Strike", desc: "Requires Dexterity 16+ and Speed 12+ (DEX specialists: Uchiha/Hyuga). Costs 8 chakra. Success: 1.5× first hit, +initiative. Fail: enemy seizes initiative, +20% damage taken, DEX/Speed debuffs. Terrain stealth helps odds.", color: "green" },
+      { type: "Mind Trap", desc: "Requires Calmness 14+ and Intelligence 12+. Costs 18 chakra. Success: short confuse + slow. Fail: self-confusion and mind debuffs.", color: "blue" },
+      { type: "Terrain Trap", desc: "Requires Intelligence 12+ and Accuracy 11+, plus trap-friendly room terrain. Costs 6 chakra. Success: ~12% enemy HP pre-fight. Fail: HP backfire + accuracy curse.", color: "red" },
+      { type: "Iron Guard", desc: "Requires Willpower 14+. Costs 12 chakra. Success: shield + slight init loss (defensive open). Fail: +25% damage taken.", color: "blue" },
+      { type: "Shadow Passage", desc: "Requires Speed 30+. Costs 30 chakra. Success: skip fight (no XP/loot). Blocked on elite/boss. Fail: heavy init loss and vulnerability.", color: "green" }
     ],
     /**
      * T-076: real location terrainEffects (LocationTerrainSystem), not fluff biomes.

@@ -274,6 +274,11 @@
   box-shadow: 3px 3px 0 var(--sw-void, #050608), 0 0 14px var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
 }
 
+.approach-card--preferred {
+  border-color: #e8b84a;
+  box-shadow: 3px 3px 0 var(--sw-void, #050608), 0 0 0 2px #e8b84a;
+}
+
 /* Locked: dim but still readable (not 0.5 washout) */
 .approach-card--disabled {
   opacity: 0.78;
@@ -330,6 +335,32 @@
 .approach-card__icon svg {
   width: 1.35rem;
   height: 1.35rem;
+}
+
+.approach-card__icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+  pointer-events: none;
+}
+
+.approach-card__icon {
+  overflow: hidden;
+  padding: 0;
+}
+
+.approach-card__icon--available {
+  background: #0a0a0f;
+}
+
+.confirm-modal__preview-icon .approach-card__icon-img,
+.confirm-modal__preview-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .approach-card__title-group {

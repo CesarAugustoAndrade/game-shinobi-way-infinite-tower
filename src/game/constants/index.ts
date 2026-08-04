@@ -318,6 +318,112 @@ export const getClanStartingSkills = (clan: Clan): Skill[] => {
   ];
 };
 
+/** Cap for Player.clanLevel (Clan Rite scroll mode). */
+export const MAX_CLAN_LEVEL = 5;
+
+/**
+ * Clan bloodline track: skill ids offered when ascending to that level.
+ * Generator picks 2–3 not already owned; falls back to favorites if thin.
+ */
+export const CLAN_LEVEL_SKILL_POOL: Record<Clan, Record<number, readonly string[]>> = {
+  [Clan.UZUMAKI]: {
+    1: ['basic_medical', 'bunshin', 'brace'],
+    2: ['shadow_clone', 'focused_breathing', 'adamantine_chains'],
+    3: ['rasengan', 'chakra_reserves', 'basic_medical'],
+    4: ['rasenshuriken', 'adamantine_chains', 'shadow_clone'],
+    5: ['rasenshuriken', 'rasengan', 'adamantine_chains'],
+  },
+  [Clan.UCHIHA]: {
+    1: ['phoenix_flower', 'fireball', 'fire_affinity'],
+    2: ['chidori', 'sharingan_predict', 'phoenix_flower'],
+    3: ['sharingan_2', 'chidori', 'fireball'],
+    4: ['amaterasu', 'sharingan_2', 'sharingan_predict'],
+    5: ['amaterasu', 'chidori', 'fireball'],
+  },
+  [Clan.HYUGA]: {
+    1: ['gentle_fist', 'air_palm', 'analyze'],
+    2: ['byakugan', 'gentle_fist', 'byakugan_scan'],
+    3: ['kaiten', '64_palms', 'air_palm'],
+    4: ['64_palms', 'kaiten', 'byakugan'],
+    5: ['64_palms', 'kaiten', 'byakugan_scan'],
+  },
+  [Clan.LEE]: {
+    1: ['leaf_whirlwind', 'dynamic_entry', 'heavy_kick'],
+    2: ['dancing_leaf', 'primary_lotus', 'leaf_whirlwind'],
+    3: ['gate_prep', 'primary_lotus', 'dynamic_entry'],
+    4: ['hidden_lotus', 'gate_of_life', 'gate_prep'],
+    5: ['gate_of_limit', 'hidden_lotus', 'gate_of_life'],
+  },
+  [Clan.YAMANAKA]: {
+    1: ['analyze', 'kai', 'hell_viewing'],
+    2: ['mind_transfer', 'kai', 'analyze'],
+    3: ['mind_destruction', 'mind_transfer', 'hell_viewing'],
+    4: ['mind_destruction', 'mind_transfer', 'kai'],
+    5: ['mind_destruction', 'hell_viewing', 'mind_transfer'],
+  },
+};
+
+export function resolveSkillById(skillId: string): Skill | undefined {
+  return Object.values(SKILLS).find((s) => s.id === skillId);
+}
+
+/**
+ * Build 2–3 clan skill choices for ascending to `targetLevel`.
+ * Prefers unused pool skills; pads with favorites / academy kit.
+ */
+export function getClanLevelSkillChoices(
+  clan: Clan,
+  targetLevel: number,
+  ownedSkillIds: Set<string>,
+  count: number = 3,
+): Skill[] {
+  const level = Math.max(1, Math.min(MAX_CLAN_LEVEL, targetLevel));
+  const poolIds = [
+    ...(CLAN_LEVEL_SKILL_POOL[clan]?.[level] ?? []),
+    ...(CLAN_FAVORITE_SKILLS[clan] ?? []),
+    ...getClanStartingSkills(clan).map((s) => s.id),
+  ];
+  const seen = new Set<string>();
+  const out: Skill[] = [];
+  for (const id of poolIds) {
+    if (seen.has(id) || ownedSkillIds.has(id)) continue;
+    const skill = resolveSkillById(id);
+    if (!skill) continue;
+    seen.add(id);
+    out.push({ ...skill, level: 1 });
+    if (out.length >= count) break;
+  }
+  // If all owned, allow upgrades of favorites as last resort
+  if (out.length === 0) {
+    for (const id of CLAN_FAVORITE_SKILLS[clan] ?? []) {
+      const skill = resolveSkillById(id);
+      if (!skill || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ ...skill, level: 1 });
+      if (out.length >= count) break;
+    }
+  }
+  return out;
+}
+
+/** Vendor scroll ryo price by tier × floor */
+export function getScrollVendorPrice(skill: Skill, floor: number): number {
+  const tierBase: Record<string, number> = {
+    BASIC: 40,
+    ADVANCED: 80,
+    HIDDEN: 140,
+    FORBIDDEN: 220,
+    KINJUTSU: 320,
+  };
+  const base = tierBase[skill.tier] ?? 60;
+  return Math.floor(base + floor * 12 + (skill.apCost ?? 1) * 5);
+}
+
+/** Flat forget cost at scroll vendor */
+export function getScrollForgetCostRyo(skillLevel: number = 1): number {
+  return 40 + Math.max(0, skillLevel - 1) * 15;
+}
+
 // ============================================================================
 // BOSS DEFINITIONS (danger 1–7; legacy floor keys 8/17/25… removed)
 // ============================================================================

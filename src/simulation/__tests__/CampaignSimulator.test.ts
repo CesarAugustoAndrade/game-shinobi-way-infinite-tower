@@ -35,6 +35,7 @@ import {
   Rarity,
   TreasureQuality,
   DEFAULT_MERCHANT_SLOTS,
+  ApproachType,
 } from '../../game/types';
 import type { PlayerBuildConfig } from '../types';
 import { installSeededRandom } from '../seededRandom';
@@ -70,6 +71,8 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     merchantSlots: DEFAULT_MERCHANT_SLOTS,
     locationsCleared: 0,
     eventFlags: {},
+    preferredApproach: ApproachType.FRONTAL_ASSAULT,
+    clanLevel: 0,
     ...overrides,
   };
 }

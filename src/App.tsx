@@ -32,6 +32,10 @@ import {
   applyApproachCosts,
   applyEnemyHpReduction
 } from './game/systems/ApproachSystem';
+import {
+  APPROACH_DEFINITIONS,
+  resolvePreferredApproach,
+} from './game/constants/approaches';
 import { TERRAIN_DEFINITIONS } from './game/constants/terrain';
 import {
   formatLocationTerrainEffectLines,
@@ -404,6 +408,13 @@ const App: React.FC = () => {
 
   // Ref to hold the combat victory handler to break circular dependency
   const handleCombatVictoryRef = useRef<(enemy: Enemy, combatState: any) => void>(() => {});
+  /**
+   * Preferred-approach engage — defined later (needs startCombat / returnToMap).
+   * Room activities call this via ref so useExploration can wire early.
+   */
+  const engageWithPreferredApproachRef = useRef<
+    (room: BranchingRoom, explicitEnemy?: Enemy | null) => void
+  >(() => {});
 
   // Combat hook - manages enemy, turns, and combat logic
   const {
@@ -533,6 +544,8 @@ const App: React.FC = () => {
     currentLocation,
     activitySetters,
     setEnemy,
+    onEngageCombat: (room, explicitEnemy) =>
+      engageWithPreferredApproachRef.current(room, explicitEnemy),
     onAutoCombat: handleAutoCombat,
     onAutoEliteCombat: handleAutoEliteCombat,
     onRegionBossDefeated: (clearedRegion) => {
@@ -611,12 +624,10 @@ const App: React.FC = () => {
 
   // Treasure system handlers
   const {
-    handleTreasureReveal,
-    handleTreasureSelectItem,
-    handleTreasureFightGuardian,
-    handleTreasureRollDice,
-    handleTreasureStartHunt,
-    handleTreasureDeclineHunt,
+    handleOpenVault,
+    handleRevealVaultFace,
+    handlePickVaultOption,
+    handleTakeMapPiece,
     handleTreasureHuntRewardClaim,
     handleDiceResultContinue,
     handleBagFullSell,
@@ -656,6 +667,8 @@ const App: React.FC = () => {
       setPendingArtifact,
       setDiceRollResult,
       setPendingBagFullItem,
+      onEngageCombat: (room, explicitEnemy) =>
+        engageWithPreferredApproachRef.current(room, explicitEnemy),
     },
     {
       addLog,
@@ -903,26 +916,7 @@ const App: React.FC = () => {
       setGameState(exploreFallback);
       return;
     }
-    // Orphan approach flag: selector condition failed → no modal, keys/map feel stuck
-    if (showApproachSelector) {
-      if (!selectedBranchingRoom) {
-        setShowApproachSelector(false);
-      } else {
-        // Room present but no engageable foe (completed elite/combat, missing combat, no guardian).
-        // Must honour .completed — combat.enemy still exists after victory and would keep
-        // the approach modal alive / allow re-engaging a cleared room.
-        const elite = selectedBranchingRoom.activities.eliteChallenge;
-        const combat = selectedBranchingRoom.activities.combat;
-        const hasFoe =
-          Boolean(enemy) ||
-          Boolean(elite && !elite.completed && elite.enemy) ||
-          Boolean(combat && !combat.completed && combat.enemy);
-        if (!hasFoe) {
-          setShowApproachSelector(false);
-          setEnemy(null);
-        }
-      }
-    }
+    // Approach modal is HUD preference only (no room foe required).
     // MERCHANT always mounts but returns null without player — blank shop shell
     if (gameState === GameState.MERCHANT && !player) {
       setGameState(exploreFallback);
@@ -1008,81 +1002,48 @@ const App: React.FC = () => {
     returnToMap,
   ]);
 
-  // Exit room / cancel approach — restore prior context (guardian → TREASURE, elite/map → explore)
-  const handleApproachCancel = () => {
-    logModalClose('ApproachSelector', 'exit room');
-    setShowApproachSelector(false);
-
-    const isTreasureGuardian =
-      enemy?.name === 'Treasure Guardian' || currentTreasure !== null;
-
-    // Always drop combat-prep side channels so cancel never leaves a half-started fight
-    setEnemy(null);
-    setPendingArtifact(null);
-
-    if (isTreasureGuardian && currentTreasure) {
-      // Restore treasure screen (never blank TREASURE: requires currentTreasure)
-      // Keep selectedBranchingRoom for subsequent treasure actions
-      // Fight consumed mapPieceAvailable to block dice mid-approach — re-arm on cancel
-      setCurrentTreasure(prev =>
-        prev && !prev.collected ? { ...prev, mapPieceAvailable: true } : prev,
-      );
-      setGameState(GameState.TREASURE);
-      addLog('You step back from the Treasure Guardian.', 'info');
-      return;
-    }
-
-    // Elite / regular combat: return to map without starting the fight.
-    // Ensure explore state (never leave COMBAT/blank shell if approach was opened mid-desync).
-    setSelectedBranchingRoom(null);
-    if (
-      gameState !== GameState.LOCATION_EXPLORE &&
-      gameState !== GameState.REGION_MAP
-    ) {
-      setGameState(
-        region?.currentLocationId && locationFloor
-          ? GameState.LOCATION_EXPLORE
-          : GameState.REGION_MAP,
-      );
-    }
-    addLog('You leave the room without fighting.', 'info');
-  };
-
-  // New approach overlay → allow Engage again (cancel / re-open after failed engage)
+  // Preference overlay open → re-arm engage lock (in case residual after prior fight)
   useEffect(() => {
     if (showApproachSelector) {
       approachEngageLockRef.current = false;
     }
   }, [showApproachSelector]);
 
-  // Handle approach selection for BRANCHING exploration combat (also works for region mode)
-  const handleBranchingApproachSelect = (approach: ApproachType) => {
-    // Allow either branchingFloor OR region mode.
-    // Must always dismiss the approach overlay on failure: ApproachSelector sets
-    // commitLockRef before calling us — silent return leaves "Engaging…" forever.
-    // Parent ref belt: UI commitLock alone can still double-fire costs/startCombat
-    // if two Engage paths land before unmount (Enter+click / remount residue).
+  /**
+   * Apply approach + start combat (or skip). Room is passed explicitly so hooks
+   * can engage in the same tick without waiting for selectedBranchingRoom state.
+   * Uses player.preferredApproach when approachOverride is omitted.
+   */
+  const engageWithApproach = (
+    room: BranchingRoom,
+    options?: {
+      approachOverride?: ApproachType;
+      explicitEnemy?: Enemy | null;
+    },
+  ) => {
+    // Parent ref belt: double-fire costs/startCombat if two Engage paths land.
     if (approachEngageLockRef.current) {
-      // Prior engage already committed — dismiss so UI is not stuck "Engaging…"
-      // (parity failed-gate dismiss; remount residue / re-open before re-arm).
       setShowApproachSelector(false);
       return;
     }
-    if (!player || !playerStats || !selectedBranchingRoom || (!branchingFloor && !region)) {
+    if (!player || !playerStats || (!branchingFloor && !region)) {
       setShowApproachSelector(false);
       setEnemy(null);
       addLog('The moment passes — nothing left to engage.', 'info');
       return;
     }
 
+    setSelectedBranchingRoom(room);
+
     // Check for elite challenge first, then regular combat
     // IMPORTANT: If enemy is already set (e.g., Treasure Guardian), use that instead.
     // Never re-engage a completed combat/elite activity (enemy object remains on the room).
-    const eliteChallenge = selectedBranchingRoom.activities.eliteChallenge;
-    const combat = selectedBranchingRoom.activities.combat;
+    const eliteChallenge = room.activities.eliteChallenge;
+    const combat = room.activities.combat;
     const isEliteChallenge = Boolean(eliteChallenge && !eliteChallenge.completed);
     const liveCombat = combat && !combat.completed ? combat : undefined;
     const targetEnemy =
+      options?.explicitEnemy ||
       enemy ||
       (isEliteChallenge ? eliteChallenge!.enemy : liveCombat?.enemy);
     const isTreasureGuardian = targetEnemy?.name === 'Treasure Guardian';
@@ -1094,11 +1055,47 @@ const App: React.FC = () => {
       return;
     }
 
-    // Lock after validation — failed gates leave overlay free for another Engage
-    approachEngageLockRef.current = true;
-    logModalClose('ApproachSelector', `selected: ${approach}`);
+    const isEliteOrBoss =
+      isEliteChallenge ||
+      isTreasureGuardian ||
+      targetEnemy.tier === 'Jonin' ||
+      targetEnemy.tier === 'Guardian' ||
+      Boolean(targetEnemy.isBoss);
 
-    const terrain = TERRAIN_DEFINITIONS[selectedBranchingRoom.terrain];
+    const statsFlat = {
+      speed: playerStats.primary.speed,
+      dexterity: playerStats.primary.dexterity,
+      intelligence: playerStats.primary.intelligence,
+      calmness: playerStats.primary.calmness,
+      accuracy: playerStats.primary.accuracy,
+      willpower: playerStats.primary.willpower,
+      strength: playerStats.primary.strength,
+      spirit: playerStats.primary.spirit,
+      chakra: playerStats.primary.chakra,
+    };
+    const skillIds = player.skills.map((s) => s.id);
+
+    const preferred =
+      options?.approachOverride ??
+      player.preferredApproach ??
+      ApproachType.FRONTAL_ASSAULT;
+    const resolved = resolvePreferredApproach(
+      preferred,
+      statsFlat,
+      skillIds,
+      room.terrain,
+      isEliteOrBoss,
+    );
+    const approach = resolved.approach;
+    if (resolved.fellBack) {
+      addLog(resolved.reason ?? 'Preferred approach unavailable — frontal assault.', 'info');
+    }
+
+    // Lock after validation
+    approachEngageLockRef.current = true;
+    logModalClose('ApproachSelector', `auto: ${approach}`);
+
+    const terrain = TERRAIN_DEFINITIONS[room.terrain];
     // T-063: location terrainEffects stealth_bonus stacks with room stealth
     const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
     const locationStealthPts = locationStealthBonusPoints(locMods);
@@ -1136,18 +1133,18 @@ const App: React.FC = () => {
 
       let updatedLocationFloor: BranchingFloor | undefined;
 
-      if (locationFloor && selectedBranchingRoom) {
+      if (locationFloor) {
         updatedLocationFloor = completeActivity(
           locationFloor,
-          selectedBranchingRoom.id,
+          room.id,
           activityType,
         );
         setLocationFloor(updatedLocationFloor);
       }
 
-      if (branchingFloor && selectedBranchingRoom) {
+      if (branchingFloor) {
         setBranchingFloor(
-          completeActivity(branchingFloor, selectedBranchingRoom.id, activityType),
+          completeActivity(branchingFloor, room.id, activityType),
         );
       }
 
@@ -1182,21 +1179,42 @@ const App: React.FC = () => {
     // approach effects + on-combat-start passives and — critically — seeds the
     // T-004 deck from the player's real skills, draws the opening hand, fills the
     // AP budget, and skips the turn-1 upkeep so the opening hand survives the
-    // first render. The previous inline setup created combat state with an empty
-    // deck/hand (it never called buildDeck/drawHand), so combat opened with 0
-    // cards once the upkeep redrew from the empty pile.
-    logStateChange('EXPLORE', 'COMBAT', 'approach selected - entering combat');
+    // first render.
+    logStateChange('EXPLORE', 'COMBAT', 'preferred approach - entering combat');
     setShowApproachSelector(false);
-    // Guardian: drop treasure UI state only once combat actually starts (not on approach open/cancel)
     if (isTreasureGuardian) {
       setCurrentTreasure(null);
     }
     // T-102/T-108: room combat modifiers (combat or elite-only rooms)
     const roomMods =
-      selectedBranchingRoom.activities.combat?.modifiers
-      ?? selectedBranchingRoom.activities.eliteChallenge?.modifiers;
+      room.activities.combat?.modifiers
+      ?? room.activities.eliteChallenge?.modifiers;
     startCombat(combatEnemy, result, playerAfterCosts, terrain, locMods, roomMods);
   };
+
+  /** HUD preference picker — lock approach for all future encounters */
+  const handlePreferredApproachSelect = (approach: ApproachType) => {
+    if (!player) return;
+    const name = APPROACH_DEFINITIONS[approach]?.name ?? approach;
+    setPlayer({ ...player, preferredApproach: approach });
+    setShowApproachSelector(false);
+    addLog(`Approach set: ${name}. Applies to all encounters until changed.`, 'info');
+  };
+
+  const handleApproachPreferenceCancel = () => {
+    logModalClose('ApproachSelector', 'close preference');
+    setShowApproachSelector(false);
+  };
+
+  /** Combat room / elite / guardian — auto-apply preferred approach */
+  const engageWithPreferredApproach = (
+    room: BranchingRoom,
+    explicitEnemy?: Enemy | null,
+  ) => {
+    approachEngageLockRef.current = false;
+    engageWithApproach(room, { explicitEnemy: explicitEnemy ?? undefined });
+  };
+  engageWithPreferredApproachRef.current = engageWithPreferredApproach;
 
   // Branching exploration handlers moved to useExploration hook
 
@@ -1255,14 +1273,15 @@ const App: React.FC = () => {
       returnToMap,
       returnToMapActivityComplete,
       eventOutcome,
-      startCombat
+      startCombat,
+      onEngageCombat: engageWithPreferredApproach,
     }
   );
 
   const {
     buyItem, leaveMerchant, handleMerchantReroll, handleBuyMerchantSlot,
     handleUpgradeTreasureQuality, handleTrainingComplete, handleTrainingSkip,
-    handleLearnScroll, handleScrollDiscoverySkip, handleEliteFight, handleEliteEscape,
+    handleLearnScroll, handleForgetScrollSkill, handleScrollDiscoverySkip, handleEliteFight, handleEliteEscape,
     handleEventChoice, handleEventOutcomeClose
   } = activityHandlers;
 
@@ -1568,7 +1587,7 @@ const App: React.FC = () => {
     showApproachSelector,
   ]);
 
-  // I / C / Esc — bag & character independent (both can stay open)
+  // A / I / C / Esc — approach · bag · character
   // Combat: C is hand slot 3 — only open character via HUD button, not C key.
   // Do not open bag/character under result/approach modals.
   useEffect(() => {
@@ -1586,7 +1605,16 @@ const App: React.FC = () => {
         '[role="dialog"][aria-modal="true"]:not(.explore-overlay), .reward-modal, .event-result, .loc-complete, .dice-modal, .intel-result, .rest-result, .approach-modal, .confirm-modal',
       );
       const key = event.key.toLowerCase();
-      if (key === 'i') {
+      if (key === 'a') {
+        // Toggle approach preference (A is free on explore; combat uses number keys for hand)
+        if (isCombat) return;
+        // Allow A to open only when no other modal; approach-modal itself handles Esc
+        if (blockingModal && !showApproachSelector) return;
+        event.preventDefault();
+        setExploreBagOpen(false);
+        setExploreCharacterOpen(false);
+        setShowApproachSelector((prev) => !prev);
+      } else if (key === 'i') {
         if (blockingModal) return;
         event.preventDefault();
         setExploreBagOpen((prev) => !prev);
@@ -1605,7 +1633,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showExploreChrome, isCombat, exploreBagOpen, exploreCharacterOpen]);
+  }, [showExploreChrome, isCombat, exploreBagOpen, exploreCharacterOpen, showApproachSelector]);
 
   // --- Full-screen scenes (no game shell) — only after all hooks ---
   if (gameState === GameState.MENU) {
@@ -1825,8 +1853,15 @@ const App: React.FC = () => {
               if (exploreModalBlocksHud) return;
               setExploreCharacterOpen((p) => !p);
             }}
+            onOpenApproach={() => {
+              if (exploreModalBlocksHud) return;
+              setExploreBagOpen(false);
+              setExploreCharacterOpen(false);
+              setShowApproachSelector((p) => !p);
+            }}
             bagOpen={exploreBagOpen}
             characterOpen={exploreCharacterOpen}
+            approachOpen={showApproachSelector}
             lootTheme={region?.lootTheme}
             locationLabel={
               gameState === GameState.LOCATION_EXPLORE || isMissionScene
@@ -1965,6 +2000,7 @@ const App: React.FC = () => {
                 dangerLevel={currentDangerLevel}
                 baseDifficulty={currentBaseDifficulty}
                 onBuyItem={buyItem}
+                onSellFromBag={sellComponent}
                 onLeave={leaveMerchant}
                 onReroll={handleMerchantReroll}
                 onBuySlot={handleBuyMerchantSlot}
@@ -1994,6 +2030,7 @@ const App: React.FC = () => {
               player={player}
               playerStats={playerStats}
               onLearnScroll={handleLearnScroll}
+              onForgetSkill={handleForgetScrollSkill}
               onSkip={handleScrollDiscoverySkip}
               background={combatBackground}
               lootTheme={region?.lootTheme}
@@ -2007,13 +2044,12 @@ const App: React.FC = () => {
                 treasure={currentTreasure}
                 treasureHunt={currentTreasureHunt}
                 player={player}
+                playerStats={playerStats}
                 huntDeclined={locationFloor?.huntDeclined ?? branchingFloor?.huntDeclined ?? false}
-                onReveal={handleTreasureReveal}
-                onSelectItem={handleTreasureSelectItem}
-                onFightGuardian={handleTreasureFightGuardian}
-                onRollDice={handleTreasureRollDice}
-                onStartHunt={handleTreasureStartHunt}
-                onDeclineHunt={handleTreasureDeclineHunt}
+                onOpenVault={handleOpenVault}
+                onRevealFace={handleRevealVaultFace}
+                onPickOption={handlePickVaultOption}
+                onTakeMapPiece={handleTakeMapPiece}
                 pendingBagFullItem={pendingBagFullItem}
                 onBagFullSell={handleBagFullSell}
                 onBagFullLeave={handleBagFullLeave}
@@ -2021,7 +2057,6 @@ const App: React.FC = () => {
                 getRarityColor={getRarityColor}
                 background={combatBackground}
                 lootTheme={region?.lootTheme}
-                diceRollPending={diceRollResult !== null}
               />
             </ErrorBoundary>
           )}
@@ -2181,64 +2216,17 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Approach Selector Modal */}
-      {showApproachSelector && selectedBranchingRoom && (selectedBranchingRoom.activities.combat || selectedBranchingRoom.activities.eliteChallenge || enemy) && player && playerStats && (() => {
-        // Get enemy from state first (e.g., Treasure Guardian), then live (incomplete) elite/combat only
-        const eliteChallenge = selectedBranchingRoom.activities.eliteChallenge;
-        const combat = selectedBranchingRoom.activities.combat;
-        const targetEnemy =
-          enemy ||
-          (eliteChallenge && !eliteChallenge.completed
-            ? eliteChallenge.enemy
-            : combat && !combat.completed
-              ? combat.enemy
-              : undefined);
-        if (!targetEnemy) return null;
-
-        return (
-          <ApproachSelector
-            node={{
-              id: selectedBranchingRoom.id,
-              type: targetEnemy.tier === 'Guardian' ? 'BOSS' :
-                    targetEnemy.tier === 'Jonin' ? 'ELITE' : 'COMBAT',
-              terrain: selectedBranchingRoom.terrain,
-              enemy: targetEnemy,
-            }}
-            terrain={TERRAIN_DEFINITIONS[selectedBranchingRoom.terrain]}
-            player={player}
-            playerStats={playerStats}
-            locationStealthBonusPts={locationStealthBonusPoints(
-              getLocationTerrainMods(currentLocation?.terrainEffects),
-            )}
-            locationEvasionBonus={
-              getLocationTerrainMods(currentLocation?.terrainEffects).evasionBonus
-            }
-            roomConditionNames={(() => {
-              // T-104/T-108: combat or elite-only room modifiers
-              const mods =
-                selectedBranchingRoom.activities.combat?.modifiers
-                ?? selectedBranchingRoom.activities.eliteChallenge?.modifiers
-                ?? [];
-              return mods
-                .filter((m) => m !== CombatModifierType.NONE)
-                .map((m) => COMBAT_MODIFIER_EFFECTS[m]?.name)
-                .filter(Boolean) as string[];
-            })()}
-            roomConditionHints={(() => {
-              const mods =
-                selectedBranchingRoom.activities.combat?.modifiers
-                ?? selectedBranchingRoom.activities.eliteChallenge?.modifiers
-                ?? [];
-              return mods
-                .filter((m) => m !== CombatModifierType.NONE)
-                .map((m) => COMBAT_MODIFIER_EFFECTS[m]?.description)
-                .filter(Boolean) as string[];
-            })()}
-            onSelectApproach={handleBranchingApproachSelect}
-            onCancel={handleApproachCancel}
-          />
-        );
-      })()}
+      {/* Approach preference picker (HUD) — applies to all encounters until changed */}
+      {showApproachSelector && player && playerStats && (
+        <ApproachSelector
+          mode="preference"
+          currentPreferred={player.preferredApproach ?? ApproachType.FRONTAL_ASSAULT}
+          player={player}
+          playerStats={playerStats}
+          onSelectApproach={handlePreferredApproachSelect}
+          onCancel={handleApproachPreferenceCancel}
+        />
+      )}
 
       {/* Dice Roll Result Modal — hide under combat reward so Space cannot dismiss both
           (Treasure Guardian: reward then dice; dice owns map return). */}

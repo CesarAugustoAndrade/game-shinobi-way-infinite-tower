@@ -67,10 +67,17 @@ import {
   TreasureType,
   TreasureChoice,
   TreasureHunt,
+  VaultRewardOption,
 } from '../types';
 import { generateEnemy } from './EnemySystem';
 import { getEnemyFullStats } from './StatSystem';
 import { generateLoot, generateRandomArtifact, generateSkillForFloor, generateComponentByQuality, generateMerchantItem } from './LootSystem';
+import {
+  getClanLevelSkillChoices,
+  getScrollVendorPrice,
+  getScrollForgetCostRyo,
+  MAX_CLAN_LEVEL,
+} from '../constants';
 import {
   getLocationTerrainMods,
   getRoomHiddenRoomBonus,
@@ -280,6 +287,9 @@ function createRoom(
   dangerLevel: number = 4,
   /** Location wealth (1-7) for treasure/merchant scaling */
   wealthLevel: number = 4,
+  treasureHunt?: import('../types').TreasureHunt | null,
+  huntDeclined?: boolean,
+  clanRiteUsed?: boolean,
 ): BranchingRoom {
   // Select room type
   const type = forceType ?? selectRandomRoomType(tier);
@@ -320,9 +330,10 @@ function createRoom(
 
   // Generate activities (T-033/056/059/064/068/070) — use config danger/wealth, not floor→danger
   room.activities = generateActivities(
-    room, config, floor, difficulty, arc, player, wealthLevel, null, false,
+    room, config, floor, difficulty, arc, player, wealthLevel,
+    treasureHunt ?? null, huntDeclined ?? false,
     preferredEventIds, enemyPool, lootTable, ambushChanceBonus, preferredElement, lootTheme,
-    dangerLevel,
+    dangerLevel, clanRiteUsed,
   );
 
   return room;
@@ -468,21 +479,56 @@ function generateEventActivity(
   return { definition: event, completed: false };
 }
 
+const CLAN_RITE_SPAWN_CHANCE = 0.22;
+
 /**
  * Generate scroll discovery activity for a room.
- * Called only when weighted selection picks scrollDiscovery for this room.
+ * Modes: vendor (buy/forget ryo) or clan rite (once/location, free skill pick).
  */
 function generateScrollDiscoveryActivity(
   floor: number,
   lootTheme?: import('../types').RegionLootTheme,
-  clan?: Player['clan'],
+  player?: Player,
+  clanRiteUsed?: boolean,
 ): RoomActivities['scrollDiscovery'] {
-  // T-113: bias scroll element/scaling toward region lootTheme
-  // Card-combat plan: clan favorites + filter wrong clan-locks
-  const skill = generateSkillForFloor(floor, lootTheme, clan);
+  const clan = player?.clan;
+  const clanLevel = player?.clanLevel ?? 0;
+  const canClanRite = !clanRiteUsed && clanLevel < MAX_CLAN_LEVEL && Boolean(clan);
+
+  if (canClanRite && Math.random() < CLAN_RITE_SPAWN_CHANCE && clan) {
+    const owned = new Set(player!.skills.map((s) => s.id));
+    const targetLevel = clanLevel + 1;
+    const choices = getClanLevelSkillChoices(clan, targetLevel, owned, 3);
+    return {
+      mode: 'clan',
+      availableScrolls: [],
+      prices: {},
+      forgetCostRyo: 0,
+      clanLevelAfter: targetLevel,
+      clanSkillChoices: choices,
+      completed: false,
+    };
+  }
+
+  const count = 2 + (Math.random() < 0.45 ? 1 : 0);
+  const scrolls: import('../types').Skill[] = [];
+  const prices: Record<string, number> = {};
+  for (let i = 0; i < count; i++) {
+    const skill = generateSkillForFloor(floor, lootTheme, clan);
+    if (scrolls.some((s) => s.id === skill.id)) continue;
+    scrolls.push(skill);
+  }
+  if (scrolls.length === 0) {
+    scrolls.push(generateSkillForFloor(floor, lootTheme, clan));
+  }
+  for (const s of scrolls) {
+    prices[s.id] = getScrollVendorPrice(s, floor);
+  }
   return {
-    availableScrolls: [skill],
-    cost: { chakra: 15 + floor * 2 },
+    mode: 'vendor',
+    availableScrolls: scrolls,
+    prices,
+    forgetCostRyo: getScrollForgetCostRyo(1),
     completed: false,
   };
 }
@@ -632,10 +678,48 @@ export function getRequiredMapPieces(dangerLevel: number): number {
 }
 
 /**
+ * Build one sealed vault face: item | hp | ryo | scroll (weighted).
+ */
+function generateVaultRewardOption(
+  floor: number,
+  difficulty: number,
+  quality: TreasureQuality,
+  artifactChance: number,
+  ryoMultiplier: number,
+  lootTable?: string,
+  lootTheme?: import('../types').RegionLootTheme,
+  clan?: Player['clan'],
+): VaultRewardOption {
+  const roll = Math.random();
+  // 48% item, 20% ryo, 17% hp, 15% scroll
+  if (roll < 0.48) {
+    const isArtifact = artifactChance > 0 && Math.random() < artifactChance;
+    const item = isArtifact
+      ? generateRandomArtifact(floor, difficulty)
+      : generateComponentByQuality(floor, difficulty + 5, quality, lootTable, lootTheme);
+    return { kind: 'item', revealed: false, item, isArtifact };
+  }
+  if (roll < 0.68) {
+    const base = 40 + floor * 12 + Math.floor(Math.random() * 50);
+    return {
+      kind: 'ryo',
+      revealed: false,
+      ryoAmount: Math.floor(base * ryoMultiplier),
+    };
+  }
+  if (roll < 0.85) {
+    // Flat HP: scales mildly with floor (claim clamps to maxHp in handler)
+    const hpAmount = 25 + floor * 8 + Math.floor(Math.random() * 20);
+    return { kind: 'hp', revealed: false, hpAmount };
+  }
+  const skill = generateSkillForFloor(floor, lootTheme, clan);
+  return { kind: 'scroll', revealed: false, skill };
+}
+
+/**
  * Generate treasure activity for a room.
- * Randomly assigns either LOCKED_CHEST or TREASURE_HUNTER type.
- * If huntDeclined is true, always generates LOCKED_CHEST.
- * Called only when weighted selection picks treasure for this room.
+ * Vault overhaul: entry chooses Open Vault (chakra) or free Map Piece (if available).
+ * Open → 3 mixed sealed faces; pay to reveal; pick one.
  */
 function generateTreasureActivity(
   floor: number,
@@ -649,65 +733,69 @@ function generateTreasureActivity(
 ): RoomActivities['treasure'] {
   const quality = maybeUpgradeQuality(player?.treasureQuality ?? DEFAULT_TREASURE_QUALITY);
   const { choiceCount, artifactChance, ryoMultiplier } = getTreasureConfig(wealthLevel);
+  const VAULT_FACES = 3;
 
-  // Generate item choices
-  const choices: TreasureChoice[] = [];
-  for (let i = 0; i < choiceCount; i++) {
-    // Check for artifact (only in high-wealth, 5-10% chance)
-    if (artifactChance > 0 && Math.random() < artifactChance) {
-      choices.push({
-        item: generateRandomArtifact(floor, difficulty),
-        isArtifact: true,
-      });
-    } else {
-      choices.push({
-        // T-071: stack lootTable + region lootTheme like merchant
-        item: generateComponentByQuality(
-          floor, difficulty + 5, quality, lootTable, lootTheme,
-        ),
-        isArtifact: false,
-      });
-    }
+  const vaultOptions: VaultRewardOption[] = [];
+  for (let i = 0; i < VAULT_FACES; i++) {
+    vaultOptions.push(
+      generateVaultRewardOption(
+        floor, difficulty, quality, artifactChance, ryoMultiplier,
+        lootTable, lootTheme, player?.clan,
+      ),
+    );
   }
 
-  const baseRyo = 50 + floor * 10 + Math.floor(Math.random() * 67);
-  const revealCost = calculateRevealCost(floor, choiceCount);
-
-  // If hunt was declined, all treasures become locked chests
-  if (huntDeclined) {
-    return {
-      type: TreasureType.LOCKED_CHEST,
-      choices,
-      ryoBonus: Math.floor(baseRyo * ryoMultiplier),
-      revealCost,
-      isRevealed: false,
-      selectedIndex: null,
-      collected: false,
-      isHuntRoom: false,
-      mapPieceAvailable: false,
+  // Legacy choices: item faces only (bag-full / old callers)
+  const choices: TreasureChoice[] = vaultOptions
+    .filter((o) => o.kind === 'item' && o.item)
+    .map((o) => ({ item: o.item!, isArtifact: Boolean(o.isArtifact) }));
+  // Ensure at least one legacy choice for empty-item vaults
+  if (choices.length === 0) {
+    const fallback = generateComponentByQuality(
+      floor, difficulty + 5, quality, lootTable, lootTheme,
+    );
+    choices.push({ item: fallback, isArtifact: false });
+    vaultOptions[0] = {
+      kind: 'item',
+      revealed: false,
+      item: fallback,
+      isArtifact: false,
     };
   }
 
-  // Determine treasure type: first treasure in location starts hunt, rest are locked chests
-  // Unless hunt is already active, then this is a hunt room
+  const baseRyo = 50 + floor * 10 + Math.floor(Math.random() * 67);
+  const openCost = calculateRevealCost(floor, choiceCount);
+  const revealCost = Math.max(5, Math.floor(openCost / 3));
+
   const isFirstTreasure = !treasureHunt;
   const isHuntRoom = treasureHunt?.isActive ?? false;
 
-  // 50% chance for first treasure to be a hunt initiator, otherwise locked chest
-  const type = isFirstTreasure && Math.random() < 0.5
-    ? TreasureType.TREASURE_HUNTER
-    : (isHuntRoom ? TreasureType.TREASURE_HUNTER : TreasureType.LOCKED_CHEST);
+  // Map piece path: active hunt rooms, or first treasure 50% (starts hunt on take)
+  let type = TreasureType.LOCKED_CHEST;
+  let mapPieceAvailable = false;
+  if (!huntDeclined) {
+    if (isHuntRoom) {
+      type = TreasureType.TREASURE_HUNTER;
+      mapPieceAvailable = true;
+    } else if (isFirstTreasure && Math.random() < 0.5) {
+      type = TreasureType.TREASURE_HUNTER;
+      mapPieceAvailable = true;
+    }
+  }
 
   return {
     type,
     choices,
-    ryoBonus: Math.floor(baseRyo * ryoMultiplier),
+    vaultOptions,
+    ryoBonus: Math.floor(baseRyo * ryoMultiplier * 0.35),
+    openCost,
     revealCost,
     isRevealed: false,
+    phase: 'entry',
     selectedIndex: null,
     collected: false,
     isHuntRoom: type === TreasureType.TREASURE_HUNTER,
-    mapPieceAvailable: type === TreasureType.TREASURE_HUNTER,
+    mapPieceAvailable,
   };
 }
 
@@ -881,6 +969,7 @@ function generateActivityData(
   preferredElement?: import('../types').ElementType,
   lootTheme?: import('../types').RegionLootTheme,
   dangerLevel: number = 4,
+  clanRiteUsed?: boolean,
 ): RoomActivities[keyof RoomActivities] | undefined {
   switch (activityKey) {
     case 'combat':
@@ -897,7 +986,7 @@ function generateActivityData(
     case 'event':
       return generateEventActivity(arc, player, preferredEventIds);
     case 'scrollDiscovery':
-      return generateScrollDiscoveryActivity(floor, lootTheme, player?.clan);
+      return generateScrollDiscoveryActivity(floor, lootTheme, player, clanRiteUsed);
     case 'rest':
       return generateRestActivity();
     case 'training':
@@ -942,6 +1031,7 @@ function generateActivities(
   preferredElement?: import('../types').ElementType,
   lootTheme?: import('../types').RegionLootTheme,
   dangerLevel: number = 4,
+  clanRiteUsed?: boolean,
 ): RoomActivities {
   const roomType = room.type;
   const activityConfig = ROOM_TYPE_ACTIVITY_CONFIGS[roomType];
@@ -1012,6 +1102,7 @@ function generateActivities(
       preferredElement,
       lootTheme,
       dangerLevel,
+      clanRiteUsed,
     );
     if (activityData) {
       (activities as Record<keyof RoomActivities, unknown>)[activityKey] = activityData;
@@ -1090,6 +1181,7 @@ export function ensureLocationFlagActivities(
       floor.preferredElement,
       gen.lootTheme ?? floor.lootTheme,
       floor.dangerLevel ?? 4,
+      floor.clanRiteUsed,
     );
     if (!data) continue;
 
@@ -1297,24 +1389,28 @@ function configureAsExitRoom(
 ): BranchingRoom {
   const quality = maybeUpgradeQuality(player?.treasureQuality ?? DEFAULT_TREASURE_QUALITY);
   const { choiceCount, artifactChance, ryoMultiplier } = getTreasureConfig(wealthLevel);
-
-  // Generate enhanced choices for exit room
-  const choices: TreasureChoice[] = [];
-  for (let i = 0; i < choiceCount; i++) {
-    if (artifactChance > 0 && Math.random() < artifactChance * 1.5) { // 1.5x artifact chance for boss
-      choices.push({
-        item: generateRandomArtifact(floor, difficulty + 15),
-        isArtifact: true,
-      });
-    } else {
-      choices.push({
-        item: generateComponentByQuality(
-          floor, difficulty + 15, quality, lootTable, lootTheme,
-        ),
-        isArtifact: false,
-      });
-    }
+  const VAULT_FACES = 3;
+  const vaultOptions: VaultRewardOption[] = [];
+  for (let i = 0; i < VAULT_FACES; i++) {
+    vaultOptions.push(
+      generateVaultRewardOption(
+        floor, difficulty + 15, quality, artifactChance * 1.5, ryoMultiplier,
+        lootTable, lootTheme, player?.clan,
+      ),
+    );
   }
+  const choices: TreasureChoice[] = vaultOptions
+    .filter((o) => o.kind === 'item' && o.item)
+    .map((o) => ({ item: o.item!, isArtifact: Boolean(o.isArtifact) }));
+  if (choices.length === 0) {
+    const fallback = generateComponentByQuality(
+      floor, difficulty + 15, quality, lootTable, lootTheme,
+    );
+    choices.push({ item: fallback, isArtifact: false });
+    vaultOptions[0] = { kind: 'item', revealed: false, item: fallback, isArtifact: false };
+  }
+  const baseRyo = 80 + floor * 15;
+  const openCost = Math.max(0, calculateRevealCost(floor, choiceCount) - 5);
 
   return {
     ...room,
@@ -1335,9 +1431,12 @@ function configureAsExitRoom(
       treasure: {
         type: TreasureType.LOCKED_CHEST,
         choices,
-        ryoBonus: Math.floor((67 + floor * 10) * ryoMultiplier),
-        revealCost: 0, // Free reveal for boss treasure
-        isRevealed: true, // Always revealed for boss
+        vaultOptions: vaultOptions.map((o) => ({ ...o, revealed: true })),
+        ryoBonus: Math.floor(baseRyo * ryoMultiplier * 0.35),
+        openCost: 0, // Free open for boss treasure
+        revealCost: 0,
+        isRevealed: true,
+        phase: 'vault' as const, // Skip entry — boss vault already open
         selectedIndex: null,
         collected: false,
         isHuntRoom: false,
@@ -1410,6 +1509,9 @@ export function generateChildrenForRoom(
       branchingFloor.lootTheme,
       dangerLevel,
       wealthLevel,
+      branchingFloor.treasureHunt,
+      branchingFloor.huntDeclined,
+      branchingFloor.clanRiteUsed,
     );
 
     const finalRoom = isExit
@@ -1632,6 +1734,7 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     treasureHunt: null,
     treasureProbabilityBoost: 0,
     huntDeclined: false,
+    clanRiteUsed: false,
     preferredEventIds,
     enemyPool,
     lootTable,

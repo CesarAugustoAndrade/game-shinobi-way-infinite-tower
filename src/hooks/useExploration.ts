@@ -14,23 +14,12 @@ import { CombatExplorationState } from './useCombatExplorationState';
 import { useActivityHandler, ActivitySceneSetters } from './useActivityHandler';
 import { useLocationCards, CompleteLocationOptions } from './useLocationCards';
 import { useRoomNavigation } from './useRoomNavigation';
+import { resolveExploreReturnState } from './exploreReturnState';
 
 // Re-export types for App.tsx compatibility
 export type { ActivitySceneSetters } from './useActivityHandler';
-
-/**
- * Resolve a safe post-activity map state. Never returns EXPLORE (no UI).
- * Prefer LOCATION_EXPLORE when still inside a location; otherwise REGION_MAP.
- */
-export function resolveExploreReturnState(
-  region: { currentLocationId: string | null } | null,
-  hasLocationFloor: boolean
-): GameState {
-  if (region?.currentLocationId && hasLocationFloor) {
-    return GameState.LOCATION_EXPLORE;
-  }
-  return GameState.REGION_MAP;
-}
+// Re-export pure helper for callers that still import from this module
+export { resolveExploreReturnState } from './exploreReturnState';
 
 /**
  * Dependencies for the useExploration hook
@@ -45,6 +34,8 @@ export interface UseExplorationDeps {
   currentLocation: Location | null;
   activitySetters: ActivitySceneSetters;
   setEnemy: (enemy: Enemy | null) => void;
+  /** Manual combat: preferred approach → engage (no per-room modal) */
+  onEngageCombat?: (room: BranchingRoom, explicitEnemy?: Enemy | null) => void;
   // Auto-combat callbacks for when ENABLE_MANUAL_COMBAT is false
   onAutoCombat?: (room: BranchingRoom, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
   onAutoEliteCombat?: (room: BranchingRoom, enemy: Enemy, artifact: Item, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
@@ -126,6 +117,7 @@ export function useExploration(
     currentLocation,
     activitySetters,
     setEnemy,
+    onEngageCombat,
     onAutoCombat,
     onAutoEliteCombat,
     onRegionBossDefeated,
@@ -174,6 +166,7 @@ export function useExploration(
     setShowApproachSelector,
     setCurrentIntel,
     currentIntel,
+    onEngageCombat,
     onAutoCombat,
     onAutoEliteCombat,
   });

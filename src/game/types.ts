@@ -601,11 +601,23 @@ export interface Player {
   treasureQuality: TreasureQuality;  // What tier items drop from treasure (upgradeable)
   merchantSlots: number;              // How many items shown at merchant (1-4)
   locationsCleared: number;           // Global count of locations cleared (enemy scaling)
+  /**
+   * Clan bloodline track (0–5). Raised by Clan Rite scroll rooms (once per location).
+   * Each level offers clan skill choices.
+   */
+  clanLevel: number;
 
   // Event Engine 2.0 (T-008): persistent narrative flags for the current run.
   // Set by event outcomes (effects.setFlags), read by event/choice gating
   // (requiresFlags/excludesFlags). Values are counters (0 = unset/absent).
   eventFlags: Record<string, number>;
+
+  /**
+   * Preferred pre-combat approach (HUD). Applied automatically to every
+   * encounter until changed. Falls back to FRONTAL_ASSAULT when unavailable
+   * for a given room (terrain, elite/boss, missing stats).
+   */
+  preferredApproach: ApproachType;
 }
 
 export interface Enemy {
@@ -880,7 +892,7 @@ export enum TerrainType {
 
 export enum ApproachType {
   FRONTAL_ASSAULT = 'FRONTAL_ASSAULT',   // Direct combat, no modifiers
-  STEALTH_AMBUSH = 'STEALTH_AMBUSH',     // Sneak attack, first hit 2.0x + initiative
+  STEALTH_AMBUSH = 'STEALTH_AMBUSH',     // Sneak attack, first hit 1.5x + initiative (DEX path)
   GENJUTSU_SETUP = 'GENJUTSU_SETUP',     // Mental trap, enemy confused
   ENVIRONMENTAL_TRAP = 'ENVIRONMENTAL',   // Use terrain, enemy loses HP
   IRON_GUARD = 'IRON_GUARD',             // Willpower fortify — shield + defensive open
@@ -927,7 +939,10 @@ export interface TerrainDefinition {
 // ============================================================================
 
 export interface ApproachRequirements {
+  /** Primary gate (legacy single-stat). Prefer minStats for multi-gates. */
   minStat?: { stat: PrimaryStat; value: number };
+  /** All listed stats must meet thresholds (e.g. Silent Strike: DEX + Speed). */
+  minStats?: Array<{ stat: PrimaryStat; value: number }>;
   requiredSkill?: string;         // Skill ID required
   allowedTerrains?: TerrainType[]; // Only available on these terrains
 }
@@ -1169,8 +1184,8 @@ export interface TrainingActivity {
 // ============================================================================
 
 export enum TreasureType {
-  LOCKED_CHEST = 'LockedChest',      // Pick blind or reveal with chakra
-  TREASURE_HUNTER = 'TreasureHunter' // Combat/dice roll for map pieces
+  LOCKED_CHEST = 'LockedChest',      // Vault path (open with chakra → pick 1 of 3)
+  TREASURE_HUNTER = 'TreasureHunter' // Same vault + optional free map-piece path
 }
 
 export interface TreasureChoice {
@@ -1178,17 +1193,45 @@ export interface TreasureChoice {
   isArtifact: boolean;
 }
 
+/** One face in the vault offer (mixed reward pool). */
+export type VaultRewardKind = 'item' | 'hp' | 'ryo' | 'scroll';
+
+export interface VaultRewardOption {
+  kind: VaultRewardKind;
+  /** Sealed until player pays reveal cost (or open bulk). */
+  revealed: boolean;
+  item?: Item;
+  isArtifact?: boolean;
+  /** Flat HP restore */
+  hpAmount?: number;
+  /** Flat ryo grant */
+  ryoAmount?: number;
+  /** Scroll / skill grant */
+  skill?: Skill;
+}
+
+/** UI phase for Event-style treasure room */
+export type TreasurePhase = 'entry' | 'vault';
+
 export interface TreasureActivity {
   type: TreasureType;
-  choices: TreasureChoice[];       // 2-3 item choices
-  ryoBonus: number;                // Ryo gained alongside item
-  revealCost: number;              // Chakra cost to reveal (locked chest)
-  isRevealed: boolean;             // Has player revealed choices?
-  selectedIndex: number | null;    // Track selection
+  /** Legacy item list (kept for bag-full / compat); vaultOptions is primary. */
+  choices: TreasureChoice[];
+  /** Exactly 3 mixed rewards after open vault */
+  vaultOptions: VaultRewardOption[];
+  ryoBonus: number;                // Extra ryo when claiming an item (legacy side loot)
+  /** Chakra to open the vault (enter pick phase) */
+  openCost: number;
+  /** Chakra to reveal one sealed face */
+  revealCost: number;
+  /** True after vault opened (phase vault) */
+  isRevealed: boolean;
+  phase: TreasurePhase;
+  selectedIndex: number | null;
   collected: boolean;
-  // Treasure hunter specific
-  isHuntRoom: boolean;             // Is this a treasure hunt room?
-  mapPieceAvailable: boolean;      // Can player get a map piece here?
+  isHuntRoom: boolean;
+  /** Free map-piece alternative (no fight/dice) */
+  mapPieceAvailable: boolean;
 }
 
 export interface TreasureHunt {
@@ -1211,9 +1254,23 @@ export interface InfoGatheringActivity {
   completed: boolean;
 }
 
+/** Scroll room mode: traveling vendor vs clan bloodline rite */
+export type ScrollDiscoveryMode = 'vendor' | 'clan';
+
 export interface ScrollDiscoveryActivity {
+  mode: ScrollDiscoveryMode;
+  /** Vendor stock (also used empty for clan mode) */
   availableScrolls: Skill[];
+  /** skillId → ryo price (vendor) */
+  prices: Record<string, number>;
+  /** Flat ryo to forget a skill at the vendor */
+  forgetCostRyo: number;
+  /** Legacy / optional chakra toll (unused for pure ryo buy) */
   cost?: { ryo?: number; chakra?: number };
+  /** Clan rite: level after ascending */
+  clanLevelAfter?: number;
+  /** Clan rite: 2–3 skills to pick */
+  clanSkillChoices?: Skill[];
   completed: boolean;
 }
 
@@ -1378,6 +1435,8 @@ export interface BranchingFloor {
   treasureHunt: TreasureHunt | null;
   treasureProbabilityBoost: number;  // Extra chance for treasure rooms during hunt (0-1)
   huntDeclined: boolean;  // If true, all treasures become locked chests
+  /** Clan Rite already used this location (scroll mode clan at most once) */
+  clanRiteUsed?: boolean;
 
   /**
    * T-033: story event ids preferred when generating room events

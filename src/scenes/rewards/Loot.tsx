@@ -35,12 +35,12 @@ import {
   getArtifactArt,
   getComponentArt,
 } from '../../game/constants/artRegistry';
-import { getSellPrice } from '../../game/systems/LootSystem';
+
 import {
   itemMatchesEquipmentFocus,
   isFocusStat,
 } from '../../game/utils/itemFocusMatch';
-import { BALANCE } from '../../game/config';
+
 import ArtIcon from '../../components/shared/ArtIcon';
 import { alignItemTileTooltip } from '../../utils/itemTileTooltip';
 import './Loot.css';
@@ -54,7 +54,8 @@ interface LootProps {
   player: Player | null;
   playerStats: any;
   onEquipItem: (item: Item) => void;
-  onSellItem: (item: Item) => void;
+  /** @deprecated Sell only at merchant — prop ignored if passed */
+  onSellItem?: (item: Item) => void;
   onStoreToBag?: (item: Item) => void;
   onLearnSkill: (skill: Skill, slotIndex?: number) => void;
   onLeaveAll: () => void;
@@ -99,7 +100,7 @@ const Loot: React.FC<LootProps> = ({
   player,
   playerStats,
   onEquipItem,
-  onSellItem,
+
   onStoreToBag,
   onLearnSkill,
   onLeaveAll,
@@ -350,9 +351,7 @@ const Loot: React.FC<LootProps> = ({
                 })()}
 
                 <div className="item-tooltip__section">
-                  <div className="item-tooltip__sell">
-                    Sell: {getSellPrice(item)} Ryo ({Math.round(BALANCE.SELL_PRICE_RATIO * 100)}%)
-                  </div>
+
                 </div>
               </div>
 
@@ -416,14 +415,6 @@ const Loot: React.FC<LootProps> = ({
                     {bagSlotCount}/{MAX_BAG_SLOTS}
                   </button>
                 )}
-                <button
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={(e) => { e.stopPropagation(); onSellItem(item); }}
-                  className="loot-card__btn loot-card__btn--sell"
-                >
-                  Sell (+{getSellPrice(item)})
-                </button>
               </div>
             </div>
           );
