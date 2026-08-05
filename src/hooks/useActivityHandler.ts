@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import {
   GameState, Player, BranchingRoom, BranchingFloor, CharacterStats,
   Location, Item, GameEvent, Skill, Enemy, LogEntry,
-  TrainingActivity, ScrollDiscoveryActivity, TreasureActivity, TreasureHunt, TreasureType
+  TrainingActivity, ScrollDiscoveryActivity, TreasureActivity, TreasureHunt
 } from '../game/types';
 import { getCurrentActivity, completeActivity, clearRoomIfSpent } from '../game/systems/LocationSystem';
 import { getMerchantDiscount, applyWealthToRyo } from '../game/systems/ScalingSystem';

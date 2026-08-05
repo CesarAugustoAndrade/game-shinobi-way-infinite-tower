@@ -1229,8 +1229,7 @@ export interface TreasureActivity {
   phase: TreasurePhase;
   selectedIndex: number | null;
   collected: boolean;
-  isHuntRoom: boolean;
-  /** Free map-piece alternative (no fight/dice) */
+  /** Free map-piece alternative (no combat) */
   mapPieceAvailable: boolean;
 }
 
@@ -1238,14 +1237,6 @@ export interface TreasureHunt {
   isActive: boolean;
   requiredPieces: number;          // 2-4 based on danger level
   collectedPieces: number;
-  mapId: string;                   // Unique per location
-}
-
-export interface DiceRollResult {
-  type: 'trap' | 'nothing' | 'piece';
-  damage?: number;           // Only for trap
-  piecesCollected?: number;  // Only for piece
-  piecesRequired?: number;   // Only for piece
 }
 
 export interface InfoGatheringActivity {
@@ -1433,8 +1424,6 @@ export interface BranchingFloor {
 
   // Treasure hunt system
   treasureHunt: TreasureHunt | null;
-  treasureProbabilityBoost: number;  // Extra chance for treasure rooms during hunt (0-1)
-  huntDeclined: boolean;  // If true, all treasures become locked chests
   /** Clan Rite already used this location (scroll mode clan at most once) */
   clanRiteUsed?: boolean;
 

@@ -129,12 +129,6 @@ export const LaunchProperties = {
     RICH: { choiceCount: 3, artifactChance: 0.10, ryoMultiplier: 2.0 },  // Wealth 7
   },
 
-  /** Dice roll probabilities for treasure hunter (trap%, nothing%, piece%) */
-  TREASURE_DICE_ODDS: { trap: 30, nothing: 40, piece: 30 },
-
-  /** Trap damage formula: BASE + (dangerLevel * PER_DANGER) as % of max HP */
-  TREASURE_TRAP_DAMAGE: { base: 0.05, perDanger: 0.03 },
-
   /** Map pieces required by danger level */
   TREASURE_MAP_PIECES: { lowDanger: 2, midDanger: 3, highDanger: 4 },
 

@@ -2,29 +2,22 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   GameState, Player, BranchingRoom, BranchingFloor, CharacterStats,
   Location, Region, Item, Skill, LogEntry,
-  TreasureActivity, TreasureHunt, TreasureType, Enemy, DiceRollResult,
+  TreasureActivity, TreasureHunt,
 } from '../game/types';
 import {
   completeActivity,
   getCurrentRoom,
   initializeTreasureHunt,
   addMapPiece,
-  calculateTrapDamage,
   getTreasureHuntReward,
 } from '../game/systems/LocationSystem';
 import { addToBag, getSellPrice } from '../game/systems/LootSystem';
-import { generateEnemy } from '../game/systems/EnemySystem';
-import { TurnState } from './useCombat';
-import { LaunchProperties, FeatureFlags } from '../config/featureFlags';
-import { simulateGameCombat } from '../game/systems/CombatSimulationService';
-import { getLocationTerrainMods } from '../game/systems/LocationTerrainSystem';
 
 /**
  * State dependencies for treasure handlers
  */
 export interface TreasureHandlerState {
   currentTreasure: TreasureActivity | null;
-  currentTreasureHunt: TreasureHunt | null;
   player: Player | null;
   playerStats: CharacterStats | null;
   selectedBranchingRoom: BranchingRoom | null;
@@ -35,8 +28,6 @@ export interface TreasureHandlerState {
   region: Region | null;
   currentLocation: Location | null;
   treasureHuntReward: TreasureHuntRewardData | null;
-  /** Live dice panel — the synchronous source for the one-dismiss Continue guard. */
-  diceRollResult: DiceRollResult | null;
   pendingBagFullItem: PendingBagFullItem | null;
 }
 
@@ -54,14 +45,7 @@ export interface TreasureHandlerSetters {
   setTreasureHuntReward: React.Dispatch<React.SetStateAction<TreasureHuntRewardData | null>>;
   setSelectedBranchingRoom: React.Dispatch<React.SetStateAction<BranchingRoom | null>>;
   setGameState: (state: GameState) => void;
-  setEnemy: (enemy: Enemy | null) => void;
-  setTurnState: React.Dispatch<React.SetStateAction<TurnState>>;
-  setShowApproachSelector: React.Dispatch<React.SetStateAction<boolean>>;
-  setPendingArtifact: React.Dispatch<React.SetStateAction<Item | null>>;
-  setDiceRollResult: React.Dispatch<React.SetStateAction<DiceRollResult | null>>;
   setPendingBagFullItem: React.Dispatch<React.SetStateAction<PendingBagFullItem | null>>;
-  /** Preferred approach auto-engage (Treasure Guardian) */
-  onEngageCombat?: (room: BranchingRoom, explicitEnemy?: Enemy | null) => void;
 }
 
 /**
@@ -71,8 +55,6 @@ export interface TreasureHandlerDeps {
   addLog: (text: string, type?: LogEntry['type']) => void;
   returnToMap: () => void;
   returnToMapActivityComplete: (updatedFloor?: BranchingFloor) => void;
-  // Auto-combat callback for treasure guardian when ENABLE_MANUAL_COMBAT is false
-  onAutoTreasureGuardianVictory?: (guardian: Enemy) => void;
 }
 
 /**
@@ -104,18 +86,9 @@ export interface UseTreasureHandlersReturn {
   handleRevealVaultFace: (index: number) => void;
   /** Claim one revealed vault option */
   handlePickVaultOption: (index: number) => void;
-  /** Free map piece (no fight/dice); forgoes vault loot */
+  /** Free map piece (no combat); forgoes vault loot */
   handleTakeMapPiece: () => void;
-  /** @deprecated use handleOpenVault — alias for open */
-  handleTreasureReveal: () => void;
-  /** @deprecated use handlePickVaultOption for vault faces */
-  handleTreasureSelectItem: (index: number) => void;
-  handleTreasureFightGuardian: () => void;
-  handleTreasureRollDice: () => void;
-  handleTreasureStartHunt: () => void;
-  handleTreasureDeclineHunt: () => void;
   handleTreasureHuntRewardClaim: () => void;
-  handleDiceResultContinue: () => void;
   handleBagFullSell: () => void;
   handleBagFullLeave: () => void;
   /** Stash pending bag-full relic after player frees a bag slot. */
@@ -133,7 +106,6 @@ export function useTreasureHandlers(
 ): UseTreasureHandlersReturn {
   const {
     currentTreasure,
-    currentTreasureHunt,
     player,
     playerStats,
     selectedBranchingRoom,
@@ -144,7 +116,6 @@ export function useTreasureHandlers(
     region,
     currentLocation,
     treasureHuntReward,
-    diceRollResult,
     pendingBagFullItem,
   } = state;
 
@@ -159,20 +130,14 @@ export function useTreasureHandlers(
     setTreasureHuntReward,
     setSelectedBranchingRoom,
     setGameState,
-    setEnemy,
-    setTurnState,
-    setShowApproachSelector,
-    setPendingArtifact,
-    setDiceRollResult,
     setPendingBagFullItem,
-    onEngageCombat,
   } = setters;
 
-  const { addLog, returnToMap, returnToMapActivityComplete, onAutoTreasureGuardianVictory } = deps;
+  const { addLog, returnToMap, returnToMapActivityComplete } = deps;
 
   /**
-   * Sync mutex — eager useState updaters alone can double-fire on same-frame clicks
-   * (double relic, double ryo, fight+dice). Reset when a fresh uncollected chest opens.
+   * Sync mutex — eager useState updaters alone can double-fire on same-frame clicks.
+   * Reset when a fresh uncollected chest opens.
    */
   const treasureActionLockRef = useRef(false);
   /**
@@ -180,13 +145,6 @@ export function useTreasureHandlers(
    * on !player without consuming reward (stuck Claim with lock true). Ref + consume first.
    */
   const huntRewardClaimLockRef = useRef(false);
-  /**
-   * Hunt start/decline prompt — setLocationFloor isActive/huntDeclined alone re-reads
-   * lastRendered until commit; same-tick Y+Y re-init hunt (reset pieces) or Y+N both apply.
-   * Shared lock; re-arm when a hunt-prompt treasure is staged.
-   */
-  const huntPromptLockRef = useRef(false);
-
   useEffect(() => {
     if (currentTreasure && !currentTreasure.collected) {
       treasureActionLockRef.current = false;
@@ -200,20 +158,9 @@ export function useTreasureHandlers(
     }
   }, [treasureHuntReward]);
 
-  // Fresh hunt prompt (no active hunt, not declined) → allow Y/N again
-  useEffect(() => {
-    if (
-      currentTreasure &&
-      !currentTreasureHunt &&
-      !(locationFloor?.huntDeclined || branchingFloor?.huntDeclined)
-    ) {
-      huntPromptLockRef.current = false;
-    }
-  }, [currentTreasure, currentTreasureHunt, locationFloor?.huntDeclined, branchingFloor?.huntDeclined]);
-
   /**
    * Helper: Complete treasure activity and return to map.
-   * Extracts common logic from handleTreasureSelectItem, handleBagFullSell, handleBagFullLeave.
+   * Extracts common logic from vault selection, bag-full sell, and bag-full leave.
    * Room id falls back to floor currentRoom (parity merchant leave / training skip) so a
    * lost selectedBranchingRoom pointer cannot soft-lock TREASURE after a successful claim.
    */
@@ -272,9 +219,6 @@ export function useTreasureHandlers(
     treasureActionLockRef.current = false;
   }, [currentTreasure, player, addLog, setPlayer, setCurrentTreasure]);
 
-  /** Alias — old Unseal All → open vault */
-  const handleTreasureReveal = handleOpenVault;
-
   // Reveal one sealed face
   const handleRevealVaultFace = useCallback((index: number) => {
     if (!currentTreasure || !player) return;
@@ -310,7 +254,7 @@ export function useTreasureHandlers(
     treasureActionLockRef.current = false;
   }, [currentTreasure, player, addLog, setPlayer, setCurrentTreasure]);
 
-  // Free map piece path — starts hunt if needed, no fight/dice
+  // Free map piece path — starts hunt if needed, no combat
   const handleTakeMapPiece = useCallback(() => {
     if (!currentTreasure || !player || !locationFloor) return;
     if (!currentTreasure.mapPieceAvailable || currentTreasure.collected) return;
@@ -503,301 +447,6 @@ export function useTreasureHandlers(
     setPlayer, setPendingBagFullItem, setCurrentTreasure, completeTreasureAndReturn,
   ]);
 
-  const handleTreasureSelectItem = handlePickVaultOption;
-
-  // Fight guardian for guaranteed map piece (treasure hunter)
-  const handleTreasureFightGuardian = useCallback(() => {
-    if (!currentTreasure || !currentTreasureHunt || !player || !playerStats || !locationFloor) return;
-    // Ref first — setState mapPieceAvailable alone re-reads lastRendered (fight+dice / fight×2)
-    if (treasureActionLockRef.current) return;
-    treasureActionLockRef.current = true;
-
-    // Prefer selected room; re-bind floor current so lost pointer does not soft-lock Fight
-    const fightRoom =
-      selectedBranchingRoom ?? getCurrentRoom(locationFloor) ?? null;
-    if (!fightRoom) {
-      treasureActionLockRef.current = false;
-      return;
-    }
-    if (!selectedBranchingRoom) {
-      setSelectedBranchingRoom(fightRoom);
-    }
-
-    // Consume map-piece opportunity (blocks dice while approach is open / double fight).
-    // Restored on Approach cancel in App.handleApproachCancel. Decided from the rendered
-    // currentTreasure — a flag written inside the updater is NOT readable here (React defers
-    // updaters once the fiber is dirty), which aborted the guardian fight after taking the lock.
-    if (!currentTreasure?.mapPieceAvailable) {
-      treasureActionLockRef.current = false;
-      addLog('This map piece opportunity is already spent.', 'info');
-      return;
-    }
-    setCurrentTreasure(prev => (prev?.mapPieceAvailable ? { ...prev, mapPieceAvailable: false } : prev));
-
-    // Generate a guardian enemy based on danger level
-    // T-057: location-themed guardian base (name overridden below)
-    const guardian = generateEnemy(
-      currentDangerLevel,
-      player.locationsCleared,
-      'ELITE',
-      difficulty,
-      region?.arc ?? 'WAVES_ARC',
-      undefined,
-      locationFloor?.enemyPool,
-      // T-073: region elemental theme bias
-      region?.lootTheme?.primaryElement ?? locationFloor?.preferredElement,
-    );
-    guardian.name = 'Treasure Guardian';
-    // Prefer painted guardian sprite + cutout (pool may already, force for identity)
-    if (!guardian.image?.startsWith('/assets/enemies/enemy_')) {
-      guardian.image = '/assets/enemies/enemy_monk.png';
-    }
-
-    // Clear any pending artifact - this is a map piece fight
-    setPendingArtifact(null);
-
-    // Check if manual combat is enabled
-    if (FeatureFlags.ENABLE_MANUAL_COMBAT) {
-      setEnemy(guardian);
-      setTurnState('PLAYER');
-      // Keep currentTreasure until combat actually starts (engage clears it).
-      // Keep currentTreasureHunt for after combat.
-      treasureActionLockRef.current = false;
-
-      addLog('A guardian appears to protect the treasure map piece!', 'danger');
-      if (onEngageCombat) {
-        onEngageCombat(fightRoom, guardian);
-      } else {
-        setShowApproachSelector(true);
-      }
-    } else {
-      // Auto-simulate treasure guardian combat
-      // T-107: location terrain + room combat modifiers (parity with T-106 auto combat)
-      addLog(`Engaging Treasure Guardian...`, 'danger');
-      const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
-      const simResult = simulateGameCombat(
-        player,
-        playerStats,
-        guardian,
-        undefined,
-        fightRoom.terrain,
-        locMods,
-        fightRoom.activities.combat?.modifiers,
-      );
-
-      // Update player HP and chakra
-      setPlayer(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          currentHp: Math.max(1, simResult.playerHpRemaining),
-          currentChakra: simResult.playerChakraRemaining,
-        };
-      });
-
-      setCurrentTreasure(null);
-
-      if (simResult.won) {
-        addLog(`Victory! Defeated Treasure Guardian in ${simResult.turnsElapsed} turns.`, 'gain');
-        // Set enemy for victory handler to process
-        setEnemy(guardian);
-        // Call victory callback if provided
-        if (onAutoTreasureGuardianVictory) {
-          onAutoTreasureGuardianVictory(guardian);
-        }
-      } else {
-        addLog(`Defeated by Treasure Guardian...`, 'danger');
-        setGameState(GameState.GAME_OVER);
-      }
-    }
-  }, [currentTreasure, currentTreasureHunt, player, playerStats, selectedBranchingRoom, locationFloor,
-      currentDangerLevel, difficulty, region, currentLocation, addLog, setPendingArtifact, setEnemy,
-      setTurnState, setShowApproachSelector, setCurrentTreasure, setPlayer, setGameState,
-      setSelectedBranchingRoom, onAutoTreasureGuardianVictory, onEngageCombat]);
-
-  // Roll dice for map piece (treasure hunter)
-  // One roll per room: trap / nothing / piece by TREASURE_DICE_ODDS.
-  // Multi-click exploit: lock then consume mapPieceAvailable (not setState alone).
-  // Also blocked after Fight consumes the same flag (approach open or combat).
-  const handleTreasureRollDice = useCallback(() => {
-    if (!currentTreasure || !currentTreasureHunt || !player || !playerStats || !locationFloor) return;
-    // Ref first — setState mapPieceAvailable alone re-reads lastRendered (dice×2 / fight+dice)
-    if (treasureActionLockRef.current) return;
-    treasureActionLockRef.current = true;
-
-    const diceRoomId =
-      selectedBranchingRoom?.id ?? getCurrentRoom(locationFloor)?.id ?? null;
-    if (!diceRoomId) {
-      treasureActionLockRef.current = false;
-      return;
-    }
-
-    // Consume the map-piece opportunity (blocks re-rolls / fight after dice). Rendered value,
-    // not a flag from inside the updater (see handleTreasureFightGuardian).
-    if (!currentTreasure?.mapPieceAvailable) {
-      treasureActionLockRef.current = false;
-      addLog('You already committed this chamber (dice or guardian).', 'info');
-      return;
-    }
-    setCurrentTreasure(prev => (prev?.mapPieceAvailable ? { ...prev, mapPieceAvailable: false } : prev));
-
-    // Probabilities: trap% / nothing% / piece% (sum need not be 100 — we normalize)
-    const { trap, nothing, piece } = LaunchProperties.TREASURE_DICE_ODDS;
-    const total = Math.max(1, trap + nothing + piece);
-    const roll = Math.random() * total;
-
-    // Track which floor to use for completing the activity
-    let floorForCompletion = locationFloor;
-
-    if (roll < trap) {
-      // Trap!
-      const trapDamage = calculateTrapDamage(currentDangerLevel, playerStats.derived.maxHp);
-      setPlayer(p => p ? { ...p, currentHp: Math.max(1, p.currentHp - trapDamage) } : null);
-      setDiceRollResult({ type: 'trap', damage: trapDamage });
-      addLog(`Trap triggered! You take ${trapDamage} damage.`, 'danger');
-    } else if (roll < trap + nothing) {
-      // Nothing
-      setDiceRollResult({ type: 'nothing' });
-      addLog('The chest was empty... no map piece found.', 'info');
-    } else {
-      // Map piece! (remaining share of odds = piece)
-      const { floor: updatedFloorWithPiece, isComplete } = addMapPiece(locationFloor);
-      // Prefer floor hunt; fall back to session hunt so the result modal always opens
-      // (mapPieceAvailable already consumed — no modal = softlock).
-      const newHunt = updatedFloorWithPiece.treasureHunt ?? currentTreasureHunt;
-      const piecesCollected =
-        updatedFloorWithPiece.treasureHunt?.collectedPieces
-        ?? (currentTreasureHunt ? currentTreasureHunt.collectedPieces + 1 : 1);
-      const piecesRequired =
-        newHunt?.requiredPieces ?? currentTreasureHunt?.requiredPieces ?? 1;
-
-      // Use the updated floor for completion
-      floorForCompletion = updatedFloorWithPiece;
-      if (updatedFloorWithPiece.treasureHunt) {
-        setCurrentTreasureHunt(updatedFloorWithPiece.treasureHunt);
-      }
-
-      // Always stage dismissable result (trap/nothing paths always set; piece must match)
-      setDiceRollResult({
-        type: 'piece',
-        piecesCollected,
-        piecesRequired,
-      });
-      addLog(`Found a map piece! (${piecesCollected}/${piecesRequired})`, 'loot');
-
-      // Check if map is complete - will transition to reward after modal dismissed
-      if (isComplete && newHunt) {
-        // Generate reward and store it, but don't transition yet
-        const wealthLevel = currentLocation?.wealthLevel ?? 4;
-        const reward = getTreasureHuntReward(
-          piecesCollected,
-          wealthLevel,
-          currentDangerLevel,
-          difficulty,
-          // T-072: location loot + region theme bias for hunt completion rewards
-          state.currentLocation?.lootTable ?? locationFloor?.lootTable,
-          region?.lootTheme ?? locationFloor?.lootTheme,
-          player?.clan,
-        );
-        setTreasureHuntReward({
-          items: reward.items,
-          skills: reward.skills,
-          ryo: reward.ryo,
-          piecesCollected,
-          wealthLevel,
-        });
-        // Complete treasure activity and clear hunt
-        const updatedFloor = completeActivity(updatedFloorWithPiece, diceRoomId, 'treasure');
-        setLocationFloor({ ...updatedFloor, treasureHunt: null, treasureProbabilityBoost: 0 });
-        return;
-      }
-    }
-
-    // Complete treasure activity (modal will handle return to map)
-    const updatedFloor = completeActivity(floorForCompletion, diceRoomId, 'treasure');
-    setLocationFloor(updatedFloor);
-  }, [currentTreasure, currentTreasureHunt, player, playerStats, selectedBranchingRoom,
-      locationFloor, currentDangerLevel, difficulty, currentLocation, region, addLog,
-      setPlayer, setLocationFloor, setCurrentTreasure, setCurrentTreasureHunt, setTreasureHuntReward,
-      setDiceRollResult]);
-
-  // Continue after dice roll result modal — one dismiss only
-  const handleDiceResultContinue = useCallback(() => {
-    // Rendered value, not a flag from inside the updater (React defers updaters once the fiber
-    // is dirty), which cleared the panel but skipped the map return / hunt-reward stage.
-    if (!diceRollResult) return;
-    setDiceRollResult(null);
-
-    setCurrentTreasure(null);
-    setCurrentTreasureHunt(null);
-    setSelectedBranchingRoom(null);
-
-    if (treasureHuntReward) {
-      setGameState(GameState.TREASURE_HUNT_REWARD);
-    } else {
-      returnToMap();
-    }
-  }, [treasureHuntReward, diceRollResult, returnToMap, setDiceRollResult, setCurrentTreasure,
-      setCurrentTreasureHunt, setSelectedBranchingRoom, setGameState]);
-
-  // Start treasure hunt — once per location (re-init would reset collected pieces)
-  const handleTreasureStartHunt = useCallback(() => {
-    if (!locationFloor || !currentLocation) return;
-    if (locationFloor.treasureHunt?.isActive) return;
-    // Ref first — setState isActive alone re-reads lastRendered (double init / piece reset)
-    if (huntPromptLockRef.current) return;
-    huntPromptLockRef.current = true;
-
-    // Initialize from the RENDERED floor so the hunt is readable here — a value written inside the
-    // updater is not (React defers updaters once the fiber is dirty), which returned early while
-    // the queued updater still started the hunt: the floor had a hunt the UI never saw.
-    const started = initializeTreasureHunt(locationFloor);
-    const hunt = started.treasureHunt;
-    if (!hunt) {
-      huntPromptLockRef.current = false;
-      return;
-    }
-    setLocationFloor(prev => (prev && !prev.treasureHunt?.isActive ? started : prev));
-
-    setCurrentTreasureHunt(hunt);
-    addLog(
-      `Treasure hunt initiated! Collect ${hunt.requiredPieces} map pieces to unlock the grand treasure.`,
-      'gain',
-    );
-  }, [locationFloor, currentLocation, addLog, setLocationFloor, setCurrentTreasureHunt]);
-
-  // Decline treasure hunt (all treasures become locked chests)
-  const handleTreasureDeclineHunt = useCallback(() => {
-    if (!locationFloor) return;
-    if (locationFloor.huntDeclined) return;
-    // Shared lock with start — same-tick Y+N must not both apply
-    if (huntPromptLockRef.current) return;
-    huntPromptLockRef.current = true;
-
-    // huntDeclined was already checked above against the rendered locationFloor; a flag written
-    // inside the updater is NOT readable here (deferred once the fiber is dirty), which left the
-    // chamber un-sealed after taking the shared Y/N lock.
-    setLocationFloor(prev => (prev && !prev.huntDeclined ? { ...prev, huntDeclined: true } : prev));
-
-    if (branchingFloor) {
-      setBranchingFloor(prev => (prev ? { ...prev, huntDeclined: true } : prev));
-    }
-
-    // Convert the current chamber into a sealed vault (keep generated choices).
-    // Without this, UI only fakes LOCKED_CHEST via huntDeclined while type stays hunter.
-    setCurrentTreasure(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        type: TreasureType.LOCKED_CHEST,
-        isHuntRoom: false,
-        mapPieceAvailable: false,
-      };
-    });
-
-    addLog('You declined the treasure hunt. All treasure rooms will now be regular chests.', 'info');
-  }, [locationFloor, branchingFloor, addLog, setLocationFloor, setBranchingFloor, setCurrentTreasure]);
-
   // Claim treasure hunt reward — one claim only (no double ryo/loot)
   const handleTreasureHuntRewardClaim = useCallback(() => {
     // Ref first — setTreasureHuntReward consume re-reads lastRendered until commit
@@ -923,7 +572,7 @@ export function useTreasureHandlers(
     );
 
     // Clear pending only after successful stash — race full must restore it
-    // Outcome from the RENDERED player (see handleTreasureSelectItem) — re-checked on the latest
+    // Outcome from the RENDERED player — re-checked on the latest
     // bag inside the write so a sidebar refill cannot overfill.
     type StashOut = 'ok' | 'full' | 'noprev';
     const stashed = player.bag.some((slot) => slot === null)
@@ -961,14 +610,7 @@ export function useTreasureHandlers(
     handleRevealVaultFace,
     handlePickVaultOption,
     handleTakeMapPiece,
-    handleTreasureReveal,
-    handleTreasureSelectItem,
-    handleTreasureFightGuardian,
-    handleTreasureRollDice,
-    handleTreasureStartHunt,
-    handleTreasureDeclineHunt,
     handleTreasureHuntRewardClaim,
-    handleDiceResultContinue,
     handleBagFullSell,
     handleBagFullLeave,
     handleBagFullStash,

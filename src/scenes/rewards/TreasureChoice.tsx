@@ -31,7 +31,6 @@ interface TreasureChoiceProps {
   treasureHunt: TreasureHunt | null;
   player: Player;
   playerStats?: CharacterStats | null;
-  huntDeclined: boolean;
   onOpenVault: () => void;
   onRevealFace: (index: number) => void;
   onPickOption: (index: number) => void;

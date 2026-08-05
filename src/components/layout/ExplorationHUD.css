@@ -4,6 +4,16 @@
 
 @import '../../styles/design-system/index.css';
 
+.explore-hud-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+}
+
 .explore-hud {
   display: flex;
   flex-wrap: wrap;
@@ -15,8 +25,53 @@
   border: 3px solid var(--sw-hard, #0a0a0f);
   box-shadow: 4px 4px 0 0 var(--sw-hard, #0a0a0f);
   font-family: var(--sw-font-display, Silkscreen, monospace);
-  z-index: 20;
+  z-index: 1;
   flex-shrink: 0;
+}
+
+.explore-hud__map-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--sw-space-2) var(--sw-space-3);
+  padding: 4px 8px;
+  color: #e8b84a;
+  background: rgba(26, 24, 16, 0.92);
+  border: 2px solid #a65d3f;
+  box-shadow: 2px 2px 0 0 #0a0a0f;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.explore-hud__map-label {
+  color: #c4b5a5;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.explore-hud__map-segments {
+  display: flex;
+  gap: 3px;
+}
+
+.explore-hud__map-segment {
+  width: 14px;
+  height: 7px;
+  background: rgba(10, 12, 16, 0.9);
+  border: 1px solid #4b5563;
+}
+
+.explore-hud__map-segment--filled {
+  background: #e8b84a;
+  border-color: #f5d27a;
+}
+
+.explore-hud__map-count {
+  color: #fcd34d;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .explore-hud__identity {

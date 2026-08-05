@@ -288,7 +288,6 @@ function createRoom(
   /** Location wealth (1-7) for treasure/merchant scaling */
   wealthLevel: number = 4,
   treasureHunt?: import('../types').TreasureHunt | null,
-  huntDeclined?: boolean,
   clanRiteUsed?: boolean,
 ): BranchingRoom {
   // Select room type
@@ -331,7 +330,7 @@ function createRoom(
   // Generate activities (T-033/056/059/064/068/070) — use config danger/wealth, not floor→danger
   room.activities = generateActivities(
     room, config, floor, difficulty, arc, player, wealthLevel,
-    treasureHunt ?? null, huntDeclined ?? false,
+    treasureHunt ?? null,
     preferredEventIds, enemyPool, lootTable, ambushChanceBonus, preferredElement, lootTheme,
     dangerLevel, clanRiteUsed,
   );
@@ -727,7 +726,6 @@ function generateTreasureActivity(
   wealthLevel: number = 4,
   player?: Player,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean,
   lootTable?: string,
   lootTheme?: import('../types').RegionLootTheme,
 ): RoomActivities['treasure'] {
@@ -773,14 +771,12 @@ function generateTreasureActivity(
   // Map piece path: active hunt rooms, or first treasure 50% (starts hunt on take)
   let type = TreasureType.LOCKED_CHEST;
   let mapPieceAvailable = false;
-  if (!huntDeclined) {
-    if (isHuntRoom) {
-      type = TreasureType.TREASURE_HUNTER;
-      mapPieceAvailable = true;
-    } else if (isFirstTreasure && Math.random() < 0.5) {
-      type = TreasureType.TREASURE_HUNTER;
-      mapPieceAvailable = true;
-    }
+  if (isHuntRoom) {
+    type = TreasureType.TREASURE_HUNTER;
+    mapPieceAvailable = true;
+  } else if (isFirstTreasure && Math.random() < 0.5) {
+    type = TreasureType.TREASURE_HUNTER;
+    mapPieceAvailable = true;
   }
 
   return {
@@ -794,7 +790,6 @@ function generateTreasureActivity(
     phase: 'entry',
     selectedIndex: null,
     collected: false,
-    isHuntRoom: type === TreasureType.TREASURE_HUNTER,
     mapPieceAvailable,
   };
 }
@@ -810,13 +805,11 @@ export function initializeTreasureHunt(
     isActive: true,
     requiredPieces: getRequiredMapPieces(floor.dangerLevel),
     collectedPieces: 0,
-    mapId: `map-${floor.id}-${Date.now()}`,
   };
 
   return {
     ...floor,
     treasureHunt,
-    treasureProbabilityBoost: 0.25, // +25% treasure room chance during hunt
   };
 }
 
@@ -845,16 +838,6 @@ export function addMapPiece(
     },
     isComplete,
   };
-}
-
-/**
- * Calculate trap damage for failed dice roll.
- * Formula: 5% + (dangerLevel * 3)% of max HP
- */
-export function calculateTrapDamage(dangerLevel: number, maxHp: number): number {
-  const { base, perDanger } = LaunchProperties.TREASURE_TRAP_DAMAGE;
-  const damagePercent = base + (dangerLevel * perDanger);
-  return Math.floor(maxHp * damagePercent);
 }
 
 /**
@@ -961,7 +944,6 @@ function generateActivityData(
   player?: Player,
   wealthLevel: number = 4,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean,
   preferredEventIds?: string[],
   enemyPool?: string[],
   lootTable?: string,
@@ -993,7 +975,7 @@ function generateActivityData(
       return generateTrainingActivity(floor);
     case 'treasure':
       return generateTreasureActivity(
-        floor, difficulty, wealthLevel, player, treasureHunt, huntDeclined, lootTable,
+        floor, difficulty, wealthLevel, player, treasureHunt, lootTable,
         lootTheme,
       );
     case 'infoGathering':
@@ -1023,7 +1005,6 @@ function generateActivities(
   player?: Player,
   wealthLevel: number = 4,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean,
   preferredEventIds?: string[],
   enemyPool?: string[],
   lootTable?: string,
@@ -1094,7 +1075,6 @@ function generateActivities(
       player,
       wealthLevel,
       treasureHunt,
-      huntDeclined,
       preferredEventIds,
       enemyPool,
       lootTable,
@@ -1173,7 +1153,6 @@ export function ensureLocationFlagActivities(
       gen.player,
       floor.wealthLevel ?? 4,
       floor.treasureHunt,
-      floor.huntDeclined,
       gen.preferredEventIds,
       floor.enemyPool,
       gen.lootTable ?? floor.lootTable,
@@ -1439,7 +1418,6 @@ function configureAsExitRoom(
         phase: 'vault' as const, // Skip entry — boss vault already open
         selectedIndex: null,
         collected: false,
-        isHuntRoom: false,
         mapPieceAvailable: false,
       },
     },
@@ -1510,7 +1488,6 @@ export function generateChildrenForRoom(
       dangerLevel,
       wealthLevel,
       branchingFloor.treasureHunt,
-      branchingFloor.huntDeclined,
       branchingFloor.clanRiteUsed,
     );
 
@@ -1732,8 +1709,6 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     minRoomsBeforeExit: getMinRoomsBeforeExit(dangerLevel),
     dangerLevel,
     treasureHunt: null,
-    treasureProbabilityBoost: 0,
-    huntDeclined: false,
     clanRiteUsed: false,
     preferredEventIds,
     enemyPool,

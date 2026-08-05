@@ -65,7 +65,7 @@ const RegionMap: React.FC<RegionMapProps> = ({
     // Never steal keys from overlays / result / approach modals (some lack role=dialog)
     if (
       document.querySelector(
-        '[role="dialog"][aria-modal="true"], .reward-modal, .event-result, .loc-complete, .dice-modal, .intel-result, .rest-result, .explore-overlay, .approach-modal, .confirm-modal',
+        '[role="dialog"][aria-modal="true"], .reward-modal, .event-result, .loc-complete, .intel-result, .rest-result, .explore-overlay, .approach-modal, .confirm-modal',
       )
     ) {
       return;

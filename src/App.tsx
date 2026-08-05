@@ -9,7 +9,7 @@ import {
   // Card-based location selection types
   IntelPool, LocationDeck, LocationCard, IntelRevealLevel,
   // Treasure system types
-  TreasureActivity, TreasureHunt, TreasureType, DiceRollResult,
+  TreasureActivity, TreasureHunt,
   CombatModifierType,
   ActionType,
 } from './game/types';
@@ -47,9 +47,6 @@ import {
   moveToRoom,
   getCurrentActivity,
   completeActivity,
-  getCurrentRoom,
-  addMapPiece,
-  getTreasureHuntReward,
 } from './game/systems/LocationSystem';
 import {
   generateRegion,
@@ -99,7 +96,6 @@ import { MainMenu, CharacterSelect, GameOver, GameGuide, Interlude, Victory } fr
 import { Combat, EliteChallenge } from './scenes/combat';
 import { Loot, TreasureChoice, TreasureHuntReward as TreasureHuntRewardScene, ScrollDiscovery } from './scenes/rewards';
 import { Merchant, Training, Event } from './scenes/activities';
-import DiceRollResultModal from './components/modals/DiceRollResultModal';
 import { simulateGameCombat, CombatSimulationResult } from './game/systems/CombatSimulationService';
 // Shared components
 import ErrorBoundary from './components/shared/ErrorBoundary';
@@ -231,7 +227,6 @@ const App: React.FC = () => {
   const [currentTreasure, setCurrentTreasure] = useState<TreasureActivity | null>(null);
   const [currentTreasureHunt, setCurrentTreasureHunt] = useState<TreasureHunt | null>(null);
   const [treasureHuntReward, setTreasureHuntReward] = useState<TreasureHuntRewardData | null>(null);
-  const [diceRollResult, setDiceRollResult] = useState<DiceRollResult | null>(null);
   const [pendingBagFullItem, setPendingBagFullItem] = useState<PendingBagFullItem | null>(null);
   const [combatReward, setCombatReward] = useState<{
     expGain: number;
@@ -251,12 +246,6 @@ const App: React.FC = () => {
   const returnToMapRef = useRef<() => void>(() => {});
   /** Blocks same-tick double Continue on RewardModal (Space hold / Enter+click). */
   const rewardCloseLockRef = useRef(false);
-  /**
-   * Dice / Rest / Intel Continue — UI closedRef is primary; setState consume alone still
-   * re-reads lastRendered until commit (double returnToMap / chain / hunt-reward stage).
-   * Parent ref belt (parity rewardCloseLockRef / completeExecuteLockRef). Rearm when panel opens.
-   */
-  const diceContinueLockRef = useRef(false);
   const restContinueLockRef = useRef(false);
   const intelContinueLockRef = useRef(false);
   /**
@@ -465,10 +454,7 @@ const App: React.FC = () => {
       currentLocation,
       branchingFloor,
       locationFloor,
-      selectedBranchingRoom,
       pendingArtifact,
-      currentTreasure,
-      currentTreasureHunt,
       currentIntel,
       combatReward,
     },
@@ -477,10 +463,6 @@ const App: React.FC = () => {
       setBranchingFloor,
       setLocationFloor,
       setCurrentIntel,
-      setDiceRollResult,
-      setTreasureHuntReward,
-      setCurrentTreasureHunt,
-      setCurrentTreasure,
       setCombatReward,
       setGameState,
       setEnemy,
@@ -629,14 +611,12 @@ const App: React.FC = () => {
     handlePickVaultOption,
     handleTakeMapPiece,
     handleTreasureHuntRewardClaim,
-    handleDiceResultContinue,
     handleBagFullSell,
     handleBagFullLeave,
     handleBagFullStash,
   } = useTreasureHandlers(
     {
       currentTreasure,
-      currentTreasureHunt,
       player,
       playerStats,
       selectedBranchingRoom,
@@ -647,7 +627,6 @@ const App: React.FC = () => {
       region,
       currentLocation,
       treasureHuntReward,
-      diceRollResult,
       pendingBagFullItem,
     },
     {
@@ -661,23 +640,12 @@ const App: React.FC = () => {
       setTreasureHuntReward,
       setSelectedBranchingRoom,
       setGameState,
-      setEnemy,
-      setTurnState,
-      setShowApproachSelector,
-      setPendingArtifact,
-      setDiceRollResult,
       setPendingBagFullItem,
-      onEngageCombat: (room, explicitEnemy) =>
-        engageWithPreferredApproachRef.current(room, explicitEnemy),
     },
     {
       addLog,
       returnToMap,
       returnToMapActivityComplete,
-      onAutoTreasureGuardianVictory: (guardian: Enemy) => {
-        // Call victory handler for treasure guardian auto-combat
-        handleCombatVictory(guardian, null);
-      },
     }
   );
 
@@ -745,12 +713,11 @@ const App: React.FC = () => {
     setExploreCharacterOpen(false);
     setRunMode(mode);
     setInfiniteFloor(0);
-    // Drop prior-run modals / activity payloads — leftover combatReward/dice/rest
+    // Drop prior-run modals / activity payloads — leftover combatReward/rest
     // would mount on the new REGION_MAP and soft-lock Continue on a dead run.
     resetExplorationUi();
     rewardCloseLockRef.current = false;
     setCombatReward(null);
-    setDiceRollResult(null);
     setRestResult(null);
     setIntelResult(null);
     setEventOutcome(null);
@@ -1036,7 +1003,6 @@ const App: React.FC = () => {
     setSelectedBranchingRoom(room);
 
     // Check for elite challenge first, then regular combat
-    // IMPORTANT: If enemy is already set (e.g., Treasure Guardian), use that instead.
     // Never re-engage a completed combat/elite activity (enemy object remains on the room).
     const eliteChallenge = room.activities.eliteChallenge;
     const combat = room.activities.combat;
@@ -1046,8 +1012,6 @@ const App: React.FC = () => {
       options?.explicitEnemy ||
       enemy ||
       (isEliteChallenge ? eliteChallenge!.enemy : liveCombat?.enemy);
-    const isTreasureGuardian = targetEnemy?.name === 'Treasure Guardian';
-
     if (!targetEnemy) {
       setShowApproachSelector(false);
       setEnemy(null);
@@ -1057,7 +1021,6 @@ const App: React.FC = () => {
 
     const isEliteOrBoss =
       isEliteChallenge ||
-      isTreasureGuardian ||
       targetEnemy.tier === 'Jonin' ||
       targetEnemy.tier === 'Guardian' ||
       Boolean(targetEnemy.isBoss);
@@ -1125,11 +1088,7 @@ const App: React.FC = () => {
       addLog('You slip past undetected!', 'gain');
       setShowApproachSelector(false);
 
-      const activityType = isTreasureGuardian
-        ? 'treasure'
-        : isEliteChallenge
-          ? 'eliteChallenge'
-          : 'combat';
+      const activityType = isEliteChallenge ? 'eliteChallenge' : 'combat';
 
       let updatedLocationFloor: BranchingFloor | undefined;
 
@@ -1148,12 +1107,7 @@ const App: React.FC = () => {
         );
       }
 
-      if (isTreasureGuardian) {
-        setCurrentTreasure(null);
-        setCurrentTreasureHunt(null);
-        setEnemy(null);
-        addLog('You slipped past the Treasure Guardian but missed the map piece...', 'info');
-      } else if (isEliteChallenge) {
+      if (isEliteChallenge) {
         setPendingArtifact(null);
         addLog('You bypassed the guardian but left the artifact behind...', 'info');
       }
@@ -1161,11 +1115,6 @@ const App: React.FC = () => {
       // Pass completed floor so we never re-open combat from a stale closure
       returnToMapActivityComplete(updatedLocationFloor);
       return;
-    }
-
-    // Combat actually starts: drop treasure UI state for guardian fights
-    if (isTreasureGuardian) {
-      setCurrentTreasure(null);
     }
 
     // Set up enemy with any HP reduction from approach
@@ -1182,9 +1131,6 @@ const App: React.FC = () => {
     // first render.
     logStateChange('EXPLORE', 'COMBAT', 'preferred approach - entering combat');
     setShowApproachSelector(false);
-    if (isTreasureGuardian) {
-      setCurrentTreasure(null);
-    }
     // T-102/T-108: room combat modifiers (combat or elite-only rooms)
     const roomMods =
       room.activities.combat?.modifiers
@@ -1206,7 +1152,7 @@ const App: React.FC = () => {
     setShowApproachSelector(false);
   };
 
-  /** Combat room / elite / guardian — auto-apply preferred approach */
+  /** Combat room / elite — auto-apply preferred approach */
   const engageWithPreferredApproach = (
     room: BranchingRoom,
     explicitEnemy?: Enemy | null,
@@ -1292,10 +1238,6 @@ const App: React.FC = () => {
     }
   }, [combatReward]);
 
-  // New dice / rest / intel panel → allow one Continue again
-  useEffect(() => {
-    if (diceRollResult) diceContinueLockRef.current = false;
-  }, [diceRollResult]);
   useEffect(() => {
     if (restResult) restContinueLockRef.current = false;
   }, [restResult]);
@@ -1325,12 +1267,6 @@ const App: React.FC = () => {
     returnToMap();
   }, [returnToMap, restResult]);
 
-  const handleDiceContinueOnce = useCallback(() => {
-    if (diceContinueLockRef.current) return;
-    diceContinueLockRef.current = true;
-    handleDiceResultContinue();
-  }, [handleDiceResultContinue]);
-
   // Close reward modal - check for pending artifact from elite challenge,
   // or component drops from normal combat victories.
   const handleRewardClose = () => {
@@ -1350,19 +1286,13 @@ const App: React.FC = () => {
     // Prefer live pile; fall back to victory previews so Continue never skips claim
     const pendingLoot =
       hasCombatDrops ? droppedItems : continuesToLoot && lootPreviews.length > 0 ? lootPreviews : [];
-    // Treasure Guardian victory stages diceRollResult + combatReward together.
-    // Dice owns the post-reward map return — do not returnToMap here or floor-complete
-    // / activity chain runs twice (reward Continue then dice Continue).
-    const hasPendingDice = Boolean(diceRollResult);
     logModalClose(
       'RewardModal',
       artifact
         ? 'showing loot'
         : pendingLoot.length > 0
           ? 'showing combat loot'
-          : hasPendingDice
-            ? 'dice result next'
-            : 'staying on map'
+          : 'staying on map'
     );
 
     // If there's a pending artifact from elite challenge, show loot screen
@@ -1385,8 +1315,6 @@ const App: React.FC = () => {
       }
       logStateChange('LOCATION_EXPLORE', 'LOOT', 'combat drop');
       setGameState(GameState.LOOT);
-    } else if (hasPendingDice) {
-      logFlowCheckpoint('Combat reward closed - dice result modal owns map return');
     } else {
       // No loot modal: returnToMap chains next activity or runs location-complete meta path
       // (markComplete + updateDeck + redraw cards + locationsCleared++)
@@ -1571,7 +1499,6 @@ const App: React.FC = () => {
       Boolean(intelResult) ||
       Boolean(restResult) ||
       Boolean(locationCompleteResult) ||
-      Boolean(diceRollResult) ||
       showApproachSelector;
     if (blocking) {
       setExploreBagOpen(false);
@@ -1583,7 +1510,6 @@ const App: React.FC = () => {
     intelResult,
     restResult,
     locationCompleteResult,
-    diceRollResult,
     showApproachSelector,
   ]);
 
@@ -1602,7 +1528,7 @@ const App: React.FC = () => {
         return;
       }
       const blockingModal = document.querySelector(
-        '[role="dialog"][aria-modal="true"]:not(.explore-overlay), .reward-modal, .event-result, .loc-complete, .dice-modal, .intel-result, .rest-result, .approach-modal, .confirm-modal',
+        '[role="dialog"][aria-modal="true"]:not(.explore-overlay), .reward-modal, .event-result, .loc-complete, .intel-result, .rest-result, .approach-modal, .confirm-modal',
       );
       const key = event.key.toLowerCase();
       if (key === 'a') {
@@ -1707,7 +1633,6 @@ const App: React.FC = () => {
           resetExplorationUi();
           rewardCloseLockRef.current = false;
           setCombatReward(null);
-          setDiceRollResult(null);
           setRestResult(null);
           setIntelResult(null);
           setEventOutcome(null);
@@ -1838,7 +1763,6 @@ const App: React.FC = () => {
             Boolean(intelResult) ||
             Boolean(restResult) ||
             Boolean(locationCompleteResult) ||
-            Boolean(diceRollResult) ||
             showApproachSelector;
           return (
           <ExplorationHUD
@@ -1874,6 +1798,7 @@ const App: React.FC = () => {
                 ? currentLocation.dangerLevel
                 : null
             }
+            treasureHunt={locationFloor?.treasureHunt || currentTreasureHunt}
           />
           );
         })()}
@@ -2045,7 +1970,6 @@ const App: React.FC = () => {
                 treasureHunt={currentTreasureHunt}
                 player={player}
                 playerStats={playerStats}
-                huntDeclined={locationFloor?.huntDeclined ?? branchingFloor?.huntDeclined ?? false}
                 onOpenVault={handleOpenVault}
                 onRevealFace={handleRevealVaultFace}
                 onPickOption={handlePickVaultOption}
@@ -2228,14 +2152,6 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Dice Roll Result Modal — hide under combat reward so Space cannot dismiss both
-          (Treasure Guardian: reward then dice; dice owns map return). */}
-      {diceRollResult && !combatReward && (
-        <DiceRollResultModal
-          result={diceRollResult}
-          onContinue={handleDiceContinueOnce}
-        />
-      )}
     </div>
     </GameProvider>
   );

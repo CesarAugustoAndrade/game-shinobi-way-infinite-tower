@@ -5,8 +5,8 @@
  */
 
 import React from 'react';
-import { Player, RegionLootTheme, MAX_BAG_SLOTS, ApproachType } from '../../game/types';
-import { Coins, Backpack, ScrollText, Crosshair } from 'lucide-react';
+import { Player, RegionLootTheme, TreasureHunt, MAX_BAG_SLOTS, ApproachType } from '../../game/types';
+import { Coins, Backpack, ScrollText, Crosshair, Map } from 'lucide-react';
 import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
 import { getApproachArt } from '../../game/constants/artRegistry';
 import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
@@ -31,6 +31,8 @@ interface ExplorationHUDProps {
   /** A4: optional location identity chip (name + danger) when inside a location */
   locationLabel?: string | null;
   dangerLevel?: number | null;
+  /** Active treasure-map hunt progress shown below the top HUD strip. */
+  treasureHunt?: TreasureHunt | null;
 }
 
 const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
@@ -46,6 +48,7 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
   lootTheme: _lootTheme = null,
   locationLabel = null,
   dangerLevel = null,
+  treasureHunt = null,
 }) => {
   void _lootTheme;
   const hpPct = maxHp > 0 ? Math.min(100, (player.currentHp / maxHp) * 100) : 0;
@@ -60,7 +63,8 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
     approachDef?.name?.split(' ')[0] ?? 'Approach';
 
   return (
-    <div className="explore-hud" role="toolbar" aria-label="Exploration HUD">
+    <div className="explore-hud-stack">
+      <div className="explore-hud" role="toolbar" aria-label="Exploration HUD">
       <div className="explore-hud__identity">
         <span className="explore-hud__name">{player.clan}</span>
         <span className="explore-hud__level">Lv.{player.level}</span>
@@ -117,7 +121,7 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
         <span>{player.ryo.toLocaleString()}</span>
       </div>
 
-      <div className="explore-hud__actions">
+        <div className="explore-hud__actions">
         {onOpenApproach && (() => {
           const approachArt = getApproachArt(preferred);
           return (
@@ -172,7 +176,35 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
           <ScrollText size={16} aria-hidden />
           <span className="explore-hud__btn-key">C</span>
         </button>
+        </div>
       </div>
+
+      {treasureHunt?.isActive && (
+        <div
+          className="explore-hud__map-progress"
+          role="status"
+          title={`Map pieces: ${treasureHunt.collectedPieces}/${treasureHunt.requiredPieces}`}
+          aria-label={`Map pieces collected: ${treasureHunt.collectedPieces} of ${treasureHunt.requiredPieces}`}
+        >
+          <Map size={14} aria-hidden />
+          <span className="explore-hud__map-label">MAP PIECES</span>
+          <div className="explore-hud__map-segments" aria-hidden="true">
+            {Array.from({ length: treasureHunt.requiredPieces }).map((_, index) => (
+              <span
+                key={index}
+                className={`explore-hud__map-segment ${
+                  index < treasureHunt.collectedPieces
+                    ? 'explore-hud__map-segment--filled'
+                    : ''
+                }`}
+              />
+            ))}
+          </div>
+          <span className="explore-hud__map-count">
+            {treasureHunt.collectedPieces}/{treasureHunt.requiredPieces}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

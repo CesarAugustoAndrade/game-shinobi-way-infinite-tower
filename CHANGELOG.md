@@ -26,6 +26,8 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - **Persistent approach (HUD):** Choose Your Approach is no longer a per-encounter gate. Top exploration HUD has an **Approach** button (key **A**) next to bag/stats; setting an approach applies to **all** fights (map combat, elite, treasure guardian, event combat) until changed. Unavailable rooms (terrain, elite bypass, missing stats) fall back to Frontal Assault with a log note.
 - **Card combat debt cleanup:** SkillCard/Combat CSS MAIN/SIDE classes → ACTIVE; `skillArtManifest` action MAIN/SIDE→ACTIVE; `GLOSSARY.md` Action Type + deck/hand/open learn docs; stale MAIN/SIDE comments.
 
+- **Treasure hunt cleanup:** removed the legacy guardian, dice, and hunt-decline flow; the exploration HUD now shows collected map pieces against the required total.
+
 ### Added
 - **Card combat polish (20-agent review pass):** multi-stat `requirements.stats` full catalog migration (~64 skills); ScrollDiscovery/Loot forget-at-20 UI; Hand tooltip `stanceBonus`/`stanceShift` + stance dmg in damage preview; BuildGenerator/ProgressionSimulator academy-first + `canLearnSkill` (no Yamanaka Tsukuyomi); ~20 skills with stance match bonuses; Byakugan/Sharingan explicit `apCost`.
 - **Card combat vision (foundation)** — deckbuilder model aligned to live AP combat:
