@@ -154,3 +154,25 @@ Cualquier asset que se vaya a recortar a alpha real (`enemy_cut_*`, heroes, lám
 ### Para Retratos y Sprites de Enemigos (Asset Companion)
 *   **Enemigo Boss / Rogue Ninja** (cutout-ready):
     *   `Painted digital illustration, high quality character portrait of a dangerous ninja warrior wearing a detailed metallic gas mask and ragged dark cloak, holding a small sickle weapon. Cel-shaded lighting, hard black outlines, neo-retro seinen atmosphere, isolated subject, flat pure green screen background #00FF00, no gradients, no cast shadows on background. NOT 16-bit pixel art, NOT SNES sprite.`
+
+---
+
+## 🧼 5. Pipeline de Limpieza Profunda (Deep Clean Pipeline para Alpha Real)
+
+Para garantizar que todos los assets recortados (`enemy_cut_*`, héroes, props y láminas) luzcan como un **cutout en transparencia RGBA real sin puntitos, motas flotantes ni halo/spill verde/magenta**, se aplica la metodología de **Deep Clean** (`scripts/deep_clean_all_enemies.py`):
+
+### Fases del Algoritmo Deep Clean
+
+1. **Detección Dinámica de Croma**:
+   - Detección automática en esquinas del asset entre croma verde (`#00FF00`, por defecto) y croma magenta (`#FF00FF`, cuando el sujeto viste ropa o detalles verdes).
+2. **Máscara Estricta de Fondo (Chroma Masking)**:
+   - Conversión de píxeles croma y zonas aisladas a transparencia total (`alpha = 0.0`).
+3. **Erosión de Alpha en Bordes (Edge Erosion)**:
+   - En píxeles semi-transparentes de borde (`0 < alpha < 255`) donde persista un exceso de canal croma (`g_excess > 5`), se aplica erosión proporcional `alpha -= g_excess * 5.0` para eliminar motas y bordes rugosos.
+4. **Despilling de Canal Completo (Full-Channel Despilling)**:
+   - En todos los píxeles visibles (`alpha > 5`), cualquier exceso del canal croma (ej. `g > max(r, b)`) se iguala al valor máximo de los otros canales (`g = max(r, b)`). Esto elimina todo reflejo de luz de croma sin desteñir la ilustración.
+5. **Limpieza de Relleno Transparente (Zero RGB)**:
+   - Todo píxel transparente (`alpha < 5`) se fuerza a `RGBA(0, 0, 0, 0)` para archivos PNG optimizados y sin artefactos de renderizado.
+6. **Verificación de Calidad**:
+   - Validación mediante `python scripts/verify_enemy_art_chroma.py` verificando `spill == 0` y aprobación de canarios de transparencia.
+

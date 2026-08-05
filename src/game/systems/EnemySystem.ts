@@ -490,7 +490,13 @@ export const generateEnemy = (
       name = humanizeEnemyPoolId(poolIdForArt);
     } else {
       let namePool = ENEMY_PREFIXES.NORMAL;
-      if (arc.name === 'WAVES_ARC') namePool = ['Mist', 'Demon Brother', 'Mercenary'];
+      // Broad Waves fallback when location has no enemyPool (should be rare)
+      if (arc.name === 'WAVES_ARC') {
+        namePool = [
+          'Mist', 'Harbor', 'Shore', 'Bridge', 'Ronin', 'Bandit',
+          'Smuggler', 'Tide', 'Gato Hireling', 'Missing-nin',
+        ];
+      }
       else if (arc.name === 'EXAMS_ARC') namePool = ['Sand', 'Sound', 'Rain', 'Grass'];
       else if (arc.name === 'ROGUE_ARC') namePool = ['Sound Four', 'Curse Mark', 'Rogue'];
       else if (arc.name === 'WAR_ARC') namePool = ['Reanimated', 'White Zetsu', 'Masked'];

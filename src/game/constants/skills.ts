@@ -1465,7 +1465,7 @@ export const SKILLS: Record<string, Skill> = {
       },
     },
     effects: [{ type: EffectType.CONFUSION, duration: 3, chance: 1.0 }],
-    image: '/assets/skill_mind_body_disturbing.png'
+    image: '/assets/skills/skill_mind_body_disturbing.png'
   },
 
   // ==========================================
@@ -2105,7 +2105,7 @@ export const SKILLS: Record<string, Skill> = {
       },
     },
     stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
-    image: '/assets/skill_primary_lotus.png',
+    image: '/assets/skills/skill_primary_lotus.png',
     effects: [{
       type: EffectType.BUFF,
       targetStat: PrimaryStat.STRENGTH,
@@ -2140,7 +2140,7 @@ export const SKILLS: Record<string, Skill> = {
     },
     critBonus: 15,
     penetration: 0.2, // Also ignores 20% of % defense
-    image: '/assets/skill_chidori.png'
+    image: '/assets/skills/skill_chidori.png'
   },
 
   CHIDORI_STREAM: {

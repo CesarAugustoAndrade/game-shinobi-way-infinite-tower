@@ -6,7 +6,7 @@
  *
  * Path convention (Vite public/):
  *   /assets/icons/{components|artifacts|locations|activities|clans|enemies|ui}/
- *   Painted: /assets/skill_*.png, /assets/event_*.png, /assets/enemy_*.png (+ cutouts)
+ *   Painted: /assets/skills/skill_*.png, /assets/events/event_*.png, /assets/enemies/enemy_*.png (+ cutouts)
  */
 
 import { Clan, ComponentId, Item, Skill } from '../types';
@@ -327,21 +327,21 @@ export function clanSlug(clan: Clan): string {
 }
 
 /**
- * Full-plate hero portrait (`/assets/hero_<slug>.png`).
+ * Full-plate hero portrait (`/assets/heroes/hero_<slug>.png`).
  * Falls back to clan crest emoji when the file is missing (consumer onError).
  */
 export function getHeroArt(clan: Clan): ArtEntry {
   const crest = getClanArt(clan);
-  return entry(crest.emoji, crest.label ?? String(clan), `/assets/hero_${clanSlug(clan)}.png`);
+  return entry(crest.emoji, crest.label ?? String(clan), `/assets/heroes/hero_${clanSlug(clan)}.png`);
 }
 
 /**
- * Transparent hero cutout (`/assets/hero_cut_<slug>.png`).
+ * Transparent hero cutout (`/assets/heroes/hero_cut_<slug>.png`).
  * CharacterSelect prefers cutout → portrait → crest cascade.
  */
 export function getHeroCutout(clan: Clan): ArtEntry {
   const crest = getClanArt(clan);
-  return entry(crest.emoji, crest.label ?? String(clan), `/assets/hero_cut_${clanSlug(clan)}.png`);
+  return entry(crest.emoji, crest.label ?? String(clan), `/assets/heroes/hero_cut_${clanSlug(clan)}.png`);
 }
 
 /**
@@ -566,7 +566,7 @@ export const ART_BACKLOG_NOTES = {
     'clan:* (5)',
   ],
   T020_skills:
-    'skill:* (114) registered — 93 painted PNG faces under /assets/skill_*.png (WAVE12: no new paint; R1 clan loadout 35/35 ON_DISK; FREE_FIRST toggle parity + silence/empty-hand pass feedback; endgame 21 jpg held; WAVE9–11 cost/block/FloatingText held).',
+    'skill:* (114) registered — 93 painted PNG faces under /assets/skills/skill_*.png (WAVE12: no new paint; R1 clan loadout 35/35 ON_DISK; FREE_FIRST toggle parity + silence/empty-hand pass feedback; endgame 21 jpg held; WAVE9–11 cost/block/FloatingText held).',
   T021_enemies_events:
     'enemy: painted portraits + enemy_cut_* (WAVE15: archetype_tank shinobi regen; pool_mist_ninja plate-owner key; mist-keyword → pool_mist_ninja; WAVE14 residual 15 JPGs deleted + P0/P1 regen + 5 DEDICATE plates). Soft-share KEEP: job_ninja/shinobi→exhausted_shinobi; guard_dog→war_dog; hidden_guard→mist_ninja; assassin→hired_assassin. event: 44 on-disk event_*.png plates wired painted-png (5 cat + 39 event/alias keys; residual R1 reuses meet_tazuna/caravan/intel/mist_ambush/shrine).',
   T_laminas_r1:

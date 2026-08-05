@@ -41,7 +41,8 @@ const THE_DOCKS: LocationConfig = {
   terrain: LocationTerrainType.WATER_ADJACENT,
   terrainEffects: [{ type: 'water_damage_bonus', value: 0.2 }],
   biome: 'Coastal Harbor',
-  enemyPool: ['dock_worker', 'corrupt_guard', 'smuggler'],
+  // 5–7 foes so combat variety stays high while bioma stays coastal/Gato
+  enemyPool: ['dock_worker', 'corrupt_guard', 'smuggler', 'hired_muscle', 'village_thug', 'cove_smuggler'],
   lootTable: 'waves_settlement',
   atmosphereEvents: ['suspicious_cargo', 'overheard_conversation', 'dock_brawl'],
   // Spine: Tazuna; residual: collector ledger (R1 side pressure)
@@ -73,7 +74,7 @@ const MISTY_BEACH: LocationConfig = {
     { type: 'visibility_penalty', value: -0.2 },
   ],
   biome: 'Foggy Shoreline',
-  enemyPool: ['beach_bandit', 'sea_spirit', 'stranded_ronin'],
+  enemyPool: ['beach_bandit', 'sea_spirit', 'stranded_ronin', 'drowned_sailor', 'water_spirit', 'missing_nin'],
   lootTable: 'waves_wilderness',
   atmosphereEvents: ['washed_up_treasure', 'stranded_sailor', 'ghost_ship_sighting'],
   // Prefer Mist cache + residual omen so shore flags / fog pressure surface (R1-006 / A5-W2)
@@ -107,7 +108,7 @@ const COASTAL_FOREST: LocationConfig = {
     { type: 'ambush_chance', value: 0.2 },
   ],
   biome: 'Dense Forest',
-  enemyPool: ['forest_bandit', 'wild_boar', 'missing_nin'],
+  enemyPool: ['forest_bandit', 'wild_boar', 'missing_nin', 'trap_master', 'camp_raider', 'ronin'],
   lootTable: 'waves_wilderness',
   atmosphereEvents: ['animal_attack', 'hidden_cache', 'bandit_camp'],
   // Residual mist omen — forest fog geometry (A5-W2)
@@ -132,30 +133,67 @@ const COASTAL_FOREST: LocationConfig = {
 const SMUGGLERS_CAVE: LocationConfig = {
   id: 'smugglers_cave',
   name: 'Smuggler\'s Cave',
-  description: 'A hidden network of caves used by criminals. Dangerous but potentially profitable.',
+  description:
+    'Lantern-soot tunnels under the forest. Oilcloth ledgers price every crate Gato pretends not to own — tripwires, war hounds, and a tide-hole no coastguard charts.',
   type: LocationType.STRONGHOLD,
   icon: locationIconFromRegistry('smugglers_cave'),
   dangerLevel: 4,
   terrain: LocationTerrainType.UNDERGROUND,
+  // Dark warehouse: fire sputters, traps ambush, fog of dust for stealth, poor sightlines
   terrainEffects: [
-    { type: 'fire_damage_penalty', value: -0.2 },
-    { type: 'stealth_bonus', value: 0.15 },
+    { type: 'fire_damage_penalty', value: -0.25 },
+    { type: 'stealth_bonus', value: 0.2 },
+    { type: 'ambush_chance', value: 0.25 },
+    { type: 'visibility_penalty', value: -0.15 },
   ],
   biome: 'Underground Cavern',
-  enemyPool: ['cave_smuggler', 'trap_master', 'guard_dog'],
+  // Black-market runners + trap wire + hounds — not surface bandits; mist men guard the cache
+  // (guard_dog aliases war_dog art/name — keep a single hound id)
+  enemyPool: [
+    'cave_smuggler',
+    'trap_master',
+    'war_dog',
+    'hidden_guard',
+    'smuggler',
+    'mist_ninja',
+  ],
   lootTable: 'waves_stronghold',
-  atmosphereEvents: ['hidden_stash', 'cave_in', 'smuggler_deal'],
-  // Prefer Mist cache for hidden_cove flag path (R1-006 / W4)
+  atmosphereEvents: ['oilcloth_ledger', 'wired_tunnel', 'tarp_handshake'],
+  // Prefer Mist cache for hidden_cove / sunken_ship flag path (R1-006 / W4)
   tiedStoryEvents: ['mist_ambush_cache'],
   forwardPaths: [
-    { id: 'cave_to_camp', targetId: 'riverside_camp', pathType: PathType.FORWARD, description: 'An exit near the river', dangerHint: 'A camp lies beyond' },
-    { id: 'cave_to_village', targetId: 'fishing_village', pathType: PathType.BRANCH, description: 'A tunnel to the village outskirts', dangerHint: 'Emerge behind the village' },
+    {
+      id: 'cave_to_camp',
+      targetId: 'riverside_camp',
+      pathType: PathType.FORWARD,
+      description: 'A wet crack opens toward river ashfire',
+      dangerHint: 'Road-sellers buy what leaves these tunnels',
+    },
+    {
+      id: 'cave_to_village',
+      targetId: 'fishing_village',
+      pathType: PathType.BRANCH,
+      description: 'A smuggler bolt-hole under the stilt-houses',
+      dangerHint: 'Emerge where Gato\'s taxes never look down',
+    },
   ],
   secretPaths: [
-    { id: 'cave_to_cove', targetId: 'hidden_cove', pathType: PathType.SECRET, description: 'A concealed underwater passage', dangerHint: 'What secrets lie below?' },
+    {
+      id: 'cave_to_cove',
+      targetId: 'hidden_cove',
+      pathType: PathType.SECRET,
+      description: 'Dive the charted tide-hole at low water',
+      dangerHint: 'Lanterns above; silent drops below',
+    },
   ],
   loopPaths: [
-    { id: 'cave_to_beach', targetId: 'misty_beach', pathType: PathType.LOOP, description: 'A passage back to the beach', dangerHint: 'Return to the shore' },
+    {
+      id: 'cave_to_beach',
+      targetId: 'misty_beach',
+      pathType: PathType.LOOP,
+      description: 'Crawl the sea-vent back into fog',
+      dangerHint: 'Salt air after oil and iron',
+    },
   ],
   flags: {
     isEntry: false,
@@ -181,7 +219,7 @@ const FISHING_VILLAGE: LocationConfig = {
     { type: 'ambush_chance', value: -0.1 },
   ],
   biome: 'Rural Village',
-  enemyPool: ['village_thug', 'corrupt_merchant', 'hired_muscle'],
+  enemyPool: ['village_thug', 'corrupt_merchant', 'hired_muscle', 'corrupt_guard', 'desperate_traveler', 'ronin'],
   lootTable: 'waves_settlement',
   atmosphereEvents: ['villager_plea', 'hidden_resistance', 'tax_collection'],
   // Spine + residual false scales (A5-W3)
@@ -203,24 +241,56 @@ const FISHING_VILLAGE: LocationConfig = {
 const RIVERSIDE_CAMP: LocationConfig = {
   id: 'riverside_camp',
   name: 'Riverside Camp',
-  description: 'A makeshift camp by the river. Travelers share information and supplies here.',
+  description:
+    'Ashfire rings the mud bank. Travelers sell bridge approaches the way collectors sell silence — fish-skin maps, salt-wood smoke, and knives under wet tarps.',
   type: LocationType.WILDERNESS,
   icon: locationIconFromRegistry('riverside_camp'),
   dangerLevel: 3,
   terrain: LocationTerrainType.WATER_ADJACENT,
-  terrainEffects: [{ type: 'water_damage_bonus', value: 0.1 }],
+  // River fog + camp ambushes: water edge, sold roads, hard-to-trust rest stops
+  terrainEffects: [
+    { type: 'water_damage_bonus', value: 0.15 },
+    { type: 'ambush_chance', value: 0.2 },
+    { type: 'stealth_bonus', value: 0.1 },
+  ],
   biome: 'River Banks',
-  enemyPool: ['river_bandit', 'camp_raider', 'desperate_traveler'],
+  // Road-sellers / river raiders / gray-market runners — not forest bandits or dock muscle
+  enemyPool: [
+    'river_bandit',
+    'camp_raider',
+    'desperate_traveler',
+    'stranded_ronin',
+    'missing_nin',
+    'smuggler',
+  ],
   lootTable: 'waves_wilderness',
-  atmosphereEvents: ['campfire_tales', 'river_crossing', 'supply_trade'],
+  atmosphereEvents: ['ashfire_smoke', 'rope_ferry', 'sold_road'],
   // Residual: ashfire travelers sell mist approaches (A5-W3)
   tiedStoryEvents: ['riverside_traveler_pact'],
   forwardPaths: [
-    { id: 'camp_to_bridge', targetId: 'bridge_construction', pathType: PathType.FORWARD, description: 'Continue to the bridge', dangerHint: 'The construction site looms' },
-    { id: 'camp_to_outpost', targetId: 'bandit_outpost', pathType: PathType.BRANCH, description: 'A dangerous shortcut', dangerHint: 'Bandits control this route' },
+    {
+      id: 'camp_to_bridge',
+      targetId: 'bridge_construction',
+      pathType: PathType.FORWARD,
+      description: 'Follow the charcoal line toward Tazuna\'s span',
+      dangerHint: 'The road-sellers priced this path three ways',
+    },
+    {
+      id: 'camp_to_outpost',
+      targetId: 'bandit_outpost',
+      pathType: PathType.BRANCH,
+      description: 'A stake-walled cut the maps call a shortcut',
+      dangerHint: 'Toll blades wait where the river narrows',
+    },
   ],
   loopPaths: [
-    { id: 'camp_to_forest', targetId: 'coastal_forest', pathType: PathType.LOOP, description: 'Back through the forest', dangerHint: 'Retreat to earlier ground' },
+    {
+      id: 'camp_to_forest',
+      targetId: 'coastal_forest',
+      pathType: PathType.LOOP,
+      description: 'Slip back under salt-stunted pines',
+      dangerHint: 'Leave the ash rings behind',
+    },
   ],
   flags: {
     isEntry: false,
@@ -235,27 +305,50 @@ const RIVERSIDE_CAMP: LocationConfig = {
 const SUNKEN_SHIP: LocationConfig = {
   id: 'sunken_ship',
   name: 'Sunken Ship',
-  description: 'A merchant vessel lies half-submerged in the shallows. Its cargo hold still beckons treasure hunters.',
+  description:
+    'A hull scuttled on purpose. Below the waterline the drowned still count crates that never docked — Gato\'s seal on a chest that seems to breathe.',
   type: LocationType.SECRET,
   icon: locationIconFromRegistry('sunken_ship'),
   dangerLevel: 5,
   terrain: LocationTerrainType.HAZARDOUS,
+  // Flooded hold: water wins, fire dies, AP tax for swimming, whispers tax spirit
   terrainEffects: [
-    { type: 'water_damage_bonus', value: 0.3 },
-    { type: 'fire_damage_penalty', value: -0.5 },
-    { type: 'movement_penalty', value: 0.2 },
+    { type: 'water_damage_bonus', value: 0.35 },
+    { type: 'fire_damage_penalty', value: -0.55 },
+    { type: 'movement_penalty', value: 0.25 },
+    { type: 'mental_damage_bonus', value: 0.15 },
   ],
   biome: 'Shipwreck',
-  enemyPool: ['drowned_sailor', 'water_spirit', 'treasure_guardian'],
+  // Hold haunt + false-floor guardians — not shore scavengers
+  enemyPool: [
+    'drowned_sailor',
+    'water_spirit',
+    'treasure_guardian',
+    'sea_spirit',
+    'sea_creature',
+    'cove_smuggler',
+  ],
   lootTable: 'waves_secret',
-  atmosphereEvents: ['trapped_air_pocket', 'spectral_captain', 'treasure_cache'],
+  atmosphereEvents: ['hold_breath', 'spectral_count', 'false_floor_lock'],
   // Residual: hold whispers map Gato's false-floor treasury (A5-W2)
   tiedStoryEvents: ['shipwreck_whisper'],
   forwardPaths: [
-    { id: 'ship_to_forest', targetId: 'coastal_forest', pathType: PathType.FORWARD, description: 'Return to solid ground', dangerHint: 'Back to the forest' },
+    {
+      id: 'ship_to_forest',
+      targetId: 'coastal_forest',
+      pathType: PathType.FORWARD,
+      description: 'Kick free to salt-stunted shore pines',
+      dangerHint: 'Air burns; the counting resumes behind you',
+    },
   ],
   secretPaths: [
-    { id: 'ship_to_shrine', targetId: 'drowned_shrine', pathType: PathType.SECRET, description: 'Dive deeper into the water', dangerHint: 'Ancient evil waits below' },
+    {
+      id: 'ship_to_shrine',
+      targetId: 'drowned_shrine',
+      pathType: PathType.SECRET,
+      description: 'Follow the unpaid tally into blacker water',
+      dangerHint: 'Gods here preferred ledgers to prayers',
+    },
   ],
   flags: {
     isEntry: false,
@@ -281,7 +374,7 @@ const BRIDGE_CONSTRUCTION: LocationConfig = {
     { type: 'fall_hazard', value: 0.1 },
   ],
   biome: 'Great Bridge',
-  enemyPool: ['bridge_saboteur', 'hired_assassin', 'corrupt_foreman'],
+  enemyPool: ['bridge_saboteur', 'hired_assassin', 'corrupt_foreman', 'elite_mercenary', 'dock_worker', 'hired_muscle'],
   lootTable: 'waves_landmark',
   atmosphereEvents: ['bridge_sabotage', 'worker_strike', 'gato_threat'],
   // Spine + orphan worker plea + labor after Tazuna (preferred pool flag-gates rest)
@@ -313,7 +406,7 @@ const BANDIT_OUTPOST: LocationConfig = {
     { type: 'ambush_chance', value: 0.3 },
   ],
   biome: 'Fortified Camp',
-  enemyPool: ['bandit_captain', 'elite_mercenary', 'war_dog'],
+  enemyPool: ['bandit_captain', 'elite_mercenary', 'war_dog', 'camp_raider', 'hired_assassin', 'forest_bandit'],
   lootTable: 'waves_stronghold',
   atmosphereEvents: ['prisoner_rescue', 'supply_raid', 'commander_duel'],
   // Residual: unwritten toll / intimidation (A5-W3)
@@ -349,7 +442,7 @@ const ABANDONED_MANOR: LocationConfig = {
     { type: 'visibility_penalty', value: -0.1 },
   ],
   biome: 'Ruined Estate',
-  enemyPool: ['vengeful_ghost', 'manor_guardian', 'cursed_servant'],
+  enemyPool: ['vengeful_ghost', 'manor_guardian', 'cursed_servant', 'corrupted_priest', 'shrine_demon', 'ronin'],
   lootTable: 'waves_landmark',
   atmosphereEvents: ['ghostly_wailing', 'hidden_passage', 'noble_treasure'],
   // Residual: manor debt / sold-house haunt (A5-W2)
@@ -380,7 +473,7 @@ const HIDDEN_COVE: LocationConfig = {
     { type: 'stealth_bonus', value: 0.2 },
   ],
   biome: 'Secret Harbor',
-  enemyPool: ['cove_smuggler', 'sea_creature', 'hidden_guard'],
+  enemyPool: ['cove_smuggler', 'sea_creature', 'hidden_guard', 'smuggler', 'mist_ninja', 'sea_spirit'],
   lootTable: 'waves_secret',
   atmosphereEvents: ['smuggler_meeting', 'rare_cargo', 'sea_monster'],
   // Residual: silent drop / unlogged gate codes (A5-W4)
@@ -416,7 +509,7 @@ const DROWNED_SHRINE: LocationConfig = {
     { type: 'mental_damage_bonus', value: 0.3 },
   ],
   biome: 'Underwater Temple',
-  enemyPool: ['shrine_demon', 'corrupted_priest', 'eldritch_guardian'],
+  enemyPool: ['shrine_demon', 'corrupted_priest', 'eldritch_guardian', 'vengeful_ghost', 'cursed_servant', 'water_spirit'],
   lootTable: 'waves_secret',
   atmosphereEvents: ['dark_ritual', 'forbidden_knowledge', 'ancient_curse'],
   // Residual: black tide vow / vault geometry (A5-W4)
@@ -453,7 +546,7 @@ const GATOS_COMPOUND: LocationConfig = {
   // and names them via POOL_DISPLAY_NAMES, so including it spawned Chunin mooks called "Gato"
   // (wearing his painted portrait), and the exit guardian could read "Guardian Gato".
   // The name is reserved for the danger-7 arc boss at the compound's climax.
-  enemyPool: ['elite_guard', 'ronin', 'assassin'],
+  enemyPool: ['elite_guard', 'ronin', 'assassin', 'elite_mercenary', 'hired_assassin', 'hidden_guard', 'bandit_captain'],
   lootTable: 'waves_boss',
   atmosphereEvents: ['gato_speech', 'servant_whispers', 'display_of_power'],
   tiedStoryEvents: ['final_confrontation', 'gato_defeat'],

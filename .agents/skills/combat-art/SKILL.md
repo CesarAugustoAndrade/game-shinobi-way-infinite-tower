@@ -68,7 +68,7 @@ para que el CRT no compita con tooltips globales.
   - Enemigo → azul/celeste (chakra oscuro/elemental).
 
   El halo NO se dibuja a mano por sprite: se aplica con filtro CSS dinámico (ver §3).
-- **Alpha**: cutouts siempre RGBA real; chroma green/magenta (ver prompts).
+- **Alpha**: cutouts siempre RGBA real procesados con la suite **Deep Clean** (`scripts/deep_clean_all_enemies.py`: detección croma + alpha erosion + full-channel despilling `g = max(r, b)` + zero RGB) sin puntitos ni halo. Ver `docs/guia_direccion_de_arte_combate.md` §5.
 
 ## 3. Implementación técnica CSS
 El bloque CSS completo (capas z-index, auras por `filter: drop-shadow`, overlay CRT/scanlines +

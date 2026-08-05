@@ -549,8 +549,8 @@ export function useTreasureHandlers(
     );
     guardian.name = 'Treasure Guardian';
     // Prefer painted guardian sprite + cutout (pool may already, force for identity)
-    if (!guardian.image?.startsWith('/assets/enemy_')) {
-      guardian.image = '/assets/enemy_monk.png';
+    if (!guardian.image?.startsWith('/assets/enemies/enemy_')) {
+      guardian.image = '/assets/enemies/enemy_monk.png';
     }
 
     // Clear any pending artifact - this is a map piece fight

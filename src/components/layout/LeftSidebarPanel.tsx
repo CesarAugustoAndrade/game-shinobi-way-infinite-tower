@@ -6,7 +6,7 @@ import DerivedStatsPanel from '../character/DerivedStatsPanel';
 import './layout.css';
 
 /** Atmospheric sidebar plate — served from public/ (missing ui_seinen-* asset removed). */
-const LOCATION_PANEL_BG = '/assets/location_foggy_shoreline.png';
+const LOCATION_PANEL_BG = '/assets/locations/location_foggy_shoreline.png';
 
 interface LeftSidebarPanelProps {
   // Props are now optional - uses context if not provided

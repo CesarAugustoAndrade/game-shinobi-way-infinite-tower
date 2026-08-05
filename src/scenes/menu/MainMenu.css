@@ -27,7 +27,7 @@
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: url(/assets/naruto_kyubi_main_menu.png);
+  background-image: url(/assets/backgrounds/naruto_kyubi_main_menu.png);
   background-size: cover;
   background-position: center;
   background-attachment: fixed;

@@ -30,12 +30,12 @@ interface ScrollDiscoveryProps {
 }
 
 const VENDOR_POSTER = {
-  src: '/assets/merchant_shop_poster.jpg',
+  src: '/assets/posters/merchant_shop_poster.jpg',
   emoji: '📜',
   label: 'Scroll Vendor',
 };
 const CLAN_POSTER = {
-  src: '/assets/treasure_vault_poster.jpg',
+  src: '/assets/posters/treasure_vault_poster.jpg',
   emoji: '🩸',
   label: 'Clan Rite',
 };

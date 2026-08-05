@@ -69,9 +69,9 @@ const hexColorToRgba = (hex: string, alpha: number): string => {
 
 /**
  * Derive transparent cutout path from a portrait URL.
- *   /assets/enemy_foo.png  → /assets/enemy_cut_foo.png
- *   /assets/enemy_foo.jpg  → /assets/enemy_cut_foo.png  (cutouts are always PNG)
- *   /assets/enemy_cut_x.*  → same path, extension normalized to .png
+ *   /assets/enemies/enemy_foo.png  → /assets/cutouts/enemy_cut_foo.png
+ *   /assets/enemies/enemy_foo.jpg  → /assets/cutouts/enemy_cut_foo.png  (cutouts are always PNG)
+ *   /assets/cutouts/enemy_cut_x.*  → same path, extension normalized to .png
  *   /assets/icons/…        → undefined (no cutout rewrite)
  * Query strings are stripped. onError in CinematicViewscreen falls back to portrait.
  */
@@ -79,13 +79,13 @@ const deriveEnemyCutout = (portraitSrc?: string): string | undefined => {
   if (!portraitSrc) return undefined;
   const path = portraitSrc.split('?')[0];
   // Already a cutout asset — keep it (normalize to .png)
-  if (/^\/assets\/enemy_cut_.+\.(png|jpe?g|webp)$/i.test(path)) {
-    return path.replace(/\.(jpe?g|webp)$/i, '.png');
+  if (/^\/assets\/(cutouts\/)?enemy_cut_.+\.(png|jpe?g|webp)$/i.test(path)) {
+    return path.replace(/^\/assets\/(cutouts\/)?/, '/assets/cutouts/').replace(/\.(jpe?g|webp)$/i, '.png');
   }
   // Portrait plate: enemy_<id>.(png|jpg|jpeg|webp) → enemy_cut_<id>.png
-  const m = path.match(/^\/assets\/enemy_(?!cut_)(.+)\.(png|jpe?g|webp)$/i);
+  const m = path.match(/^\/assets\/(enemies\/)?enemy_(?!cut_)(.+)\.(png|jpe?g|webp)$/i);
   if (!m) return undefined;
-  return `/assets/enemy_cut_${m[1]}.png`;
+  return `/assets/cutouts/enemy_cut_${m[2]}.png`;
 };
 
 export interface FloatingTextOptions {
@@ -135,17 +135,17 @@ interface CombatProps {
   autoPassTimeRemaining?: number | null;
   /**
    * Full path to the biome background image for the stage (Lámina 1).
-   * (e.g. /assets/location_mist_covered_bridge.png).
+   * (e.g. /assets/locations/location_mist_covered_bridge.png).
    * Computed in App.tsx via resolveLaminaPaths(biome).
    */
   background?: string;
   /**
-   * Optional Lámina 2 middleground — `/assets/lamina_mid_<biomeSlug>.png`.
+   * Optional Lámina 2 middleground — `/assets/lamina/lamina_mid_<biomeSlug>.png`.
    * Passed from App; CinematicViewscreen hides the layer if the asset is missing.
    */
   midgroundImage?: string;
   /**
-   * Optional Lámina 3 foreground — `/assets/lamina_fg_<biomeSlug>.png`.
+   * Optional Lámina 3 foreground — `/assets/lamina/lamina_fg_<biomeSlug>.png`.
    * Passed from App; CinematicViewscreen hides the layer if the asset is missing.
    */
   foregroundImage?: string;

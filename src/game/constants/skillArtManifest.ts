@@ -18,7 +18,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_taijutsu.png",
+    "src": "/assets/skills/skill_taijutsu.png",
     "quality": "painted-png"
   },
   {
@@ -28,7 +28,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_shuriken.png",
+    "src": "/assets/skills/skill_shuriken.png",
     "quality": "painted-png"
   },
   {
@@ -38,7 +38,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/skill_mud_wall.png",
+    "src": "/assets/skills/skill_mud_wall.png",
     "quality": "painted-png"
   },
   {
@@ -48,7 +48,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/skill_phoenix_flower.png",
+    "src": "/assets/skills/skill_phoenix_flower.png",
     "quality": "painted-png"
   },
   {
@@ -58,7 +58,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_kawarimi.png",
+    "src": "/assets/skills/skill_kawarimi.png",
     "quality": "painted-png"
   },
   {
@@ -68,7 +68,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_bunshin.png",
+    "src": "/assets/skills/skill_bunshin.png",
     "quality": "painted-png"
   },
   {
@@ -78,7 +78,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_henge.png",
+    "src": "/assets/skills/skill_henge.png",
     "quality": "painted-png"
   },
   {
@@ -88,7 +88,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_shunshin.png",
+    "src": "/assets/skills/skill_shunshin.png",
     "quality": "painted-png"
   },
   {
@@ -98,7 +98,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_kai.png",
+    "src": "/assets/skills/skill_kai.png",
     "quality": "painted-png"
   },
   {
@@ -108,7 +108,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_leaf_whirlwind.png",
+    "src": "/assets/skills/skill_leaf_whirlwind.png",
     "quality": "painted-png"
   },
   {
@@ -118,7 +118,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_dynamic_entry.png",
+    "src": "/assets/skills/skill_dynamic_entry.png",
     "quality": "painted-png"
   },
   {
@@ -128,7 +128,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_rising_wind.png",
+    "src": "/assets/skills/skill_rising_wind.png",
     "quality": "painted-png"
   },
   {
@@ -138,7 +138,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_strong_fist.png",
+    "src": "/assets/skills/skill_strong_fist.png",
     "quality": "painted-png"
   },
   {
@@ -148,7 +148,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_sweeping_kick.png",
+    "src": "/assets/skills/skill_sweeping_kick.png",
     "quality": "painted-png"
   },
   {
@@ -158,7 +158,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_elbow_strike.png",
+    "src": "/assets/skills/skill_elbow_strike.png",
     "quality": "painted-png"
   },
   {
@@ -168,7 +168,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_feint_strike.png",
+    "src": "/assets/skills/skill_feint_strike.png",
     "quality": "painted-png"
   },
   {
@@ -178,7 +178,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_counter_stance.png",
+    "src": "/assets/skills/skill_counter_stance.png",
     "quality": "painted-png"
   },
   {
@@ -188,7 +188,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_dancing_leaf.png",
+    "src": "/assets/skills/skill_dancing_leaf.png",
     "quality": "painted-png"
   },
   {
@@ -198,7 +198,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_focused_breathing.png",
+    "src": "/assets/skills/skill_focused_breathing.png",
     "quality": "painted-png"
   },
   {
@@ -208,7 +208,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_kunai_slash.png",
+    "src": "/assets/skills/skill_kunai_slash.png",
     "quality": "painted-png"
   },
   {
@@ -218,7 +218,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_kunai_throw.png",
+    "src": "/assets/skills/skill_kunai_throw.png",
     "quality": "painted-png"
   },
   {
@@ -228,7 +228,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_shuriken_barrage.png",
+    "src": "/assets/skills/skill_shuriken_barrage.png",
     "quality": "painted-png"
   },
   {
@@ -238,7 +238,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_windmill_shuriken.png",
+    "src": "/assets/skills/skill_windmill_shuriken.png",
     "quality": "painted-png"
   },
   {
@@ -248,7 +248,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_senbon.png",
+    "src": "/assets/skills/skill_senbon.png",
     "quality": "painted-png"
   },
   {
@@ -258,7 +258,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_senbon_rain.png",
+    "src": "/assets/skills/skill_senbon_rain.png",
     "quality": "painted-png"
   },
   {
@@ -268,7 +268,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/skill_explosive_tag.png",
+    "src": "/assets/skills/skill_explosive_tag.png",
     "quality": "painted-png"
   },
   {
@@ -278,7 +278,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/skill_explosive_barrage.png",
+    "src": "/assets/skills/skill_explosive_barrage.png",
     "quality": "painted-png"
   },
   {
@@ -288,7 +288,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_sword_slash.png",
+    "src": "/assets/skills/skill_sword_slash.png",
     "quality": "painted-png"
   },
   {
@@ -298,7 +298,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_iaido.png",
+    "src": "/assets/skills/skill_iaido.png",
     "quality": "painted-png"
   },
   {
@@ -308,7 +308,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_wire_setup.png",
+    "src": "/assets/skills/skill_wire_setup.png",
     "quality": "painted-png"
   },
   {
@@ -318,7 +318,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_poison_coat.png",
+    "src": "/assets/skills/skill_poison_coat.png",
     "quality": "painted-png"
   },
   {
@@ -328,7 +328,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_smoke_bomb.png",
+    "src": "/assets/skills/skill_smoke_bomb.png",
     "quality": "painted-png"
   },
   {
@@ -338,7 +338,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_flash_bomb.png",
+    "src": "/assets/skills/skill_flash_bomb.png",
     "quality": "painted-png"
   },
   {
@@ -348,7 +348,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_analyze.png",
+    "src": "/assets/skills/skill_analyze.png",
     "quality": "painted-png"
   },
   {
@@ -358,7 +358,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_brace.png",
+    "src": "/assets/skills/skill_brace.png",
     "quality": "painted-png"
   },
   {
@@ -368,7 +368,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_cloak_invis.png",
+    "src": "/assets/skills/skill_cloak_invis.png",
     "quality": "painted-png"
   },
   {
@@ -378,7 +378,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_basic_medical.png",
+    "src": "/assets/skills/skill_basic_medical.png",
     "quality": "painted-png"
   },
   {
@@ -388,7 +388,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_focused_stance.png",
+    "src": "/assets/skills/skill_focused_stance.png",
     "quality": "painted-png"
   },
   {
@@ -398,7 +398,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_defensive_posture.png",
+    "src": "/assets/skills/skill_defensive_posture.png",
     "quality": "painted-png"
   },
   {
@@ -408,7 +408,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_aggressive_stance.png",
+    "src": "/assets/skills/skill_aggressive_stance.png",
     "quality": "painted-png"
   },
   {
@@ -418,7 +418,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "PASSIVE",
     "dmg": "PHYSICAL",
     "emoji": "✨",
-    "src": "/assets/skill_weapon_proficiency.png",
+    "src": "/assets/skills/skill_weapon_proficiency.png",
     "quality": "painted-png"
   },
   {
@@ -428,7 +428,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "PASSIVE",
     "dmg": "PHYSICAL",
     "emoji": "✨",
-    "src": "/assets/skill_taijutsu_training.png",
+    "src": "/assets/skills/skill_taijutsu_training.png",
     "quality": "painted-png"
   },
   {
@@ -438,7 +438,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "PASSIVE",
     "dmg": "PHYSICAL",
     "emoji": "✨",
-    "src": "/assets/skill_quick_reflexes.png",
+    "src": "/assets/skills/skill_quick_reflexes.png",
     "quality": "painted-png"
   },
   {
@@ -448,7 +448,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "PASSIVE",
     "dmg": "PHYSICAL",
     "emoji": "✨",
-    "src": "/assets/skill_iron_body.png",
+    "src": "/assets/skills/skill_iron_body.png",
     "quality": "painted-png"
   },
   {
@@ -458,7 +458,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "PASSIVE",
     "dmg": "PHYSICAL",
     "emoji": "✨",
-    "src": "/assets/skill_chakra_reserves.png",
+    "src": "/assets/skills/skill_chakra_reserves.png",
     "quality": "painted-png"
   },
   {
@@ -468,7 +468,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "PASSIVE",
     "dmg": "MENTAL",
     "emoji": "✨",
-    "src": "/assets/skill_mental_fortitude.png",
+    "src": "/assets/skills/skill_mental_fortitude.png",
     "quality": "painted-png"
   },
   {
@@ -478,7 +478,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "PASSIVE",
     "dmg": "PHYSICAL",
     "emoji": "✨",
-    "src": "/assets/skill_precision.png",
+    "src": "/assets/skills/skill_precision.png",
     "quality": "painted-png"
   },
   {
@@ -488,7 +488,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "PASSIVE",
     "dmg": "ELEMENTAL",
     "emoji": "✨",
-    "src": "/assets/skill_fire_affinity.png",
+    "src": "/assets/skills/skill_fire_affinity.png",
     "quality": "painted-png"
   },
   {
@@ -498,7 +498,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "🌪️",
-    "src": "/assets/skill_air_palm.png",
+    "src": "/assets/skills/skill_air_palm.png",
     "quality": "painted-png"
   },
   {
@@ -508,7 +508,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🌪️",
-    "src": "/assets/skill_rasengan.png",
+    "src": "/assets/skills/skill_rasengan.png",
     "quality": "painted-png"
   },
   {
@@ -518,7 +518,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/skill_fireball.png",
+    "src": "/assets/skills/skill_fireball.png",
     "quality": "painted-png"
   },
   {
@@ -528,7 +528,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "👊",
-    "src": "/assets/skill_kaiten.png",
+    "src": "/assets/skills/skill_kaiten.png",
     "quality": "painted-png"
   },
   {
@@ -538,7 +538,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "MENTAL",
     "emoji": "👊",
-    "src": "/assets/skill_byakugan.png",
+    "src": "/assets/skills/skill_byakugan.png",
     "quality": "painted-png"
   },
   {
@@ -548,7 +548,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "👊",
-    "src": "/assets/skill_gentle_fist.png",
+    "src": "/assets/skills/skill_gentle_fist.png",
     "quality": "painted-png"
   },
   {
@@ -558,7 +558,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "PHYSICAL",
     "emoji": "🔥",
-    "src": "/assets/skill_sharingan_2.png",
+    "src": "/assets/skills/skill_sharingan_2.png",
     "quality": "painted-png"
   },
   {
@@ -568,7 +568,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "💧",
-    "src": "/assets/skill_water_prison.png",
+    "src": "/assets/skills/skill_water_prison.png",
     "quality": "painted-png"
   },
   {
@@ -578,7 +578,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "💧",
-    "src": "/assets/skill_suijinheki.png",
+    "src": "/assets/skills/skill_suijinheki.png",
     "quality": "painted-png"
   },
   {
@@ -588,7 +588,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_hell_viewing.png",
+    "src": "/assets/skills/skill_hell_viewing.png",
     "quality": "painted-png"
   },
   {
@@ -598,7 +598,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_mind_destruction.png",
+    "src": "/assets/skills/skill_mind_destruction.png",
     "quality": "painted-png"
   },
   {
@@ -608,7 +608,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/skill_dragon_flame.png",
+    "src": "/assets/skills/skill_dragon_flame.png",
     "quality": "painted-png"
   },
   {
@@ -618,7 +618,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "💧",
-    "src": "/assets/skill_hidden_mist.png",
+    "src": "/assets/skills/skill_hidden_mist.png",
     "quality": "painted-png"
   },
   {
@@ -628,7 +628,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "💧",
-    "src": "/assets/skill_water_clone.png",
+    "src": "/assets/skills/skill_water_clone.png",
     "quality": "painted-png"
   },
   {
@@ -638,7 +638,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "⚡",
-    "src": "/assets/skill_lightning_ball.png",
+    "src": "/assets/skills/skill_lightning_ball.png",
     "quality": "painted-png"
   },
   {
@@ -648,7 +648,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/skill_earth_decapitation.png",
+    "src": "/assets/skills/skill_earth_decapitation.png",
     "quality": "painted-png"
   },
   {
@@ -658,7 +658,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🌪️",
-    "src": "/assets/skill_great_breakthrough.png",
+    "src": "/assets/skills/skill_great_breakthrough.png",
     "quality": "painted-png"
   },
   {
@@ -668,7 +668,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🌪️",
-    "src": "/assets/skill_air_bullet.png",
+    "src": "/assets/skills/skill_air_bullet.png",
     "quality": "painted-png"
   },
   {
@@ -678,7 +678,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_fang_over_fang.png",
+    "src": "/assets/skills/skill_fang_over_fang.png",
     "quality": "painted-png"
   },
   {
@@ -688,7 +688,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_mind_transfer.png",
+    "src": "/assets/skills/skill_mind_transfer.png",
     "quality": "painted-png"
   },
   {
@@ -698,7 +698,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_shadow_possession.png",
+    "src": "/assets/skills/skill_shadow_possession.png",
     "quality": "painted-png"
   },
   {
@@ -708,7 +708,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_bug_swarm.png",
+    "src": "/assets/skills/skill_bug_swarm.png",
     "quality": "painted-png"
   },
   {
@@ -718,7 +718,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_expansion.png",
+    "src": "/assets/skills/skill_expansion.png",
     "quality": "painted-png"
   },
   {
@@ -728,7 +728,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "👊",
-    "src": "/assets/skill_64_palms.png",
+    "src": "/assets/skills/skill_64_palms.png",
     "quality": "painted-png"
   },
   {
@@ -738,7 +738,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/skill_sand_burial.png",
+    "src": "/assets/skills/skill_sand_burial.png",
     "quality": "painted-png"
   },
   {
@@ -748,7 +748,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_curse_mark_1.png",
+    "src": "/assets/skills/skill_curse_mark_1.png",
     "quality": "painted-png"
   },
   {
@@ -758,7 +758,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/skill_sand_shield.png",
+    "src": "/assets/skills/skill_sand_shield.png",
     "quality": "painted-png"
   },
   {
@@ -768,7 +768,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_sharingan_predict.png",
+    "src": "/assets/skills/skill_sharingan_predict.png",
     "quality": "painted-png"
   },
   {
@@ -778,7 +778,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_byakugan_scan.png",
+    "src": "/assets/skills/skill_byakugan_scan.png",
     "quality": "painted-png"
   },
   {
@@ -788,7 +788,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "💧",
-    "src": "/assets/skill_summon_gamabunta.png",
+    "src": "/assets/skills/skill_summon_gamabunta.png",
     "quality": "painted-png"
   },
   {
@@ -798,7 +798,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_summon_manda.png",
+    "src": "/assets/skills/skill_summon_manda.png",
     "quality": "painted-png"
   },
   {
@@ -808,7 +808,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_puppet_crow.png",
+    "src": "/assets/skills/skill_puppet_crow.png",
     "quality": "painted-png"
   },
   {
@@ -818,7 +818,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_shadow_clone.png",
+    "src": "/assets/skills/skill_shadow_clone.png",
     "quality": "painted-png"
   },
   {
@@ -828,7 +828,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_primary_lotus.png",
+    "src": "/assets/skills/skill_primary_lotus.png",
     "quality": "painted-png"
   },
   {
@@ -838,7 +838,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "⚡",
-    "src": "/assets/skill_chidori.png",
+    "src": "/assets/skills/skill_chidori.png",
     "quality": "painted-png"
   },
   {
@@ -848,7 +848,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "⚡",
-    "src": "/assets/skill_chidori_stream.png",
+    "src": "/assets/skills/skill_chidori_stream.png",
     "quality": "painted-png"
   },
   {
@@ -858,7 +858,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/skill_sand_coffin.png",
+    "src": "/assets/skills/skill_sand_coffin.png",
     "quality": "painted-png"
   },
   {
@@ -868,7 +868,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "💧",
-    "src": "/assets/skill_water_dragon.png",
+    "src": "/assets/skills/skill_water_dragon.png",
     "quality": "painted-png"
   },
   {
@@ -878,7 +878,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "💧",
-    "src": "/assets/skill_ice_mirrors.png",
+    "src": "/assets/skills/skill_ice_mirrors.png",
     "quality": "painted-png"
   },
   {
@@ -888,7 +888,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_false_surroundings.png",
+    "src": "/assets/skills/skill_false_surroundings.png",
     "quality": "painted-png"
   },
   {
@@ -898,7 +898,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_temple_nirvana.png",
+    "src": "/assets/skills/skill_temple_nirvana.png",
     "quality": "painted-png"
   },
   {
@@ -908,7 +908,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "👊",
-    "src": "/assets/skill_hidden_lotus.png",
+    "src": "/assets/skills/skill_hidden_lotus.png",
     "quality": "painted-png"
   },
   {
@@ -918,7 +918,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "💧",
-    "src": "/assets/skill_water_vortex.png",
+    "src": "/assets/skills/skill_water_vortex.png",
     "quality": "painted-png"
   },
   {
@@ -928,7 +928,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/skill_clone_explosion.png",
+    "src": "/assets/skills/skill_clone_explosion.png",
     "quality": "painted-png"
   },
   {
@@ -938,7 +938,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_1000_years.png",
+    "src": "/assets/skills/skill_1000_years.png",
     "quality": "painted-png"
   },
   {
@@ -948,7 +948,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_gate_of_life.png",
+    "src": "/assets/skills/skill_gate_of_life.png",
     "quality": "painted-png"
   },
   {
@@ -958,7 +958,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "TOGGLE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_curse_mark_2.png",
+    "src": "/assets/skills/skill_curse_mark_2.png",
     "quality": "painted-png"
   },
   {
@@ -968,7 +968,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_curse_surge.png",
+    "src": "/assets/skills/skill_curse_surge.png",
     "quality": "painted-png"
   },
   {
@@ -978,7 +978,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_gate_prep.png",
+    "src": "/assets/skills/skill_gate_prep.png",
     "quality": "painted-png"
   },
   {
@@ -988,7 +988,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_killing_intent.png",
+    "src": "/assets/skills/skill_killing_intent.png",
     "quality": "painted-png"
   },
   {
@@ -998,7 +998,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_demon_slash.png",
+    "src": "/assets/skills/skill_demon_slash.png",
     "quality": "painted-png"
   },
   {
@@ -1008,7 +1008,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "👊",
-    "src": "/assets/skill_bone_drill.png",
+    "src": "/assets/skills/skill_bone_drill.png",
     "quality": "painted-png"
   },
   {
@@ -1018,7 +1018,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/skill_poison_fog.png",
+    "src": "/assets/skills/skill_poison_fog.png",
     "quality": "painted-png"
   },
   {
@@ -1028,7 +1028,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "👁️",
-    "src": "/assets/skill_tsukuyomi.png",
+    "src": "/assets/skills/skill_tsukuyomi.png",
     "quality": "painted-png"
   },
   {
@@ -1038,7 +1038,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "👁️",
-    "src": "/assets/skill_reaper_death_seal.png",
+    "src": "/assets/skills/skill_reaper_death_seal.png",
     "quality": "painted-png"
   },
   {
@@ -1048,7 +1048,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "MENTAL",
     "emoji": "👁️",
-    "src": "/assets/skill_edo_tensei.png",
+    "src": "/assets/skills/skill_edo_tensei.png",
     "quality": "painted-png"
   },
   {
@@ -1058,7 +1058,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_gate_of_limit.png",
+    "src": "/assets/skills/skill_gate_of_limit.png",
     "quality": "painted-png"
   },
   {
@@ -1068,7 +1068,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🪨",
-    "src": "/assets/skill_shukaku_arm.png",
+    "src": "/assets/skills/skill_shukaku_arm.png",
     "quality": "painted-png"
   },
   {
@@ -1078,7 +1078,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skill_copy_jutsu.png",
+    "src": "/assets/skills/skill_copy_jutsu.png",
     "quality": "painted-png"
   },
   {
@@ -1088,7 +1088,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "🪨",
-    "src": "/assets/skill_c4_karura.png",
+    "src": "/assets/skills/skill_c4_karura.png",
     "quality": "painted-png"
   },
   {
@@ -1098,7 +1098,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "🌪️",
-    "src": "/assets/skill_rasenshuriken.png",
+    "src": "/assets/skills/skill_rasenshuriken.png",
     "quality": "painted-png"
   },
   {
@@ -1108,7 +1108,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "🔥",
-    "src": "/assets/skill_amaterasu.png",
+    "src": "/assets/skills/skill_amaterasu.png",
     "quality": "painted-png"
   },
   {
@@ -1118,7 +1118,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "ELEMENTAL",
     "emoji": "⚡",
-    "src": "/assets/skill_kirin.png",
+    "src": "/assets/skills/skill_kirin.png",
     "quality": "painted-png"
   },
   {
@@ -1128,7 +1128,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "🌪️",
-    "src": "/assets/skill_shinra_tensei.png",
+    "src": "/assets/skills/skill_shinra_tensei.png",
     "quality": "painted-png"
   },
   {
@@ -1138,7 +1138,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "👊",
-    "src": "/assets/skill_kamui_impact.png",
+    "src": "/assets/skills/skill_kamui_impact.png",
     "quality": "painted-png"
   },
   {
@@ -1148,7 +1148,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "TRUE",
     "emoji": "🪨",
-    "src": "/assets/skill_tengai_shinsei.png",
+    "src": "/assets/skills/skill_tengai_shinsei.png",
     "quality": "painted-png"
   }
 ];

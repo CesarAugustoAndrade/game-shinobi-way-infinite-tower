@@ -270,7 +270,7 @@ const LocationMap: React.FC<LocationMapProps> = ({
   // A4: location-as-transform — biome location_*.png first, map exploring fallback.
   // No dark scrim filter over the painted plate.
   const locationStageBg = useMemo(() => {
-    const mapFallback = 'url(/assets/background_map_exploring.png)';
+    const mapFallback = 'url(/assets/backgrounds/background_map_exploring.png)';
     if (!branchingFloor.biome) {
       return {
         backgroundColor: '#050608',

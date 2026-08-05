@@ -16,10 +16,10 @@ import './exploration.css';
 
 /** Cinematic ops-table backdrops per arc (not parchment). */
 const REGION_MAP_BG: Record<string, string> = {
-  WAVES_ARC: '/assets/background_map_exploring.png',
-  EXAMS_ARC: '/assets/background_map_exploring.png',
-  ROGUE_ARC: '/assets/background_map_exploring.png',
-  WAR_ARC: '/assets/background_map_exploring.png',
+  WAVES_ARC: '/assets/backgrounds/background_map_exploring.png',
+  EXAMS_ARC: '/assets/backgrounds/background_map_exploring.png',
+  ROGUE_ARC: '/assets/backgrounds/background_map_exploring.png',
+  WAR_ARC: '/assets/backgrounds/background_map_exploring.png',
 };
 
 interface RegionMapProps {
@@ -118,7 +118,7 @@ const RegionMap: React.FC<RegionMapProps> = ({
 
   const selectedCard = resolvedIndex !== null ? drawnCards[resolvedIndex] : null;
   const selectedDisplay = selectedCard ? getCardDisplayInfo(selectedCard) : null;
-  const mapBg = REGION_MAP_BG[region.arc] ?? '/assets/background_map_exploring.png';
+  const mapBg = REGION_MAP_BG[region.arc] ?? '/assets/backgrounds/background_map_exploring.png';
   const isMystery = Boolean(selectedDisplay?.showMystery);
   const isSecretSelected = Boolean(
     selectedDisplay?.isSecret ||
@@ -172,7 +172,7 @@ const RegionMap: React.FC<RegionMapProps> = ({
         backgroundImage: [
           'linear-gradient(180deg, rgba(5,6,8,0.72) 0%, rgba(5,6,8,0.48) 40%, rgba(5,6,8,0.82) 100%)',
           `url(${mapBg})`,
-          'url(/assets/background_map_exploring.png)',
+          'url(/assets/backgrounds/background_map_exploring.png)',
         ].join(', '),
         backgroundSize: 'cover',
         backgroundPosition: 'center',

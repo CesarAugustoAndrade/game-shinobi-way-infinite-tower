@@ -46,7 +46,7 @@ interface TreasureChoiceProps {
 }
 
 const VAULT_POSTER = {
-  src: '/assets/treasure_vault_poster.jpg',
+  src: '/assets/posters/treasure_vault_poster.jpg',
   emoji: '🗝️',
   label: 'Sealed Vault',
 };

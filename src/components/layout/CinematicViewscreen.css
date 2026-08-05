@@ -16,12 +16,12 @@
  *
  * ASSET PIPELINE CONVENTION:
  * ---------------------------------------------------------------
- * Lámina 1 background  : /assets/location_<biomeSlug>.png
+ * Lámina 1 background  : /assets/locations/location_<biomeSlug>.png
  *                         1024×576 opaque pixel-art scene.
- * Lámina 2 middleground: /assets/lamina_mid_<biomeSlug>.png
+ * Lámina 2 middleground: /assets/lamina/lamina_mid_<biomeSlug>.png
  *                         1024×576 PNG with alpha; midground elements
  *                         (e.g. trees, rock formations, fog banks).
- * Lámina 3 foreground  : /assets/lamina_fg_<biomeSlug>.png
+ * Lámina 3 foreground  : /assets/lamina/lamina_fg_<biomeSlug>.png
  *                         1024×576 PNG with alpha; foreground occlusion
  *                         elements (e.g. bridge rails, bottom foliage,
  *                         mist wisps). Must keep center/upper area

@@ -145,8 +145,8 @@ const getFullCombatBackground = (locationBackground: string): string => {
   const match = locationBackground.match(/\/assets\/location_([^?]+)\.png/);
   const slug = match?.[1] ?? 'coastal_harbor';
   return slug === 'coastal_harbor'
-    ? '/assets/combat_background_coastal_harbor_v3.png'
-    : `/assets/combat_background_${slug}.png`;
+    ? '/assets/backgrounds/combat_background_coastal_harbor_v3.png'
+    : `/assets/backgrounds/combat_background_${slug}.png`;
 };
 
 const App: React.FC = () => {

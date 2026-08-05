@@ -16,7 +16,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_combat",
     "emoji": "⚔️",
     "label": "Combat Event",
-    "src": "/assets/event_cat_combat.png",
+    "src": "/assets/events/event_cat_combat.png",
     "quality": "painted-png",
     "kind": "category",
     "category": "combat"
@@ -26,7 +26,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_reward",
     "emoji": "💎",
     "label": "Reward Event",
-    "src": "/assets/event_cat_reward.png",
+    "src": "/assets/events/event_cat_reward.png",
     "quality": "painted-png",
     "kind": "category",
     "category": "reward"
@@ -36,7 +36,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_story",
     "emoji": "📖",
     "label": "Story Event",
-    "src": "/assets/event_cat_story.png",
+    "src": "/assets/events/event_cat_story.png",
     "quality": "painted-png",
     "kind": "category",
     "category": "story"
@@ -46,7 +46,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_danger",
     "emoji": "☠️",
     "label": "Danger Event",
-    "src": "/assets/event_cat_danger.png",
+    "src": "/assets/events/event_cat_danger.png",
     "quality": "painted-png",
     "kind": "category",
     "category": "danger"
@@ -56,7 +56,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "cat_generic",
     "emoji": "🌀",
     "label": "Event",
-    "src": "/assets/event_cat_generic.png",
+    "src": "/assets/events/event_cat_generic.png",
     "quality": "painted-png",
     "kind": "category",
     "category": "generic"
@@ -66,7 +66,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "forbidden_scroll_library",
     "emoji": "📜",
     "label": "forbidden scroll library",
-    "src": "/assets/event_forbidden_scroll_library.png",
+    "src": "/assets/events/event_forbidden_scroll_library.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -76,7 +76,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "bullying_incident",
     "emoji": "📖",
     "label": "bullying incident",
-    "src": "/assets/event_bullying_incident.png",
+    "src": "/assets/events/event_bullying_incident.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -86,7 +86,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "secret_training_ground",
     "emoji": "💎",
     "label": "secret training ground",
-    "src": "/assets/event_secret_training_ground.png",
+    "src": "/assets/events/event_secret_training_ground.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -96,7 +96,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "bridge_worker_plea",
     "emoji": "🌉",
     "label": "bridge worker plea",
-    "src": "/assets/event_bridge_worker_plea.png",
+    "src": "/assets/events/event_bridge_worker_plea.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "combat"
@@ -106,7 +106,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "mist_ambush_cache",
     "emoji": "🌫️",
     "label": "mist ambush cache",
-    "src": "/assets/event_mist_ambush_cache.png",
+    "src": "/assets/events/event_mist_ambush_cache.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -116,7 +116,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "tazuna_request",
     "emoji": "👷",
     "label": "tazuna request",
-    "src": "/assets/event_tazuna_request.png",
+    "src": "/assets/events/event_tazuna_request.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -126,7 +126,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "forest_death_trap",
     "emoji": "🌲",
     "label": "forest death trap",
-    "src": "/assets/event_forest_death_trap.png",
+    "src": "/assets/events/event_forest_death_trap.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -136,7 +136,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "rival_team_encounter",
     "emoji": "⚔️",
     "label": "rival team encounter",
-    "src": "/assets/event_rival_team_encounter.png",
+    "src": "/assets/events/event_rival_team_encounter.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "combat"
@@ -146,7 +146,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "giant_serpent_nest",
     "emoji": "☠️",
     "label": "giant serpent nest",
-    "src": "/assets/event_giant_serpent_nest.png",
+    "src": "/assets/events/event_giant_serpent_nest.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -156,7 +156,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "scroll_merchant",
     "emoji": "💎",
     "label": "scroll merchant",
-    "src": "/assets/event_scroll_merchant.png",
+    "src": "/assets/events/event_scroll_merchant.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -166,7 +166,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "sound_four_ritual",
     "emoji": " Crowley",
     "label": "sound four ritual",
-    "src": "/assets/event_sound_four_ritual.png",
+    "src": "/assets/events/event_sound_four_ritual.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -176,7 +176,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "curse_mark_amplifier",
     "emoji": "☠️",
     "label": "curse mark amplifier",
-    "src": "/assets/event_curse_mark_amplifier.png",
+    "src": "/assets/events/event_curse_mark_amplifier.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -186,7 +186,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "valley_vision",
     "emoji": "📖",
     "label": "valley vision",
-    "src": "/assets/event_valley_vision.png",
+    "src": "/assets/events/event_valley_vision.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -196,7 +196,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "orochimaru_experiment",
     "emoji": "🐍",
     "label": "orochimaru experiment",
-    "src": "/assets/event_orochimaru_experiment.png",
+    "src": "/assets/events/event_orochimaru_experiment.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -206,7 +206,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "orochimaru_experiment_result",
     "emoji": "📖",
     "label": "orochimaru experiment result",
-    "src": "/assets/event_orochimaru_experiment_result.png",
+    "src": "/assets/events/event_orochimaru_experiment_result.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -216,7 +216,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "white_zetsu_paranoia",
     "emoji": "☠️",
     "label": "white zetsu paranoia",
-    "src": "/assets/event_white_zetsu_paranoia.png",
+    "src": "/assets/events/event_white_zetsu_paranoia.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -226,7 +226,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "bijuu_chakra_fragment",
     "emoji": "🦊",
     "label": "bijuu chakra fragment",
-    "src": "/assets/event_bijuu_chakra_fragment.png",
+    "src": "/assets/events/event_bijuu_chakra_fragment.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -236,7 +236,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "reanimated_envoy",
     "emoji": "💀",
     "label": "reanimated envoy",
-    "src": "/assets/event_reanimated_envoy.png",
+    "src": "/assets/events/event_reanimated_envoy.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -246,7 +246,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "reanimated_envoy_fate",
     "emoji": "⚔️",
     "label": "reanimated envoy fate",
-    "src": "/assets/event_reanimated_envoy_fate.png",
+    "src": "/assets/events/event_reanimated_envoy_fate.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "combat"
@@ -256,7 +256,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "envoy_gratitude_repaid",
     "emoji": "💎",
     "label": "envoy gratitude repaid",
-    "src": "/assets/event_envoy_gratitude_repaid.png",
+    "src": "/assets/events/event_envoy_gratitude_repaid.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -266,7 +266,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "scavengers_field",
     "emoji": "⚔️",
     "label": "scavengers field",
-    "src": "/assets/event_scavengers_field.png",
+    "src": "/assets/events/event_scavengers_field.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "combat"
@@ -276,7 +276,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "abandoned_supply_cache",
     "emoji": "💎",
     "label": "abandoned supply cache",
-    "src": "/assets/event_abandoned_supply_cache.png",
+    "src": "/assets/events/event_abandoned_supply_cache.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -286,7 +286,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "ancient_treasure_map",
     "emoji": "💎",
     "label": "ancient treasure map",
-    "src": "/assets/event_ancient_treasure_map.png",
+    "src": "/assets/events/event_ancient_treasure_map.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -296,7 +296,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "traveling_merchant_caravan",
     "emoji": "💎",
     "label": "traveling merchant caravan",
-    "src": "/assets/event_traveling_merchant_caravan.png",
+    "src": "/assets/events/event_traveling_merchant_caravan.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -306,7 +306,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "hidden_shrine_blessing",
     "emoji": "⛩️",
     "label": "hidden shrine blessing",
-    "src": "/assets/event_hidden_shrine_blessing.png",
+    "src": "/assets/events/event_hidden_shrine_blessing.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "reward"
@@ -316,7 +316,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "intelligence_network",
     "emoji": "📡",
     "label": "intelligence network",
-    "src": "/assets/event_intelligence_network.png",
+    "src": "/assets/events/event_intelligence_network.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -327,7 +327,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "meet_tazuna",
     "emoji": "🌫️",
     "label": "meet tazuna",
-    "src": "/assets/event_meet_tazuna.png",
+    "src": "/assets/events/event_meet_tazuna.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -337,7 +337,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "tazuna_road_mist",
     "emoji": "🌫️",
     "label": "tazuna road mist",
-    "src": "/assets/event_tazuna_road_mist.png",
+    "src": "/assets/events/event_tazuna_road_mist.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -347,7 +347,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "protect_village",
     "emoji": "🏘️",
     "label": "protect village",
-    "src": "/assets/event_protect_village.png",
+    "src": "/assets/events/event_protect_village.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -357,7 +357,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "meet_inari",
     "emoji": "🧒",
     "label": "meet inari",
-    "src": "/assets/event_meet_inari.png",
+    "src": "/assets/events/event_meet_inari.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -367,7 +367,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "protect_bridge",
     "emoji": "🌉",
     "label": "protect bridge",
-    "src": "/assets/event_protect_bridge.png",
+    "src": "/assets/events/event_protect_bridge.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "combat"
@@ -377,7 +377,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "final_showdown_setup",
     "emoji": "⚔️",
     "label": "final showdown setup",
-    "src": "/assets/event_final_showdown_setup.png",
+    "src": "/assets/events/event_final_showdown_setup.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -387,7 +387,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "final_confrontation",
     "emoji": "🏯",
     "label": "final confrontation",
-    "src": "/assets/event_final_confrontation.png",
+    "src": "/assets/events/event_final_confrontation.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -397,7 +397,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "gato_defeat",
     "emoji": "💰",
     "label": "gato defeat",
-    "src": "/assets/event_gato_defeat.png",
+    "src": "/assets/events/event_gato_defeat.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -408,7 +408,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "docks_collector_ledger",
     "emoji": "📒",
     "label": "collector ledger",
-    "src": "/assets/event_docks_collector_ledger.png",
+    "src": "/assets/events/event_docks_collector_ledger.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -418,7 +418,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "mist_omen_tide",
     "emoji": "🌫️",
     "label": "mist omen tide",
-    "src": "/assets/event_mist_omen_tide.png",
+    "src": "/assets/events/event_mist_omen_tide.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -428,7 +428,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "shipwreck_whisper",
     "emoji": "🚢",
     "label": "shipwreck whisper",
-    "src": "/assets/event_shipwreck_whisper.png",
+    "src": "/assets/events/event_shipwreck_whisper.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -438,7 +438,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "manor_haunt_debt",
     "emoji": "🏚️",
     "label": "manor haunt debt",
-    "src": "/assets/event_manor_haunt_debt.png",
+    "src": "/assets/events/event_manor_haunt_debt.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -449,7 +449,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "corrupt_merchant_scales",
     "emoji": "⚖️",
     "label": "false scales",
-    "src": "/assets/event_corrupt_merchant_scales.png",
+    "src": "/assets/events/event_corrupt_merchant_scales.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -459,7 +459,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "riverside_traveler_pact",
     "emoji": "🔥",
     "label": "ashfire pact",
-    "src": "/assets/event_riverside_traveler_pact.png",
+    "src": "/assets/events/event_riverside_traveler_pact.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -469,7 +469,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "bandit_outpost_toll",
     "emoji": "⚔️",
     "label": "toll of stakes",
-    "src": "/assets/event_bandit_outpost_toll.png",
+    "src": "/assets/events/event_bandit_outpost_toll.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"
@@ -480,7 +480,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "hidden_cove_silent_drop",
     "emoji": "🛥️",
     "label": "silent drop",
-    "src": "/assets/event_hidden_cove_silent_drop.png",
+    "src": "/assets/events/event_hidden_cove_silent_drop.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "story"
@@ -490,7 +490,7 @@ export const EVENT_ART_MANIFEST: EventArtManifestEntry[] = [
     "id": "drowned_shrine_black_tide",
     "emoji": "🏛️",
     "label": "black tide vow",
-    "src": "/assets/event_drowned_shrine_black_tide.png",
+    "src": "/assets/events/event_drowned_shrine_black_tide.png",
     "quality": "painted-png",
     "kind": "event",
     "category": "danger"

@@ -794,7 +794,7 @@ const Merchant: React.FC<MerchantProps> = ({
   const leanEconomy = Boolean(lootTheme && lootTheme.goldMultiplier < 1);
   const merchantArt = getActivityArt('merchant');
   const shopPosterArt = {
-    src: '/assets/merchant_shop_poster.jpg',
+    src: '/assets/posters/merchant_shop_poster.jpg',
     emoji: merchantArt.emoji || '🛒',
     label: 'Traveling Merchant',
   };
