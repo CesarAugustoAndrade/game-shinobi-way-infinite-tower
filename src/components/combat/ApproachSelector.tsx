@@ -313,21 +313,62 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
 
   const availableCount = approaches.filter(a => a.available).length;
 
+  const OPTION_SHORTCUTS = ['A', 'S', 'D', 'Z', 'X', 'C'];
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
       if (e.repeat) return;
-      e.preventDefault();
-      if (commitLockRef.current) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
       if (showConfirm) {
-        setShowConfirm(false);
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (!commitLockRef.current) {
+            handleBackFromConfirm();
+          }
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const chakraCost = selectedDef?.successEffects?.chakraCost ?? 0;
+          const hasChakra = isPreference || chakraCost <= player.currentChakra;
+          if (!commitLockRef.current && hasChakra) {
+            handleConfirm();
+          }
+          return;
+        }
         return;
       }
-      onCancel();
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (commitLockRef.current) return;
+        onCancel();
+        return;
+      }
+
+      if (commitLockRef.current) return;
+
+      // Shortcut keys A, S, D, Z, X, C for approach cards 0..5
+      const upperKey = e.key.toUpperCase();
+      let index = -1;
+      if (e.key >= '1' && e.key <= '6') {
+        index = parseInt(e.key, 10) - 1;
+      } else if (OPTION_SHORTCUTS.includes(upperKey)) {
+        index = OPTION_SHORTCUTS.indexOf(upperKey);
+      }
+
+      if (index >= 0 && index < approaches.length) {
+        const approach = approaches[index];
+        if (approach && approach.available) {
+          e.preventDefault();
+          handleSelect(approach.type);
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onCancel, showConfirm]);
+  }, [onCancel, showConfirm, approaches, selectedDef, player.currentChakra, isPreference]);
 
   return (
     <div
@@ -399,7 +440,7 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
 
         <div className="approach-modal__body">
           <div className="approach-modal__grid">
-            {approaches.map(approach => {
+            {approaches.map((approach, idx) => {
               const tier = getSuccessTier(approach.successChance);
               const riskLabel = getRiskLabel(approach.successChance);
               const posture = approach.available && !approach.def.successEffects.skipCombat
@@ -426,6 +467,9 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
                     <div className="approach-card__title-group">
                       <h3 className={`approach-card__name approach-card__name--${approach.available ? 'available' : 'disabled'}`}>
                         {approach.def.name}
+                        {approach.available && OPTION_SHORTCUTS[idx] && (
+                          <span className="sw-shortcut">{OPTION_SHORTCUTS[idx]}</span>
+                        )}
                       </h3>
                       {isCurrentPreferred && (
                         <span className="approach-card__tag approach-card__tag--safe">Active</span>
@@ -692,6 +736,7 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
                 className="confirm-modal__btn confirm-modal__btn--back"
               >
                 Back
+                <span className="sw-shortcut">Esc</span>
               </button>
               <button
                 type="button"
@@ -706,6 +751,7 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
                 {commitLocked
                   ? (isPreference ? 'Saving…' : 'Engaging…')
                   : (isPreference ? 'Set Approach' : 'Engage')}
+                <span className="sw-shortcut">Enter</span>
               </button>
             </div>
           </div>

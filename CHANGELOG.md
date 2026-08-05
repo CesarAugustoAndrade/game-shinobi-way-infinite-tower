@@ -5,6 +5,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 ## [Unreleased]
 
 ### Changed
+- **Loot hotkeys:** on the victory loot screen, **Z** equips the first spoil and **X** stores it in the bag (hints on the primary card + keyboard strip). Space/Enter leave unchanged.
 - **Sunken Ship identity** (`landOfWaves.ts`, `RegionSystem.ts`): intentional-scuttle / false-floor treasury copy aligned with `shipwreck_whisper`; pool drops `beach_bandit` for `cove_smuggler`; terrain adds mental pressure + stronger water/movement; atmosphere `hold_breath` / `spectral_count` / `false_floor_lock`; path lines to forest and drowned shrine themed.
 - **Smuggler's Cave identity** (`landOfWaves.ts`, `RegionSystem.ts`): black-ledger tunnel copy (oilcloth, tripwires, Gato's unowned crates); enemy pool drops redundant `guard_dog`, adds `mist_ninja` for mist-cache beat; terrain gains ambush + visibility penalty; atmosphere `oilcloth_ledger` / `wired_tunnel` / `tarp_handshake`; path lines to camp/village/cove/beach themed.
 - **Riverside Camp identity** (`landOfWaves.ts`, `RegionSystem.ts`): ashfire road-seller copy aligned with `riverside_traveler_pact`; enemy pool swapped off forest/dock generic (drop `forest_bandit`/`hired_muscle`, add `missing_nin`/`smuggler`); terrain gains ambush + stealth beside water; atmosphere tags `ashfire_smoke` / `rope_ferry` / `sold_road` with prose; path lines sell bridge approaches instead of generic travel.

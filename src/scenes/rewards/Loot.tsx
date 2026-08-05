@@ -140,37 +140,87 @@ const Loot: React.FC<LootProps> = ({
     onLeaveAll();
   }, [isProcessing, onLeaveAll]);
 
-  // Keyboard: SPACE/ENTER leave (or confirm); Esc cancels confirm
+  // Check if bag has space
+  const bagHasSpace = player ? player.bag.some(s => s === null) : false;
+  const bagSlotCount = player?.bag.filter(s => s !== null).length || 0;
+
+  /** First unclaimed spoil — Z equip / X store act on this card. */
+  const primaryItem = droppedItems[0] ?? null;
+
+  // Keep latest handlers/items in refs so the window listener never goes stale
+  const equipRef = useRef(onEquipItem);
+  const storeRef = useRef(onStoreToBag);
+  const primaryRef = useRef(primaryItem);
+  const bagSpaceRef = useRef(bagHasSpace);
+  equipRef.current = onEquipItem;
+  storeRef.current = onStoreToBag;
+  primaryRef.current = primaryItem;
+  bagSpaceRef.current = bagHasSpace;
+
+  // Keyboard: Z equip · X store · SPACE/ENTER leave; Esc cancels confirm
+  // Capture phase so other shell listeners cannot swallow Z/X first.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const t = e.target;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        (t instanceof HTMLElement && t.isContentEditable)
+      ) {
+        return;
+      }
       if (isProcessing) return;
 
       if (e.key === 'Escape' && confirmLeave) {
         e.preventDefault();
+        e.stopPropagation();
         setConfirmLeave(false);
+        return;
+      }
+
+      if (confirmLeave) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          confirmLeaveAll();
+        }
+        return;
+      }
+
+      // Z — equip first spoil (physical KeyZ; Spanish layout safe)
+      if (e.code === 'KeyZ') {
+        const item = primaryRef.current;
+        if (item) {
+          e.preventDefault();
+          e.stopPropagation();
+          equipRef.current(item);
+        }
+        return;
+      }
+
+      // X — store first spoil in bag
+      if (e.code === 'KeyX') {
+        const item = primaryRef.current;
+        const store = storeRef.current;
+        if (item && store && bagSpaceRef.current) {
+          e.preventDefault();
+          e.stopPropagation();
+          store(item);
+        }
         return;
       }
 
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
-        if (confirmLeave) {
-          confirmLeaveAll();
-        } else {
-          requestLeave();
-        }
-        return;
+        e.stopPropagation();
+        requestLeave();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isProcessing, confirmLeave, confirmLeaveAll, requestLeave]);
-
-  // Check if bag has space
-  const bagHasSpace = player ? player.bag.some(s => s === null) : false;
-  const bagSlotCount = player?.bag.filter(s => s !== null).length || 0;
 
   return (
     <SceneBackdrop background={background}>
@@ -210,6 +260,17 @@ const Loot: React.FC<LootProps> = ({
 
       {/* Keyboard Hints */}
       <div className="loot__hints">
+        {remainingCount > 0 && droppedItems.length > 0 && (
+          <span className="loot__hint">
+            <span className="sw-shortcut">Z</span> Equip
+            {onStoreToBag && (
+              <>
+                {' · '}
+                <span className="sw-shortcut">X</span> Store
+              </>
+            )}
+          </span>
+        )}
         <span className="loot__hint">
           <span className="sw-shortcut">Space</span> or <span className="sw-shortcut">Enter</span>{' '}
           {remainingCount === 0 ? 'Step onward' : 'Leave the spoils'}
@@ -400,8 +461,12 @@ const Loot: React.FC<LootProps> = ({
                   disabled={isProcessing}
                   onClick={(e) => { e.stopPropagation(); onEquipItem(item); }}
                   className="loot-card__btn loot-card__btn--equip"
+                  title={item.id === primaryItem?.id ? 'Equip (Z)' : 'Equip'}
                 >
                   Equip
+                  {item.id === primaryItem?.id && (
+                    <span className="sw-shortcut">Z</span>
+                  )}
                 </button>
                 {onStoreToBag && (
                   <button
@@ -409,10 +474,17 @@ const Loot: React.FC<LootProps> = ({
                     disabled={isProcessing || !bagHasSpace}
                     onClick={(e) => { e.stopPropagation(); onStoreToBag(item); }}
                     className={`loot-card__btn ${bagHasSpace ? 'loot-card__btn--store' : 'loot-card__btn--store-disabled'}`}
-                    title={bagHasSpace ? `Store in bag (${bagSlotCount}/${MAX_BAG_SLOTS})` : 'Bag is full'}
+                    title={
+                      bagHasSpace
+                        ? `Store in bag (${bagSlotCount}/${MAX_BAG_SLOTS})${item.id === primaryItem?.id ? ' · X' : ''}`
+                        : 'Bag is full'
+                    }
                   >
                     <Package size={12} />
-                    {bagSlotCount}/{MAX_BAG_SLOTS}
+                    Store
+                    {item.id === primaryItem?.id && bagHasSpace && (
+                      <span className="sw-shortcut">X</span>
+                    )}
                   </button>
                 )}
               </div>

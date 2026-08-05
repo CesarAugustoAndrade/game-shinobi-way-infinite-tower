@@ -205,7 +205,7 @@ const OfferCard: React.FC<OfferCardProps> = ({
     >
       <div className="train-offer__header">
         <div className="train-offer__header-left">
-          <span className="train-offer__index">{index + 1}</span>
+          <span className="train-offer__index">{['A', 'S', 'D', 'Z', 'X', 'C'][index] ?? (index + 1)}</span>
           <span className="train-offer__category">{info.categoryLabel}</span>
           {isFocus && (
             <span className="train-offer__focus-badge" title="Matches region Focus">
@@ -345,12 +345,18 @@ const Training: React.FC<TrainingProps> = ({
         return;
       }
 
-      if (e.key >= '1' && e.key <= '3') {
+      const optionKeys = ['A', 'S', 'D', 'Z', 'X', 'C'];
+      const upperKey = e.key.toUpperCase();
+      let index = -1;
+      if (e.key >= '1' && e.key <= '6') {
+        index = parseInt(e.key, 10) - 1;
+      } else if (optionKeys.includes(upperKey)) {
+        index = optionKeys.indexOf(upperKey);
+      }
+
+      if (index >= 0 && index < training.options.length) {
         e.preventDefault();
-        const index = parseInt(e.key, 10) - 1;
-        if (index < training.options.length) {
-          handleSelect(index);
-        }
+        handleSelect(index);
       }
 
       if (e.key === 'Enter' && selectedIndex !== null) {
@@ -449,8 +455,8 @@ const Training: React.FC<TrainingProps> = ({
           <div className="training__divider">▸ Choose One Regimen</div>
           <div className="training__hints">
             <span className="training__hint">
-              <span className="sw-shortcut">1</span>-
-              <span className="sw-shortcut">3</span> Select
+              <span className="sw-shortcut">A</span>-
+              <span className="sw-shortcut">D</span> Select
             </span>
             <span className="training__hint">
               <span className="sw-shortcut">Enter</span> Confirm

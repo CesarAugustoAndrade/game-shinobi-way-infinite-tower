@@ -311,7 +311,7 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
     >
       <div className="choice-card__header">
         <div className="choice-card__header-left">
-          <span className="choice-card__index">{index + 1}</span>
+          <span className="choice-card__index">{['A', 'S', 'D', 'Z', 'X', 'C'][index] ?? (index + 1)}</span>
           <span className="choice-card__label">{choice.label}</span>
         </div>
         <RiskMeter riskLevel={choice.riskLevel} />
@@ -454,10 +454,18 @@ const Event: React.FC<EventProps> = ({
       if (!player || choiceLocked || choiceLockRef.current) return;
       const key = e.key;
 
-      if (key >= '1' && key <= '4') {
-        e.preventDefault();
-        const index = parseInt(key) - 1;
-        if (index < availableChoices.length && isChoiceAvailable(availableChoices[index])) {
+      const optionKeys = ['A', 'S', 'D', 'Z', 'X', 'C'];
+      const upperKey = key.toUpperCase();
+      let index = -1;
+      if (key >= '1' && key <= '6') {
+        index = parseInt(key, 10) - 1;
+      } else if (optionKeys.includes(upperKey)) {
+        index = optionKeys.indexOf(upperKey);
+      }
+
+      if (index >= 0 && index < availableChoices.length) {
+        if (isChoiceAvailable(availableChoices[index])) {
+          e.preventDefault();
           handleSelect(index);
         }
       }
@@ -522,7 +530,7 @@ const Event: React.FC<EventProps> = ({
               <div className="event__divider">▸ Choose Your Path</div>
               <div className="event__hints">
                 <span className="event__hint">
-                  <span className="sw-shortcut">1</span>-<span className="sw-shortcut">4</span> Select
+                  <span className="sw-shortcut">A</span>–<span className="sw-shortcut">C</span> Select
                 </span>
                 <span className="event__hint">
                   <span className="sw-shortcut">Enter</span> Confirm
