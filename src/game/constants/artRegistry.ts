@@ -379,32 +379,44 @@ export function getArtifactArt(name: string): ArtEntry {
   return getArt(artKey('artifact', artSlug(name)));
 }
 
+/** Convention install path for cinematic skill plates (16:9 painted PNGs). */
+export function skillArtPath(id: string): string {
+  return `/assets/skills/skill_${id}.png`;
+}
+
 /**
- * Resolve skill art (T-020).
- * Cascade: registry skill:<id> → skill.image field → skill.icon emoji → mystery.
- * After full catalog generation, every known skill id has a registry src.
+ * Resolve skill art (T-020 + full catalog plates).
+ * Cascade: registry skill:<id> (with src) → skill.image → convention skill_<id>.png
+ * → skill.icon emoji → mystery.
+ * Painted plates live at public/assets/skills/skill_<id>.png for every catalog id.
  */
 export function getSkillArt(
   skill: Pick<Skill, 'id' | 'name' | 'image' | 'icon'> | string,
 ): ArtEntry {
   const id = typeof skill === 'string' ? skill : skill.id;
   const registered = ART_REGISTRY[artKey('skill', id)];
-  if (registered) return registered;
+  if (registered?.src) return registered;
 
   if (typeof skill !== 'string') {
     if (skill.image) {
-      return { src: skill.image, emoji: skill.icon || '⚔️', label: skill.name };
+      return { src: skill.image, emoji: skill.icon || registered?.emoji || '⚔️', label: skill.name };
     }
-    if (skill.icon) {
-      return { emoji: skill.icon, label: skill.name };
-    }
-    return { ...MYSTERY, label: skill.name };
+    // Prefer on-disk painted plate over emoji-only registry stubs
+    return {
+      src: skillArtPath(id),
+      emoji: skill.icon || registered?.emoji || '⚔️',
+      label: skill.name,
+    };
   }
 
-  return MYSTERY;
+  if (registered) {
+    return { ...registered, src: skillArtPath(id) };
+  }
+
+  return { src: skillArtPath(id), emoji: '⚔️', label: id };
 }
 
-/** Skill ids still missing registry src (should be empty after T-020). */
+/** Skill ids still missing registry src (should be empty after full plate catalog). */
 export function listMissingSkillArt(): string[] {
   return SKILL_ART_MANIFEST.filter((m) => !m.src).map((m) => m.id);
 }
@@ -566,7 +578,7 @@ export const ART_BACKLOG_NOTES = {
     'clan:* (5)',
   ],
   T020_skills:
-    'skill:* (114) registered — 93 painted PNG faces under /assets/skills/skill_*.png (WAVE12: no new paint; R1 clan loadout 35/35 ON_DISK; FREE_FIRST toggle parity + silence/empty-hand pass feedback; endgame 21 jpg held; WAVE9–11 cost/block/FloatingText held).',
+    'skill:* (116) registered — full cinematic 16:9 painted PNG faces under /assets/skills/skill_<id>.png (catalog docs/skill-art-prompts.md). getSkillArt falls back to skillArtPath(id). basic_atk → skill_basic_atk.png; heavy_kick + adamantine_chains in manifest.',
   T021_enemies_events:
     'enemy: painted portraits + enemy_cut_* (WAVE15: archetype_tank shinobi regen; pool_mist_ninja plate-owner key; mist-keyword → pool_mist_ninja; WAVE14 residual 15 JPGs deleted + P0/P1 regen + 5 DEDICATE plates). Soft-share KEEP: job_ninja/shinobi→exhausted_shinobi; guard_dog→war_dog; hidden_guard→mist_ninja; assassin→hired_assassin. event: 44 on-disk event_*.png plates wired painted-png (5 cat + 39 event/alias keys; residual R1 reuses meet_tazuna/caravan/intel/mist_ambush/shrine).',
   T_laminas_r1:

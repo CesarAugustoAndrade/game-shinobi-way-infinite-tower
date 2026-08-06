@@ -5,6 +5,8 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 ## [Unreleased]
 
 ### Changed
+- **Skill art full catalog wired to combat:** all ~116 skills use cinematic 16:9 plates at `public/assets/skills/skill_<id>.png`. `skillArtManifest` points `basic_atk` at `skill_basic_atk.png` (was `skill_taijutsu.png`); added `heavy_kick` + `adamantine_chains`. `getSkillArt` falls back to `skillArtPath(id)` so unregistered ids still resolve painted art. Skill cards keep `object-fit: cover` / `object-position: center 30%`.
+- **Skill art prompt catalog:** added `docs/skill-art-prompts.md` with ready-to-use 16:9 cinematic generation prompts for every skill id (manifest order + leftovers), shared structural style lock for PC skill cards.
 - **Loot hotkeys:** on the victory loot screen, **Z** equips the first spoil and **X** stores it in the bag (hints on the primary card + keyboard strip). Space/Enter leave unchanged.
 - **Sunken Ship identity** (`landOfWaves.ts`, `RegionSystem.ts`): intentional-scuttle / false-floor treasury copy aligned with `shipwreck_whisper`; pool drops `beach_bandit` for `cove_smuggler`; terrain adds mental pressure + stronger water/movement; atmosphere `hold_breath` / `spectral_count` / `false_floor_lock`; path lines to forest and drowned shrine themed.
 - **Smuggler's Cave identity** (`landOfWaves.ts`, `RegionSystem.ts`): black-ledger tunnel copy (oilcloth, tripwires, Gato's unowned crates); enemy pool drops redundant `guard_dog`, adds `mist_ninja` for mist-cache beat; terrain gains ambush + visibility penalty; atmosphere `oilcloth_ledger` / `wired_tunnel` / `tarp_handshake`; path lines to camp/village/cove/beach themed.

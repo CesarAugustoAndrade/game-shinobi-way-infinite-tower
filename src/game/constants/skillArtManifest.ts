@@ -18,7 +18,7 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "action": "ACTIVE",
     "dmg": "PHYSICAL",
     "emoji": "👊",
-    "src": "/assets/skills/skill_taijutsu.png",
+    "src": "/assets/skills/skill_basic_atk.png",
     "quality": "painted-png"
   },
   {
@@ -1149,6 +1149,26 @@ export const SKILL_ART_MANIFEST: SkillArtManifestEntry[] = [
     "dmg": "TRUE",
     "emoji": "🪨",
     "src": "/assets/skills/skill_tengai_shinsei.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "adamantine_chains",
+    "name": "Adamantine Attacking Chains",
+    "el": "PHYSICAL",
+    "action": "ACTIVE",
+    "dmg": "PHYSICAL",
+    "emoji": "⛓️",
+    "src": "/assets/skills/skill_adamantine_chains.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "heavy_kick",
+    "name": "Taijutsu: Heavy Kick",
+    "el": "PHYSICAL",
+    "action": "ACTIVE",
+    "dmg": "PHYSICAL",
+    "emoji": "🦵",
+    "src": "/assets/skills/skill_heavy_kick.png",
     "quality": "painted-png"
   }
 ];
