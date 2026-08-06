@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Uzumaki Vitality — vitality seal of the Uzumaki clan. Bright red spiral swirl emblem with soft life-force glow, traditional sealing formula marks around a floating red spiral medallion. Clan vitality prop only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered spiral emblem fills most of the square frame, floating, no person, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, full character, black background, pure black matte, transparent checkerboard, gradient background, watermark.

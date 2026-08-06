@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Ten-Tails Husk — fragment of the God Tree / Ten-Tails. Twisted dark wood root husk with pale eye-like knot and green-black bark vines, ominous divine tree fragment (subject is green-heavy foliage/wood). Prop only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered husk fills most of the square frame, floating, no full monster body, no floor, no environment.
+
+Background: flat solid pure magenta hot-pink background #FF00FF, chroma key magenta, uniform, no gradient, no texture, no vignette. (Do NOT use green screen — subject is green-heavy.)
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, green screen background, black background, pure black matte, transparent checkerboard, gradient background, watermark, gore, violence.

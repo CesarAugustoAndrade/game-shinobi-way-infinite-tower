@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Iron Sand — magnetic iron sand from the Third Kazekage technique. A floating swirling cluster / dense stream of fine dark metallic black-grey sand grains with sharp steel glints, forming a defensive spiraling cloud or pillar shape, subtle purple-magnetism energy lines between grains. Shinobi sand weapon material, not beach sand.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered hero prop fills most of the square frame, dynamic swirl pose, floating, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, desert dunes, floor, black background, pure black matte, transparent checkerboard, gradient background, hourglass, watermark.

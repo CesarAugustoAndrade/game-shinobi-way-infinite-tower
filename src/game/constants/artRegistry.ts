@@ -77,15 +77,15 @@ function entry(emoji: string, label: string, src?: string): ArtEntry {
 // ============================================================================
 
 const COMPONENTS: Record<string, ArtEntry> = {
-  [ComponentId.NINJA_STEEL]: entry('⚔️', 'Ninja Steel', iconPath('components', 'ninja_steel', 'jpg')),
-  [ComponentId.SPIRIT_TAG]: entry('📜', 'Spirit Tag', iconPath('components', 'spirit_tag', 'jpg')),
-  [ComponentId.CHAKRA_PILL]: entry('💊', 'Chakra Pill', iconPath('components', 'chakra_pill', 'jpg')),
-  [ComponentId.IRON_SAND]: entry('🛡️', 'Iron Sand', iconPath('components', 'iron_sand', 'jpg')),
-  [ComponentId.ANBU_MASK]: entry('🎭', 'ANBU Mask', iconPath('components', 'anbu_mask', 'jpg')),
-  [ComponentId.TRAINING_WEIGHTS]: entry('🏋️', 'Training Weights', iconPath('components', 'training_weights', 'jpg')),
-  [ComponentId.SWIFT_SANDALS]: entry('👟', 'Swift Sandals', iconPath('components', 'swift_sandals', 'jpg')),
-  [ComponentId.TACTICAL_SCROLL]: entry('🧠', 'Tactical Scroll', iconPath('components', 'tactical_scroll', 'jpg')),
-  [ComponentId.HASHIRAMA_CELL]: entry('🧬', 'Hashirama Cell', iconPath('components', 'hashirama_cell', 'jpg')),
+  [ComponentId.NINJA_STEEL]: entry('⚔️', 'Ninja Steel', iconPath('components/cutouts', 'ninja_steel', 'png')),
+  [ComponentId.SPIRIT_TAG]: entry('📜', 'Spirit Tag', iconPath('components/cutouts', 'spirit_tag', 'png')),
+  [ComponentId.CHAKRA_PILL]: entry('💊', 'Chakra Pill', iconPath('components/cutouts', 'chakra_pill', 'png')),
+  [ComponentId.IRON_SAND]: entry('🛡️', 'Iron Sand', iconPath('components/cutouts', 'iron_sand', 'png')),
+  [ComponentId.ANBU_MASK]: entry('🎭', 'ANBU Mask', iconPath('components/cutouts', 'anbu_mask', 'png')),
+  [ComponentId.TRAINING_WEIGHTS]: entry('🏋️', 'Training Weights', iconPath('components/cutouts', 'training_weights', 'png')),
+  [ComponentId.SWIFT_SANDALS]: entry('👟', 'Swift Sandals', iconPath('components/cutouts', 'swift_sandals', 'png')),
+  [ComponentId.TACTICAL_SCROLL]: entry('🧠', 'Tactical Scroll', iconPath('components/cutouts', 'tactical_scroll', 'png')),
+  [ComponentId.HASHIRAMA_CELL]: entry('🧬', 'Hashirama Cell', iconPath('components/cutouts', 'hashirama_cell', 'png')),
 };
 
 /** Artifact name → emoji (mirrors synthesis.ts; src from slug). */
@@ -140,7 +140,7 @@ const ARTIFACT_META: Array<{ name: string; emoji: string }> = [
 const ARTIFACTS: Record<string, ArtEntry> = Object.fromEntries(
   ARTIFACT_META.map(({ name, emoji }) => {
     const id = artSlug(name);
-    return [id, entry(emoji, name, iconPath('artifacts', id, 'jpg'))];
+    return [id, entry(emoji, name, iconPath('artifacts/cutouts', id, 'png'))];
   }),
 );
 

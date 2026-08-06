@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+ANBU Mask — porcelain animal-style Root/ANBU operative mask from the shinobi world. White ceramic face plate with black painted markings (cat or hawk style eye slits and jaw lines), red accent marks, dark cloth ties behind, subtle cold porcelain sheen. Iconic leaf-village black ops mask prop, not a full helmet.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered three-quarter mask fills most of the square frame, floating, no neck, no body, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, full character wearing mask, black background, pure black matte, transparent checkerboard, gradient background, hockey mask, gas mask, watermark.

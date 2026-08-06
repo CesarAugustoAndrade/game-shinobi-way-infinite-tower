@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Tactical Scroll — strategic analysis scroll from Konoha Intelligence. Partially unrolled traditional paper scroll on wooden rods, ink battle maps / terrain lines / small tactical symbols, red wax seal or leaf-village style stamp, aged cream paper. Intelligence briefing prop, not a blank blank parchment.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered unrolled scroll fills most of the square frame, slight angle, floating, no hands, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern tablet, English paragraphs of readable text, black background, pure black matte, transparent checkerboard, gradient background, watermark.

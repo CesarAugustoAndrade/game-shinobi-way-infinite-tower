@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Explosive Tag Array — stack of traditional Japanese paper sealing tags / ofuda with bold black kanji and red geometric seal marks, tied with cord as a fan or cluster of talismans. Classic shinobi paper tag prop for tools, not a real-world bomb. Soft orange spark accents only, no fireball.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered tag cluster fills most of the square frame, slight angle, floating, no hands, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern dynamite, military grenade, realistic explosion, black background, pure black matte, transparent checkerboard, gradient background, watermark, blood, violence.

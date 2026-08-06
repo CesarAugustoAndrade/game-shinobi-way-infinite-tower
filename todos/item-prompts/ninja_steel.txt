@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Ninja Steel — a dense rectangular billet of chakra-conductive dark steel from the Land of Iron. Metal looks forged and heavy: charcoal-black body with cool blue-steel highlights, subtle purple-iridescent oil sheen on the top face, small forge-pock marks and tiny sparks at one corner. Shinobi-world prop, not sci-fi crystal.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered hero prop fills most of the square frame, slight 3/4 angle, floating with no floor shadow plate, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI render, soft SSS, environment, floor, wooden table, black background, pure black matte, transparent checkerboard, gradient background, text, watermark, logo.

@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Chakra Pill — military ration soldier pill from shinobi world. One large oval hard pill (and optionally a tiny second pill behind), deep red-brown to terracotta body with a pale cream band stripe around the middle, slight medicinal gloss, faint orange chakra warmth inside. Feels like wartime ninja field ration, not modern pharmacy capsule.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered hero prop fills most of the square frame, slight 3/4 angle, floating, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, black background, pure black matte, transparent checkerboard, gradient background, modern blister pack, pharmacy branding, watermark.

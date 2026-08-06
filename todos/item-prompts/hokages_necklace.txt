@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Hokage's Necklace — sacred crystal necklace of the Hokage line. Faceted teal-blue crystal pendant on a simple dark cord, soft holy glow, traditional jewelry prop of leaf village leadership. Necklace only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered necklace fills most of the square frame, floating, no neck, no person, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern jewelry ad, black background, pure black matte, transparent checkerboard, gradient background, watermark.

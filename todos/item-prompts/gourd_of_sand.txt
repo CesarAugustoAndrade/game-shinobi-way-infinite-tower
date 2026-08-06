@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Gourd of Sand — large traditional Japanese calabash gourd used by sand-style shinobi. Corked gourd vessel, tan-brown dried gourd surface, cloth wrap straps, faint swirling sand particles near the mouth, desert-mystic prop. Gourd only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered gourd fills most of the square frame, slight 3/4 angle, floating, no hands, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern water bottle, black background, pure black matte, transparent checkerboard, gradient background, watermark.

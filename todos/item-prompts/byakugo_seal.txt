@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Byakugō Seal — diamond forehead strength-of-a-hundred seal. Glowing pale violet-pink diamond-shaped seal glyph with soft healing chakra light, small spiral formula marks, mystical medical ninjutsu seal prop floating alone (no face).
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered diamond seal fills most of the square frame, floating, no person, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, full character face, black background, pure black matte, transparent checkerboard, gradient background, watermark.

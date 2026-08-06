@@ -5,6 +5,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 ## [Unreleased]
 
 ### Changed
+- **Item art cutouts:** artifacts/components use transparent PNG cutouts (`icons/*/cutouts/` + `public/assets/cutouts/`). `artRegistry` points at those paths; `ArtIcon` applies `object-fit: contain` / `art-icon--cutout` for PNG cutouts.
 - **Skill art full catalog wired to combat:** all ~116 skills use cinematic 16:9 plates at `public/assets/skills/skill_<id>.png`. `skillArtManifest` points `basic_atk` at `skill_basic_atk.png` (was `skill_taijutsu.png`); added `heavy_kick` + `adamantine_chains`. `getSkillArt` falls back to `skillArtPath(id)` so unregistered ids still resolve painted art. Skill cards keep `object-fit: cover` / `object-position: center 30%`.
 - **Skill art prompt catalog:** added `docs/skill-art-prompts.md` with ready-to-use 16:9 cinematic generation prompts for every skill id (manifest order + leftovers), shared structural style lock for PC skill cards.
 - **Loot hotkeys:** on the victory loot screen, **Z** equips the first spoil and **X** stores it in the bag (hints on the primary card + keyboard strip). Space/Enter leave unchanged.

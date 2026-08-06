@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Curse Mark Essence — dark purple-black liquid essence in a small sealed vial, cursed tomoe/spiral seal pattern floating inside, faint dark-purple energy wisps. Forbidden power sample prop. Vial only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered vial fills most of the square frame, slight 3/4 angle, floating, no hands, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, real human blood, black background, pure black matte, transparent checkerboard, gradient background, watermark, gore, violence.

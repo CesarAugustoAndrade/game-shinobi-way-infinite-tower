@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Chakra Flow Blade — a shinobi short sword with blue-white energy aura along the blade edge. Dark steel tanto, cloth-wrapped hilt, soft glowing cyan chakra sheen (not violent sparks), fantasy anime prop weapon. (Note: first prompt with "crackling electricity" was content-moderated; this softer wording works.)
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered blade fills most of the square frame, slight diagonal, floating, no hands, no character, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, lightsaber, black background, pure black matte, transparent checkerboard, gradient background, watermark.

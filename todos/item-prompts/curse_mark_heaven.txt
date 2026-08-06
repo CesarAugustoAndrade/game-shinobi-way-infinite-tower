@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Curse Mark (Heaven) — heaven curse mark seal design as a floating glyph. Dark purple-black wing-like tomoe seal pattern with soft violet energy, stylized Heaven brand of Orochimaru style as pure seal art, no body.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered seal glyph fills most of the square frame, floating, no person, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, full character body, black background, pure black matte, transparent checkerboard, gradient background, watermark, gore, violence.
