@@ -69,8 +69,19 @@ import {
   TreasureHunt,
   VaultRewardOption,
 } from '../types';
-import { generateEnemy } from './EnemySystem';
+import {
+  generateEnemy,
+  computeEnemyStatBudget,
+  applyAdditiveStatBudget,
+  type EnemyArchetype,
+} from './EnemySystem';
 import { getEnemyFullStats } from './StatSystem';
+import {
+  applyHeatDelta,
+  HUNTER_EXIT_CHANCE_BONUS,
+  initialHeatState,
+} from './HeatSystem';
+import { preferredRangeForEnemy } from './RangeSystem';
 import { generateLoot, generateRandomArtifact, generateSkillForFloor, generateComponentByQuality, generateMerchantItem } from './LootSystem';
 import {
   getClanLevelSkillChoices,
@@ -598,7 +609,8 @@ function generateRestActivity(): RoomActivities['rest'] {
  * Called only when weighted selection picks training for this room.
  */
 function generateTrainingActivity(
-  floor: number
+  floor: number,
+  dangerLevel: number = 1
 ): RoomActivities['training'] | undefined {
   // Check feature flag first
   if (!FeatureFlags.ENABLE_TRAINING) return undefined;
@@ -616,7 +628,8 @@ function generateTrainingActivity(
   const costTypes: Array<'hp' | 'chakra' | 'ryo'> = ['hp', 'chakra', 'ryo'];
   const shuffledCosts = [...costTypes].sort(() => Math.random() - 0.5);
 
-  const baseGain = 1 + Math.floor(floor / 10);
+  // F1: normal +1; at most one +2 jackpot at 5%×Danger, cost ×2.5
+  const baseGain = 1;
   const hpCost = 10 + floor * 2;
   const chakraCost = Math.max(1, Math.round(8 + floor * 1.5));
   const ryoCost = 15 + floor * 5;
@@ -627,13 +640,21 @@ function generateTrainingActivity(
     return ryoCost;
   };
 
+  const jackpotIndex =
+    Math.random() < 0.05 * dangerLevel ? Math.floor(Math.random() * 3) : -1;
+
   return {
-    options: selectedStats.map((stat, i) => ({
-      stat,
-      costType: shuffledCosts[i],
-      cost: costFor(shuffledCosts[i]),
-      gain: baseGain,
-    })),
+    options: selectedStats.map((stat, i) => {
+      const isJackpot = i === jackpotIndex;
+      const gain = isJackpot ? 2 : baseGain;
+      const cost = Math.round(costFor(shuffledCosts[i]) * (isJackpot ? 2.5 : 1));
+      return {
+        stat,
+        costType: shuffledCosts[i],
+        cost,
+        gain,
+      };
+    }),
     completed: false,
   };
 }
@@ -791,6 +812,8 @@ function generateTreasureActivity(
     selectedIndex: null,
     collected: false,
     mapPieceAvailable,
+    // F3: optional treasure claim raises heat (valuable +10)
+    heatDelta: 10,
   };
 }
 
@@ -972,7 +995,7 @@ function generateActivityData(
     case 'rest':
       return generateRestActivity();
     case 'training':
-      return generateTrainingActivity(floor);
+      return generateTrainingActivity(floor, dangerLevel);
     case 'treasure':
       return generateTreasureActivity(
         floor, difficulty, wealthLevel, player, treasureHunt, lootTable,
@@ -1207,28 +1230,120 @@ function generateGuardian(
   preferredElement?: import('../types').ElementType,
   dangerLevel: number = 4,
 ): Enemy {
-  // Use config dangerLevel directly — floorToDangerLevel(effectiveFloor) double-counts.
-  // T-057/T-073: pool art + region preferred element bias
-  const enemy = generateEnemy(
-    dangerLevel, locationsCleared, 'ELITE', difficulty + 15, arc, undefined, enemyPool,
+  void floor;
+  // F1: Elite kit/theme, then replace primaries with Guardian rank additive budget (4).
+  const baseEnemy = generateEnemy(
+    dangerLevel,
+    locationsCleared,
+    'ELITE',
+    difficulty,
+    arc,
+    undefined,
+    enemyPool,
     preferredElement,
   );
+  const arch = (baseEnemy.archetype as EnemyArchetype) || 'TANK';
+  const bases: Record<EnemyArchetype, import('../types').PrimaryAttributes> = {
+    TANK: { willpower: 3, chakra: 1, strength: 4, spirit: 2, intelligence: 1, calmness: 2, speed: 1, accuracy: 1, dexterity: 1 },
+    ASSASSIN: { willpower: 1, chakra: 1, strength: 3, spirit: 1, intelligence: 1, calmness: 1, speed: 3, accuracy: 2, dexterity: 3 },
+    CASTER: { willpower: 1, chakra: 3, strength: 1, spirit: 4, intelligence: 3, calmness: 1, speed: 1, accuracy: 1, dexterity: 1 },
+    GENJUTSU: { willpower: 1, chakra: 2, strength: 1, spirit: 3, intelligence: 4, calmness: 3, speed: 1, accuracy: 1, dexterity: 1 },
+    BALANCED: { willpower: 2, chakra: 2, strength: 3, spirit: 3, intelligence: 2, calmness: 2, speed: 2, accuracy: 2, dexterity: 2 },
+  };
+  const budget = computeEnemyStatBudget(dangerLevel, locationsCleared, difficulty, 'GUARDIAN');
+  const primaryStats = applyAdditiveStatBudget(bases[arch], budget, arch);
+  const derived = getEnemyFullStats({ ...baseEnemy, primaryStats }).derived;
+  return {
+    ...baseEnemy,
+    name: `Guardian ${baseEnemy.name.replace(/^Guardian\s+/, '')}`,
+    tier: 'Guardian',
+    primaryStats,
+    currentHp: derived.maxHp,
+    currentChakra: derived.maxChakra,
+  };
+}
 
-  // Apply Guardian stat multipliers
-  enemy.name = `Guardian ${enemy.name}`;
-  enemy.tier = 'Guardian';
-  enemy.primaryStats.willpower = Math.floor(enemy.primaryStats.willpower * 1.3);
-  enemy.primaryStats.strength = Math.floor(enemy.primaryStats.strength * 1.2);
-  enemy.primaryStats.spirit = Math.floor(enemy.primaryStats.spirit * 1.2);
+/**
+ * F3: Upgrade a Guardian (or any exit foe) into a Hunter.
+ * ×1.75 HP, ×1.35 damage (STR/SPI scaled), preferred range, 2× XP/Ryo, artifact guaranteed.
+ */
+export function generateHunterFromGuardian(guardian: Enemy): Enemy {
+  const primaryStats = {
+    ...guardian.primaryStats,
+    strength: Math.max(1, Math.round(guardian.primaryStats.strength * 1.35)),
+    spirit: Math.max(1, Math.round(guardian.primaryStats.spirit * 1.35)),
+    intelligence: Math.max(1, Math.round(guardian.primaryStats.intelligence * 1.2)),
+  };
+  const base = { ...guardian, primaryStats, isHunter: true, isBoss: false };
+  const derived = getEnemyFullStats(base).derived;
+  const maxHp = Math.max(1, Math.floor(derived.maxHp * 1.75));
+  const preferred = preferredRangeForEnemy(guardian);
+  const nameBase = guardian.name.replace(/^Guardian\s+/i, '').replace(/^Hunter\s+/i, '');
+  return {
+    ...base,
+    name: `Hunter ${nameBase}`,
+    tier: 'Hunter',
+    isHunter: true,
+    preferredRange: preferred,
+    rewardMultiplier: 2,
+    currentHp: maxHp,
+    currentChakra: derived.maxChakra,
+    dropRateBonus: Math.max(guardian.dropRateBonus ?? 0, 100),
+  };
+}
 
-  // Recalculate HP from the boosted willpower using the LIVE formula. This used to hardcode the
-  // pre-T-006 curve (willpower * 12 + 50), which exceeds the current HP_BASE 80 + willpower * 9 for
-  // any willpower > 10 — so guardians spawned above their own displayed maxHp (D7 read "1010 / 800")
-  // with the HP bar pinned at 100% for the first couple hundred damage. This is the only place in
-  // the repo that overrides an enemy's currentHp; everything else derives it the same way.
-  enemy.currentHp = getEnemyFullStats(enemy).derived.maxHp;
+/**
+ * F3: Apply heat delta to a floor; if newly armed, swap EXIT guardian → Hunter.
+ */
+export function applyFloorHeatDelta(
+  floor: BranchingFloor,
+  delta: number,
+): BranchingFloor {
+  const result = applyHeatDelta(floor.heat ?? 0, delta, floor.hunterArmed ?? false);
+  let next: BranchingFloor = {
+    ...floor,
+    heat: result.heat,
+    hunterArmed: result.hunterArmed,
+  };
+  if (result.newlyArmed || (result.hunterArmed && !floor.hunterArmed)) {
+    next = armHunterOnFloor(next);
+  }
+  return next;
+}
 
-  return enemy;
+/**
+ * F3: Latch hunter + immutably replace EXIT combat enemy with Hunter when present and not cleared.
+ * Does not force EXIT spawn before min rooms.
+ */
+export function armHunterOnFloor(floor: BranchingFloor): BranchingFloor {
+  let rooms = floor.rooms;
+  if (floor.exitRoomId) {
+    rooms = floor.rooms.map((room) => {
+      if (room.id !== floor.exitRoomId) return room;
+      if (room.isCleared) return room;
+      const combat = room.activities.combat;
+      if (!combat || combat.completed) return room;
+      if (combat.enemy.isHunter) return room;
+      const hunter = generateHunterFromGuardian(combat.enemy);
+      return {
+        ...room,
+        name: room.name.includes('Hunter') ? room.name : `Hunter Gate`,
+        description: room.description,
+        activities: {
+          ...room.activities,
+          combat: {
+            ...combat,
+            enemy: hunter,
+          },
+        },
+      };
+    });
+  }
+  return {
+    ...floor,
+    hunterArmed: true,
+    rooms,
+  };
 }
 
 // ============================================================================
@@ -1285,6 +1400,8 @@ export function calculateExitProbability(
   dangerLevel: number,
   hiddenRoomBonus: number = 0,
   intel: number = 0,
+  /** F3: hunterArmed adds +40pp after min rooms (cap 90%). */
+  hunterArmed: boolean = false,
 ): number {
   const minRooms = getMinRoomsBeforeExit(dangerLevel);
 
@@ -1297,12 +1414,14 @@ export function calculateExitProbability(
   const incrementPerRoom = 0.05;
   const clampedIntel = Math.max(0, Math.min(100, intel));
   const intelBonus = (clampedIntel / 100) * 0.4;
+  const hunterBonus = hunterArmed ? HUNTER_EXIT_CHANCE_BONUS : 0;
 
   const raw =
     baseChance +
     roomsBeyondMin * incrementPerRoom +
     hiddenRoomBonus +
-    intelBonus;
+    intelBonus +
+    hunterBonus;
   return Math.max(0, Math.min(0.9, raw));
 }
 
@@ -1336,6 +1455,7 @@ function pickExitChildIndex(
       branchingFloor.dangerLevel,
       bonus,
       branchingFloor.currentIntel,
+      branchingFloor.hunterArmed ?? false,
     );
     if (Math.random() >= probability) {
       return null;
@@ -1365,6 +1485,8 @@ function configureAsExitRoom(
   lootTheme?: import('../types').RegionLootTheme,
   preferredElement?: import('../types').ElementType,
   dangerLevel: number = 4,
+  /** F3: when hunter already armed, spawn Hunter instead of Guardian */
+  hunterArmed: boolean = false,
 ): BranchingRoom {
   const quality = maybeUpgradeQuality(player?.treasureQuality ?? DEFAULT_TREASURE_QUALITY);
   const { choiceCount, artifactChance, ryoMultiplier } = getTreasureConfig(wealthLevel);
@@ -1391,19 +1513,24 @@ function configureAsExitRoom(
   const baseRyo = 80 + floor * 15;
   const openCost = Math.max(0, calculateRevealCost(floor, choiceCount) - 5);
 
+  const guardian = generateGuardian(
+    floor, difficulty, player?.locationsCleared ?? 0, arc, enemyPool,
+    preferredElement ?? lootTheme?.primaryElement,
+    dangerLevel,
+  );
+  const exitEnemy = hunterArmed ? generateHunterFromGuardian(guardian) : guardian;
+
   return {
     ...room,
     isExit: true,
-    name: getRandomRoomName(BranchingRoomType.BOSS_GATE, arc),
+    name: hunterArmed
+      ? 'Hunter Gate'
+      : getRandomRoomName(BranchingRoomType.BOSS_GATE, arc),
     description: getRandomRoomDescription(BranchingRoomType.BOSS_GATE),
     icon: ROOM_TYPE_CONFIGS[BranchingRoomType.BOSS_GATE].icon,
     activities: {
       combat: {
-        enemy: generateGuardian(
-          floor, difficulty, player?.locationsCleared ?? 0, arc, enemyPool,
-          preferredElement ?? lootTheme?.primaryElement,
-          dangerLevel,
-        ),
+        enemy: exitEnemy,
         modifiers: [CombatModifierType.NONE],
         completed: false,
       },
@@ -1497,6 +1624,7 @@ export function generateChildrenForRoom(
           branchingFloor.lootTable, branchingFloor.lootTheme,
           branchingFloor.preferredElement,
           dangerLevel,
+          branchingFloor.hunterArmed ?? false,
         )
       : childRoom;
 
@@ -1689,6 +1817,7 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   // Stay on hub so map shows the 2 entry rooms as immediate choices (not parked on left).
   const currentRoomId = entryHub.id;
 
+  const heatInit = initialHeatState();
   const generatedFloor: BranchingFloor = {
     id: `floor-${floor}-${Date.now()}`,
     floor,
@@ -1716,6 +1845,8 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     terrainEffects,
     preferredElement,
     lootTheme,
+    heat: heatInit.heat,
+    hunterArmed: heatInit.hunterArmed,
   };
 
   return generatedFloor;

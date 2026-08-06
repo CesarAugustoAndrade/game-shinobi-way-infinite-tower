@@ -51,11 +51,12 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     exp: 0,
     maxExp: 100,
     primaryStats: {
-      willpower: 25, chakra: 22, strength: 12, spirit: 10,
-      intelligence: 10, calmness: 14, speed: 10, accuracy: 8, dexterity: 8,
+      willpower: 3, chakra: 3, strength: 1, spirit: 1,
+      intelligence: 1, calmness: 1, speed: 1, accuracy: 1, dexterity: 1,
     },
-    currentHp: 350,
-    currentChakra: 196,
+    unspentStatPoints: 0,
+    currentHp: 160, // WILL 3 → maxHp 100 + 20×3
+    currentChakra: 75,
     element: ElementType.WIND,
     ryo: 500,
     equipment: {
@@ -384,19 +385,27 @@ describe('simulateMerchant', () => {
 // ============================================================================
 
 describe('simulateCampaignRun — locationsCleared propagation', () => {
-  // Level 10 + real kit so D1 still clears under live EnemyAISystem (A-007).
-  // basic_atk-only Lv5 often dies before exit once sim uses selectEnemySkill.
+  // Level 12 + fuller kit so D1 still clears after early-combat retune (higher enemy offense).
+  // basic_atk-only kits die before exit once sim uses selectEnemySkill.
   const build: PlayerBuildConfig = {
     name: 'Uzumaki Test',
     clan: Clan.UZUMAKI,
-    level: 10,
-    skillIds: ['basic_atk', 'rasengan', 'shadow_clones'],
+    level: 12,
+    skillIds: [
+      'basic_atk',
+      'heavy_kick',
+      'shuriken',
+      'rasengan',
+      'shadow_clone',
+      'adamantine_chains',
+      'basic_medical',
+    ],
     element: ElementType.WIND,
   };
 
   const softConfig = {
     ...DEFAULT_CAMPAIGN_CONFIG,
-    playerLevel: 10,
+    playerLevel: 12,
     startDangerLevel: 1,
     fightEliteChallenges: false,
   };

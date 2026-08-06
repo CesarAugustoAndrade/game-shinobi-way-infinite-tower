@@ -50,6 +50,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 80,
               ryo: 300,
               setFlags: { waves_mercy: 1 },
+              heatDelta: 30,
               logMessage:
                 'You cut the ropes before the mist thickens. The father does not thank you with words — only a nod that costs him everything he has left.',
               logType: 'loot',
@@ -62,7 +63,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         description: 'MEDIUM RISK — Pay 200 ryo (needs 14 Intelligence); deal may sour',
         riskLevel: RiskLevel.MEDIUM,
         costs: { ryo: 200 },
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 14 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Coin speaks louder than honor here.',
         outcomes: [
           {
@@ -141,6 +142,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 250,
               // T-030: maps unlockCondition for Sunken Ship secret location
               setFlags: { sunken_ship_discovered: 1 },
+              heatDelta: 30,
               logMessage:
                 'You take what you can carry. A tide chart, ink still wet, marks a wreck offshore.',
               logType: 'loot',
@@ -165,7 +167,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Sabotage Quietly',
         description: 'MEDIUM RISK — Needs 18 Dexterity; ruin supplies, risk a scout',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 18 } },
+        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Cut straps. Spoil grain. Leave no signature.',
         outcomes: [
           {
@@ -175,6 +177,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 60,
               // T-030: smuggler intel unlocks Hidden Cove
               setFlags: { hidden_cove_discovered: 1 },
+              heatDelta: 20,
               logMessage:
                 'You ruin their stores without a sound — and overhear a name: a cove the maps do not show.',
               logType: 'gain',
@@ -208,6 +211,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 200,
               exp: 50,
               setFlags: { sunken_ship_discovered: 1, hidden_cove_discovered: 1 },
+              heatDelta: 30,
               logMessage:
                 'The Sharingan maps their loops. You take what you need and mark a sunken wreck and a hidden cove — then vanish before the fog shifts.',
               logType: 'loot',
@@ -254,6 +258,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 200,
               setFlags: { bridge_labor: 1 },
+              heatDelta: 30,
               logMessage:
                 'You haul timber until the fog tastes of iron. Pay lands cold in your palm — less than the work, more than the silence.',
               logType: 'gain',
@@ -265,7 +270,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Negotiate Better Terms',
         description: 'LOW RISK — Needs 16 Intelligence; squeeze the rate or sour the deal',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 16 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Fear talks if you price it carefully.',
         outcomes: [
           {
@@ -273,6 +278,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 300,
               setFlags: { bridge_labor: 1 },
+              heatDelta: 30,
               logMessage:
                 'You name a number that holds. Tazuna flinches, then nods — better a hard bargain than empty planks.',
               logType: 'gain',
@@ -283,6 +289,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 150,
               setFlags: { bridge_labor: 1 },
+              heatDelta: 20,
               logMessage:
                 'He pays less out of spite. In Wave, spite is still currency — and the bridge still needs hands.',
               logType: 'danger',
@@ -334,6 +341,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               // TASK-R05: unlocks DROWNED_SHRINE; mini-arc: tazuna_met opens bridge / Gato options
               setFlags: { drowned_shrine_discovered: 1, tazuna_met: 1 },
               chainTo: 'tazuna_road_mist',
+              heatDelta: 20,
               logMessage:
                 'You take the job. Tazuna grips his saw-bag like a weapon and leads you into the grey.',
               logType: 'gain',
@@ -345,7 +353,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Press Him for Threats',
         description: 'LOW RISK — Needs 12 Intelligence; intel on Gato / shrine (no escort chain)',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 12 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Fear talks if you give it structure.',
         outcomes: [
           {
@@ -353,6 +361,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 80,
               setFlags: { drowned_shrine_discovered: 1, tazuna_met: 1 },
+              heatDelta: 5,
               logMessage:
                 'He maps Gato\'s cutthroats, then the drowned shrine under black water — places no chart admits.',
               logType: 'gain',
@@ -409,6 +418,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 60,
               intelGain: 15,
               setFlags: { tazuna_road_done: 1 },
+              heatDelta: 5,
               logMessage:
                 'You hold the road until the fog thins at the village edge. Tazuna does not praise you. He still breathes. That is the payment.',
               logType: 'gain',
@@ -420,7 +430,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Scout the Tree Line',
         description: 'MEDIUM RISK — Needs 14 Speed; ambush chance vs. better pay',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.SPEED, value: 14 } },
+        requirements: { minStat: { stat: PrimaryStat.SPEED, value: 1 } },
         hintText: 'Something uses the mist the way fish use water.',
         outcomes: [
           {
@@ -430,6 +440,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 100,
               intelGain: 20,
               setFlags: { tazuna_road_done: 1 },
+              heatDelta: 20,
               logMessage:
                 'You flush a lookout from the pines — Gato\'s mark on his pouch. He flees. The road stays yours.',
               logType: 'loot',
@@ -462,6 +473,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 40,
               intelGain: 25,
               setFlags: { tazuna_road_done: 1 },
+              heatDelta: 5,
               logMessage:
                 '"The docks. The food. The fear." Tazuna stares at the grey. "Finish the bridge and we starve him of our silence."',
               logType: 'info',
@@ -507,6 +519,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 200,
               exp: 100,
               setFlags: { village_defended: 1 },
+              heatDelta: 30,
               logMessage:
                 'They leave without the tax — and without their cut. A widow presses dried fish into your hands like contraband rations.',
               logType: 'loot',
@@ -518,7 +531,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Rally the Villagers',
         description: 'MEDIUM RISK — Needs 14 Intelligence; organize a trap',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 14 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Nets, pots, quiet signals — Wave hands can close.',
         outcomes: [
           {
@@ -527,6 +540,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 120,
               ryo: 100,
               setFlags: { village_defended: 1 },
+              heatDelta: 20,
               logMessage:
                 'Nets, pots, and quiet signals. The collectors learn Wave hands can close as well as open.',
               logType: 'gain',
@@ -562,6 +576,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 80,
               intelGain: 15,
               setFlags: { village_defended: 1 },
+              heatDelta: 10,
               logMessage:
                 'A door opens before you knock. "You pulled a girl from the mist." The collectors find the street empty — and suddenly expensive.',
               logType: 'gain',
@@ -584,6 +599,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 90,
               intelGain: 20,
               setFlags: { village_defended: 1 },
+              heatDelta: 10,
               logMessage:
                 'They argue over a name that no longer exists. By the time steel comes out, the street is empty nets and closed shutters.',
               logType: 'gain',
@@ -606,6 +622,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 95,
               intelGain: 18,
               setFlags: { village_defended: 1 },
+              heatDelta: 10,
               logMessage:
                 'You drop the weighted stone on the porch boards. Villagers count aloud. Collectors leave rather than fight a market that just learned the real numbers.',
               logType: 'gain',
@@ -641,6 +658,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 110,
               ryo: 60,
               setFlags: { village_defended: 1 },
+              heatDelta: 10,
               logMessage:
                 'You break the page and the men who carried it. The village does not forgive you. It uses you.',
               logType: 'loot',
@@ -687,6 +705,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 75,
               setFlags: { inari_met: 1, inspired_inari: 1 },
+              heatDelta: 5,
               logMessage:
                 'You do not promise victory. You name the price of silence. Something in his shoulders unclenches — not a vow. Attention.',
               logType: 'gain',
@@ -698,7 +717,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Show What a Body Can Do',
         description: 'LOW RISK — Needs 15 Willpower; skill without spectacle',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.WILLPOWER, value: 15 } },
+        requirements: { minStat: { stat: PrimaryStat.WILLPOWER, value: 1 } },
         hintText: 'A kunai in a post. Breath held. No applause.',
         outcomes: [
           {
@@ -707,6 +726,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 100,
               ryo: 50,
               setFlags: { inari_met: 1, inspired_inari: 1 },
+              heatDelta: 10,
               logMessage:
                 'Steel finds wood at a distance that matters. Inari watches the way hungry people watch a locked granary.',
               logType: 'gain',
@@ -778,6 +798,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 250,
               setFlags: { bridge_held: 1 },
               chainTo: 'final_showdown_setup',
+              heatDelta: 30,
               logMessage:
                 'Your stance alone is a message. The mist thins — then gathers again, colder. Something paid better than Gato\'s usual cut is coming.',
               logType: 'loot',
@@ -789,7 +810,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Clear the Mist with Chakra',
         description: 'MEDIUM RISK — Needs 16 Chakra; expose stalkers or draw them',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.CHAKRA, value: 16 } },
+        requirements: { minStat: { stat: PrimaryStat.CHAKRA, value: 1 } },
         hintText: 'Push the grey. Count what blinks first.',
         outcomes: [
           {
@@ -799,6 +820,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 150,
               setFlags: { bridge_held: 1 },
               chainTo: 'final_showdown_setup',
+              heatDelta: 20,
               logMessage:
                 'You force the grey apart. Figures break and run — then the air drops a degree. The hired fog was only the first invoice.',
               logType: 'gain',
@@ -835,6 +857,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 20,
               setFlags: { bridge_held: 1 },
               chainTo: 'final_showdown_setup',
+              heatDelta: 30,
               logMessage:
                 'You plant yourself where the fog is thickest. Workers resume — not bravely, but because the span still needs hands. Then the temperature dies.',
               logType: 'gain',
@@ -858,6 +881,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 25,
               setFlags: { bridge_held: 1 },
               chainTo: 'final_showdown_setup',
+              heatDelta: 20,
               logMessage:
                 'You stand where the dead birds pointed. Assassins step into a kill-zone of their own fog. The span holds — then the temperature dies.',
               logType: 'gain',
@@ -881,6 +905,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 22,
               setFlags: { bridge_held: 1 },
               chainTo: 'final_showdown_setup',
+              heatDelta: 20,
               logMessage:
                 'You take the river path the camp marked in ash. Assassins crest into a trap of wet timber and waiting eyes. The span holds — then the temperature dies.',
               logType: 'gain',
@@ -945,6 +970,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 160,
               ryo: 300,
               setFlags: { mist_showdown: 1 },
+              heatDelta: 30,
               logMessage:
                 'You spoil their rhythm before the killing blow lands. For a heartbeat, the mist itself seems unsure.',
               logType: 'loot',
@@ -956,7 +982,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Read the Senbon Paths',
         description: 'MEDIUM RISK — Needs 18 Speed; slip the needles or get pinned',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.SPEED, value: 18 } },
+        requirements: { minStat: { stat: PrimaryStat.SPEED, value: 1 } },
         hintText: 'Needles prefer the space you just left.',
         outcomes: [
           {
@@ -965,6 +991,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 140,
               ryo: 200,
               setFlags: { mist_showdown: 1 },
+              heatDelta: 30,
               logMessage: 'You move where the needles are not. Haku\'s eyes note it without praise.',
               logType: 'gain',
             },
@@ -997,6 +1024,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 60,
               ryo: 100,
               setFlags: { mist_showdown: 1 },
+              heatDelta: 20,
               logMessage:
                 'You take the line Tazuna cannot. The bridge still needs its architect more than another corpse.',
               logType: 'gain',
@@ -1043,6 +1071,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 400,
               setFlags: { compound_breached: 1 },
               chainTo: 'gato_defeat',
+              heatDelta: 30,
               logMessage:
                 'The gate yields. Bodyguards scatter. Gato\'s laugh thins into something almost human: fear.',
               logType: 'loot',
@@ -1054,7 +1083,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Infiltrate via the Roof',
         description: 'MEDIUM RISK — Needs 20 Dexterity; silent path or sniper contact',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 20 } },
+        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Rafter dust. One breath. No second chance.',
         outcomes: [
           {
@@ -1064,6 +1093,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 350,
               setFlags: { compound_breached: 1 },
               chainTo: 'gato_defeat',
+              heatDelta: 30,
               logMessage:
                 'Rafter dust and breath held. You hang above the man who priced Wave\'s breath.',
               logType: 'gain',
@@ -1100,6 +1130,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 25,
               setFlags: { compound_breached: 1 },
               chainTo: 'gato_defeat',
+              heatDelta: 30,
               logMessage:
                 'Word of the held bridge has already chewed the mercenaries\' nerve. They step aside from a fight that smells like unpaid debts.',
               logType: 'gain',
@@ -1123,6 +1154,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 30,
               setFlags: { compound_breached: 1 },
               chainTo: 'gato_defeat',
+              heatDelta: 30,
               logMessage:
                 'Half the balcony is empty — arguing over wages that no longer exist. You walk through a hole in the arithmetic.',
               logType: 'gain',
@@ -1145,6 +1177,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 25,
               setFlags: { compound_breached: 1 },
               chainTo: 'gato_defeat',
+              heatDelta: 30,
               logMessage:
                 'A side gate opens on hinges that should have rusted shut. The manor\'s debt is paid in Gato\'s unlocked spine.',
               logType: 'gain',
@@ -1168,6 +1201,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 28,
               setFlags: { compound_breached: 1 },
               chainTo: 'gato_defeat',
+              heatDelta: 30,
               logMessage:
                 'The shortcut from the outpost is empty — dogs silent, posts unmanned. Word of your visit still sits in their throats. You walk into Gato\'s spine unannounced.',
               logType: 'gain',
@@ -1191,6 +1225,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 32,
               setFlags: { compound_breached: 1 },
               chainTo: 'gato_defeat',
+              heatDelta: 30,
               logMessage:
                 'A lantern code from the cove still works on the kitchen gate. No payroll. No names. You walk in under freight that was never counted.',
               logType: 'gain',
@@ -1207,6 +1242,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             weight: 100,
             effects: {
               exp: 80,
+              heatDelta: 5,
               logMessage:
                 'Hired men measure risk for a living. Your stillness makes a few of them recalculate.',
               logType: 'info',
@@ -1241,6 +1277,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 500,
               exp: 150,
               setFlags: { gato_settled: 1 },
+              heatDelta: 30,
               logMessage:
                 'You open the coffers he filled with other people\'s winters. The coins are cold. They still spend.',
               logType: 'loot',
@@ -1260,6 +1297,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 300,
               ryo: 150,
               setFlags: { gato_settled: 1 },
+              heatDelta: 20,
               logMessage:
                 'Hands that never held clean coin close around it carefully. No parade. Just rice tomorrow.',
               logType: 'gain',
@@ -1282,6 +1320,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 100,
               intelGain: 20,
               setFlags: { gato_settled: 1 },
+              heatDelta: 20,
               logMessage:
                 'You leave a share where Inari will find it — not as charity, as proof the ledger can be rewritten. He does not smile. He starts counting.',
               logType: 'gain',
@@ -1303,6 +1342,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 240,
               ryo: 120,
               setFlags: { gato_settled: 1 },
+              heatDelta: 20,
               logMessage:
                 'Planks for doors. Rice for winter. The fishing village does not cheer — it works. That is louder.',
               logType: 'gain',
@@ -1325,6 +1365,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 180,
               intelGain: 25,
               setFlags: { gato_settled: 1 },
+              heatDelta: 30,
               logMessage:
                 'Under false boards: another winter of other people\'s fish. You take what the wreck already named.',
               logType: 'loot',
@@ -1347,6 +1388,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 200,
               intelGain: 30,
               setFlags: { gato_settled: 1 },
+              heatDelta: 30,
               logMessage:
                 'A vault seal etched with tide marks only the shrine taught. Inside: winters never taxed, never logged. The mist outside does not cheer.',
               logType: 'loot',
@@ -1368,6 +1410,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 220,
               setFlags: { gato_settled: 1 },
+              heatDelta: 5,
               logMessage:
                 'You burn a page that had a girl\'s absence written on it. The ash does not warm anyone. It only stops compounding.',
               logType: 'gain',
@@ -1388,6 +1431,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 280,
               intelGain: 30,
               setFlags: { gato_settled: 1 },
+              heatDelta: 5,
               logMessage:
                 'Planks still wet with salt and work. You leave no speech — only a mark that the span will finish, and that fear is no longer the only currency here.',
               logType: 'gain',
@@ -1405,6 +1449,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 250,
               setFlags: { gato_settled: 1 },
+              heatDelta: 5,
               logMessage:
                 'The fog takes you the way it takes every road out of Wave. Behind you, hammers start again — tentative, then steady.',
               logType: 'gain',
@@ -1436,7 +1481,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Investigate the Names',
         description: 'LOW RISK — Needs 12 Intelligence; map who is owned',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 12 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Ink smudges like fingerprints. Fear is neat handwriting.',
         outcomes: [
           {
@@ -1445,6 +1490,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 70,
               intelGain: 25,
               setFlags: { docks_ledger_done: 1, docks_ledger_read: 1 },
+              heatDelta: 5,
               logMessage:
                 'Half the pier is a debt schedule. Bridge wages chalked as "pending silence." You close the book before the fog grows ears.',
               logType: 'gain',
@@ -1485,7 +1531,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Sabotage the Pages',
         description: 'MEDIUM RISK — Needs 14 Dexterity; cook sums, risk a guard',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 14 } },
+        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Wrong totals. Wet ink. No signature.',
         outcomes: [
           {
@@ -1494,6 +1540,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 90,
               ryo: 80,
               setFlags: { docks_ledger_done: 1, ledger_sabotaged: 1 },
+              heatDelta: 10,
               logMessage:
                 'You swap digits the way surgeons swap blades. Somewhere up the chain, a collector will bleed on arithmetic.',
               logType: 'gain',
@@ -1531,6 +1578,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               intelGain: 15,
               setFlags: { docks_ledger_done: 1, docks_ledger_read: 1 },
               chainTo: 'tazuna_request',
+              heatDelta: 5,
               logMessage:
                 'Bridge wages listed as "pending silence." You take the numbers to the man who still chalks them on wet timber.',
               logType: 'info',
@@ -1571,7 +1619,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Read the Tide Marks',
         description: 'LOW RISK — Needs 13 Intelligence; map where the mist will kill',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 13 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Patterns in salt. Corpses as compass needles.',
         outcomes: [
           {
@@ -1580,6 +1628,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 80,
               intelGain: 30,
               setFlags: { mist_omen_done: 1, mist_omen_read: 1 },
+              heatDelta: 5,
               logMessage:
                 'You memorize the line the tide refuses to cross. Later, on a bridge of wet timber, that line will matter.',
               logType: 'gain',
@@ -1610,6 +1659,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 100,
               intelGain: 20,
               setFlags: { mist_omen_done: 1, mist_omen_read: 1 },
+              heatDelta: 5,
               logMessage:
                 'A palm opens. The fog thickens around the cut like a signature. Something in the grey files your name under "useful."',
               logType: 'gain',
@@ -1639,6 +1689,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 110,
               ryo: 100,
               setFlags: { mist_omen_done: 1, mist_omen_read: 1 },
+              heatDelta: 20,
               logMessage:
                 'Wings scatter under your boot. A scout flees — Gato\'s mark on his pouch. The omen was bait with a payroll.',
               logType: 'loot',
@@ -1693,7 +1744,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Follow the Whisper',
         description: 'LOW RISK — Needs 14 Spirit; listen without opening',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 14 } },
+        requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 1 } },
         hintText: 'The drowned keep better books than the living.',
         outcomes: [
           {
@@ -1702,6 +1753,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 90,
               intelGain: 30,
               setFlags: { shipwreck_whisper_done: 1, shipwreck_listened: 1 },
+              heatDelta: 5,
               logMessage:
                 'They count crates that never reached the pier — a second treasury under false floors. You surface with numbers, not gold.',
               logType: 'gain',
@@ -1731,6 +1783,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               ryo: 280,
               exp: 70,
               setFlags: { shipwreck_whisper_done: 1, shipwreck_listened: 1 },
+              heatDelta: 30,
               logMessage:
                 'The seal cracks. Coin and a tide chart with a second coffer marked in Gato\'s own hand.',
               logType: 'loot',
@@ -1756,7 +1809,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Quiet the Hold',
         description: 'MEDIUM RISK — Needs 15 Calmness; still the voices, risk a rebound',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.CALMNESS, value: 15 } },
+        requirements: { minStat: { stat: PrimaryStat.CALMNESS, value: 1 } },
         hintText: 'Some debts prefer silence to coin.',
         outcomes: [
           {
@@ -1765,6 +1818,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 100,
               ryo: 120,
               setFlags: { shipwreck_whisper_done: 1, shipwreck_listened: 1 },
+              heatDelta: 20,
               logMessage:
                 'You lay a hand on the wet beam and refuse the count. The hold goes still — and leaves you a name of a false floor.',
               logType: 'gain',
@@ -1819,7 +1873,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Name the Debt',
         description: 'LOW RISK — Needs 14 Spirit; speak the sale into the open air',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 14 } },
+        requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 1 } },
         hintText: 'Houses keep better ledgers than banks.',
         outcomes: [
           {
@@ -1828,6 +1882,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 95,
               intelGain: 25,
               setFlags: { manor_haunt_done: 1, manor_favor: 1 },
+              heatDelta: 5,
               logMessage:
                 'You say the amount the family never received. A door somewhere unlatches. The portrait\'s stolen eyes look away.',
               logType: 'gain',
@@ -1857,6 +1912,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 60,
               setFlags: { manor_haunt_done: 1, manor_favor: 1 },
+              heatDelta: 5,
               logMessage:
                 'Coin vanishes from the stone as if the house inhaled. A side corridor warms by a degree — enough.',
               logType: 'gain',
@@ -1876,6 +1932,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 120,
               ryo: 150,
               setFlags: { manor_haunt_done: 1, manor_favor: 1 },
+              heatDelta: 20,
               logMessage:
                 'Gato\'s painted eyes blister first. Under them: a noble face and a floor-plan inked on the canvas reverse — a gate the compound still uses.',
               logType: 'loot',
@@ -1932,7 +1989,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Investigate the Weight',
         description: 'LOW RISK — Needs 12 Intelligence; prove the cut without steel',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 12 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Lead painted to look like iron. Fear is a denser metal.',
         outcomes: [
           {
@@ -1941,6 +1998,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 75,
               intelGain: 25,
               setFlags: { merchant_scales_done: 1, false_scales: 1 },
+              heatDelta: 5,
               logMessage:
                 'The weight is lead under pewter paint — Gato\'s cut hidden as gravity. You pocket the proof. The merchant\'s smile dies without a sound.',
               logType: 'gain',
@@ -1981,7 +2039,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Sabotage the Counterweight',
         description: 'MEDIUM RISK — Needs 13 Dexterity; ruin the lie, risk hired muscle',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 13 } },
+        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Swap the stone. Leave the seal. Let arithmetic do violence.',
         outcomes: [
           {
@@ -1990,6 +2048,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 90,
               ryo: 70,
               setFlags: { merchant_scales_done: 1, false_scales: 1 },
+              heatDelta: 10,
               logMessage:
                 'You trade lead for river stone. Tomorrow every sale will expose him. Villagers will learn the cut had a name.',
               logType: 'gain',
@@ -2044,7 +2103,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Investigate Their Maps',
         description: 'LOW RISK — Needs 13 Intelligence; read what the ash hides',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 13 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Fish-skin holds ink that water cannot erase.',
         outcomes: [
           {
@@ -2053,6 +2112,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 80,
               intelGain: 28,
               setFlags: { camp_pact_done: 1, traveler_route: 1 },
+              heatDelta: 5,
               logMessage:
                 'Mist approach routes. Patrol gaps. A cut of the bridge road sold three ways. You memorize the line that does not appear on any public chart.',
               logType: 'gain',
@@ -2083,6 +2143,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 50,
               intelGain: 15,
               setFlags: { camp_pact_done: 1, traveler_route: 1 },
+              heatDelta: 5,
               logMessage:
                 'A charcoal line appears on your palm: river cut → span underbelly. They do not wish you luck. Luck is not on the invoice.',
               logType: 'gain',
@@ -2102,6 +2163,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 100,
               ryo: 110,
               setFlags: { camp_pact_done: 1, traveler_route: 1, hidden_cove_discovered: 1 },
+              heatDelta: 20,
               logMessage:
                 'You ruin their night rations — and find a tide scrap naming a cove the maps omit. They will not chase you into the grey.',
               logType: 'loot',
@@ -2156,7 +2218,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Investigate the Roster',
         description: 'LOW RISK — Needs 14 Intelligence; learn who is bought, who is hungry',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 14 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Payroll boards crack when the numbers do not match the faces.',
         outcomes: [
           {
@@ -2165,6 +2227,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 85,
               intelGain: 30,
               setFlags: { outpost_toll_done: 1, outpost_cowed: 1 },
+              heatDelta: 5,
               logMessage:
                 'Half the roster is dead men still drawing coin. The living are underpaid and loud about it. You leave knowing which posts will empty first.',
               logType: 'gain',
@@ -2194,6 +2257,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 55,
               intelGain: 12,
               setFlags: { outpost_toll_done: 1, outpost_cowed: 1 },
+              heatDelta: 5,
               logMessage:
                 'Coin changes hands. Dogs go quiet. A gate that was never open becomes a road. Fear is still the currency — you just paid in metal this once.',
               logType: 'gain',
@@ -2213,6 +2277,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 120,
               ryo: 90,
               setFlags: { outpost_toll_done: 1, outpost_cowed: 1 },
+              heatDelta: 10,
               logMessage:
                 'You do not raise your voice. The captain\'s collar coin catches light as he steps aside. The dogs lie down like paid witnesses.',
               logType: 'loot',
@@ -2269,7 +2334,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Read the Manifest',
         description: 'LOW RISK — Needs 14 Intelligence; map the silent schedule',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 14 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Ink that dries under salt still names a gate.',
         outcomes: [
           {
@@ -2278,6 +2343,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 95,
               intelGain: 30,
               setFlags: { cove_drop_done: 1, cove_manifest: 1 },
+              heatDelta: 5,
               logMessage:
                 'Service gate codes. A kitchen entrance Gato\'s books never list. You pocket the schedule before the skiff\'s wake returns.',
               logType: 'gain',
@@ -2308,6 +2374,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 55,
               intelGain: 15,
               setFlags: { cove_drop_done: 1, cove_manifest: 1 },
+              heatDelta: 5,
               logMessage:
                 'Coin under a stone. A crate opens on dry rice and a gate sketch. No face appears. The skiff never needed one.',
               logType: 'gain',
@@ -2327,6 +2394,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 115,
               ryo: 130,
               setFlags: { cove_drop_done: 1, cove_manifest: 1 },
+              heatDelta: 20,
               logMessage:
                 'The skiff drifts with a holed bilge. Under the last crate: a lantern code for a compound service door. The drop dies quiet.',
               logType: 'loot',
@@ -2381,7 +2449,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
         label: 'Read the Tide Script',
         description: 'LOW RISK — Needs 15 Spirit; translate salt debt without kneeling',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 15 } },
+        requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 1 } },
         hintText: 'Pillars keep better vault maps than walls do.',
         outcomes: [
           {
@@ -2390,6 +2458,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 110,
               intelGain: 32,
               setFlags: { shrine_vow_done: 1, black_tide_read: 1 },
+              heatDelta: 5,
               logMessage:
                 'The marks name a compound vault sealed in tide geometry — Gato rents the margin; the shrine owns the key pattern.',
               logType: 'gain',
@@ -2420,6 +2489,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 120,
               intelGain: 22,
               setFlags: { shrine_vow_done: 1, black_tide_read: 1 },
+              heatDelta: 5,
               logMessage:
                 'You exhale into the bubble. The water stills — then shows a vault seal etched like a high-tide line. Something files you under "paid."',
               logType: 'gain',
@@ -2449,6 +2519,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
               exp: 130,
               ryo: 160,
               setFlags: { shrine_vow_done: 1, black_tide_read: 1 },
+              heatDelta: 20,
               logMessage:
                 'You score the pillar. Under the scraped prayer: a compound vault glyph and a purse of old coin. The water does not forgive — it catalogs.',
               logType: 'loot',

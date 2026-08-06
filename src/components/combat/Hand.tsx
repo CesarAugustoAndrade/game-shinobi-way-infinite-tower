@@ -240,7 +240,7 @@ export const Hand: React.FC<HandProps> = ({
               <div className="combat-tooltip__damage-row">
                 <div className="combat-tooltip__scaling">
                   <span className={`combat-tooltip__scaling-value ${getStatColor(skill.scalingStat)}`}>
-                    {Math.round(skill.damageMult * 100)}% {formatScalingStat(skill.scalingStat)}
+                    {skill.baseDamage}+{skill.scalingPerPoint}/{formatScalingStat(skill.scalingStat)}
                   </span>
                   <span className="combat-tooltip__scaling-label">from</span>
                 </div>

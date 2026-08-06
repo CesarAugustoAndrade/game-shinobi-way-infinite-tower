@@ -455,18 +455,19 @@ export const generateBrokenComponent = (
   const componentId = weightedRandomComponent(lootTable, lootTheme);
   const def = COMPONENT_DEFINITIONS[componentId];
 
-  // Broken items have reduced stats (40-60% of normal)
-  const floorScaling = 1 + (currentFloor * DIFFICULTY.FLOOR_SCALING);
-  const qualityRoll = LOOT_BALANCE.COMMON_QUALITY_BASE + (random() * LOOT_BALANCE.COMMON_QUALITY_RANGE);
-  const baseStatValue = Math.floor(def.baseValue * floorScaling * qualityRoll);
-  const statValue = Math.floor(baseStatValue * LaunchProperties.LOOT_MULTIPLIER);
+  // F1: components always grant +1 primary (no floor/quality mult on primaries).
+  // Rarity still affects sell value and craft tier only.
+  void currentFloor;
+  void _difficulty;
+  const statValue = 1;
+  const sell = Math.max(5, Math.floor(8 + currentFloor));
 
   return {
     id: generateId(),
     name: `Broken ${def.name}`,
     rarity: Rarity.BROKEN,
     stats: { [def.primaryStat]: statValue },
-    value: statValue * 8, // Lower value than common
+    value: sell,
     description: `${def.description} (Damaged - needs repair)`,
     isComponent: true,
     componentId,
@@ -487,18 +488,17 @@ export const generateComponent = (
   const componentId = weightedRandomComponent(lootTable, lootTheme);
   const def = COMPONENT_DEFINITIONS[componentId];
 
-  // Scale value based on floor (similar to regular item scaling)
-  const floorScaling = 1 + (currentFloor * DIFFICULTY.FLOOR_SCALING);
-  const qualityRoll = LOOT_BALANCE.RARE_QUALITY_BASE + (random() * LOOT_BALANCE.RARE_QUALITY_RANGE);
-  const baseStatValue = Math.floor(def.baseValue * floorScaling * qualityRoll);
-  const statValue = Math.floor(baseStatValue * LaunchProperties.LOOT_MULTIPLIER);
+  // F1: common component = +1 primary flat
+  void difficulty;
+  const statValue = 1;
+  const sell = Math.max(10, Math.floor(15 + currentFloor * 2));
 
   return {
     id: generateId(),
     name: def.name,
     rarity: Rarity.COMMON,
     stats: { [def.primaryStat]: statValue },
-    value: statValue * 15,
+    value: sell,
     description: def.description,
     isComponent: true,
     componentId,
@@ -522,16 +522,9 @@ export const generateComponentByQuality = (
     case TreasureQuality.COMMON:
       return generateComponent(currentFloor, difficulty, lootTable, lootTheme);
     case TreasureQuality.RARE: {
-      // Rare quality: same as Common but with boosted stats
+      // F1: rare is sell/cosmetic tier; primary stays +1
       const item = generateComponent(currentFloor, difficulty, lootTable, lootTheme);
       item.rarity = Rarity.RARE;
-      // Boost stat values
-      for (const key of Object.keys(item.stats) as (keyof ItemStatBonus)[]) {
-        const val = item.stats[key];
-        if (val !== undefined) {
-          item.stats[key] = Math.floor(val * LOOT_BALANCE.ENHANCED_STAT_MULT);
-        }
-      }
       item.value = Math.floor(item.value * LOOT_BALANCE.ENHANCED_VALUE_MULT);
       item.name = `Quality ${item.name}`;
       return item;
@@ -598,33 +591,42 @@ export const generateRandomArtifact = (currentFloor: number, difficulty: number)
   const defA = COMPONENT_DEFINITIONS[compIdA];
   const defB = COMPONENT_DEFINITIONS[compIdB];
 
-  // Generate base stats from both components
-  const floorScaling = 1 + (currentFloor * DIFFICULTY.FLOOR_SCALING);
-  const statValueA = Math.floor(defA.baseValue * floorScaling);
-  const statValueB = Math.floor(defB.baseValue * floorScaling);
+  // F1: each component contributes +1 primary; artifact = sum + ≤1 thematic primary
+  void difficulty;
+  const statValueA = 1;
+  const statValueB = 1;
 
-  // Combine stats
   const combinedStats: ItemStatBonus = {
     [defA.primaryStat]: statValueA,
-    [defB.primaryStat]: (defA.primaryStat === defB.primaryStat)
-      ? statValueA + statValueB
-      : statValueB,
+    [defB.primaryStat]:
+      defA.primaryStat === defB.primaryStat ? statValueA + statValueB : statValueB,
   };
 
-  // Add recipe bonus stats
+  // Add recipe bonus stats — primary keys capped at +1 thematic total
   if (recipe.bonusStats) {
+    let thematicPrimaryUsed = 0;
+    const primaryKeys = new Set([
+      'willpower', 'chakra', 'strength', 'spirit', 'intelligence',
+      'calmness', 'speed', 'accuracy', 'dexterity',
+    ]);
     for (const [key, val] of Object.entries(recipe.bonusStats)) {
-      if (val !== undefined) {
-        combinedStats[key as keyof ItemStatBonus] =
-          (combinedStats[key as keyof ItemStatBonus] || 0) + val;
+      if (val === undefined) continue;
+      const k = key as keyof ItemStatBonus;
+      if (primaryKeys.has(key)) {
+        if (thematicPrimaryUsed >= 1) continue;
+        const add = Math.min(1, Math.max(0, Math.round(Number(val) > 0 ? 1 : 0)));
+        if (add <= 0) continue;
+        combinedStats[k] = (combinedStats[k] || 0) + add;
+        thematicPrimaryUsed += add;
+      } else {
+        // Non-primary passives (crit%, flat def, etc.) kept as authored
+        combinedStats[k] = (combinedStats[k] || 0) + val;
       }
     }
   }
 
-  // Cap to maximum 2 stat bonuses
   const cappedStats = capStatsToTwo(combinedStats);
-
-  const baseValue = (statValueA + statValueB) * 15;
+  const baseValue = 40 + currentFloor * 5;
 
   return {
     id: generateId(),
@@ -757,16 +759,15 @@ export const upgradeComponent = (
   // Calculate cost
   const cost = CRAFTING_COSTS.UPGRADE_BROKEN_BASE + (floor * CRAFTING_COSTS.UPGRADE_BROKEN_PER_FLOOR);
 
-  // Create COMMON component with combined stats
+  // F1: COMMON component stays +1 primary (not sum of broken rolls)
   const def = COMPONENT_DEFINITIONS[componentA.componentId!];
   const primaryStat = def.primaryStat as keyof ItemStatBonus;
-  const combinedStatValue = (componentA.stats[primaryStat] || 0) + (componentB.stats[primaryStat] || 0);
 
   const result: Item = {
     id: generateId(),
     name: def.name,
     rarity: Rarity.COMMON,
-    stats: { [primaryStat]: combinedStatValue },
+    stats: { [primaryStat]: 1 },
     value: Math.floor((componentA.value + componentB.value) * LOOT_BALANCE.SYNTHESIS_VALUE_MULT),
     description: def.description,
     isComponent: true,
@@ -814,30 +815,33 @@ export const synthesize = (
   // Calculate cost
   const cost = CRAFTING_COSTS.SYNTHESIZE_BASE + (floor * CRAFTING_COSTS.SYNTHESIZE_PER_FLOOR);
 
-  // Combine stats from both components
+  // F1: artifact primaries = each component +1 (+ optional ≤1 thematic primary)
+  const primaryKeys = new Set([
+    'willpower', 'chakra', 'strength', 'spirit', 'intelligence',
+    'calmness', 'speed', 'accuracy', 'dexterity',
+  ]);
   const combinedStats: ItemStatBonus = {};
+  const defA = COMPONENT_DEFINITIONS[componentA.componentId!];
+  const defB = COMPONENT_DEFINITIONS[componentB.componentId!];
+  combinedStats[defA.primaryStat] = 1;
+  combinedStats[defB.primaryStat] =
+    (combinedStats[defB.primaryStat] || 0) + 1;
 
-  // Add stats from component A
-  for (const key of Object.keys(componentA.stats) as (keyof ItemStatBonus)[]) {
-    combinedStats[key] = (combinedStats[key] || 0) + (componentA.stats[key] || 0);
-  }
-
-  // Add stats from component B
-  for (const key of Object.keys(componentB.stats) as (keyof ItemStatBonus)[]) {
-    combinedStats[key] = (combinedStats[key] || 0) + (componentB.stats[key] || 0);
-  }
-
-  // Add recipe bonus stats
   if (recipe.bonusStats) {
+    let thematicPrimaryUsed = 0;
     for (const key of Object.keys(recipe.bonusStats) as (keyof ItemStatBonus)[]) {
       const val = recipe.bonusStats[key];
-      if (val !== undefined) {
+      if (val === undefined) continue;
+      if (primaryKeys.has(key as string)) {
+        if (thematicPrimaryUsed >= 1) continue;
+        combinedStats[key] = (combinedStats[key] || 0) + 1;
+        thematicPrimaryUsed += 1;
+      } else {
         combinedStats[key] = (combinedStats[key] || 0) + val;
       }
     }
   }
 
-  // Cap to maximum 2 stat bonuses
   const cappedStats = capStatsToTwo(combinedStats);
 
   const artifact: Item = {
@@ -901,18 +905,28 @@ export const upgradeArtifact = (
   // Calculate cost
   const cost = CRAFTING_COSTS.UPGRADE_ARTIFACT_BASE + (floor * CRAFTING_COSTS.UPGRADE_ARTIFACT_PER_FLOOR);
 
-  // Create EPIC artifact with boosted stats (retain % of combined)
+  // F1: EPIC keeps primary totals (no 75% of 2× balloon); non-primary passives may boost
+  const primaryKeys = new Set([
+    'willpower', 'chakra', 'strength', 'spirit', 'intelligence',
+    'calmness', 'speed', 'accuracy', 'dexterity',
+  ]);
   const upgradedStats: ItemStatBonus = {};
   for (const key of Object.keys(artifactA.stats) as (keyof ItemStatBonus)[]) {
     const valA = artifactA.stats[key] || 0;
     const valB = artifactB.stats[key] || 0;
-    upgradedStats[key] = Math.floor((valA + valB) * LOOT_BALANCE.UPGRADE_STAT_RETENTION);
+    if (primaryKeys.has(key as string)) {
+      // Keep max of the two (already sum-of-components scale), do not double
+      upgradedStats[key] = Math.max(valA, valB);
+    } else {
+      upgradedStats[key] = Math.floor((valA + valB) * LOOT_BALANCE.UPGRADE_STAT_RETENTION);
+    }
   }
-  // Also include any stats only in B
   for (const key of Object.keys(artifactB.stats) as (keyof ItemStatBonus)[]) {
     if (upgradedStats[key] === undefined) {
       const valB = artifactB.stats[key] || 0;
-      upgradedStats[key] = Math.floor(valB * LOOT_BALANCE.UPGRADE_STAT_RETENTION);
+      upgradedStats[key] = primaryKeys.has(key as string)
+        ? valB
+        : Math.floor(valB * LOOT_BALANCE.UPGRADE_STAT_RETENTION);
     }
   }
 
@@ -963,17 +977,14 @@ export const disassemble = (artifact: Item): Item | null => {
     namePrefix = 'Broken ';
   }
 
-  // Calculate return value (50% of artifact value)
+  // Sell value may remain a fraction of the artifact; primary is always +1 (F1).
   const returnValue = Math.floor(artifact.value * DISASSEMBLE_RETURN_RATE);
-
-  // Estimate stat value from returned value
-  const statValue = Math.floor(returnValue / 15);
 
   return {
     id: generateId(),
     name: namePrefix + def.name,
     rarity: returnRarity,
-    stats: { [def.primaryStat]: statValue },
+    stats: { [def.primaryStat]: 1 },
     value: returnValue,
     description: def.description,
     isComponent: true,
@@ -988,14 +999,15 @@ export const disassemble = (artifact: Item): Item | null => {
  */
 export const grantHashiramaCell = (currentFloor: number): Item => {
   const def = COMPONENT_DEFINITIONS[ComponentId.HASHIRAMA_CELL];
-  const floorScaling = 1 + (currentFloor * DIFFICULTY.FLOOR_SCALING);
+  void currentFloor;
 
   return {
     id: generateId(),
     name: def.name,
-    rarity: Rarity.LEGENDARY, // Special rarity for this rare component
-    stats: { [def.primaryStat]: Math.floor(def.baseValue * floorScaling * BALANCE.PRIMARY_SLOT_MULTIPLIER) },
-    value: 500, // High base value
+    rarity: Rarity.LEGENDARY,
+    // F1: +1 primary only — no floor scale, no SLOT×1.5
+    stats: { [def.primaryStat]: 1 },
+    value: 500,
     description: def.description,
     isComponent: true,
     componentId: ComponentId.HASHIRAMA_CELL,

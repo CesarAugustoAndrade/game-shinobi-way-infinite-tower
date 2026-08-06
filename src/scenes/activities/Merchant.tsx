@@ -277,8 +277,6 @@ const ItemCard: React.FC<ItemCardProps> = ({
       onClick={handleClick}
       role="button"
       tabIndex={isDimmed ? -1 : 0}
-      onMouseEnter={(e) => alignItemTileTooltip(e.currentTarget)}
-      onFocus={(e) => alignItemTileTooltip(e.currentTarget)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -286,69 +284,6 @@ const ItemCard: React.FC<ItemCardProps> = ({
         }
       }}
     >
-      <div className="item-tile__tooltip" role="tooltip">
-        <div className={`item-tooltip__name item-card__name--${rarityClass}`}>{item.name}</div>
-        <div className="item-tooltip__type">{item.rarity} {item.type}</div>
-        {item.description && (
-          <div className="item-tooltip__desc">{item.description}</div>
-        )}
-        <div className="item-tooltip__section">
-          {Object.entries(statComparisons)
-            .filter(([, data]) => data.value !== 0 || data.delta !== 0)
-            .map(([key, data]) => (
-              <div
-                key={key}
-                className={`item-tooltip__row ${isFocusStat(key, equipmentFocus) ? 'item-tooltip__row--focus' : ''}`}
-              >
-                <span className="item-tooltip__label">
-                  {formatStatName(key)}
-                  {isFocusStat(key, equipmentFocus) && (
-                    <span className="item-tooltip__focus-mark"> ★</span>
-                  )}
-                </span>
-                <div className="item-tooltip__values">
-                  <span className="item-tooltip__value">+{data.value}</span>
-                  {data.delta !== 0 && !data.isNew && (
-                    <span className={data.delta > 0 ? 'item-tooltip__delta--positive' : 'item-tooltip__delta--negative'}>
-                      {data.delta > 0 ? '▲' : '▼'}{Math.abs(data.delta)}
-                    </span>
-                  )}
-                  {data.isNew && <span className="item-tooltip__delta--new">NEW</span>}
-                </div>
-              </div>
-            ))}
-        </div>
-        <div className="item-tooltip__section">
-          <div className="item-tooltip__row">
-            <span className="item-tooltip__label">Price</span>
-            <span className={affordable && !bagFull ? 'item-tooltip__value' : 'item-tooltip__delta--negative'}>
-              {price} Ryo
-            </span>
-          </div>
-          {!affordable && shortfall > 0 && (
-            <div className="item-tooltip__row">
-              <span className="item-tooltip__label">Purse</span>
-              <span className="item-tooltip__delta--negative">short {shortfall}</span>
-            </div>
-          )}
-          {bagFull && (
-            <div className="item-tooltip__row">
-              <span className="item-tooltip__label">Bag</span>
-              <span className="item-tooltip__delta--negative">full — free a pocket</span>
-            </div>
-          )}
-          {canBuy && afterBuy !== null && (
-            <div className="item-tooltip__row">
-              <span className="item-tooltip__label">After</span>
-              <span className="item-tooltip__value">{afterBuy} Ryo</span>
-            </div>
-          )}
-          {leanEconomy && (
-            <div className="item-tooltip__synth">Wave Country · lean ryo economy</div>
-          )}
-        </div>
-      </div>
-
       <div className="item-card__thumb" aria-hidden="true">
         <ArtIcon art={resolveItemArt(item)} size="fill" title={item.name} />
       </div>

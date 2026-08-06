@@ -717,8 +717,7 @@
 .item-card.item-tile:focus-within > .item-tile__tooltip,
 .item-card.item-tile.item-tile--tooltip-below:hover > .item-tile__tooltip,
 .item-card.item-tile.item-tile--tooltip-below:focus-within > .item-tile__tooltip {
-  display: block;
-  transform: none !important;
+  display: none !important;
 }
 
 .item-card.item-tile > .item-tile__tooltip::after {

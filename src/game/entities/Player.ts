@@ -1,18 +1,16 @@
 import { Player, Clan, EquipmentSlot, TreasureQuality, DEFAULT_MERCHANT_SLOTS, MAX_BAG_SLOTS, ApproachType } from '../types';
-import { CLAN_STATS, CLAN_GROWTH, CLAN_ELEMENTS, getClanStartingSkills } from '../constants';
-import { calculateDerivedStats, getPlayerFullStats } from '../systems/StatSystem';
+import { CLAN_STATS, CLAN_ELEMENTS, getClanStartingSkills } from '../constants';
+import { calculateDerivedStats } from '../systems/StatSystem';
 import { LaunchProperties } from '../../config/featureFlags';
 
 /**
- * Create a new player with starting stats for the given clan.
- * Starting loadout mixes ACTIVE/TOGGLE/PASSIVE cards under the AP economy.
+ * Create a new player with starting stats for the given clan (F1: bases 1 / affinity 3).
  */
 export const createPlayer = (clan: Clan): Player => {
   const baseStats = CLAN_STATS[clan];
   const startingSkills = getClanStartingSkills(clan);
   const derived = calculateDerivedStats(baseStats, {});
 
-  // Initialize skills with level 1
   const skills = startingSkills.map(skill => ({ ...skill, level: 1 }));
 
   return {
@@ -21,6 +19,7 @@ export const createPlayer = (clan: Clan): Player => {
     exp: 0,
     maxExp: 100,
     primaryStats: { ...baseStats },
+    unspentStatPoints: 0,
     currentHp: derived.maxHp,
     currentChakra: derived.maxChakra,
     element: CLAN_ELEMENTS[clan],
@@ -34,65 +33,11 @@ export const createPlayer = (clan: Clan): Player => {
     skills,
     activeBuffs: [],
     bag: Array(MAX_BAG_SLOTS).fill(null),
-    // Progression systems
-    treasureQuality: TreasureQuality.BROKEN,  // Start with broken quality drops
-    merchantSlots: DEFAULT_MERCHANT_SLOTS,     // Start with 1 merchant slot
-    locationsCleared: 0,                       // Global progression counter
-    clanLevel: 0,                              // Bloodline track (Clan Rite rooms)
-    eventFlags: {},                            // T-008: no narrative flags at run start
-    preferredApproach: ApproachType.FRONTAL_ASSAULT, // HUD default; applies to all encounters
+    treasureQuality: TreasureQuality.BROKEN,
+    merchantSlots: DEFAULT_MERCHANT_SLOTS,
+    locationsCleared: 0,
+    clanLevel: 0,
+    eventFlags: {},
+    preferredApproach: ApproachType.FRONTAL_ASSAULT,
   };
-};
-
-/**
- * Process level up for the player, increasing stats and fully healing
- * Returns true if the player leveled up
- */
-export const checkLevelUp = (player: Player, addLogFn: (text: string, type: string) => void): { updatedPlayer: Player; leveledUp: boolean } => {
-  let currentPlayer = { ...player };
-  let leveledUp = false;
-
-  while (currentPlayer.exp >= currentPlayer.maxExp) {
-    leveledUp = true;
-    currentPlayer.exp -= currentPlayer.maxExp;
-    currentPlayer.level += 1;
-    currentPlayer.maxExp = currentPlayer.level * 100;
-
-    const growth = CLAN_GROWTH[currentPlayer.clan];
-    const s = currentPlayer.primaryStats;
-
-    currentPlayer.primaryStats = {
-      willpower: s.willpower + (growth.willpower || 0),
-      chakra: s.chakra + (growth.chakra || 0),
-      strength: s.strength + (growth.strength || 0),
-      spirit: s.spirit + (growth.spirit || 0),
-      intelligence: s.intelligence + (growth.intelligence || 0),
-      calmness: s.calmness + (growth.calmness || 0),
-      speed: s.speed + (growth.speed || 0),
-      accuracy: s.accuracy + (growth.accuracy || 0),
-      dexterity: s.dexterity + (growth.dexterity || 0)
-    };
-  }
-
-  if (leveledUp) {
-    const newStats = getPlayerFullStats(currentPlayer);
-    currentPlayer.currentHp = newStats.derived.maxHp;
-    currentPlayer.currentChakra = newStats.derived.maxChakra;
-    addLogFn(`LEVEL UP! You reached Level ${currentPlayer.level}. Stats increased & Fully Healed!`, 'gain');
-  }
-
-  return { updatedPlayer: currentPlayer, leveledUp };
-};
-
-/**
- * Add experience to the player and check for level ups
- */
-export const addExperience = (
-  player: Player,
-  amount: number,
-  addLogFn: (text: string, type: string) => void
-): Player => {
-  const updatedPlayer = { ...player, exp: player.exp + amount };
-  const { updatedPlayer: finalPlayer } = checkLevelUp(updatedPlayer, addLogFn);
-  return finalPlayer;
 };

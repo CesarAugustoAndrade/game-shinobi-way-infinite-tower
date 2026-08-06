@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Eye,
   DoorOpen,
+  LogOut,
 } from 'lucide-react';
 import { PendingBagFullItem } from '../../hooks/useTreasureHandlers';
 import { resolveItemArt, getSkillArt } from '../../game/constants/artRegistry';
@@ -32,6 +33,7 @@ interface TreasureChoiceProps {
   player: Player;
   playerStats?: CharacterStats | null;
   onOpenVault: () => void;
+  onLeaveVault?: () => void;
   onRevealFace: (index: number) => void;
   onPickOption: (index: number) => void;
   onTakeMapPiece: () => void;
@@ -96,6 +98,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   player,
   playerStats = null,
   onOpenVault,
+  onLeaveVault,
   onRevealFace,
   onPickOption,
   onTakeMapPiece,
@@ -237,10 +240,23 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
               <span className="treasure-scene__divider">
                 {phase === 'entry' ? 'Choose path' : 'Choose reward'}
               </span>
-              <span className="treasure-scene__cp">
-                CP {Math.floor(player.currentChakra)}
-                {playerStats ? `/${playerStats.derived.maxChakra}` : ''}
-              </span>
+              <div className="treasure-scene__path-bar-right">
+                <span className="treasure-scene__cp">
+                  CP {Math.floor(player.currentChakra)}
+                  {playerStats ? `/${playerStats.derived.maxChakra}` : ''}
+                </span>
+                {onLeaveVault && (
+                  <button
+                    type="button"
+                    className="treasure-scene__exit-btn"
+                    onClick={onLeaveVault}
+                    title="Leave vault and return to map"
+                  >
+                    <LogOut size={14} />
+                    <span>Leave</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {phase === 'entry' && (
@@ -291,6 +307,27 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                       </span>
                     </span>
                     <span className="treasure-choice__cost treasure-choice__cost--free">Free</span>
+                  </button>
+                )}
+
+                {onLeaveVault && (
+                  <button
+                    type="button"
+                    className="treasure-choice treasure-choice--leave"
+                    onClick={onLeaveVault}
+                    role="listitem"
+                  >
+                    <span className="treasure-choice__index">{showMap ? '3' : '2'}</span>
+                    <span className="treasure-choice__icon" aria-hidden>
+                      <LogOut size={20} />
+                    </span>
+                    <span className="treasure-choice__body">
+                      <span className="treasure-choice__label">Leave Vault</span>
+                      <span className="treasure-choice__desc">
+                        Walk away · keep chakra · return to map
+                      </span>
+                    </span>
+                    <span className="treasure-choice__cost treasure-choice__cost--free">Leave</span>
                   </button>
                 )}
               </div>

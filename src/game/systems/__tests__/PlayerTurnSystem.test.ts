@@ -10,6 +10,7 @@ import {
   ActionType,
   AttackMethod,
   CharacterStats,
+  CombatRange,
   EffectType,
   Posture,
   PrimaryStat,
@@ -49,6 +50,12 @@ const baseCombatState = (overrides: Partial<CombatState> = {}): CombatState => (
   hand: [],
   deck: [],
   discard: [],
+  // CLOSE so default MELEE mock skills are legal (F2 range gate)
+  currentRange: CombatRange.CLOSE,
+  playerMoveUsedThisTurn: false,
+  enemyMoveUsedThisTurn: false,
+  enemyCurrentAp: 5,
+  enemyMaxAp: 5,
   ...overrides,
 });
 
@@ -65,7 +72,7 @@ describe('useSkill', () => {
       id: 'punch',
       name: 'Punch',
       chakraCost: 10,
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.AUTO, // skip hit RNG entirely
     });
@@ -89,7 +96,7 @@ describe('useSkill', () => {
   });
 
   it('returns insufficient resources without dealing damage when chakra is too low', () => {
-    const skill = createMockSkill({ chakraCost: 50, damageMult: 2.0 });
+    const skill = createMockSkill({ chakraCost: 50, baseDamage: 12, scalingPerPoint: 4 });
     const player = createMockPlayer({ currentChakra: 10, currentHp: 200, skills: [skill] });
     const enemy = createMockEnemy({ currentHp: 500 });
     const playerStats = makeStats();
@@ -108,7 +115,7 @@ describe('useSkill', () => {
     const skill = createMockSkill({
       chakraCost: 5,
       apCost: 3,
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       actionType: ActionType.ACTIVE,
     });
     const player = createMockPlayer({ currentChakra: 100, currentHp: 200, skills: [skill] });
@@ -133,7 +140,7 @@ describe('useSkill', () => {
   });
 
   it('blocks action when player is stunned', () => {
-    const skill = createMockSkill({ chakraCost: 5, damageMult: 2.0 });
+    const skill = createMockSkill({ chakraCost: 5, baseDamage: 12, scalingPerPoint: 4 });
     const player = createMockPlayer({
       currentChakra: 100,
       currentHp: 200,
@@ -168,7 +175,7 @@ describe('useSkill', () => {
       id: 'miss-skill',
       name: 'Whiff',
       chakraCost: 15,
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       // Ranged + low accuracy makes miss easier, but we also force RNG
     });
     const player = createMockPlayer({
@@ -210,7 +217,7 @@ describe('useSkill', () => {
       id: 'ambush-hit',
       name: 'Ambush Strike',
       chakraCost: 5,
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.AUTO,
     });
@@ -250,13 +257,13 @@ describe('useSkill', () => {
       id: 'heal-jutsu',
       name: 'Mystic Palm',
       chakraCost: 10,
-      damageMult: 0.1, // token hit so effect application branch runs
+      baseDamage: 1, scalingPerPoint: 0, // token hit so effect application branch runs
       attackMethod: AttackMethod.AUTO,
       effects: [
         { type: EffectType.HEAL, value: 40, duration: 0, chance: 1 },
       ],
     });
-    // Start below max so heal has room (maxHp at BASE_STATS is 80 + 10*9 = 170)
+    // Start below max so heal has room (maxHp at BASE_STATS is 100 + 3*20 = 160)
     const player = createMockPlayer({
       skills: [skill],
       currentChakra: 100,
@@ -283,25 +290,27 @@ describe('useSkill', () => {
       id: 'heal-jutsu',
       name: 'Mystic Palm',
       chakraCost: 10,
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
       attackMethod: AttackMethod.AUTO,
       effects: [{ type: EffectType.HEAL, value: 40, duration: 0, chance: 1 }],
     });
+    const enemy = createMockEnemy({ currentHp: 500 });
+    // High intelligence (30) and spirit (30) => statMult = (30+30)/20 = 3.0 => heal 40 * 3 = 120 HP
+    // willpower 30 → maxHp 100+20×30 = 700 (room for 50 + 120). Player primary must match
+    // or heal is clamped to entity maxHp from willpower.
+    const highPrimary = {
+      ...BASE_STATS,
+      willpower: 30,
+      intelligence: 30,
+      spirit: 30,
+    };
+    const highStatsPlayer = makeStats(highPrimary);
     const player = createMockPlayer({
       skills: [skill],
       currentChakra: 100,
       currentHp: 50,
+      primaryStats: highPrimary,
     });
-    const enemy = createMockEnemy({ currentHp: 500 });
-    // High intelligence (30) and spirit (30) => statMult = (30+30)/20 = 3.0 => heal 40 * 3 = 120 HP
-    const highStatsPlayer = {
-      ...makeStats(),
-      effectivePrimary: {
-        ...makeStats().effectivePrimary,
-        intelligence: 30,
-        spirit: 30,
-      },
-    };
     const enemyStats = makeStats();
 
     const result = useSkill(player, highStatsPlayer, enemy, enemyStats, skill, baseCombatState());
@@ -318,7 +327,7 @@ describe('useSkill', () => {
       name: 'Basic Medical Jutsu',
       description: 'Heal wounds with medical chakra. Removes poison and bleeding.',
       chakraCost: 20,
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
       attackMethod: AttackMethod.AUTO,
       effects: [{ type: EffectType.HEAL, value: 25, duration: 1, chance: 1 }],
     });
@@ -369,7 +378,7 @@ describe('useSkill', () => {
       id: 'fireball',
       name: 'Fireball',
       chakraCost: 15,
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       attackMethod: AttackMethod.AUTO,
     });
     const player = createMockPlayer({
@@ -406,7 +415,7 @@ describe('useSkill', () => {
       id: 'punch',
       name: 'Punch',
       chakraCost: 0,
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       attackMethod: AttackMethod.AUTO,
     });
     const player = createMockPlayer({
@@ -455,7 +464,7 @@ describe('useSkill', () => {
       id: 'big-jutsu',
       name: 'Big Jutsu',
       chakraCost: 50,
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       attackMethod: AttackMethod.AUTO,
     });
     // Only 10 CP — without free-first this is rejected
@@ -502,7 +511,7 @@ describe('useSkill', () => {
       id: 'focused_breathing',
       name: 'Focused Breathing',
       chakraCost: 0,
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
       attackMethod: AttackMethod.AUTO,
       effects: [
         { type: EffectType.CHAKRA_REGEN, value: 10, duration: 1, chance: 1.0 },
@@ -529,8 +538,8 @@ describe('useSkill', () => {
 
 describe('processUpkeep', () => {
   it('restores AP budget and deals a fresh hand for the new turn', () => {
-    const skillA = createMockSkill({ id: 'a', name: 'A', damageMult: 2.0 });
-    const skillB = createMockSkill({ id: 'b', name: 'B', damageMult: 2.0 });
+    const skillA = createMockSkill({ id: 'a', name: 'A', baseDamage: 12, scalingPerPoint: 4 });
+    const skillB = createMockSkill({ id: 'b', name: 'B', baseDamage: 12, scalingPerPoint: 4 });
     const player = createMockPlayer({
       skills: [skillA, skillB],
       currentChakra: 80,
@@ -555,7 +564,7 @@ describe('processUpkeep', () => {
   });
 
   it('re-applies location movement_penalty to AP every upkeep (T-067)', () => {
-    const skillA = createMockSkill({ id: 'a', name: 'A', damageMult: 2.0 });
+    const skillA = createMockSkill({ id: 'a', name: 'A', baseDamage: 12, scalingPerPoint: 4 });
     const player = createMockPlayer({ skills: [skillA], currentChakra: 80, currentHp: 150 });
     const playerStats = makeStats();
     const baseAp = playerStats.derived.actionPointsPerTurn;
@@ -597,7 +606,7 @@ describe('processUpkeep', () => {
       isActive: true,
       upkeepCost: 50,
       actionType: ActionType.TOGGLE,
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
     });
     const player = createMockPlayer({
       skills: [toggle],

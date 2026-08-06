@@ -19,6 +19,7 @@ import {
 import { TERRAIN_DEFINITIONS } from '../../game/constants/terrain';
 import { COMBAT_MODIFIER_EFFECTS } from '../../game/constants/roomTypes';
 import { CombatModifierType } from '../../game/types';
+import { formatHeatTier, tierFromHeat } from '../../game/systems/HeatSystem';
 import { resolveLaminaPaths } from '../../utils/colorHelpers';
 import './exploration.css';
 
@@ -390,11 +391,37 @@ const LocationMap: React.FC<LocationMapProps> = ({
               </div>
               <span className="location-map__intel-value">{currentIntel}%</span>
             </div>
+            {/* F3 HEAT meter (visit runtime only) */}
+            {(() => {
+              const heat = branchingFloor.heat ?? 0;
+              const tier = tierFromHeat(heat);
+              const armed = branchingFloor.hunterArmed ?? false;
+              return (
+                <div
+                  className={`location-map__heat${armed ? ' location-map__heat--armed' : ''}`}
+                  title="Visit heat — optional rewards raise alert; does not buff ordinary foes"
+                >
+                  <span className="location-map__heat-icon" aria-hidden="true">HT</span>
+                  <div className="location-map__heat-bar">
+                    <div
+                      className="location-map__heat-fill"
+                      style={{ width: `${heat}%` }}
+                    />
+                  </div>
+                  <span className="location-map__heat-value">
+                    {formatHeatTier(tier)} {heat}
+                    {armed || heat >= 100 ? ' · HUNTER ARMED' : ''}
+                  </span>
+                </div>
+              );
+            })()}
             <p className="location-map__hint">
               {floorComplete
                 ? 'Exit cleared — return to the ops table when ready'
                 : branchingFloor.exitRoomId
-                  ? 'Exit discovered — find and defeat the Guardian'
+                  ? (branchingFloor.hunterArmed
+                    ? 'Exit discovered — a Hunter guards the way out'
+                    : 'Exit discovered — find and defeat the Guardian')
                   : 'Film the path — enter rooms to reveal the Exit'}
             </p>
             {branchingFloor.isRevisit && (

@@ -14,6 +14,7 @@ import {
   getApproachBenefitTags,
   getApproachFailureTags,
 } from '../../game/constants/approaches';
+import { approachFailHeatDelta, approachHeatPenaltyPp } from '../../game/systems/HeatSystem';
 import {
   describePosture,
   openingPostureForApproach,
@@ -78,6 +79,11 @@ interface ApproachSelectorProps {
   roomConditionNames?: string[] | null;
   /** Optional short descriptions for tooltips */
   roomConditionHints?: string[] | null;
+  /**
+   * F3: current visit heat (0–100). Passed into calculateApproachSuccessChance
+   * so previews match live PP penalties.
+   */
+  visitHeat?: number;
 }
 
 const getSuccessTier = (chance: number): string => {
@@ -158,6 +164,7 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
   locationEvasionBonus = 0,
   roomConditionNames = null,
   roomConditionHints = null,
+  visitHeat = 0,
 }) => {
   const isPreference = mode === 'preference';
   const preferred = currentPreferred ?? player.preferredApproach ?? ApproachType.FRONTAL_ASSAULT;
@@ -232,13 +239,26 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
         isPreference,
       );
 
+      // F3: same heat PP penalties as executeApproach / live roll
       const successChance = meets
         ? calculateApproachSuccessChance(
             approachType,
             stats,
             isPreference ? 0 : combinedStealthPts,
+            visitHeat,
           )
         : 0;
+
+      const failHeat = approachFailHeatDelta(approachType);
+      const heatPp = approachHeatPenaltyPp(approachType, visitHeat);
+      const failureTags = [
+        ...getApproachFailureTags(approachType),
+        ...(failHeat > 0 ? [`Fail heat +${failHeat}`] : []),
+      ];
+      const benefitTags = [
+        ...getApproachBenefitTags(approachType),
+        ...(heatPp < 0 && visitHeat >= 25 ? [`Heat ${heatPp}pp`] : []),
+      ];
 
       return {
         type: approachType,
@@ -246,8 +266,8 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
         available: meets,
         reason,
         successChance: Math.round(successChance),
-        benefits: getApproachBenefitTags(approachType),
-        failures: getApproachFailureTags(approachType),
+        benefits: benefitTags,
+        failures: failureTags,
         terrainGated,
       };
     });
@@ -256,7 +276,7 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
       if (a.available === b.available) return 0;
       return a.available ? -1 : 1;
     });
-  }, [stats, skillIds, node?.terrain, combinedStealthPts, isEliteOrBoss, isPreference]);
+  }, [stats, skillIds, node?.terrain, combinedStealthPts, isEliteOrBoss, isPreference, visitHeat]);
 
   const firstAvailableType = approaches.find(a => a.available)?.type;
 

@@ -9,13 +9,21 @@ import {
   Rarity,
   Posture,
   LogEntry,
+  CombatRange,
+  RangeMoveDirection,
 } from '../../game/types';
+import {
+  skillAllowedAt,
+  outOfRangeBlockReason,
+  skillAllowedRanges,
+} from '../../game/systems/RangeSystem';
 import StatBar from '../../components/shared/StatBar';
 import Tooltip from '../../components/shared/Tooltip';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
 import FloatingText, { FloatingTextItem, FloatingTextType } from '../../components/combat/FloatingText';
 import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
 import { PostureIndicator } from '../../components/combat/PostureIndicator';
+import { RangeControlPanel } from '../../components/combat/RangeControlPanel';
 import { FeatureFlags } from '../../config/featureFlags';
 import { getApCost } from '../../game/constants/combatCards';
 import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
@@ -127,6 +135,11 @@ interface CombatProps {
   onChangePosture: (next: Posture) => void;
   onUseSkill: (skill: Skill) => void;
   onPassTurn: () => void;
+  /** F2 engagement band */
+  currentRange?: CombatRange | null;
+  /** F2 voluntary move */
+  onMoveInRange?: (direction: RangeMoveDirection) => void;
+  playerMoveUsedThisTurn?: boolean;
   droppedSkill?: Skill | null;
   getDamageTypeColor: (dt: DamageType) => string;
   getRarityColor: (rarity: Rarity) => string;
@@ -182,6 +195,9 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   onChangePosture,
   onUseSkill: onUseSkillProp,
   onPassTurn: onPassTurnProp,
+  currentRange = null,
+  onMoveInRange,
+  playerMoveUsedThisTurn = false,
   getDamageTypeColor,
   autoCombatEnabled = false,
   onToggleAutoCombat,
@@ -307,11 +323,20 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     // Silence blocks chakra-cost skills; allow free taijutsu and toggle deactivation
     const silencedBlocked = isSilenced && skill.chakraCost > 0 && !skill.isActive;
     const hasAp = currentAp >= getApCost(skill);
+    const inRange =
+      !currentRange || skillAllowedAt(skill, currentRange);
 
-    return Boolean((hasResources || skill.isActive) && noCooldown && !isPlayerStunned && !silencedBlocked && hasAp);
-  }, [player, currentAp, skipFirstSkillCost]);
+    return Boolean(
+      (hasResources || skill.isActive) &&
+        noCooldown &&
+        !isPlayerStunned &&
+        !silencedBlocked &&
+        hasAp &&
+        inRange
+    );
+  }, [player, currentAp, skipFirstSkillCost, currentRange]);
 
-  /** R1 Confuso: explain greyed hand cards (AP / chakra / silence / stun). */
+  /** R1 Confuso: explain greyed hand cards (AP / chakra / silence / stun / range). */
   const getSkillBlockReason = useCallback((skill: Skill): string | null => {
     if (canUseSkill(skill)) return null;
     if (player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN)) {
@@ -327,6 +352,9 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     if (skill.currentCooldown > 0) {
       return `On cooldown (${skill.currentCooldown})`;
     }
+    if (currentRange && !skillAllowedAt(skill, currentRange)) {
+      return outOfRangeBlockReason(skill, currentRange);
+    }
     const ap = getApCost(skill);
     if (currentAp < ap) {
       return `Need ${ap} AP (have ${currentAp})`;
@@ -339,7 +367,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       return `Need more HP (costs ${skill.hpCost})`;
     }
     return 'Cannot play this card';
-  }, [canUseSkill, player, currentAp, skipFirstSkillCost]);
+  }, [canUseSkill, player, currentAp, skipFirstSkillCost, currentRange]);
 
   /** Hand empty on player turn — surface End Turn so the player is never stuck. */
   const handEmptyNeedsPass = turnState === 'PLAYER' && handCards.length === 0;
@@ -907,6 +935,17 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
                 </span>
               )}
             </div>
+
+            {/* F2: range band + move controls */}
+            {currentRange && (
+              <RangeControlPanel
+                currentRange={currentRange}
+                turnState={turnState}
+                playerMoveUsedThisTurn={playerMoveUsedThisTurn}
+                currentAp={currentAp}
+                onMoveInRange={onMoveInRange}
+              />
+            )}
 
             <PostureIndicator
               posture={posture}

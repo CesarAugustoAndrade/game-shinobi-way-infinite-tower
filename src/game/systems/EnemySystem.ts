@@ -186,7 +186,7 @@ function defaultIntent(
   skills: Skill[]
 ): Pick<Enemy, 'intendedSkillId' | 'intendedSkillName' | 'intentReason'> {
   const signature =
-    skills.find(s => s.id !== SKILLS.BASIC_ATTACK.id && (s.damageMult ?? 0) > 0) ??
+    skills.find(s => s.id !== SKILLS.BASIC_ATTACK.id && ((s.baseDamage ?? 0) + (s.scalingPerPoint ?? 0) * 3) > 0) ??
     skills.find(s => s.id !== SKILLS.BASIC_ATTACK.id) ??
     skills[0];
   if (!signature) return {};
@@ -313,6 +313,77 @@ export function humanizeEnemyPoolId(id: string): string {
     .trim() || 'Rogue';
 }
 
+/** Rank budget bonuses (F1 additive enemy scale). */
+const RANK_BONUS: Record<'NORMAL' | 'ELITE' | 'BOSS' | 'AMBUSH' | 'GUARDIAN', number> = {
+  NORMAL: 0,
+  AMBUSH: 1,
+  ELITE: 3,
+  GUARDIAN: 4,
+  BOSS: 7,
+};
+
+const ARCHETYPE_BASES: Record<EnemyArchetype, PrimaryAttributes> = {
+  // Offense +1 on damage stats; WILL unchanged (HP = shared 100+20×WILL).
+  TANK: { willpower: 3, chakra: 1, strength: 4, spirit: 2, intelligence: 1, calmness: 2, speed: 1, accuracy: 1, dexterity: 1 },
+  ASSASSIN: { willpower: 1, chakra: 1, strength: 3, spirit: 1, intelligence: 1, calmness: 1, speed: 3, accuracy: 2, dexterity: 3 },
+  CASTER: { willpower: 1, chakra: 3, strength: 1, spirit: 4, intelligence: 3, calmness: 1, speed: 1, accuracy: 1, dexterity: 1 },
+  GENJUTSU: { willpower: 1, chakra: 2, strength: 1, spirit: 3, intelligence: 4, calmness: 3, speed: 1, accuracy: 1, dexterity: 1 },
+  BALANCED: { willpower: 2, chakra: 2, strength: 3, spirit: 3, intelligence: 2, calmness: 2, speed: 2, accuracy: 2, dexterity: 2 },
+};
+
+/** Priority order for spending positive budget (archetype-focused first). */
+const ARCHETYPE_PRIORITY: Record<EnemyArchetype, (keyof PrimaryAttributes)[]> = {
+  TANK: ['willpower', 'strength', 'calmness', 'chakra', 'spirit', 'intelligence', 'speed', 'accuracy', 'dexterity'],
+  ASSASSIN: ['speed', 'dexterity', 'strength', 'accuracy', 'willpower', 'chakra', 'spirit', 'intelligence', 'calmness'],
+  CASTER: ['chakra', 'spirit', 'intelligence', 'willpower', 'speed', 'calmness', 'strength', 'accuracy', 'dexterity'],
+  GENJUTSU: ['intelligence', 'calmness', 'chakra', 'spirit', 'willpower', 'speed', 'accuracy', 'dexterity', 'strength'],
+  BALANCED: ['willpower', 'strength', 'spirit', 'speed', 'intelligence', 'calmness', 'chakra', 'accuracy', 'dexterity'],
+};
+
+/**
+ * Additive budget: (Danger−1) + floor(locationsCleared/2) + round((difficulty−40)/20) + rankBonus.
+ * Positive budget cycles priorities; negative removes in reverse without going below 1.
+ */
+export function computeEnemyStatBudget(
+  dangerLevel: number,
+  locationsCleared: number,
+  difficulty: number,
+  rank: keyof typeof RANK_BONUS
+): number {
+  return (
+    (dangerLevel - 1) +
+    Math.floor(locationsCleared / 2) +
+    Math.round((difficulty - 40) / 20) +
+    RANK_BONUS[rank]
+  );
+}
+
+export function applyAdditiveStatBudget(
+  base: PrimaryAttributes,
+  budget: number,
+  archetype: EnemyArchetype
+): PrimaryAttributes {
+  const stats = { ...base };
+  const order = ARCHETYPE_PRIORITY[archetype];
+  if (budget > 0) {
+    for (let i = 0; i < budget; i++) {
+      const key = order[i % order.length];
+      stats[key] += 1;
+    }
+  } else if (budget < 0) {
+    const rev = [...order].reverse();
+    for (let i = 0; i < -budget; i++) {
+      const key = rev[i % rev.length];
+      stats[key] = Math.max(1, stats[key] - 1);
+    }
+  }
+  // Floor all at 1
+  (Object.keys(stats) as (keyof PrimaryAttributes)[]).forEach((k) => {
+    stats[k] = Math.max(1, stats[k]);
+  });
+  return stats;
+}
+
 export const generateEnemy = (
   dangerLevel: number,
   locationsCleared: number,
@@ -325,24 +396,6 @@ export const generateEnemy = (
 ): Enemy => {
   const arc = getStoryArcByName(arcName);
 
-  // Calculate scaling multipliers (danger-based formula)
-  // Danger scaling: D1=0.80, D4=1.25, D7=1.70
-  const dangerMult = DIFFICULTY.DANGER_BASE + (dangerLevel * DIFFICULTY.DANGER_PER_LEVEL);
-  // Progression scaling: +4% per location cleared globally
-  const progressionMult = 1 + (locationsCleared * DIFFICULTY.PROGRESSION_PER_LOCATION);
-  // Difficulty scaling: 50% to 100% based on difficulty value
-  const diffMult = DIFFICULTY.DIFFICULTY_BASE + (diff / DIFFICULTY.DIFFICULTY_DIVISOR);
-  // Apply global ease factor (0.85 = 15% easier) and launch property multiplier
-  const totalScaling = dangerMult * progressionMult * diffMult * DIFFICULTY.ENEMY_EASE_FACTOR * LaunchProperties.ENEMY_SCALING_MULTIPLIER;
-  // T-006 B.2: ENDGAME HP WALL — extra willpower(HP)-only scaling keyed to
-  // dangerLevel (see scaledStats below). ~nil at D1, large at D6-7 so endgame
-  // enemies survive a burst nuke and retaliate instead of being one-shot.
-  const hpDangerMult = 1 + (dangerLevel * DIFFICULTY.ENEMY_HP_DANGER_FACTOR);
-  // T-006 B.2: ENDGAME OFFENSE — extra scaling on enemy damage/crit/hit stats
-  // keyed to dangerLevel (see scaledStats below). ~nil at D1, large at D6-7 so
-  // the endgame hits hard enough to punish high-HP bruisers, not just survive.
-  const dmgDangerMult = 1 + (dangerLevel * DIFFICULTY.ENEMY_DMG_DANGER_FACTOR);
-
   if (type === 'BOSS') {
     // A-003: danger 1–7 (+ arc theme), not legacy floors 8/17/25…
     const bossData = getBossData(dangerLevel, arcName);
@@ -354,17 +407,8 @@ export const generateEnemy = (
       isBoss: true,
     });
 
-    const bossStats: PrimaryAttributes = {
-      willpower: Math.floor(40 * totalScaling * hpDangerMult),
-      chakra: Math.floor(30 * totalScaling),
-      strength: Math.floor(25 * totalScaling * dmgDangerMult),
-      spirit: Math.floor(25 * totalScaling * dmgDangerMult),
-      intelligence: Math.floor(20 * totalScaling),
-      calmness: Math.floor(18 * totalScaling * dmgDangerMult),
-      speed: Math.floor(18 * totalScaling),
-      accuracy: Math.floor(15 * totalScaling * dmgDangerMult),
-      dexterity: Math.floor(15 * totalScaling * dmgDangerMult)
-    };
+    const budget = computeEnemyStatBudget(dangerLevel, locationsCleared, diff, 'BOSS');
+    const bossStats = applyAdditiveStatBudget(ARCHETYPE_BASES.TANK, budget, 'TANK');
     const derived = calculateDerivedStats(bossStats, {});
     // Boss kit: basic + element support + signature technique (≥3 skills)
     const supportSkill =
@@ -422,43 +466,14 @@ export const generateEnemy = (
     archetype = pick(COMBAT_ARCHETYPES) ?? 'BALANCED';
   }
 
-  let baseStats: PrimaryAttributes;
-  switch (archetype) {
-    case 'TANK':
-      baseStats = { willpower: 22, chakra: 10, strength: 18, spirit: 8, intelligence: 8, calmness: 12, speed: 8, accuracy: 8, dexterity: 8 };
-      break;
-    case 'ASSASSIN':
-      baseStats = { willpower: 10, chakra: 12, strength: 16, spirit: 8, intelligence: 10, calmness: 8, speed: 22, accuracy: 14, dexterity: 18 };
-      break;
-    case 'CASTER':
-      baseStats = { willpower: 10, chakra: 18, strength: 6, spirit: 22, intelligence: 16, calmness: 10, speed: 12, accuracy: 10, dexterity: 10 };
-      break;
-    case 'GENJUTSU':
-      baseStats = { willpower: 10, chakra: 16, strength: 6, spirit: 12, intelligence: 18, calmness: 22, speed: 10, accuracy: 8, dexterity: 12 };
-      break;
-    default:
-      baseStats = { willpower: 14, chakra: 12, strength: 12, spirit: 12, intelligence: 12, calmness: 12, speed: 12, accuracy: 12, dexterity: 12 };
-  }
-
-  // T-006 B.2: ENDGAME HP WALL. At the level-10 baseline the player builds
-  // out-stat the enemies so hard that high-mult nukes (Primary Lotus,
-  // Rasenshuriken, Gentle Fist crits) one-shot enemies before they ever
-  // retaliate — which is why tanky offense builds cleared 100% at every danger.
-  // This extra willpower (HP) scaling is keyed to dangerLevel so it is ~nil at
-  // D1 (keeps the early game accessible for squishy builds) but large at D6-7,
-  // letting endgame enemies SURVIVE a burst and hit back. Willpower is chosen so
-  // it raises HP/survivability without inflating enemy damage output.
-  const scaledStats: PrimaryAttributes = {
-    willpower: Math.floor(baseStats.willpower * totalScaling * hpDangerMult),
-    chakra: Math.floor(baseStats.chakra * totalScaling),
-    strength: Math.floor(baseStats.strength * totalScaling * dmgDangerMult),
-    spirit: Math.floor(baseStats.spirit * totalScaling * dmgDangerMult),
-    intelligence: Math.floor(baseStats.intelligence * totalScaling),
-    calmness: Math.floor(baseStats.calmness * totalScaling * dmgDangerMult),
-    speed: Math.floor(baseStats.speed * totalScaling),
-    accuracy: Math.floor(baseStats.accuracy * totalScaling * dmgDangerMult),
-    dexterity: Math.floor(baseStats.dexterity * totalScaling * dmgDangerMult)
-  };
+  const rankKey: keyof typeof RANK_BONUS =
+    type === 'AMBUSH' ? 'AMBUSH' : type === 'ELITE' ? 'ELITE' : 'NORMAL';
+  const budget = computeEnemyStatBudget(dangerLevel, locationsCleared, diff, rankKey);
+  const scaledStats = applyAdditiveStatBudget(
+    ARCHETYPE_BASES[archetype],
+    budget,
+    archetype
+  );
 
   let name = "";
   const elements = Object.values(ElementType).filter(e => e !== ElementType.MENTAL && e !== ElementType.PHYSICAL);
@@ -517,12 +532,7 @@ export const generateEnemy = (
   }
 
   const isElite = type === 'ELITE' || type === 'AMBUSH';
-  if (isElite) {
-    scaledStats.willpower = Math.floor(scaledStats.willpower * ENEMY_BALANCE.ELITE_WILLPOWER_MULT);
-    scaledStats.strength = Math.floor(scaledStats.strength * ENEMY_BALANCE.ELITE_STRENGTH_MULT);
-    scaledStats.spirit = Math.floor(scaledStats.spirit * ENEMY_BALANCE.ELITE_SPIRIT_MULT);
-  }
-
+  // Rank budget already encodes elite/ambush; no multiplicative post-scale.
   const derived = calculateDerivedStats(scaledStats, {});
 
   // Portrait from art registry (T-021): poolId → job keyword → archetype fallback

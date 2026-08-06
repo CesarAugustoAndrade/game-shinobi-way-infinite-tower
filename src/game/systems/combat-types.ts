@@ -12,7 +12,7 @@
  * =============================================================================
  */
 
-import { Buff, Player, Posture, Skill, TerrainDefinition } from '../types';
+import { Buff, CombatRange, Player, Posture, Skill, TerrainDefinition } from '../types';
 import type { LocationTerrainMods } from './LocationTerrainSystem';
 
 // ============================================================================
@@ -75,6 +75,20 @@ export interface CombatState {
   deck: Skill[];
   /** Played/discarded cards awaiting reshuffle */
   discard: Skill[];
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // COMBAT DISTANCE (F2)
+  // ──────────────────────────────────────────────────────────────────────────
+  /** Current engagement band (CLOSE / MEDIUM / LONG) */
+  currentRange: CombatRange;
+  /** Player already used voluntary move this turn */
+  playerMoveUsedThisTurn: boolean;
+  /** Enemy already used voluntary move this turn */
+  enemyMoveUsedThisTurn: boolean;
+  /** Enemy AP remaining this enemy phase */
+  enemyCurrentAp: number;
+  /** Enemy AP budget for the phase (same formula + terrain as player maxAp) */
+  enemyMaxAp: number;
 }
 
 // ============================================================================
@@ -176,4 +190,10 @@ export interface EnemyTurnResult {
   intendedSkillName?: string;
   /** A-003: AI reason for the telegraphed skill */
   intentReason?: string;
+  /** F2: updated engagement band after enemy move */
+  currentRange?: CombatRange;
+  /** F2: enemy AP remaining after action */
+  enemyCurrentAp?: number;
+  /** F2: enemy move used flag */
+  enemyMoveUsedThisTurn?: boolean;
 }

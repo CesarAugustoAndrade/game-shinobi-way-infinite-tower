@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 import {
   Player, Enemy, Item, Skill, GameState, BranchingRoom, BranchingFloor,
-  Region, LogEntry
+  Region, LogEntry, ApproachType,
 } from '../game/types';
 import { CombatState } from '../game/systems/CombatWorkflowSystem';
 import {
-  getCurrentRoom, completeActivity
+  getCurrentRoom, completeActivity, applyFloorHeatDelta,
 } from '../game/systems/LocationSystem';
 import {
   calculateLocationXP, calculateLocationRyo, INTEL_GAIN,
@@ -21,11 +21,25 @@ import {
   getLocationTerrainMods,
 } from '../game/systems/LocationTerrainSystem';
 import { LOOT_BALANCE } from '../game/config';
+import { FeatureFlags } from '../config/featureFlags';
 import { chance } from '../game/utils/rng';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { logVictory, logRewardModal, logFlowCheckpoint } from '../game/utils/combatDebug';
 import { logActivityComplete, logIntelGain } from '../game/utils/explorationDebug';
 import { resolveExploreReturnState } from './exploreReturnState';
+import {
+  accumulateEncounterStage,
+  canRollHeatEliteChain,
+  createEmptyEncounterChain,
+  mergeEncounterRewards,
+  markAwaitingSecondFight,
+  tryRollHeatEliteChain,
+  type EncounterChainState,
+  type EncounterRewardSlice,
+} from '../game/systems/EncounterChainSystem';
+import { generateEnemy } from '../game/systems/EnemySystem';
+import type { ApproachResult } from '../game/systems/ApproachSystem';
+import { TERRAIN_DEFINITIONS } from '../game/constants/terrain';
 
 export interface VictoryState {
   player: Player | null;
@@ -60,6 +74,40 @@ export interface VictoryDeps {
   addLog: (text: string, type?: LogEntry['type'], details?: string) => void;
   checkLevelUp: (p: Player) => any;
   returnToMap: () => void;
+  /**
+   * F3: start a follow-up heat-chain elite fight without paying fight-1 rewards.
+   * Optional — if missing, chain is disabled and fight 1 commits immediately.
+   */
+  startCombat?: (
+    enemy: Enemy,
+    result: ApproachResult,
+    playerAfterCosts: Player,
+    terrain: any,
+    locationTerrainMods?: any,
+    roomCombatModifiers?: any,
+  ) => void;
+}
+
+function frontalOpenApproach(visitHeat: number, description: string): ApproachResult {
+  return {
+    approach: ApproachType.FRONTAL_ASSAULT,
+    success: true,
+    successChance: 100,
+    roll: 1,
+    skipCombat: false,
+    guaranteedFirst: false,
+    initiativeBonus: 0,
+    firstHitMultiplier: 1,
+    enemyHpReduction: 0,
+    playerBuffs: [],
+    enemyDebuffs: [],
+    chakraCost: 0,
+    hpCost: 0,
+    xpMultiplier: 1,
+    heatDelta: 0,
+    visitHeat,
+    description,
+  };
 }
 
 export function useCombatVictory(
@@ -78,7 +126,7 @@ export function useCombatVictory(
     setCombatReward, setGameState, setEnemy, setPendingArtifact, setDroppedItems, setDroppedSkill
   } = setters;
 
-  const { addLog, checkLevelUp, returnToMap } = deps;
+  const { addLog, checkLevelUp, returnToMap, startCombat } = deps;
 
   /**
    * Blocks double XP/ryo when auto-combat / event-sim call handleCombatVictory twice
@@ -87,11 +135,253 @@ export function useCombatVictory(
    */
   const combatVictoryLockRef = useRef(false);
 
+  /** F3 EncounterChain buffer — not paid until commit. Forfeit on fight-2 death. */
+  const encounterChainRef = useRef<EncounterChainState>(createEmptyEncounterChain());
+
   useEffect(() => {
     if (!combatReward) {
       combatVictoryLockRef.current = false;
     }
   }, [combatReward]);
+
+  const buildRewardSlice = useCallback((
+    defeatedEnemy: Enemy,
+    combatStateAtVictory: CombatState | null,
+    opts: { isHeatChainElite: boolean; forceXpMult?: number },
+  ): EncounterRewardSlice => {
+    const xpMultiplier =
+      opts.forceXpMult ??
+      (opts.isHeatChainElite ? 1.0 : (combatStateAtVictory?.xpMultiplier || 1.0));
+    const rewardMult = defeatedEnemy.rewardMultiplier ?? 1;
+
+    const isAmbush = defeatedEnemy?.tier.includes('S-Rank');
+    const isGuardian = defeatedEnemy?.tier === 'Guardian';
+    const isHunter = !!defeatedEnemy?.isHunter || defeatedEnemy?.tier === 'Hunter';
+    const enemyTier = defeatedEnemy?.tier || 'Chunin';
+
+    const baseExp = calculateLocationXP(currentDangerLevel, currentBaseDifficulty);
+    const tierBonus = isHunter
+      ? 400
+      : isGuardian
+        ? 300
+        : enemyTier === 'Jonin'
+          ? 20
+          : enemyTier === 'Kage Level'
+            ? 200
+            : isAmbush
+              ? 100
+              : opts.isHeatChainElite
+                ? 40
+                : 0;
+    const expGain = Math.floor((baseExp + tierBonus) * xpMultiplier * rewardMult);
+
+    const baseRyo = calculateLocationRyo(currentDangerLevel, currentBaseDifficulty);
+    const locationWealthLevel = currentLocation?.wealthLevel ?? 4;
+    let ryoGain = applyWealthToRyo(baseRyo, locationWealthLevel);
+    const flagMods = player ? getEventFlagRunModifiers(player) : { ryoMultiplier: 1, damageBonus: 0, activeLabels: [] as string[] };
+    if (flagMods.ryoMultiplier !== 1) {
+      ryoGain = Math.floor(ryoGain * flagMods.ryoMultiplier);
+    }
+    const goldMult = region?.lootTheme?.goldMultiplier ?? 1;
+    ryoGain = applyLootThemeGoldMultiplier(ryoGain, region?.lootTheme);
+    ryoGain = Math.floor(ryoGain * rewardMult);
+
+    const ryoNoteParts: string[] = [];
+    if (locationWealthLevel !== 4) {
+      ryoNoteParts.push(locationWealthLevel > 4 ? 'wealthy area' : 'poor area');
+    }
+    if (flagMods.ryoMultiplier !== 1) {
+      ryoNoteParts.push(`story ×${flagMods.ryoMultiplier}`);
+    }
+    if (goldMult !== 1) {
+      ryoNoteParts.push(`region Ryo ×${goldMult}`);
+    }
+    if (rewardMult !== 1) {
+      ryoNoteParts.push(`foe ×${rewardMult}`);
+    }
+    const ryoNote = ryoNoteParts.length > 0 ? ryoNoteParts.join(' · ') : null;
+
+    let intelGain = 0;
+    let baseIntelGain = 0;
+    let fogNote: string | null = null;
+    if (region) {
+      const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+      baseIntelGain = INTEL_GAIN.COMBAT_VICTORY;
+      intelGain = applyVisibilityToIntelGain(baseIntelGain, locMods);
+      if (intelGain !== baseIntelGain) {
+        const fogPct = Math.round((locMods.visibilityPenalty || 0) * 100);
+        fogNote = `Fog reduced intel (visibility ${fogPct > 0 ? '+' : ''}${fogPct}%)`;
+      }
+    }
+
+    const wasEliteChallenge = pendingArtifact !== null && !opts.isHeatChainElite;
+    let lootPreviews: Item[] = [];
+    if (wasEliteChallenge && pendingArtifact) {
+      lootPreviews = [pendingArtifact];
+    } else if (isHunter) {
+      // Guaranteed artifact for Hunter
+      const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
+      const drop = generateLoot(
+        effectiveFloor,
+        difficulty,
+        currentLocation?.lootTable,
+        region?.lootTheme,
+      );
+      lootPreviews = [drop];
+    } else if (!wasEliteChallenge) {
+      if (chance(LOOT_BALANCE.COMBAT_ITEM_DROP_CHANCE) || opts.isHeatChainElite) {
+        const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
+        const drop = generateLoot(
+          effectiveFloor,
+          difficulty,
+          currentLocation?.lootTable,
+          region?.lootTheme,
+        );
+        lootPreviews = [drop];
+      }
+    }
+
+    return {
+      expGain,
+      ryoGain,
+      intelGain,
+      baseIntelGain,
+      fogNote,
+      ryoNote,
+      lootPreviews,
+      xpMultiplier,
+      enemyName: defeatedEnemy.name,
+      enemyTier,
+      isHeatChainElite: opts.isHeatChainElite,
+    };
+  }, [
+    currentDangerLevel, currentBaseDifficulty, currentLocation, player, region,
+    pendingArtifact, difficulty,
+  ]);
+
+  const commitEncounterRewards = useCallback((chain: EncounterChainState) => {
+    const merged = mergeEncounterRewards(chain);
+    const wasEliteChallenge = pendingArtifact !== null && !chain.stages.some(s => s.isHeatChainElite);
+
+    // Complete activity only on commit
+    if (chain.activity) {
+      const { roomId, activityType, floorKind } = chain.activity;
+      if (floorKind === 'branching' || branchingFloor) {
+        setBranchingFloor(prevFloor => {
+          if (!prevFloor) return prevFloor;
+          let updatedFloor = completeActivity(prevFloor, roomId, activityType);
+          if (updatedFloor.currentRoomId !== roomId) {
+            updatedFloor = {
+              ...updatedFloor,
+              currentRoomId: roomId,
+              rooms: updatedFloor.rooms.map(room => ({
+                ...room,
+                isCurrent: room.id === roomId,
+              })),
+            };
+          }
+          const updatedRoom = updatedFloor.rooms.find(r => r.id === roomId);
+          if (updatedRoom?.isCleared && updatedRoom.isExit) {
+            addLog('You cleared the exit! Proceed to the next floor?', 'gain');
+          }
+          return updatedFloor;
+        });
+      }
+      if (floorKind === 'location' || locationFloor) {
+        setLocationFloor(prevFloor => {
+          if (!prevFloor) return prevFloor;
+          let updatedFloor = completeActivity(prevFloor, roomId, activityType);
+          if (updatedFloor.currentRoomId !== roomId) {
+            updatedFloor = {
+              ...updatedFloor,
+              currentRoomId: roomId,
+              rooms: updatedFloor.rooms.map(room => ({
+                ...room,
+                isCurrent: room.id === roomId,
+              })),
+            };
+          }
+          const updatedRoom = updatedFloor.rooms.find(r => r.id === roomId);
+          if (updatedRoom?.isCleared && updatedRoom.isExit) {
+            addLog('Location cleared! Return when ready to choose the next destination.', 'gain');
+          }
+          return updatedFloor;
+        });
+      }
+    }
+
+    if (merged.intelGain > 0) {
+      setCurrentIntel(prev => Math.min(100, prev + merged.intelGain));
+      logIntelGain('Combat', merged.intelGain, Math.min(100, currentIntel + merged.intelGain));
+      if (merged.fogNote) {
+        addLog(`Gained +${merged.intelGain}% intel (${merged.fogNote}).`, 'info');
+      } else {
+        addLog(`Gained +${merged.intelGain}% intel.`, 'info');
+      }
+    }
+
+    let levelUpInfo: { oldLevel: number; newLevel: number; statGains: Record<string, number> } | undefined;
+
+    setPlayer(prev => {
+      if (!prev) return null;
+      let updatedPlayer = { ...prev, exp: prev.exp + merged.expGain };
+      addLog(`Gained ${merged.expGain} Experience.`, 'info');
+      const levelUpResult = checkLevelUp(updatedPlayer);
+      updatedPlayer = levelUpResult.player;
+      levelUpInfo = levelUpResult.levelUpInfo;
+      updatedPlayer = {
+        ...updatedPlayer,
+        ryo: updatedPlayer.ryo + merged.ryoGain,
+      };
+      addLog(
+        `Gained ${merged.ryoGain} Ryō${merged.ryoNote ? ` (${merged.ryoNote})` : ''}.`,
+        'loot',
+      );
+      return updatedPlayer;
+    });
+
+    logVictory(merged.enemyNames.join(' + ') || 'Enemy', {
+      xpGain: merged.expGain,
+      ryoGain: merged.ryoGain,
+      levelUp: !!levelUpInfo
+    });
+
+    if (merged.lootPreviews.length > 0) {
+      setDroppedItems(merged.lootPreviews);
+      setDroppedSkill(null);
+      for (const drop of merged.lootPreviews) {
+        addLog(`Found ${drop.name}!`, 'loot');
+      }
+    } else if (!wasEliteChallenge) {
+      setDroppedItems([]);
+      setDroppedSkill(null);
+    }
+
+    logRewardModal('show', { xpGain: merged.expGain, ryoGain: merged.ryoGain, levelUp: !!levelUpInfo });
+    setCombatReward({
+      expGain: merged.expGain,
+      ryoGain: merged.ryoGain,
+      levelUp: levelUpInfo,
+      lootPreviews: merged.lootPreviews,
+      continuesToLoot: merged.lootPreviews.length > 0,
+      intelGain: merged.intelGain > 0 ? merged.intelGain : undefined,
+      baseIntelGain:
+        merged.intelGain > 0 && merged.intelGain !== merged.baseIntelGain
+          ? merged.baseIntelGain
+          : undefined,
+      fogNote: merged.fogNote || undefined,
+      ryoNote: merged.ryoNote || undefined,
+      chainStages: merged.stages > 1 ? merged.stages : undefined,
+    });
+
+    encounterChainRef.current = createEmptyEncounterChain();
+    logFlowCheckpoint('Transitioning to explore with reward modal (commit)');
+    setGameState(resolveExploreReturnState(region, !!locationFloor));
+  }, [
+    pendingArtifact, branchingFloor, locationFloor, region, currentIntel,
+    setBranchingFloor, setLocationFloor, setCurrentIntel, setPlayer, setCombatReward,
+    setGameState, setDroppedItems, setDroppedSkill, addLog, checkLevelUp,
+  ]);
 
   const handleCombatVictory = useCallback((defeatedEnemy: Enemy, combatStateAtVictory: CombatState | null) => {
     if (combatVictoryLockRef.current) {
@@ -110,205 +400,140 @@ export function useCombatVictory(
 
     addLog("Enemy Defeated!", 'gain');
 
-    // Determine if this was an elite challenge (check pendingArtifact)
     const wasEliteChallenge = pendingArtifact !== null;
+    const chain = encounterChainRef.current;
+    // Detect fight-2 of heat chain (rewards still buffered from fight 1)
+    const finishingHeatElite = chain.awaitingSecondFight;
 
-    // Complete the appropriate activity in branching floor
-    if (branchingFloor) {
-      setBranchingFloor(prevFloor => {
-        if (!prevFloor) return prevFloor;
-        const combatRoom = getCurrentRoom(prevFloor);  // Uses currentRoomId set by moveToRoom
-        if (!combatRoom) return prevFloor;
+    const slice = buildRewardSlice(defeatedEnemy, combatStateAtVictory, {
+      isHeatChainElite: finishingHeatElite,
+      forceXpMult: finishingHeatElite ? 1.0 : undefined,
+    });
 
-        // Mark the correct activity as completed
-        const activityType = wasEliteChallenge ? 'eliteChallenge' : 'combat';
-        let updatedFloor = completeActivity(prevFloor, combatRoom.id, activityType);
-        if (updatedFloor.currentRoomId !== combatRoom.id) {
-          updatedFloor = {
-            ...updatedFloor,
-            currentRoomId: combatRoom.id,
-            rooms: updatedFloor.rooms.map(room => ({
-              ...room,
-              isCurrent: room.id === combatRoom.id,
-            })),
-          };
-        }
+    const room =
+      (locationFloor && getCurrentRoom(locationFloor)) ||
+      (branchingFloor && getCurrentRoom(branchingFloor)) ||
+      null;
+    const floorKind: 'location' | 'branching' | null = locationFloor
+      ? 'location'
+      : branchingFloor
+        ? 'branching'
+        : null;
 
-        const updatedRoom = updatedFloor.rooms.find(r => r.id === combatRoom.id);
-        if (updatedRoom?.isCleared && updatedRoom.isExit) {
-          addLog('You cleared the exit! Proceed to the next floor?', 'gain');
-        }
+    let nextChain = accumulateEncounterStage(
+      finishingHeatElite ? chain : createEmptyEncounterChain(),
+      slice,
+      room && floorKind
+        ? {
+            roomId: room.id,
+            activityType: wasEliteChallenge ? 'eliteChallenge' : 'combat',
+            floorKind,
+          }
+        : chain.activity,
+    );
 
-        return updatedFloor;
-      });
+    // Heat at roll: prefer locationFloor (visit runtime)
+    const visitFloor = locationFloor ?? branchingFloor;
+    const heat = visitFloor?.heat ?? 0;
+
+    if (finishingHeatElite) {
+      // Dual win → single commit
+      encounterChainRef.current = nextChain;
+      commitEncounterRewards(nextChain);
+      return;
     }
 
-    // Complete the appropriate activity in location mode (using locationFloor)
-    if (locationFloor && region) {
-      setLocationFloor(prevFloor => {
-        if (!prevFloor) return prevFloor;
-        const combatRoom = getCurrentRoom(prevFloor);
-        if (!combatRoom) return prevFloor;
+    // Roll heat elite chain after Normal win (pre-pay)
+    const eligible = canRollHeatEliteChain({
+      heat,
+      enemy: defeatedEnemy,
+      wasAuthoredEliteChallenge: wasEliteChallenge,
+      isTutorial: false,
+      alreadyInChain: false,
+    });
 
-        // Mark the correct activity as completed
-        const activityType = wasEliteChallenge ? 'eliteChallenge' : 'combat';
-        let updatedFloor = completeActivity(prevFloor, combatRoom.id, activityType);
-        if (updatedFloor.currentRoomId !== combatRoom.id) {
-          updatedFloor = {
-            ...updatedFloor,
-            currentRoomId: combatRoom.id,
-            rooms: updatedFloor.rooms.map(room => ({
-              ...room,
-              isCurrent: room.id === combatRoom.id,
-            })),
-          };
-        }
+    if (eligible && player && tryRollHeatEliteChain(heat)) {
+      nextChain = markAwaitingSecondFight(nextChain, heat);
+      encounterChainRef.current = nextChain;
 
-        const updatedRoom = updatedFloor.rooms.find(r => r.id === combatRoom.id);
-        if (updatedRoom?.isCleared && updatedRoom.isExit) {
-          // Meta completion (mark + deck + cards + locationsCleared) runs in
-          // returnToMap / completeLocationAndReturnToRegion after rewards close.
-          addLog('Location cleared! Return when ready to choose the next destination.', 'gain');
-        }
+      addLog('Ambush! Heat draws an elite response — rewards held until the fight ends.', 'danger');
 
-        return updatedFloor;
-      });
-    }
-
-    // Apply XP multiplier from approach
-    const xpMultiplier = combatStateAtVictory?.xpMultiplier || 1.0;
-
-    // Calculate rewards outside setPlayer so we can use them for the modal
-    const isAmbush = defeatedEnemy?.tier.includes('S-Rank');
-    const isGuardian = defeatedEnemy?.tier === 'Guardian';
-    const enemyTier = defeatedEnemy?.tier || 'Chunin';
-
-    const baseExp = calculateLocationXP(currentDangerLevel, currentBaseDifficulty);
-    const tierBonus = isGuardian ? 300 : enemyTier === 'Jonin' ? 20 : enemyTier === 'Kage Level' ? 200 : isAmbush ? 100 : 0;
-    const expGain = Math.floor((baseExp + tierBonus) * xpMultiplier);
-
-    // Apply wealth multiplier + T-034 event-flag ryo modifiers + T-061 region gold
-    const baseRyo = calculateLocationRyo(currentDangerLevel, currentBaseDifficulty);
-    const locationWealthLevel = currentLocation?.wealthLevel ?? 4;
-    let ryoGain = applyWealthToRyo(baseRyo, locationWealthLevel);
-    const flagMods = player ? getEventFlagRunModifiers(player) : { ryoMultiplier: 1, damageBonus: 0, activeLabels: [] as string[] };
-    if (flagMods.ryoMultiplier !== 1) {
-      ryoGain = Math.floor(ryoGain * flagMods.ryoMultiplier);
-    }
-    // T-061: region lootTheme.goldMultiplier (Waves 0.8 … War 1.2)
-    const goldMult = region?.lootTheme?.goldMultiplier ?? 1;
-    ryoGain = applyLootThemeGoldMultiplier(ryoGain, region?.lootTheme);
-    // T-089: notes for RewardModal / log (wealth + story + region ryo)
-    const ryoNoteParts: string[] = [];
-    if (locationWealthLevel !== 4) {
-      ryoNoteParts.push(locationWealthLevel > 4 ? 'wealthy area' : 'poor area');
-    }
-    if (flagMods.ryoMultiplier !== 1) {
-      ryoNoteParts.push(`story ×${flagMods.ryoMultiplier}`);
-    }
-    if (goldMult !== 1) {
-      ryoNoteParts.push(`region Ryo ×${goldMult}`);
-    }
-    const ryoNote = ryoNoteParts.length > 0 ? ryoNoteParts.join(' · ') : null;
-
-    // Add intel from combat victory (+5%, reduced by location visibility_penalty T-067)
-    // T-087: keep base/effective for RewardModal fog honesty
-    let intelGain = 0;
-    let baseIntelGain = 0;
-    let fogNote: string | null = null;
-    if (region) {
-      const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
-      baseIntelGain = INTEL_GAIN.COMBAT_VICTORY;
-      intelGain = applyVisibilityToIntelGain(baseIntelGain, locMods);
-      setCurrentIntel(prev => Math.min(100, prev + intelGain));
-      logIntelGain('Combat', intelGain, Math.min(100, currentIntel + intelGain));
-      if (intelGain !== baseIntelGain) {
-        const fogPct = Math.round((locMods.visibilityPenalty || 0) * 100);
-        fogNote = `Fog reduced intel (visibility ${fogPct > 0 ? '+' : ''}${fogPct}%)`;
-        addLog(`Gained +${intelGain}% intel (fog: ${baseIntelGain}%→${intelGain}%).`, 'info');
-      } else if (intelGain > 0) {
-        addLog(`Gained +${intelGain}% intel.`, 'info');
-      }
-    }
-
-    let levelUpInfo: { oldLevel: number; newLevel: number; statGains: Record<string, number> } | undefined;
-
-    setPlayer(prev => {
-      if (!prev) return null;
-
-      let updatedPlayer = { ...prev, exp: prev.exp + expGain };
-      addLog(`Gained ${expGain} Experience${xpMultiplier > 1 ? ` (${Math.round((xpMultiplier - 1) * 100)}% bonus!)` : ''}.`, 'info');
-
-      const levelUpResult = checkLevelUp(updatedPlayer);
-      updatedPlayer = levelUpResult.player;
-      levelUpInfo = levelUpResult.levelUpInfo;
-
-      updatedPlayer.ryo += ryoGain;
-      addLog(
-        `Gained ${ryoGain} Ryō${ryoNote ? ` (${ryoNote})` : ''}.`,
-        'loot',
+      const elite = generateEnemy(
+        currentDangerLevel,
+        player.locationsCleared ?? 0,
+        'ELITE',
+        difficulty,
+        visitFloor?.arc ?? 'WAVES_ARC',
+        undefined,
+        visitFloor?.enemyPool,
+        visitFloor?.preferredElement,
       );
+      elite.name = elite.name.startsWith('Elite') ? elite.name : `Elite ${elite.name}`;
 
-      return updatedPlayer;
-    });
-
-    // Log victory rewards
-    logVictory(defeatedEnemy.name, {
-      xpGain: expGain,
-      ryoGain: ryoGain,
-      levelUp: !!levelUpInfo
-    });
-
-    // Normal combat (non-elite): chance to drop Broken components.
-    // Elite rewards use pendingArtifact → LOOT after the reward modal; do not
-    // overwrite that path.
-    // T-035: keep local previews for RewardModal (setState is async).
-    let lootPreviews: Item[] = [];
-    if (wasEliteChallenge && pendingArtifact) {
-      lootPreviews = [pendingArtifact];
-    } else if (!wasEliteChallenge) {
-      if (chance(LOOT_BALANCE.COMBAT_ITEM_DROP_CHANCE)) {
-        const effectiveFloor = dangerToFloor(currentDangerLevel, currentBaseDifficulty);
-        // T-059/T-061: bias combat drops by location lootTable + region lootTheme
-        const drop = generateLoot(
-          effectiveFloor,
-          difficulty,
-          currentLocation?.lootTable,
-          region?.lootTheme,
+      // Auto-sim path: resolve fight 2 immediately without UI (same accumulate API)
+      if (!FeatureFlags.ENABLE_MANUAL_COMBAT || !startCombat) {
+        const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+        const sim2 = simulateGameCombat(
+          player,
+          playerStats,
+          elite,
+          undefined,
+          room?.terrain,
+          locMods,
+          room?.activities.combat?.modifiers,
+          heat,
         );
-        lootPreviews = [drop];
-        setDroppedItems([drop]);
-        setDroppedSkill(null);
-        addLog(`Found ${drop.name}!`, 'loot');
-      } else {
-        setDroppedItems([]);
-        setDroppedSkill(null);
+        setPlayer(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            currentHp: Math.max(1, sim2.playerHpRemaining),
+            currentChakra: sim2.playerChakraRemaining,
+          };
+        });
+        if (!sim2.won) {
+          encounterChainRef.current = createEmptyEncounterChain();
+          addLog(`Defeated by ambush elite ${elite.name} — uncommitted rewards forfeited.`, 'danger');
+          setGameState(GameState.GAME_OVER);
+          return;
+        }
+        addLog(`Ambush cleared! Defeated ${elite.name}.`, 'gain');
+        combatVictoryLockRef.current = false;
+        handleCombatVictory(elite, null);
+        return;
       }
+
+      const terrain = room?.terrain
+        ? TERRAIN_DEFINITIONS[room.terrain]
+        : TERRAIN_DEFINITIONS[Object.keys(TERRAIN_DEFINITIONS)[0] as keyof typeof TERRAIN_DEFINITIONS];
+      const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
+      const roomMods =
+        room?.activities.combat?.modifiers
+        ?? room?.activities.eliteChallenge?.modifiers
+        ?? null;
+
+      // Re-arm victory lock for fight 2 (startCombat also clears its lock)
+      combatVictoryLockRef.current = false;
+
+      startCombat(
+        elite,
+        frontalOpenApproach(heat, 'Heat ambush — no approach bonus.'),
+        player,
+        terrain,
+        locMods,
+        roomMods,
+      );
+      setGameState(GameState.COMBAT);
+      return;
     }
 
-    // Show reward modal instead of returning to map immediately
-    logRewardModal('show', { xpGain: expGain, ryoGain: ryoGain, levelUp: !!levelUpInfo });
-    setCombatReward({
-      expGain,
-      ryoGain,
-      levelUp: levelUpInfo,
-      lootPreviews,
-      continuesToLoot: lootPreviews.length > 0,
-      intelGain: intelGain > 0 ? intelGain : undefined,
-      baseIntelGain:
-        intelGain > 0 && intelGain !== baseIntelGain ? baseIntelGain : undefined,
-      fogNote: fogNote || undefined,
-      ryoNote: ryoNote || undefined,
-    });
-
-    // Same-turn explore transition so RewardModal mounts with combatReward (no blank COMBAT beat).
-    logFlowCheckpoint('Transitioning to explore with reward modal');
-    setGameState(resolveExploreReturnState(region, !!locationFloor));
+    // Single fight (or chain not rolled) → commit immediately
+    encounterChainRef.current = nextChain;
+    commitEncounterRewards(nextChain);
   }, [
     branchingFloor, region, currentDangerLevel, currentBaseDifficulty, addLog, pendingArtifact,
-    locationFloor, currentLocation, difficulty,
-    setBranchingFloor, setLocationFloor, setCurrentIntel, setPlayer, setCombatReward,
-    setGameState, checkLevelUp, currentIntel, setDroppedItems, setDroppedSkill
+    locationFloor, currentLocation, difficulty, player, startCombat,
+    buildRewardSlice, commitEncounterRewards, setGameState,
   ]);
 
   const handleAutoCombat = useCallback((
@@ -321,7 +546,6 @@ export function useCombatVictory(
     const combatEnemy = room.activities.combat.enemy;
     addLog(`Auto-combat started against ${combatEnemy.name}...`, 'info');
 
-    // Run simulation
     const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
     const result = simulateGameCombat(
       player,
@@ -331,9 +555,9 @@ export function useCombatVictory(
       room.terrain,
       locMods,
       room.activities.combat?.modifiers,
+      floor.heat ?? 0,
     );
 
-    // Update player HP and chakra based on simulation result
     setPlayer(prev => {
       if (!prev) return null;
       return {
@@ -349,17 +573,18 @@ export function useCombatVictory(
         addLog(`Guts triggered ${result.gutsTriggered} time(s)!`, 'info');
       }
 
-      // Complete the activity in the floor
-      const updatedFloor = completeActivity(floor, room.id, 'combat');
-      setFloor(updatedFloor);
+      // Activity completion deferred to commit inside handleCombatVictory
+      // Keep floor pointer current for room id lookup
+      setFloor(floor);
 
-      // Call victory handler
       handleCombatVictory(combatEnemy, null);
     } else {
+      // Death mid-chain forfeits buffer
+      encounterChainRef.current = createEmptyEncounterChain();
       addLog(`Defeated by ${combatEnemy.name} after ${result.turnsElapsed} turns...`, 'danger');
       setGameState(GameState.GAME_OVER);
     }
-  }, [player, playerStats, addLog, handleCombatVictory, setGameState, setPlayer]);
+  }, [player, playerStats, addLog, handleCombatVictory, setGameState, setPlayer, currentLocation]);
 
   const handleAutoEliteCombat = useCallback((
     room: BranchingRoom,
@@ -372,7 +597,6 @@ export function useCombatVictory(
 
     addLog(`Auto-combat started against elite guardian: ${eliteEnemy.name}...`, 'danger');
 
-    // Run simulation
     const eliteLocMods = getLocationTerrainMods(currentLocation?.terrainEffects);
     const result = simulateGameCombat(
       player,
@@ -381,12 +605,11 @@ export function useCombatVictory(
       undefined,
       room.terrain,
       eliteLocMods,
-      // T-108: elite-only rooms store mods on eliteChallenge
       room.activities.eliteChallenge?.modifiers
         ?? room.activities.combat?.modifiers,
+      floor.heat ?? 0,
     );
 
-    // Update player HP and chakra based on simulation result
     setPlayer(prev => {
       if (!prev) return null;
       return {
@@ -400,20 +623,15 @@ export function useCombatVictory(
       addLog(`Victory! Defeated elite guardian ${eliteEnemy.name} in ${result.turnsElapsed} turns.`, 'gain');
       addLog(`Obtained artifact: ${artifact.name}!`, 'loot');
 
-      // Complete the activity in the floor
-      const updatedFloor = completeActivity(floor, room.id, 'eliteChallenge');
-      setFloor(updatedFloor);
-
-      // Set pending artifact for loot scene
+      setFloor(floor);
       setPendingArtifact(artifact);
-
-      // Call victory handler (with elite enemy)
       handleCombatVictory(eliteEnemy, null);
     } else {
+      encounterChainRef.current = createEmptyEncounterChain();
       addLog(`Defeated by elite guardian ${eliteEnemy.name} after ${result.turnsElapsed} turns...`, 'danger');
       setGameState(GameState.GAME_OVER);
     }
-  }, [player, playerStats, addLog, handleCombatVictory, setGameState, setPlayer, setPendingArtifact]);
+  }, [player, playerStats, addLog, handleCombatVictory, setGameState, setPlayer, setPendingArtifact, currentLocation]);
 
   return {
     handleCombatVictory,

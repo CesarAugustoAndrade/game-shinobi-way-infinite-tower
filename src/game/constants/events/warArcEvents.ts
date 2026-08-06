@@ -32,6 +32,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
             weight: 35,
             effects: {
               exp: 150,
+              heatDelta: 5,
               logMessage: 'Your instinct was right! You destroy the clones before they can act.',
               logType: 'gain',
             },
@@ -50,12 +51,13 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
         label: 'Wait and Observe',
         description: 'MEDIUM RISK - Patience tests your nerves',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.CALMNESS, value: 25 } },
+        requirements: { minStat: { stat: PrimaryStat.CALMNESS, value: 1 } },
         outcomes: [
           {
             weight: 80,
             effects: {
               exp: 100,
+              heatDelta: 5,
               logMessage: 'Your patience reveals the truth. The clones materialize and you destroy them calmly.',
               logType: 'gain',
             },
@@ -117,8 +119,9 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
           {
             weight: 30,
             effects: {
-              statChanges: { chakra: 10, spirit: 8, willpower: 8 },
+              statChanges: { chakra: 3, spirit: 3, willpower: 3 },
               exp: 300,
+              heatDelta: 5,
               logMessage: 'The Bijuu power floods through you! You are forever changed.',
               logType: 'loot',
             },
@@ -135,7 +138,8 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
             weight: 20,
             effects: {
               exp: 180,
-              statChanges: { chakra: 5 },
+              statChanges: { chakra: 2 },
+              heatDelta: 5,
               logMessage: 'You carefully extract a small portion of the chakra.',
               logType: 'gain',
             },
@@ -146,7 +150,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
         label: 'Contain It Safely',
         description: 'MEDIUM RISK - Scientific approach',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 25 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         outcomes: [
           {
             weight: 70,
@@ -154,6 +158,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               exp: 200,
               ryo: 500,
               statChanges: { intelligence: 3 },
+              heatDelta: 30,
               logMessage: 'Your brilliant technique safely harnesses the chakra!',
               logType: 'loot',
             },
@@ -220,7 +225,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
         label: 'Bind Him to Your Will',
         description: 'HIGH RISK - Seize the reanimation for yourself (needs 20 Intelligence)',
         riskLevel: RiskLevel.HIGH,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 20 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Stolen power is never freely given.',
         outcomes: [
           {
@@ -244,6 +249,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 90,
               intelGain: 15,
+              heatDelta: 5,
               logMessage: 'You destroy the vessel. The soul dissolves with a whisper of thanks.',
               logType: 'gain',
             },
@@ -276,6 +282,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               grantSkillById: 'suijinheki',
               exp: 120,
               intelGain: 20,
+              heatDelta: 10,
               logMessage: 'The freed shinobi presses his water-wall technique into your hands before fading. A gift, not a price.',
               logType: 'loot',
             },
@@ -296,6 +303,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               grantSkillById: 'dragon_flame',
               curse: { value: 0.4, duration: 3 },
               intelGain: 20,
+              heatDelta: 10,
               logMessage: 'You wrench the dragon-flame jutsu from his memory. It burns into you — and so does his hatred, a curse riding your chakra.',
               logType: 'danger',
             },
@@ -323,6 +331,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 60,
               intelGain: 10,
+              heatDelta: 5,
               logMessage: 'You ask nothing of him. The envoy bows once and crumbles to ash.',
               logType: 'info',
             },
@@ -362,6 +371,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               exp: 60,
               intelGain: 20,
               setFlags: { envoy_debt_settled: 1 },
+              heatDelta: 30,
               logMessage: 'They hand you a cache of ration seals and Ryō. Mercy, it seems, compounds.',
               logType: 'loot',
             },
@@ -373,6 +383,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               exp: 30,
               intelGain: 10,
               setFlags: { envoy_debt_settled: 1 },
+              heatDelta: 10,
               logMessage: 'The cache is nearly empty — the unit has little left to give — but they share what remains without hesitation.',
               logType: 'info',
             },
@@ -383,7 +394,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
         label: 'Ask for Their Blade',
         description: 'LOW RISK - Request a war-forged weapon (needs 18 Strength)',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.STRENGTH, value: 18 } },
+        requirements: { minStat: { stat: PrimaryStat.STRENGTH, value: 1 } },
         outcomes: [
           {
             weight: 70,
@@ -392,6 +403,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               exp: 120,
               intelGain: 20,
               setFlags: { envoy_debt_settled: 1 },
+              heatDelta: 5,
               logMessage: 'They gift you their captain\'s blade. Its weight settles into your grip like it was forged for you.',
               logType: 'gain',
             },
@@ -406,6 +418,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               intelGain: 10,
               hpChange: { percent: -15 },
               setFlags: { envoy_debt_settled: 1 },
+              heatDelta: 5,
               logMessage: 'The good steel is already spoken for. As you inspect their spare blade it slips — a shallow cut, but a reminder that borrowed steel demands respect.',
               logType: 'danger',
             },
@@ -423,6 +436,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               exp: 40,
               intelGain: 15,
               setFlags: { envoy_debt_settled: 1 },
+              heatDelta: 5,
               logMessage: 'You wave off the cache. The kunoichi bows deeper for the refusal than any gift could earn.',
               logType: 'gain',
             },
@@ -455,6 +469,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
               ryo: 350,
               exp: 60,
               intelGain: 20,
+              heatDelta: 30,
               logMessage: 'You work fast and clean, filling your pouch with sealed scrolls and coin.',
               logType: 'loot',
             },
@@ -481,6 +496,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 120,
               intelGain: 15,
+              heatDelta: 20,
               logMessage: 'You pocket the loose coin and leave the rest untouched.',
               logType: 'gain',
             },
@@ -505,6 +521,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 50,
               intelGain: 10,
+              heatDelta: 5,
               logMessage: 'You close their eyes and press on. The living still need you.',
               logType: 'info',
             },

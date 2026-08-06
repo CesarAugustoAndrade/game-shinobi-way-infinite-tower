@@ -10,9 +10,11 @@ import {
   ElementType,
   EffectType,
   DamageType,
-  AttackMethod
+  AttackMethod,
+  CombatRange,
 } from '../game/types';
 import { calculateDamage } from '../game/systems/StatSystem';
+import { skillAllowedAt } from '../game/systems/RangeSystem';
 import { getElementEffectiveness } from '../game/constants';
 import { getApCost } from '../game/constants/combatCards';
 import { SimCombatant } from './types';
@@ -75,7 +77,8 @@ export function scoreSkill(
   defender: SimCombatant,
   defenderDerived: DerivedStats,
   isFirstTurn: boolean = false,
-  firstHitMultiplier: number = 1.0
+  firstHitMultiplier: number = 1.0,
+  currentRange?: CombatRange
 ): SkillScore {
   const reasons: string[] = [];
   let score = 0;
@@ -91,6 +94,11 @@ export function scoreSkill(
 
   if (attacker.currentHp <= skill.hpCost) {
     return { skill, score: SCORING_WEIGHTS.UNAVAILABLE_PENALTY, reasons: ['Would kill self'] };
+  }
+
+  // F2: never score out-of-range skills as playable (live/auto parity)
+  if (currentRange !== undefined && !skillAllowedAt(skill, currentRange)) {
+    return { skill, score: SCORING_WEIGHTS.UNAVAILABLE_PENALTY, reasons: ['Out of range'] };
   }
 
   // Calculate expected damage
@@ -251,28 +259,42 @@ export function selectBestCard(
   defender: SimCombatant,
   defenderDerived: DerivedStats,
   isFirstTurn: boolean = false,
-  firstHitMultiplier: number = 1.0
+  firstHitMultiplier: number = 1.0,
+  currentRange?: CombatRange
 ): Skill | null {
-  // Only cards we can pay the AP for are candidates this play.
-  const affordable = hand.filter(card => getApCost(card) <= availableAp);
+  // Only cards we can pay the AP for and that are legal at the band are candidates.
+  const affordable = hand.filter(card => {
+    if (getApCost(card) > availableAp) return false;
+    if (currentRange !== undefined && !skillAllowedAt(card, currentRange)) return false;
+    return true;
+  });
   if (affordable.length === 0) {
     return null;
   }
 
   const scores = affordable
     .map(card =>
-      scoreSkill(card, attacker, attackerDerived, defender, defenderDerived, isFirstTurn, firstHitMultiplier)
+      scoreSkill(
+        card,
+        attacker,
+        attackerDerived,
+        defender,
+        defenderDerived,
+        isFirstTurn,
+        firstHitMultiplier,
+        currentRange
+      )
     )
     .sort((a, b) => b.score - a.score);
 
-  // Best affordable card that is also otherwise usable (chakra/HP/cooldown).
+  // Best affordable card that is also otherwise usable (chakra/HP/cooldown/range).
   for (const scored of scores) {
     if (scored.score > SCORING_WEIGHTS.UNAVAILABLE_PENALTY) {
       return scored.skill;
     }
   }
 
-  // Every affordable card is unusable right now (no chakra / on cooldown).
+  // Every affordable card is unusable right now (no chakra / on cooldown / OOR).
   return null;
 }
 
@@ -286,11 +308,21 @@ export function getAllSkillScores(
   defender: SimCombatant,
   defenderDerived: DerivedStats,
   isFirstTurn: boolean = false,
-  firstHitMultiplier: number = 1.0
+  firstHitMultiplier: number = 1.0,
+  currentRange?: CombatRange
 ): SkillScore[] {
   return skills
     .map(skill =>
-      scoreSkill(skill, attacker, attackerDerived, defender, defenderDerived, isFirstTurn, firstHitMultiplier)
+      scoreSkill(
+        skill,
+        attacker,
+        attackerDerived,
+        defender,
+        defenderDerived,
+        isFirstTurn,
+        firstHitMultiplier,
+        currentRange
+      )
     )
     .sort((a, b) => b.score - a.score);
 }
@@ -355,7 +387,11 @@ export function selectSkillByStrategy(
       // Prefer high damage, high cooldown skills
       const burst = scores
         .filter(s => s.score > SCORING_WEIGHTS.UNAVAILABLE_PENALTY)
-        .sort((a, b) => b.skill.damageMult - a.skill.damageMult);
+        .sort((a, b) => {
+          const score = (sk: typeof a.skill) =>
+            (sk.baseDamage ?? 0) + (sk.scalingPerPoint ?? 0) * 3;
+          return score(b.skill) - score(a.skill);
+        });
       return burst[0]?.skill || skills[0];
 
     case AIStrategy.CONTROL:

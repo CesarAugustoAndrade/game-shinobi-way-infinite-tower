@@ -66,6 +66,7 @@ import {
   APPROACH_DEFINITIONS,
   calculateApproachSuccessChance,
 } from '../constants/approaches';
+import { approachFailHeatDelta } from './HeatSystem';
 import { d100, chance, generateUniqueId, pick } from '../utils/rng';
 
 // ============================================================================
@@ -94,6 +95,15 @@ export interface ApproachResult {
   // Modifiers for post-combat
   xpMultiplier: number;
 
+  /**
+   * F3: heat to apply to the visit floor after this approach resolves.
+   * Success = 0; fail uses approachFailHeatDelta.
+   */
+  heatDelta: number;
+
+  /** F3: visit heat used for PP penalty / initial band bias (snapshot at resolve). */
+  visitHeat: number;
+
   // Narrative description
   description: string;
 }
@@ -114,6 +124,8 @@ export function executeApproach(
   terrain: TerrainDefinition,
   /** T-063: extra stealth points from Location.terrainEffects stealth_bonus (fraction*100) */
   locationStealthBonusPts: number = 0,
+  /** F3: current visit heat (PP penalties on success chance) */
+  heat: number = 0,
 ): ApproachResult {
   const def = APPROACH_DEFINITIONS[approach];
 
@@ -133,7 +145,12 @@ export function executeApproach(
   // Room terrain stealth (points) + location stealth_bonus (T-063)
   const terrainStealthBonus =
     (terrain.effects.stealthModifier || 0) + (locationStealthBonusPts || 0);
-  const successChance = calculateApproachSuccessChance(approach, stats, terrainStealthBonus);
+  const successChance = calculateApproachSuccessChance(
+    approach,
+    stats,
+    terrainStealthBonus,
+    heat,
+  );
 
   // Roll for success (1-100)
   const roll = d100();
@@ -163,6 +180,11 @@ export function executeApproach(
   // Generate narrative description
   const description = generateApproachDescription(approach, success, enemy.name);
 
+  // F3: success = 0; fail uses plan fail deltas (content heatDelta override if set)
+  const heatDelta = success
+    ? (effects.heatDelta ?? 0)
+    : (effects.heatDelta ?? approachFailHeatDelta(approach));
+
   return {
     approach,
     success,
@@ -182,6 +204,9 @@ export function executeApproach(
     hpCost: effects.hpCost ?? 0,
 
     xpMultiplier: success ? (effects.xpMultiplier ?? 1.0) : 1.0,
+
+    heatDelta,
+    visitHeat: heat,
 
     description,
   };

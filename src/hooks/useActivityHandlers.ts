@@ -3,10 +3,10 @@ import {
   Player, Item, Skill, GameState, BranchingRoom, BranchingFloor,
   CharacterStats, PrimaryStat, TrainingCostType, GameEvent, EventChoice,
   Enemy, Region, LogEntry, TreasureQuality, ApproachType, ActionType,
-  TerrainType,
+  TerrainType, HeatPreset,
 } from '../game/types';
 import {
-  completeActivity, getCurrentRoom
+  completeActivity, getCurrentRoom, applyFloorHeatDelta,
 } from '../game/systems/LocationSystem';
 import {
   dangerToFloor,
@@ -557,19 +557,29 @@ export function useActivityHandlers(
       addLog('Training regimen no longer available.', 'danger');
     }
 
+    // F3: optional training raises heat (jackpot +10, normal +5)
+    const trainHeat =
+      (offer as { heatDelta?: number } | undefined)?.heatDelta ??
+      (offer && offer.gain >= 2 ? HeatPreset.VALUABLE : HeatPreset.SMALL);
+
     if (roomId) {
       logActivityComplete(roomId, 'training');
     }
     logStateChange('TRAINING', 'LOCATION_EXPLORE|REGION_MAP', 'training complete');
 
     if (branchingFloor && roomId) {
-      const updatedFloor = completeActivity(branchingFloor, roomId, 'training');
+      let updatedFloor = completeActivity(branchingFloor, roomId, 'training');
+      if (offer && trainHeat) updatedFloor = applyFloorHeatDelta(updatedFloor, trainHeat);
       setBranchingFloor(updatedFloor);
     }
 
     let updatedLocationFloor: BranchingFloor | undefined;
     if (locationFloor && region && roomId) {
       updatedLocationFloor = completeActivity(locationFloor, roomId, 'training');
+      if (offer && trainHeat) {
+        updatedLocationFloor = applyFloorHeatDelta(updatedLocationFloor, trainHeat);
+        if (trainHeat > 0) addLog(`Heat +${trainHeat} from training.`, 'danger');
+      }
       setLocationFloor(updatedLocationFloor);
     }
 
@@ -706,12 +716,14 @@ export function useActivityHandlers(
       if (existingIndex !== -1) {
         const existing = nextSkills[existingIndex];
         const currentLevel = existing.level || 1;
-        const growth = skill.damageMult * 0.2;
+        const baseGrowth = Math.max(1, Math.round((skill.baseDamage ?? 0) * 0.1));
+        const scaleGrowth = Math.max(0, Math.round((skill.scalingPerPoint ?? 0) * 0.1));
         nextSkills = [...nextSkills];
         nextSkills[existingIndex] = {
           ...existing,
           level: currentLevel + 1,
-          damageMult: existing.damageMult + growth,
+          baseDamage: (existing.baseDamage ?? 0) + baseGrowth,
+          scalingPerPoint: (existing.scalingPerPoint ?? 0) + scaleGrowth,
         };
         box.o = isClan ? 'clan' : 'upgrade';
         box.detail = existing.name;
@@ -1023,6 +1035,30 @@ export function useActivityHandlers(
 
     addLog(result.message || 'Choice resolved.', logType);
 
+    // F3: working floor copies so heatDelta + completeActivity + approach heat
+    // never overwrite each other via stale setState(locationFloor) in one tick.
+    let workingLocationFloor = locationFloor;
+    let workingBranchingFloor = branchingFloor;
+    const eventHeat = result.outcome?.effects?.heatDelta ?? 0;
+    if (eventHeat !== 0) {
+      if (workingLocationFloor) {
+        const prevArmed = workingLocationFloor.hunterArmed;
+        workingLocationFloor = applyFloorHeatDelta(workingLocationFloor, eventHeat);
+        addLog(
+          eventHeat > 0
+            ? `Heat +${eventHeat} (now ${workingLocationFloor.heat}).`
+            : `Heat ${eventHeat} (now ${workingLocationFloor.heat}).`,
+          eventHeat > 0 ? 'danger' : 'info',
+        );
+        if (workingLocationFloor.hunterArmed && !prevArmed) {
+          addLog('HEAT critical — a Hunter is now stalking this location!', 'danger');
+        }
+      }
+      if (workingBranchingFloor) {
+        workingBranchingFloor = applyFloorHeatDelta(workingBranchingFloor, eventHeat);
+      }
+    }
+
     // T-011/T-086: describe real changes; intel chip uses fog-scaled gain
     // (matches handleEventOutcomeClose applyVisibilityToIntelGain).
     const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
@@ -1066,7 +1102,7 @@ export function useActivityHandlers(
 
       // T-057: theme event fights with current location enemy pool when available
       const eventEnemyPool =
-        locationFloor?.enemyPool ?? branchingFloor?.enemyPool;
+        workingLocationFloor?.enemyPool ?? workingBranchingFloor?.enemyPool;
       const baseDiff = region?.baseDifficulty ?? currentBaseDifficulty ?? difficulty;
       const combatDifficulty = baseDiff + (combatConfig.difficulty || 0);
       const combatEnemy = generateEnemy(
@@ -1084,28 +1120,38 @@ export function useActivityHandlers(
         combatEnemy.name = combatConfig.name;
       }
 
-      const currentRoom = locationFloor
-        ? getCurrentRoom(locationFloor)
-        : branchingFloor
-        ? getCurrentRoom(branchingFloor)
+      const currentRoom = workingLocationFloor
+        ? getCurrentRoom(workingLocationFloor)
+        : workingBranchingFloor
+        ? getCurrentRoom(workingBranchingFloor)
         : null;
       // Prefer selected room (set when event opens) so the activity is always consumed
       const combatEventRoomId =
         selectedBranchingRoom?.id ?? currentRoom?.id ?? null;
 
-      if (locationFloor && combatEventRoomId) {
+      // completeActivity on heat-updated working floor (never stale pre-heat snapshot)
+      if (workingLocationFloor && combatEventRoomId) {
         logActivityComplete(combatEventRoomId, 'event');
-        const updatedFloor = completeActivity(locationFloor, combatEventRoomId, 'event');
-        setLocationFloor(updatedFloor);
-      } else if (branchingFloor && combatEventRoomId) {
+        workingLocationFloor = completeActivity(
+          workingLocationFloor,
+          combatEventRoomId,
+          'event',
+        );
+      } else if (workingBranchingFloor && combatEventRoomId) {
         logActivityComplete(combatEventRoomId, 'event');
-        const updatedFloor = completeActivity(branchingFloor, combatEventRoomId, 'event');
-        setBranchingFloor(updatedFloor);
+        workingBranchingFloor = completeActivity(
+          workingBranchingFloor,
+          combatEventRoomId,
+          'event',
+        );
       }
 
       // T-063/T-070: location terrain for manual + auto event combat
       const eventLocMods = getLocationTerrainMods(currentLocation?.terrainEffects);
       const combatTerrain = currentRoom ? TERRAIN_DEFINITIONS[currentRoom.terrain] : undefined;
+      // Heat after event outcome (and any complete) — approach PP/band use this snapshot
+      const visitHeatAfterEvent =
+        workingLocationFloor?.heat ?? workingBranchingFloor?.heat ?? 0;
 
       if (FeatureFlags.ENABLE_MANUAL_COMBAT) {
         // Apply run preferred approach (same as map combat). Fallback frontal if locked out.
@@ -1149,10 +1195,44 @@ export function useActivityHandlers(
           combatEnemy,
           terrainDef,
           stealthPts,
+          visitHeatAfterEvent,
         );
         if (approachResult.description) {
           addLog(approachResult.description, approachResult.success ? 'gain' : 'danger');
         }
+        // F3: approach fail heat on top of event heat (same working floor chain)
+        if (approachResult.heatDelta) {
+          if (workingLocationFloor) {
+            const prevArmed = workingLocationFloor.hunterArmed;
+            workingLocationFloor = applyFloorHeatDelta(
+              workingLocationFloor,
+              approachResult.heatDelta,
+            );
+            if (workingLocationFloor.hunterArmed && !prevArmed) {
+              addLog('HEAT critical — a Hunter is now stalking this location!', 'danger');
+            } else if (approachResult.heatDelta > 0) {
+              addLog(
+                `Heat +${approachResult.heatDelta} (now ${workingLocationFloor.heat}).`,
+                'danger',
+              );
+            }
+          }
+          if (workingBranchingFloor) {
+            workingBranchingFloor = applyFloorHeatDelta(
+              workingBranchingFloor,
+              approachResult.heatDelta,
+            );
+          }
+          // Seed approach band bias with post-approach heat for startCombat
+          approachResult.visitHeat =
+            workingLocationFloor?.heat ??
+            workingBranchingFloor?.heat ??
+            visitHeatAfterEvent;
+        }
+        // Single commit of floor state (heat + completeActivity preserved)
+        if (workingLocationFloor) setLocationFloor(workingLocationFloor);
+        if (workingBranchingFloor) setBranchingFloor(workingBranchingFloor);
+
         let playerAfterCosts = applyApproachCosts(postEventPlayer, approachResult);
         setPlayer(playerAfterCosts);
         let fightEnemy = combatEnemy;
@@ -1164,7 +1244,7 @@ export function useActivityHandlers(
         if (approachResult.skipCombat) {
           addLog('You slip past the event foe — no fight.', 'gain');
           setActiveEvent(null);
-          if (locationFloor) {
+          if (workingLocationFloor) {
             setGameState(GameState.LOCATION_EXPLORE);
           } else {
             setGameState(GameState.REGION_MAP);
@@ -1184,6 +1264,8 @@ export function useActivityHandlers(
       } else {
         // Auto-sim must start from post-event player (HP/ryo/flags already applied).
         // Prior path used pre-choice `player` → wrong starting HP after event damage/heal.
+        if (workingLocationFloor) setLocationFloor(workingLocationFloor);
+        if (workingBranchingFloor) setBranchingFloor(workingBranchingFloor);
         addLog(`Engaging ${combatEnemy.name} from event...`, 'info');
         const simResult = simulateGameCombat(
           postEventPlayer,
@@ -1193,6 +1275,7 @@ export function useActivityHandlers(
           currentRoom?.terrain,
           eventLocMods,
           currentRoom?.activities.combat?.modifiers,
+          visitHeatAfterEvent,
         );
 
         setPlayer(prev => {
@@ -1217,11 +1300,20 @@ export function useActivityHandlers(
       return true;
     }
 
+    // Non-combat path: commit heat-updated floors now (completeActivity on close
+    // reads React state after re-render, which includes this heat).
+    if (workingLocationFloor && workingLocationFloor !== locationFloor) {
+      setLocationFloor(workingLocationFloor);
+    }
+    if (workingBranchingFloor && workingBranchingFloor !== branchingFloor) {
+      setBranchingFloor(workingBranchingFloor);
+    }
+
     // Resolve which room owns this event (selected room wins — more reliable than currentRoomId alone)
     const eventRoomId =
       selectedBranchingRoom?.id ??
-      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
-      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined) ??
+      (workingLocationFloor ? getCurrentRoom(workingLocationFloor)?.id : undefined) ??
+      (workingBranchingFloor ? getCurrentRoom(workingBranchingFloor)?.id : undefined) ??
       null;
 
     // T-008/T-011: chain into the next event. The eventFlags written by this
@@ -1232,7 +1324,7 @@ export function useActivityHandlers(
     // to the next event happens on close (handleEventOutcomeClose). The room's
     // event activity is intentionally left incomplete until the final link
     // resolves normally.
-    const inLocationMode = Boolean(locationFloor && region && region.currentLocationId);
+    const inLocationMode = Boolean(workingLocationFloor && region && region.currentLocationId);
     if (result.nextEventId) {
       if (inLocationMode && result.outcome) {
         setEventOutcome({
@@ -1279,16 +1371,16 @@ export function useActivityHandlers(
 
     // No outcome panel — mark event consumed immediately so it cannot re-open
     setActiveEvent(null);
-    if (eventRoomId && locationFloor && region) {
+    if (eventRoomId && workingLocationFloor && region) {
       logActivityComplete(eventRoomId, 'event');
-      const updatedFloor = completeActivity(locationFloor, eventRoomId, 'event');
+      const updatedFloor = completeActivity(workingLocationFloor, eventRoomId, 'event');
       setLocationFloor(updatedFloor);
       returnToMapActivityComplete(updatedFloor);
       return true;
     }
-    if (eventRoomId && branchingFloor) {
+    if (eventRoomId && workingBranchingFloor) {
       logActivityComplete(eventRoomId, 'event');
-      const updatedFloor = completeActivity(branchingFloor, eventRoomId, 'event');
+      const updatedFloor = completeActivity(workingBranchingFloor, eventRoomId, 'event');
       setBranchingFloor(updatedFloor);
     }
     if (inLocationMode) {

@@ -13,7 +13,7 @@ import {
   CombatModifierType,
   ActionType,
 } from './game/types';
-import { CLAN_GROWTH } from './game/constants';
+
 import { COMBAT_MODIFIER_EFFECTS } from './game/constants/roomTypes';
 import { createPlayer } from './game/entities/Player';
 import {
@@ -47,6 +47,7 @@ import {
   moveToRoom,
   getCurrentActivity,
   completeActivity,
+  applyFloorHeatDelta,
 } from './game/systems/LocationSystem';
 import {
   generateRegion,
@@ -115,6 +116,7 @@ import RegionMap from './components/exploration/RegionMap';
 
 // Modal components
 import RewardModal from './components/modals/RewardModal';
+import StatAssignModal from './components/modals/StatAssignModal';
 import EventResultModal from './components/modals/EventResultModal';
 import IntelResultModal from './components/modals/IntelResultModal';
 import RestResultModal from './components/modals/RestResultModal';
@@ -228,6 +230,7 @@ const App: React.FC = () => {
   const [currentTreasureHunt, setCurrentTreasureHunt] = useState<TreasureHunt | null>(null);
   const [treasureHuntReward, setTreasureHuntReward] = useState<TreasureHuntRewardData | null>(null);
   const [pendingBagFullItem, setPendingBagFullItem] = useState<PendingBagFullItem | null>(null);
+  const [showStatAssign, setShowStatAssign] = useState(false);
   const [combatReward, setCombatReward] = useState<{
     expGain: number;
     ryoGain: number;
@@ -333,22 +336,17 @@ const App: React.FC = () => {
 
     if (updatedPlayer.level > oldLevel) {
       const levelsGained = updatedPlayer.level - oldLevel;
-      const growth = CLAN_GROWTH[p.clan];
-      const totalStatGains: Record<string, number> = {};
-      Object.entries(growth).forEach(([stat, gain]) => {
-        if (gain) {
-          totalStatGains[stat] = gain * levelsGained;
-        }
-      });
-
-      addLog(`LEVEL UP! You reached Level ${updatedPlayer.level}. Stats increased & Fully Healed!`, 'gain');
+      addLog(
+        `LEVEL UP! Level ${updatedPlayer.level}. +${levelsGained} stat point${levelsGained > 1 ? 's' : ''} — assign before continuing.`,
+        'gain'
+      );
 
       return {
         player: updatedPlayer,
         levelUpInfo: {
           oldLevel,
           newLevel: updatedPlayer.level,
-          statGains: totalStatGains,
+          statGains: { unspentStatPoints: levelsGained },
         },
       };
     }
@@ -424,6 +422,9 @@ const App: React.FC = () => {
     posture,
     changePosture,
     passTurn,
+    currentRange,
+    moveInRange,
+    playerMoveUsedThisTurn,
   } = useCombat({
     player,
     playerStats,
@@ -473,7 +474,8 @@ const App: React.FC = () => {
     {
       addLog,
       checkLevelUp,
-      returnToMap: () => returnToMapRef.current()
+      returnToMap: () => returnToMapRef.current(),
+      startCombat,
     }
   );
 
@@ -607,6 +609,7 @@ const App: React.FC = () => {
   // Treasure system handlers
   const {
     handleOpenVault,
+    handleLeaveVault,
     handleRevealVaultFace,
     handlePickVaultOption,
     handleTakeMapPiece,
@@ -1062,6 +1065,7 @@ const App: React.FC = () => {
     // T-063: location terrainEffects stealth_bonus stacks with room stealth
     const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
     const locationStealthPts = locationStealthBonusPoints(locMods);
+    const visitHeat = locationFloor?.heat ?? branchingFloor?.heat ?? 0;
     const result = executeApproach(
       approach,
       player,
@@ -1069,11 +1073,28 @@ const App: React.FC = () => {
       targetEnemy,
       terrain,
       locationStealthPts,
+      visitHeat,
     );
 
     setApproachResult(result);
     logExplorationCheckpoint('Approach result', { approach, success: result.success, skipCombat: result.skipCombat });
     addLog(result.description, result.success ? 'gain' : 'danger');
+
+    // F3: apply approach heatDelta to visit floor(s); arm Hunter if needed
+    if (result.heatDelta) {
+      if (locationFloor) {
+        const next = applyFloorHeatDelta(locationFloor, result.heatDelta);
+        setLocationFloor(next);
+        if (next.hunterArmed && !locationFloor.hunterArmed) {
+          addLog('HEAT critical — a Hunter is now stalking this location!', 'danger');
+        } else if (result.heatDelta > 0) {
+          addLog(`Heat +${result.heatDelta} (now ${next.heat}).`, 'danger');
+        }
+      }
+      if (branchingFloor) {
+        setBranchingFloor(applyFloorHeatDelta(branchingFloor, result.heatDelta));
+      }
+    }
 
     // Apply costs (chakra/HP — failure still charges and may add HP backfire)
     const playerAfterCosts = applyApproachCosts(player, result);
@@ -1269,11 +1290,18 @@ const App: React.FC = () => {
 
   // Close reward modal - check for pending artifact from elite challenge,
   // or component drops from normal combat victories.
-  const handleRewardClose = () => {
+  const handleRewardClose = (playerOverride?: Player | null) => {
     // Ref first — Space hold / Enter+click same-tick double Continue
     // (setState consume alone re-reads lastRendered until commit)
     if (rewardCloseLockRef.current) return;
     if (!combatReward) return;
+    const p = playerOverride ?? player;
+    // F1: mandatory stat assign before loot/explore when unspent points remain
+    if (p && (p.unspentStatPoints ?? 0) > 0) {
+      setShowStatAssign(true);
+      // Keep combatReward until points spent; Continue after assign re-enters here
+      return;
+    }
     // Capture loot intent before nulling reward (droppedItems alone can lag / desync)
     const continuesToLoot = Boolean(combatReward.continuesToLoot);
     const lootPreviews = combatReward.lootPreviews ?? [];
@@ -1393,11 +1421,13 @@ const App: React.FC = () => {
       if (idx !== -1) {
         const existing = newSkills[idx];
         const currentLevel = existing.level || 1;
-        const growth = skill.damageMult * 0.2;
+        const baseGrowth = Math.max(1, Math.round((skill.baseDamage ?? 0) * 0.1));
+        const scaleGrowth = Math.max(0, Math.round((skill.scalingPerPoint ?? 0) * 0.1));
         newSkills[idx] = {
           ...existing,
           level: currentLevel + 1,
-          damageMult: existing.damageMult + growth,
+          baseDamage: (existing.baseDamage ?? 0) + baseGrowth,
+          scalingPerPoint: (existing.scalingPerPoint ?? 0) + scaleGrowth,
         };
         return { ...prev, skills: newSkills };
       }
@@ -1820,6 +1850,9 @@ const App: React.FC = () => {
                 onChangePosture={changePosture}
                 onUseSkill={useSkill}
                 onPassTurn={passTurn}
+                currentRange={currentRange}
+                onMoveInRange={moveInRange}
+                playerMoveUsedThisTurn={playerMoveUsedThisTurn}
                 getDamageTypeColor={getDamageTypeColor}
                 getRarityColor={getRarityColor}
                 autoCombatEnabled={autoCombatEnabled}
@@ -1971,6 +2004,7 @@ const App: React.FC = () => {
                 player={player}
                 playerStats={playerStats}
                 onOpenVault={handleOpenVault}
+                onLeaveVault={handleLeaveVault}
                 onRevealFace={handleRevealVaultFace}
                 onPickOption={handlePickVaultOption}
                 onTakeMapPiece={handleTakeMapPiece}
@@ -2027,6 +2061,17 @@ const App: React.FC = () => {
                   onClose={handleRewardClose}
                 />
               )}
+              {showStatAssign && player && (
+                <StatAssignModal
+                  player={player}
+                  onConfirm={(p) => {
+                    setPlayer(p);
+                    setShowStatAssign(false);
+                    rewardCloseLockRef.current = false;
+                    handleRewardClose(p);
+                  }}
+                />
+              )}
             </div>
           )}
 
@@ -2064,6 +2109,18 @@ const App: React.FC = () => {
                     fogNote={combatReward.fogNote}
                     ryoNote={combatReward.ryoNote}
                     onClose={handleRewardClose}
+                  />
+                )}
+                {showStatAssign && player && (
+                  <StatAssignModal
+                    player={player}
+                    onConfirm={(p) => {
+                      setPlayer(p);
+                      setShowStatAssign(false);
+                      rewardCloseLockRef.current = false;
+                      // After assign, continue reward close (loot/explore)
+                      handleRewardClose(p);
+                    }}
                   />
                 )}
 
@@ -2149,6 +2206,7 @@ const App: React.FC = () => {
           playerStats={playerStats}
           onSelectApproach={handlePreferredApproachSelect}
           onCancel={handleApproachPreferenceCancel}
+          visitHeat={locationFloor?.heat ?? branchingFloor?.heat ?? 0}
         />
       )}
 

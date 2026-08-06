@@ -21,18 +21,20 @@ import { createMockSkill } from './testFixtures';
 describe('getCardCategory', () => {
   it('classifies a low-damage defensive technique (Rotation) as defensive', () => {
     // damageMult 0.5 (not above the 0.5 threshold) + REFLECTION/SHIELD effects.
-    expect(SKILLS.ROTATION.damageMult).toBe(0.5);
+    // Defensive utility: 0 damage budget + REFLECTION/SHIELD
+    expect((SKILLS.ROTATION.baseDamage ?? 0) + (SKILLS.ROTATION.scalingPerPoint ?? 0) * 3).toBe(0);
     expect(getCardCategory(SKILLS.ROTATION)).toBe('defensive');
   });
 
-  it('classifies a damage skill (Senbon Rain, 0.8 mult ACTIVE) as offensive', () => {
-    expect(SKILLS.SENBON_RAIN.damageMult).toBe(0.8);
+  it('classifies a damage skill (Senbon Rain ACTIVE) as offensive', () => {
+    const senExpected = (SKILLS.SENBON_RAIN.baseDamage ?? 0) + (SKILLS.SENBON_RAIN.scalingPerPoint ?? 0) * 3;
+    expect(senExpected).toBeGreaterThan(0);
     expect(getCardCategory(SKILLS.SENBON_RAIN)).toBe('offensive');
   });
 
   it('classifies a zero-damage buff to a survival stat (WILLPOWER) as defensive', () => {
     const guard = createMockSkill({
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
       actionType: ActionType.ACTIVE,
       effects: [
         { type: EffectType.BUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.3, duration: 1, chance: 1.0 },
@@ -43,7 +45,7 @@ describe('getCardCategory', () => {
 
   it('classifies a zero-damage buff to a survival stat (CALMNESS) as defensive', () => {
     const calm = createMockSkill({
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
       actionType: ActionType.ACTIVE,
       effects: [
         { type: EffectType.BUFF, targetStat: PrimaryStat.CALMNESS, value: 0.5, duration: 3, chance: 1.0 },
@@ -54,7 +56,7 @@ describe('getCardCategory', () => {
 
   it('classifies a zero-damage buff to an offensive stat (STRENGTH) as utility', () => {
     const attackBuff = createMockSkill({
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
       actionType: ActionType.ACTIVE,
       effects: [
         { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.25, duration: 2, chance: 1.0 },
@@ -82,9 +84,9 @@ describe('getApCost', () => {
 });
 
 describe('weightFor', () => {
-  const offensive = createMockSkill({ damageMult: 2.0 });
+  const offensive = createMockSkill({ baseDamage: 12, scalingPerPoint: 4 });
   const defensive = createMockSkill({
-    damageMult: 0,
+    baseDamage: 0, scalingPerPoint: 0,
     effects: [{ type: EffectType.SHIELD, value: 40, duration: 2, chance: 1.0 }],
   });
 

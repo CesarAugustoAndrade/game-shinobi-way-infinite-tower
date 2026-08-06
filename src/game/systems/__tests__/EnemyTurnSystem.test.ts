@@ -89,8 +89,8 @@ describe('processEnemyTurn — enemy skill cooldowns', () => {
   it('decrements a used cooldown skill to its cooldown value on the turn it is used (not cooldown+1)', () => {
     // bigSkill is the only available skill on turn 1 (weak starts on cooldown),
     // so the enemy is forced to use it and put it on cooldown.
-    const bigSkill = createMockSkill({ id: 'big', name: 'Big', cooldown: 3, currentCooldown: 0, damageMult: 1.0 });
-    const weakSkill = createMockSkill({ id: 'weak', name: 'Weak', cooldown: 0, currentCooldown: 1, damageMult: 1.0 });
+    const bigSkill = createMockSkill({ id: 'big', name: 'Big', cooldown: 3, currentCooldown: 0, baseDamage: 6, scalingPerPoint: 2 });
+    const weakSkill = createMockSkill({ id: 'weak', name: 'Weak', cooldown: 0, currentCooldown: 1, baseDamage: 6, scalingPerPoint: 2 });
 
     const enemy = createMockEnemy({ skills: [bigSkill, weakSkill], currentHp: 10_000 });
     const player = createMockPlayer({ currentHp: 10_000 });
@@ -107,10 +107,10 @@ describe('processEnemyTurn — enemy skill cooldowns', () => {
   });
 
   it('counts a used cooldown skill down to 0 and makes it available again (never stuck forever)', () => {
-    const bigSkill = createMockSkill({ id: 'big', name: 'Big', cooldown: 3, currentCooldown: 0, damageMult: 1.0 });
+    const bigSkill = createMockSkill({ id: 'big', name: 'Big', cooldown: 3, currentCooldown: 0, baseDamage: 6, scalingPerPoint: 2 });
     // weak is available every turn after turn 1, so the enemy never has to fall
     // back to re-using bigSkill while it is cooling down.
-    const weakSkill = createMockSkill({ id: 'weak', name: 'Weak', cooldown: 0, currentCooldown: 1, damageMult: 1.0 });
+    const weakSkill = createMockSkill({ id: 'weak', name: 'Weak', cooldown: 0, currentCooldown: 1, baseDamage: 6, scalingPerPoint: 2 });
 
     let player: Player = createMockPlayer({ currentHp: 10_000 });
     let enemy: Enemy = createMockEnemy({ skills: [bigSkill, weakSkill], currentHp: 10_000 });
@@ -133,8 +133,8 @@ describe('processEnemyTurn — enemy skill cooldowns', () => {
   });
 
   it('does not mutate the input enemy skills (immutable update)', () => {
-    const bigSkill = createMockSkill({ id: 'big', cooldown: 3, currentCooldown: 0, damageMult: 1.0 });
-    const weakSkill = createMockSkill({ id: 'weak', cooldown: 0, currentCooldown: 1, damageMult: 1.0 });
+    const bigSkill = createMockSkill({ id: 'big', cooldown: 3, currentCooldown: 0, baseDamage: 6, scalingPerPoint: 2 });
+    const weakSkill = createMockSkill({ id: 'weak', cooldown: 0, currentCooldown: 1, baseDamage: 6, scalingPerPoint: 2 });
     const enemy = createMockEnemy({ skills: [bigSkill, weakSkill], currentHp: 10_000 });
     const player = createMockPlayer({ currentHp: 10_000 });
 
@@ -148,7 +148,7 @@ describe('processEnemyTurn — enemy skill cooldowns', () => {
 
 describe('processEnemyTurn — stun duration 1 (A-004)', () => {
   it('skips the enemy action when STUN duration is 1, then expires the stun', () => {
-    const attack = createMockSkill({ id: 'atk', cooldown: 0, damageMult: 2.0 });
+    const attack = createMockSkill({ id: 'atk', cooldown: 0, baseDamage: 12, scalingPerPoint: 4 });
     const playerHp = 10_000;
     const player = createMockPlayer({ currentHp: playerHp });
     const enemy = createMockEnemy({
@@ -184,7 +184,7 @@ describe('processEnemyTurn — INVULNERABILITY survives first enemy hit (Package
       id: 'atk',
       name: 'Heavy Strike',
       cooldown: 0,
-      damageMult: 5.0,
+      baseDamage: 30, scalingPerPoint: 10,
       attackMethod: AttackMethod.AUTO, // skip hit RNG
     });
     const playerHp = 500;
@@ -277,7 +277,7 @@ describe('executeEnemyAction — HEAL + self-buffs on enemy (Package 3)', () => 
     const healSkill = createMockSkill({
       id: 'enemy-heal',
       name: 'Recovery',
-      damageMult: 0.1,
+      baseDamage: 1, scalingPerPoint: 0,
       attackMethod: AttackMethod.AUTO,
       scalingStat: PrimaryStat.STRENGTH,
       effects: [{ type: EffectType.HEAL, value: 40, duration: 0, chance: 1 }],
@@ -309,7 +309,7 @@ describe('executeEnemyAction — HEAL + self-buffs on enemy (Package 3)', () => 
     const selfBuffSkill = createMockSkill({
       id: 'enemy-buff',
       name: 'Iron Guard',
-      damageMult: 0.1,
+      baseDamage: 1, scalingPerPoint: 0,
       attackMethod: AttackMethod.AUTO,
       effects: [
         { type: EffectType.SHIELD, value: 30, duration: 2, chance: 1 },
@@ -349,7 +349,7 @@ describe('executeEnemyAction — HEAL + self-buffs on enemy (Package 3)', () => 
     const debuffSkill = createMockSkill({
       id: 'enemy-stun',
       name: 'Stun Jutsu',
-      damageMult: 0.5,
+      baseDamage: 3, scalingPerPoint: 1,
       attackMethod: AttackMethod.AUTO,
       effects: [{ type: EffectType.STUN, duration: 1, chance: 1 }],
     });

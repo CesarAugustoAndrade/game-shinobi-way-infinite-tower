@@ -20,6 +20,7 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
             effects: {
               statChanges: { intelligence: 3 },
               exp: 60,
+              heatDelta: 5,
               logMessage: 'You absorbed forbidden jutsu knowledge!',
               logType: 'gain',
             },
@@ -38,6 +39,7 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 100,
               ryo: 200,
+              heatDelta: 30,
               logMessage: 'The scroll revealed the location of a hidden treasure!',
               logType: 'loot',
             },
@@ -53,6 +55,7 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
             weight: 70,
             effects: {
               ryo: 150,
+              heatDelta: 20,
               logMessage: 'A collector pays well for sealed curiosities.',
               logType: 'gain',
             },
@@ -111,7 +114,7 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
         description: 'MEDIUM RISK - Combat or respect',
         riskLevel: RiskLevel.MEDIUM,
         hintText: 'Direct action has consequences...',
-        requirements: { minStat: { stat: PrimaryStat.STRENGTH, value: 15 } },
+        requirements: { minStat: { stat: PrimaryStat.STRENGTH, value: 1 } },
         outcomes: [
           {
             weight: 60,
@@ -140,7 +143,7 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
         label: 'Talk Them Down',
         description: 'LOW RISK - Diplomatic approach',
         riskLevel: RiskLevel.LOW,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 12 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         outcomes: [
           {
             weight: 80,
@@ -172,6 +175,7 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
               exp: 45,
               ryo: 80,
               statChanges: { intelligence: 1, calmness: 1 },
+              heatDelta: 10,
               logMessage:
                 'Your Yamanaka techniques surface their buried guilt. The bullies scatter; the victim thanks you with a shared ration scroll.',
               logType: 'gain',
@@ -215,6 +219,7 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 120,
               statChanges: { strength: 2, speed: 1 },
+              heatDelta: 5,
               logMessage: 'Grueling training that pushes you to your limits!',
               logType: 'gain',
             },
@@ -239,6 +244,7 @@ export const ACADEMY_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 70,
               statChanges: { dexterity: 1 },
+              heatDelta: 5,
               logMessage: 'Focused practice improves your technique.',
               logType: 'gain',
             },

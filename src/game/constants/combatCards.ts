@@ -33,12 +33,10 @@ import { LaunchProperties } from '../../config/featureFlags';
 export type CardCategory = 'offensive' | 'utility' | 'defensive';
 
 /**
- * A skill counts as offensive when its damage multiplier exceeds this floor.
- * Tuned so pure attacks (lowest real attack ≈ 0.8) read as offensive while
- * defensive techniques that deal incidental chip damage (e.g. Rotation at 0.5)
- * fall through to their protective classification.
+ * Expected damage at ref stat 3: baseDamage + scalingPerPoint×3.
+ * Offensive if above this floor; low-chip defensive techniques stay defensive.
  */
-export const CARD_OFFENSIVE_DAMAGE_THRESHOLD = 0.5;
+export const CARD_OFFENSIVE_DAMAGE_THRESHOLD = 6;
 
 /** Flat starting weight for every card before posture multipliers apply. */
 export const CARD_BASE_WEIGHT = 1.0;
@@ -72,7 +70,7 @@ const DEFENSIVE_BUFF_STATS: ReadonlySet<PrimaryStat> = new Set([
  * @returns The card category used for draw weighting.
  */
 export function getCardCategory(skill: Skill): CardCategory {
-  if (skill.damageMult > CARD_OFFENSIVE_DAMAGE_THRESHOLD) {
+  if (((skill.baseDamage ?? 0) + (skill.scalingPerPoint ?? 0) * 3) > CARD_OFFENSIVE_DAMAGE_THRESHOLD) {
     return 'offensive';
   }
 

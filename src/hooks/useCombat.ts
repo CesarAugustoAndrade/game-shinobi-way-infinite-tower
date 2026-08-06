@@ -10,6 +10,8 @@ import {
   Posture,
   LogEntry,
   ApproachType,
+  RangeMoveDirection,
+  CombatRange,
 } from '../game/types';
 import { getEnemyFullStats, getPlayerFullStats } from '../game/systems/StatSystem';
 import {
@@ -22,6 +24,12 @@ import {
   buildDeck,
   drawHand,
 } from '../game/systems/CombatWorkflowSystem';
+import { voluntaryPlayerMove } from '../game/systems/PlayerTurnSystem';
+import {
+  resolveInitialRange,
+  skillAllowedAt,
+  outOfRangeBlockReason,
+} from '../game/systems/RangeSystem';
 import { determineTurnOrder } from '../game/systems/CombatCalculationSystem';
 import { getApCost } from '../game/constants/combatCards';
 import { LaunchProperties } from '../config/featureFlags';
@@ -94,6 +102,11 @@ export interface UseCombatReturn {
   changePosture: (next: Posture) => void;
   /** End player turn (Space / End Turn). Ref-locked against same-tick double fire. */
   passTurn: () => void;
+  /** F2: current engagement band */
+  currentRange: CombatRange | null;
+  /** F2: voluntary approach/retreat (1 AP, once/turn) */
+  moveInRange: (direction: RangeMoveDirection) => void;
+  playerMoveUsedThisTurn: boolean;
 }
 
 /**
@@ -197,6 +210,12 @@ export function useCombat({
       // Silence blocks any skill that costs chakra (activation / cast), not free taijutsu
       // and not toggle deactivation (handled below for toggles).
       const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
+
+      // F2: range gate (shared pure helper — matches useSkillCombat)
+      if (combatState.currentRange && !skillAllowedAt(skill, combatState.currentRange)) {
+        addLog(outOfRangeBlockReason(skill, combatState.currentRange), 'danger');
+        return;
+      }
 
       // Action Point gate
       const apCost = getApCost(skill);
@@ -485,6 +504,20 @@ export function useCombat({
     setTurnState('ENEMY_TURN');
   }, [turnState, player, enemy, addLog, setTurnState]);
 
+  /** F2: voluntary move one band (1 AP, once per player turn). */
+  const moveInRange = useCallback(
+    (direction: RangeMoveDirection) => {
+      if (turnState !== 'PLAYER' || !combatState) return;
+      if (!player || player.currentHp <= 0) return;
+      const result = voluntaryPlayerMove(combatState, direction, 0);
+      addLog(result.logMessage, result.success ? 'info' : 'danger');
+      if (result.success) {
+        setCombatState(result.combatState);
+      }
+    },
+    [turnState, combatState, player, addLog, setCombatState]
+  );
+
   /**
    * Start a new combat encounter
    */
@@ -593,6 +626,23 @@ export function useCombat({
       newCombatState.posture = openingPosture;
       newCombatState.discard = [];
 
+      // F2/F3: seed engagement band from approach + enemy preferred + heat bias
+      const initialRange = resolveInitialRange({
+        approach: result.approach,
+        success: result.success,
+        enemy: preparedEnemy,
+        heat: result.visitHeat ?? 0,
+      });
+      newCombatState.currentRange = initialRange;
+      newCombatState.playerMoveUsedThisTurn = false;
+      newCombatState.enemyMoveUsedThisTurn = false;
+      // Enemy AP budget (same terrain transforms)
+      let enemyMaxAp = getEnemyFullStats(preparedEnemy).derived.actionPointsPerTurn;
+      enemyMaxAp = applyRoomMovementCostToMaxAp(enemyMaxAp, terrain ?? null);
+      enemyMaxAp = applyMovementPenaltyToMaxAp(enemyMaxAp, locationTerrainMods ?? null);
+      newCombatState.enemyMaxAp = enemyMaxAp;
+      newCombatState.enemyCurrentAp = enemyMaxAp;
+
       // Who acts first — approach initiativeBonus / guaranteedFirst actually govern combat.
       const openingPlayerStats = playerStats ?? getPlayerFullStats(preparedPlayer);
       const openingEnemyStats = getEnemyFullStats(preparedEnemy);
@@ -602,6 +652,8 @@ export function useCombat({
         playerInitiativeBonus: newCombatState.playerInitiativeBonus,
         terrain: newCombatState.terrain,
       });
+
+      addLog(`Range: ${initialRange}.`, 'info');
 
       if (whoFirst === 'player') {
         // Player opens: draw hand now and skip the first upkeep redraw.
@@ -844,10 +896,21 @@ export function useCombat({
             : null
         );
 
-        // Update combatState if artifact guts was triggered (one-time per combat)
-        if (result.artifactGutsTriggered) {
-          setCombatState((prev) => prev ? { ...prev, artifactGutsUsed: true } : null);
-        }
+        // Update combatState: artifact guts + F2 range/enemy AP after enemy action
+        setCombatState((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            artifactGutsUsed: result.artifactGutsTriggered
+              ? true
+              : prev.artifactGutsUsed,
+            currentRange: result.currentRange ?? prev.currentRange,
+            enemyCurrentAp: result.enemyCurrentAp ?? prev.enemyCurrentAp,
+            enemyMoveUsedThisTurn: result.enemyMoveUsedThisTurn ?? false,
+            // Player turn starts next — reset player move flag on upkeep path
+            playerMoveUsedThisTurn: false,
+          };
+        });
 
         if (result.enemyDefeated) {
           logFlowCheckpoint('Enemy defeated - calling handleVictory', { enemy: enemy.name });
@@ -920,19 +983,29 @@ export function useCombat({
         setPlayer(upkeepResult.player);
       }
 
-      // Refill AP and deal the new hand for this turn
-      setCombatState((prev) =>
-        prev
-          ? {
-              ...prev,
-              currentAp: upkeepResult.currentAp,
-              maxAp: upkeepResult.maxAp,
-              hand: upkeepResult.hand,
-              deck: upkeepResult.deck,
-              discard: upkeepResult.discard,
-            }
-          : prev
-      );
+      // Refill AP and deal the new hand for this turn; reset F2 voluntary move + enemy AP
+      setCombatState((prev) => {
+        if (!prev) return prev;
+        let eMax = prev.enemyMaxAp;
+        if (enemy) {
+          let budget = getEnemyFullStats(enemy).derived.actionPointsPerTurn;
+          budget = applyRoomMovementCostToMaxAp(budget, prev.terrain);
+          budget = applyMovementPenaltyToMaxAp(budget, prev.locationTerrainMods);
+          eMax = budget;
+        }
+        return {
+          ...prev,
+          currentAp: upkeepResult.currentAp,
+          maxAp: upkeepResult.maxAp,
+          hand: upkeepResult.hand,
+          deck: upkeepResult.deck,
+          discard: upkeepResult.discard,
+          playerMoveUsedThisTurn: false,
+          enemyMoveUsedThisTurn: false,
+          enemyMaxAp: eMax,
+          enemyCurrentAp: eMax,
+        };
+      });
 
       setUpkeepProcessedThisTurn(true);
     }
@@ -972,5 +1045,8 @@ export function useCombat({
     posture: combatState?.posture ?? Posture.BALANCED,
     changePosture,
     passTurn,
+    currentRange: combatState?.currentRange ?? null,
+    moveInRange,
+    playerMoveUsedThisTurn: combatState?.playerMoveUsedThisTurn ?? false,
   };
 }

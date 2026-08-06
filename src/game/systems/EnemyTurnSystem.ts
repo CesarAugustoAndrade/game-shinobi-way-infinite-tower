@@ -30,6 +30,9 @@ import {
   TerrainDefinition,
   EffectType,
   DamageType,
+  CombatRange,
+  RangeMoveDirection,
+  RangeMoveTrigger,
 } from '../types';
 import {
   checkGuts,
@@ -37,7 +40,7 @@ import {
   calculateDotDamage,
   calculateDamage,
 } from './StatSystem';
-import { selectEnemySkillDecision } from './EnemyAISystem';
+import { planEnemyAction } from './EnemyAISystem';
 import { combatLog } from '../utils/combatDebug';
 import {
   generateId,
@@ -46,7 +49,17 @@ import {
   applyTerrainHazard,
   getTerrainEvasionBonus,
 } from './CombatCalculationSystem';
-import { applyLocationHazardsToPlayer } from './LocationTerrainSystem';
+import {
+  applyLocationHazardsToPlayer,
+  applyRoomMovementCostToMaxAp,
+  applyMovementPenaltyToMaxAp,
+} from './LocationTerrainSystem';
+import {
+  shiftRange,
+  collectRangeReactions,
+  VOLUNTARY_MOVE_AP_COST,
+} from './RangeSystem';
+import { getApCost } from '../constants/combatCards';
 import {
   shouldCounterAttack,
   checkGutsPassive,
@@ -132,6 +145,10 @@ interface EnemyActionResult {
   enemyDefeated: boolean;
   /** Updated guts context */
   gutsContext: GutsContext;
+  /** F2: engagement band after optional enemy move */
+  currentRange?: CombatRange;
+  enemyCurrentAp?: number;
+  enemyMoveUsedThisTurn?: boolean;
 }
 
 /**
@@ -419,20 +436,77 @@ export function executeEnemyAction(
     };
   }
 
-  // Normal enemy attack — honor telegraphed intent when still available (A-003)
-  const decision = selectEnemySkillDecision({ enemy, enemyStats, player, playerStats });
-  const selectedSkill = decision.skill;
-  if (!selectedSkill) {
-    logs.push(`${enemy.name} has no available skills!`);
+  // F2: refill enemy AP for this phase (same terrain pipeline as player)
+  let range = combatState?.currentRange ?? CombatRange.MEDIUM;
+  let enemyAp =
+    combatState?.enemyMaxAp && combatState.enemyMaxAp > 0
+      ? combatState.enemyMaxAp
+      : enemyStats.derived.actionPointsPerTurn;
+  // Apply terrain to enemy AP budget once if not already set on state
+  if (combatState && (!combatState.enemyMaxAp || combatState.enemyMaxAp <= 0)) {
+    let budget = enemyStats.derived.actionPointsPerTurn;
+    budget = applyRoomMovementCostToMaxAp(budget, combatState.terrain);
+    budget = applyMovementPenaltyToMaxAp(budget, combatState.locationTerrainMods);
+    enemyAp = budget;
+  }
+
+  // F2 AI: in-band skill → move+skill → move preferred + Guard
+  const plan = planEnemyAction({
+    enemy,
+    enemyStats,
+    player,
+    playerStats,
+    currentRange: range,
+    enemyAp,
+  });
+
+  let enemyMoveUsed = false;
+  if (plan.moveDirection) {
+    const { range: next, moved } = shiftRange(range, plan.moveDirection);
+    if (moved) {
+      range = next;
+      enemyAp = Math.max(0, enemyAp - VOLUNTARY_MOVE_AP_COST);
+      enemyMoveUsed = true;
+      logs.push(
+        `${enemy.name} ${plan.moveDirection === RangeMoveDirection.APPROACH ? 'closes in' : 'backs off'} → ${range}.`
+      );
+      void collectRangeReactions(RangeMoveTrigger.VOLUNTARY, true, false);
+    }
+  }
+
+  if (plan.guard || !plan.skill) {
+    logs.push(`${enemy.name} takes a Guard stance.`);
     return {
       player: updatedPlayer,
       enemy: updatedEnemy,
       logs,
       playerDefeated: false,
       enemyDefeated: false,
-      gutsContext: updatedGutsContext
+      gutsContext: updatedGutsContext,
+      currentRange: range,
+      enemyCurrentAp: enemyAp,
+      enemyMoveUsedThisTurn: enemyMoveUsed,
     };
   }
+
+  const selectedSkill = plan.skill;
+  const skillAp = getApCost(selectedSkill);
+  if (enemyAp < skillAp) {
+    logs.push(`${enemy.name} lacks AP for ${selectedSkill.name} — Guards.`);
+    return {
+      player: updatedPlayer,
+      enemy: updatedEnemy,
+      logs,
+      playerDefeated: false,
+      enemyDefeated: false,
+      gutsContext: updatedGutsContext,
+      currentRange: range,
+      enemyCurrentAp: enemyAp,
+      enemyMoveUsedThisTurn: enemyMoveUsed,
+    };
+  }
+  enemyAp -= skillAp;
+
   // Clear spent intent; next telegraph is set after the turn
   updatedEnemy.intendedSkillId = undefined;
   updatedEnemy.intendedSkillName = undefined;
@@ -654,7 +728,10 @@ export function executeEnemyAction(
     logs,
     playerDefeated,
     enemyDefeated,
-    gutsContext: updatedGutsContext
+    gutsContext: updatedGutsContext,
+    currentRange: range,
+    enemyCurrentAp: enemyAp,
+    enemyMoveUsedThisTurn: enemyMoveUsed,
   };
 }
 
@@ -780,7 +857,12 @@ function buildTurnResult(
   logs: string[],
   playerDefeated: boolean,
   enemyDefeated: boolean,
-  artifactGutsTriggered?: boolean
+  artifactGutsTriggered?: boolean,
+  f2?: {
+    currentRange?: CombatRange;
+    enemyCurrentAp?: number;
+    enemyMoveUsedThisTurn?: boolean;
+  }
 ): EnemyTurnResult {
   return {
     newPlayerHp: player.currentHp,
@@ -798,6 +880,9 @@ function buildTurnResult(
     intendedSkillId: enemy.intendedSkillId,
     intendedSkillName: enemy.intendedSkillName,
     intentReason: enemy.intentReason,
+    currentRange: f2?.currentRange,
+    enemyCurrentAp: f2?.enemyCurrentAp,
+    enemyMoveUsedThisTurn: f2?.enemyMoveUsedThisTurn,
   };
 }
 
@@ -1053,6 +1138,11 @@ export function processEnemyTurn(
   updatedEnemy = actionResult.enemy;
   logs.push(...actionResult.logs);
   gutsContext = actionResult.gutsContext;
+  const f2State = {
+    currentRange: actionResult.currentRange,
+    enemyCurrentAp: actionResult.enemyCurrentAp,
+    enemyMoveUsedThisTurn: actionResult.enemyMoveUsedThisTurn,
+  };
 
   // ============================================
   // Phase 4b: Tick enemy buff durations (after action opportunity)
@@ -1069,7 +1159,8 @@ export function processEnemyTurn(
       logs,
       actionResult.playerDefeated,
       actionResult.enemyDefeated,
-      gutsContext.artifactTriggered
+      gutsContext.artifactTriggered,
+      f2State
     );
   }
 
@@ -1094,25 +1185,35 @@ export function processEnemyTurn(
     currentCooldown: Math.max(0, s.currentCooldown - 1),
   }));
 
-  // A-003: pre-select next skill (1-turn telegraph) after CDs tick; log intent
+  // A-003 / F2: telegraph next skill at post-move band (honorIntent false)
   {
-    const nextDecision = selectEnemySkillDecision(
+    const nextPlan = planEnemyAction(
       {
         enemy: updatedEnemy,
         enemyStats,
         player: updatedPlayer,
         playerStats,
+        currentRange: f2State.currentRange ?? combatState?.currentRange,
+        enemyAp: enemyStats.derived.actionPointsPerTurn,
       },
       { honorIntent: false }
     );
-    if (nextDecision.skill) {
+    if (nextPlan.skill) {
       updatedEnemy = {
         ...updatedEnemy,
-        intendedSkillId: nextDecision.skill.id,
-        intendedSkillName: nextDecision.skill.name,
-        intentReason: nextDecision.reason,
+        intendedSkillId: nextPlan.skill.id,
+        intendedSkillName: nextPlan.skill.name,
+        intentReason: nextPlan.reason,
       };
-      logs.push(`${updatedEnemy.name} readies ${nextDecision.skill.name} next...`);
+      logs.push(`${updatedEnemy.name} readies ${nextPlan.skill.name} next...`);
+    } else if (nextPlan.guard) {
+      updatedEnemy = {
+        ...updatedEnemy,
+        intendedSkillId: undefined,
+        intendedSkillName: 'Guard',
+        intentReason: nextPlan.reason,
+      };
+      logs.push(`${updatedEnemy.name} readies Guard next...`);
     }
   }
 
@@ -1171,7 +1272,8 @@ export function processEnemyTurn(
     logs,
     false,
     false,
-    gutsContext.artifactTriggered
+    gutsContext.artifactTriggered,
+    f2State
   );
 
   combatLog('turn', `=== ENEMY TURN END ===`, {

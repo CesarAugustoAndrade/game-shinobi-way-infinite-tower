@@ -59,11 +59,21 @@ export const DIFFICULTY = {
   FLOOR_SCALING: 0.08,           // +8% per effective floor for loot
 } as const;
 
+/**
+ * CONSTANTE CÉSAR DE DAÑO
+ *
+ * Multiplicador global temporal ×2 sobre toda salida de daño de skills/DoT
+ * (pipeline `calculateDamage` / `calculateDotDamage`).
+ *
+ * BORRAR esta constante y sus usos cuando el balance ya no la necesite.
+ */
+export const CESAR_DAMAGE_CONSTANT = 2;
+
 // Game balance constants
 export const BALANCE = {
 
-  // Equipment
-  PRIMARY_SLOT_MULTIPLIER: 1.5, // Primary slot gets 50% stat bonus
+  // Equipment — F1: no SLOT_1 inflation (+1 gear is +1)
+  PRIMARY_SLOT_MULTIPLIER: 1.0,
 
   // Combat - Hit & Evasion
   MAX_DEFENSE_PERCENT: 0.75,

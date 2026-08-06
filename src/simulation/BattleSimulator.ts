@@ -22,6 +22,8 @@ import {
   TerrainDefinition,
   Posture,
   CombatModifierType,
+  CombatRange,
+  RangeMoveDirection,
 } from '../game/types';
 import {
   calculateDerivedStats,
@@ -33,6 +35,8 @@ import {
   getEnemyFullStats,
   resolvePassiveDamageBonus,
 } from '../game/systems/StatSystem';
+import { resolveInitialRange, shiftRange, skillAllowedAt } from '../game/systems/RangeSystem';
+import { planEnemyAction } from '../game/systems/EnemyAISystem';
 import { SKILLS } from '../game/constants';
 import { getApCost } from '../game/constants/combatCards';
 import { buildDeck, drawNewTurnHand } from '../game/systems/DeckSystem';
@@ -68,7 +72,6 @@ import {
   checkExecuteThreshold,
   checkGutsPassive,
 } from '../game/systems/EquipmentPassiveSystem';
-import { selectEnemySkill } from '../game/systems/EnemyAISystem';
 import { applyRoomCombatModifiers } from '../game/systems/RoomCombatModifierSystem';
 import type { CombatModifiers } from '../game/systems/ApproachSystem';
 import {
@@ -86,7 +89,9 @@ import { getStoryArcForFloor } from '../game/entities/Enemy';
 function rollApproachSuccess(
   approach: ApproachType,
   playerStats: { primary: PrimaryAttributes; derived: DerivedStats },
-  terrainStealthBonus: number = 0
+  terrainStealthBonus: number = 0,
+  /** F3 visit heat — PP penalties (parity with live executeApproach) */
+  visitHeat: number = 0,
 ): boolean {
   if (approach === ApproachType.FRONTAL_ASSAULT) {
     return true;
@@ -107,7 +112,8 @@ function rollApproachSuccess(
   const successChance = calculateApproachSuccessChance(
     approach,
     stats,
-    terrainStealthBonus
+    terrainStealthBonus,
+    visitHeat,
   );
   return Math.random() * 100 < successChance;
 }
@@ -131,6 +137,7 @@ export function createSimPlayer(config: PlayerBuildConfig): Player {
     exp: 0,
     maxExp: 100,
     primaryStats: stats,
+    unspentStatPoints: 0,
     currentHp: derived.maxHp,
     currentChakra: derived.maxChakra,
     element,
@@ -255,6 +262,8 @@ export interface BattleContext {
   discard: Skill[];            // Spent/recycled cards, reshuffled when the deck runs low
   currentAp: number;           // Action Points remaining this turn
   maxAp: number;               // Action Points granted each turn (speed-derived)
+  /** F2 engagement band (seeded via resolveInitialRange; enemy may shift once/turn) */
+  currentRange: CombatRange;
   logs: TurnLog[];
   metrics: {
     totalDamageDealt: number;
@@ -362,7 +371,8 @@ function executePlayerTurn(ctx: BattleContext): boolean {
       simEnemy,
       enemyDerived,
       ctx.isFirstTurn,
-      ctx.firstHitMultiplier
+      ctx.firstHitMultiplier,
+      ctx.currentRange
     );
 
     // Nothing in hand is both affordable and usable → end the turn.
@@ -757,7 +767,7 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
 }
 
 /**
- * Execute enemy turn using live EnemyAISystem.selectEnemySkill (same as EnemyTurnSystem).
+ * Execute enemy turn using live EnemyAISystem.planEnemyAction (same as EnemyTurnSystem).
  */
 function executeEnemyTurn(ctx: BattleContext): void {
   const { enemy } = ctx;
@@ -798,27 +808,76 @@ function executeEnemyTurn(ctx: BattleContext): void {
     }
   }
 
-  // Live AI (EnemyTurnSystem parity) — scores skills by HP/effects/cooldowns
-  let skill = selectEnemySkill({
+  // Live AI (EnemyTurnSystem parity) — F2 planEnemyAction: optional move, then skill or Guard
+  const enemyAp = ctx.enemyStats.derived.actionPointsPerTurn;
+  const plan = planEnemyAction({
     enemy: ctx.enemy,
     enemyStats: ctx.enemyStats,
     player: ctx.player,
     playerStats: ctx.playerStats,
+    currentRange: ctx.currentRange,
+    enemyAp,
   });
 
-  // Fallback if no skill found
-  if (!skill && enemy.skills.length > 0) {
-    skill = enemy.skills[0];
+  if (plan.moveDirection) {
+    const { range: next, moved } = shiftRange(ctx.currentRange, plan.moveDirection);
+    if (moved) {
+      ctx.currentRange = next;
+      ctx.logs.push({
+        turn: ctx.turn,
+        actor: 'enemy',
+        action:
+          plan.moveDirection === RangeMoveDirection.APPROACH
+            ? `Closes in → ${next}`
+            : `Backs off → ${next}`,
+        damage: 0,
+        isCrit: false,
+        isMiss: false,
+        isEvaded: false,
+        playerHp: ctx.player.currentHp,
+        enemyHp: ctx.enemy.currentHp,
+      });
+    }
   }
 
-  if (skill) {
-    executeSkill(ctx, skill, false);
-
-    // Update cooldowns (Only set the used skill's cooldown - main round loop decrements it)
-    ctx.enemy.skills = ctx.enemy.skills.map(s =>
-      s.id === skill.id ? { ...s, currentCooldown: s.cooldown + 1 } : s
-    );
+  if (plan.guard || !plan.skill) {
+    ctx.logs.push({
+      turn: ctx.turn,
+      actor: 'enemy',
+      action: 'Guard',
+      damage: 0,
+      isCrit: false,
+      isMiss: false,
+      isEvaded: false,
+      playerHp: ctx.player.currentHp,
+      enemyHp: ctx.enemy.currentHp,
+    });
+    return;
   }
+
+  // Never fire OOR even if plan is stale relative to band
+  if (!skillAllowedAt(plan.skill, ctx.currentRange)) {
+    ctx.logs.push({
+      turn: ctx.turn,
+      actor: 'enemy',
+      action: 'Guard (out of range)',
+      damage: 0,
+      isCrit: false,
+      isMiss: false,
+      isEvaded: false,
+      playerHp: ctx.player.currentHp,
+      enemyHp: ctx.enemy.currentHp,
+    });
+    return;
+  }
+
+  const skill = plan.skill;
+  executeSkill(ctx, skill, false);
+
+  // Update cooldowns (Only set the used skill's cooldown - main round loop decrements it)
+  ctx.enemy.skills = ctx.enemy.skills.map(s =>
+    s.id === skill.id ? { ...s, currentCooldown: s.cooldown + 1 } : s
+  );
 }
 
 /**
@@ -869,6 +928,8 @@ export function resolveBattle(
   terrain?: TerrainType,
   /** T-109: room combat activity modifiers (combat ?? elite) */
   roomCombatModifiers?: CombatModifierType[] | null,
+  /** F3: visit heat for approach PP + initial band bias (balance sims default 0) */
+  visitHeat: number = 0,
 ): BattleResolution {
   // Calculate derived stats
   const playerStats = getPlayerFullStats(player);
@@ -878,12 +939,13 @@ export function resolveBattle(
   const selectedTerrain = terrain || (config.floorNumber ? getRandomTerrainForFloor(config.floorNumber) : undefined);
   const terrainDef = selectedTerrain ? TERRAIN_DEFINITIONS[selectedTerrain] : null;
 
-  // Calculate approach success (only if approach is used) — shared formulas
+  // Calculate approach success (only if approach is used) — shared formulas + F3 heat
   const approachSucceeded = approach
     ? rollApproachSuccess(
         approach,
         { primary: playerStats.primary, derived: playerStats.derived },
-        terrainDef?.effects.stealthModifier ?? 0
+        terrainDef?.effects.stealthModifier ?? 0,
+        visitHeat,
       )
     : false;
 
@@ -947,6 +1009,14 @@ export function resolveBattle(
       ? Posture.AGGRESSIVE
       : Posture.BALANCED;
 
+  // F2/F3: seed engagement band (same pure helper as live / auto-combat + heat bias)
+  const currentRange = resolveInitialRange({
+    approach: approach ?? ApproachType.FRONTAL_ASSAULT,
+    success: approach ? approachSucceeded : true,
+    enemy,
+    heat: visitHeat,
+  });
+
   // Initialize battle context
   const ctx: BattleContext = {
     player: { ...player },
@@ -970,6 +1040,7 @@ export function resolveBattle(
     discard: [],
     currentAp: 0,
     maxAp: playerStats.derived.actionPointsPerTurn,
+    currentRange,
     logs: [],
     metrics: {
       totalDamageDealt: 0,

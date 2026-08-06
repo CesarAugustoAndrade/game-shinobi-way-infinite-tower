@@ -4,7 +4,14 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 
 ## [Unreleased]
 
+### Added
+- **F3 visit HEAT:** `BranchingFloor.heat` / `hunterArmed` (latch at 100); pure `HeatSystem` + `EncounterChainSystem`; authored `heatDelta` on approaches/events/training; approach PP penalties + initial-range heat bias; elite ambush chain (accumulate/commit, death forfeits buffer); Hunter EXIT swap/+40pp; LocationMap heat meter; FORMULAS/help docs.
+- **F2 combat distance:** engagement bands CLOSE/MEDIUM/LONG; pure `RangeSystem` (legality, initial band from approach + preferred range, voluntary move 1 AP once/turn, PUSH/PULL hooks with empty reaction registry); enemy AP + move-then-skill AI or Guard; combat UI band chip + Close in/Back off; cards/telegraph/sims share the same pure helpers (no global range→damage mods).
+
 ### Changed
+- **Constante César de daño:** `CESAR_DAMAGE_CONSTANT = 2` en `src/game/config.ts`, aplicada al final de `calculateDamage` y `calculateDotDamage` (toda salida de daño skills/DoT). Temporal — borrar la constante y usos cuando no haga falta.
+- **Early combat retune:** lower HP/WILL (`HP_PER_WILLPOWER` 25→20; shared player/enemy pool), higher basic skill `baseDamage`/`scalingPerPoint` integers, higher enemy offense bases; no new multipliers (no `PLAYER_DAMAGE_MULTIPLIER` change).
+- **F1 stat economy migration:** primaries start at 1 (clan affinities 3); derived HP/Chakra/def/impact/AP/crit/resist/guts/regen rewritten; single impact roll (no dual evasion); integer buffs; skills use `baseDamage`/`scalingPerPoint` (no `damageMult`) with tier reqs 1/2/3/5/7; additive enemy rank budget; training +1 with jackpot +2; gear components +1 (no floor mult / SLOT×1.5); synthesis thematic primary ≤+1; campaign boons +1; unspent level points + mandatory `StatAssignModal`; event/approach gates on narrative 1–9 scale; helpText/FORMULAS updated. See `docs/FORMULAS.md`.
 - **Item art cutouts:** artifacts/components use transparent PNG cutouts (`icons/*/cutouts/` + `public/assets/cutouts/`). `artRegistry` points at those paths; `ArtIcon` applies `object-fit: contain` / `art-icon--cutout` for PNG cutouts.
 - **Skill art full catalog wired to combat:** all ~116 skills use cinematic 16:9 plates at `public/assets/skills/skill_<id>.png`. `skillArtManifest` points `basic_atk` at `skill_basic_atk.png` (was `skill_taijutsu.png`); added `heavy_kick` + `adamantine_chains`. `getSkillArt` falls back to `skillArtPath(id)` so unregistered ids still resolve painted art. Skill cards keep `object-fit: cover` / `object-position: center 30%`.
 - **Skill art prompt catalog:** added `docs/skill-art-prompts.md` with ready-to-use 16:9 cinematic generation prompts for every skill id (manifest order + leftovers), shared structural style lock for PC skill cards.
@@ -16,6 +23,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - **Waves enemy variety:** each Land of Waves location `enemyPool` expanded from 3 foes to 5–7 thematic ids so room combat no longer cycles the same trio (e.g. water spirit) endlessly. Waves-arc name fallback also widened when no pool is present.
 
 ### Fixed
+- **F2 sim/auto range parity:** `CombatSimulationService.selectSkill` no longer fires out-of-range skills (returns null / idle). `BattleSimulator` seeds `currentRange` via `resolveInitialRange`, enemy turns use `planEnemyAction` (move-then-skill or Guard), and `SkillSelectionAI.selectBestCard` filters with `skillAllowedAt` so balance sims match live legality.
 - **Enemy art verify:** removed orphan demo plate `public/assets/enemies/enemy_demo_transparent_try.png` that broke `python scripts/verify_enemy_art_chroma.py` (flat count 45≠44, non-chroma bg, missing cutout).
 - **Combat viewscreen divider:** removed `border-bottom` on `.cinematic` in [`CinematicViewscreen.css`](file:///C:/Users/PC/workspace/SHINOBI-WAY-the-inifinite-tower/src/components/layout/CinematicViewscreen.css) to eliminate the horizontal line floating across the middle of the screen above the action dock.
 

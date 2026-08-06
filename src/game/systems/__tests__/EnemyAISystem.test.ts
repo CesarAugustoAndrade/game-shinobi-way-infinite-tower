@@ -34,7 +34,7 @@ describe('selectEnemySkill', () => {
     expect(selectedSkill!.id).toBe('basic');
   });
 
-  it('returns first skill if all on cooldown', () => {
+  it('returns undefined (Guard) if all on cooldown', () => {
     const skill1 = createMockSkill({ id: 'skill1', currentCooldown: 3 });
     const skill2 = createMockSkill({ id: 'skill2', currentCooldown: 2 });
     const enemy = createMockEnemy({ skills: [skill1, skill2] });
@@ -43,16 +43,16 @@ describe('selectEnemySkill', () => {
     const context = { enemy, enemyStats, player, playerStats };
     const selectedSkill = selectEnemySkill(context);
 
-    // Should fallback to first skill
-    expect(selectedSkill!.id).toBe('skill1');
+    // F2: Guard instead of spamming skills[0] while all CDs are up
+    expect(selectedSkill).toBeUndefined();
   });
 
   it('prefers heal skills when enemy HP is low', () => {
-    const attackSkill = createMockSkill({ id: 'attack', name: 'Attack', damageMult: 2.0 });
+    const attackSkill = createMockSkill({ id: 'attack', name: 'Attack', baseDamage: 12, scalingPerPoint: 4 });
     const healSkill = createMockSkill({
       id: 'heal',
       name: 'Heal',
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
       effects: [{ type: EffectType.HEAL, value: 50, duration: 0, chance: 1 }],
     });
 
@@ -76,11 +76,11 @@ describe('selectEnemySkill', () => {
   });
 
   it('prefers debuffs against healthy players', () => {
-    const attackSkill = createMockSkill({ id: 'attack', name: 'Attack', damageMult: 1.5 });
+    const attackSkill = createMockSkill({ id: 'attack', name: 'Attack', baseDamage: 9, scalingPerPoint: 3 });
     const debuffSkill = createMockSkill({
       id: 'debuff',
       name: 'Stun',
-      damageMult: 0.5,
+      baseDamage: 3, scalingPerPoint: 1,
       effects: [{ type: EffectType.STUN, duration: 1, chance: 1 }],
     });
 
@@ -107,8 +107,8 @@ describe('selectEnemySkill', () => {
   });
 
   it('prefers high damage skills to finish low HP player', () => {
-    const lowDamageSkill = createMockSkill({ id: 'low', name: 'Poke', damageMult: 0.5 });
-    const highDamageSkill = createMockSkill({ id: 'high', name: 'Nuke', damageMult: 5.0 });
+    const lowDamageSkill = createMockSkill({ id: 'low', name: 'Poke', baseDamage: 3, scalingPerPoint: 1 });
+    const highDamageSkill = createMockSkill({ id: 'high', name: 'Nuke', baseDamage: 30, scalingPerPoint: 10 });
 
     const enemy = createMockEnemy({
       skills: [lowDamageSkill, highDamageSkill],
@@ -148,8 +148,8 @@ describe('selectEnemySkill', () => {
   });
 
   it('includes randomness in selection', () => {
-    const skill1 = createMockSkill({ id: 'skill1', damageMult: 1.0 });
-    const skill2 = createMockSkill({ id: 'skill2', damageMult: 1.0 });
+    const skill1 = createMockSkill({ id: 'skill1', baseDamage: 6, scalingPerPoint: 2 });
+    const skill2 = createMockSkill({ id: 'skill2', baseDamage: 6, scalingPerPoint: 2 });
 
     const enemy = createMockEnemy({
       skills: [skill1, skill2],
@@ -184,11 +184,11 @@ describe('selectEnemySkill', () => {
   });
 
   it('treats EffectType.DEBUFF as a debuff for AI scoring', () => {
-    const attackSkill = createMockSkill({ id: 'attack', name: 'Attack', damageMult: 1.5 });
+    const attackSkill = createMockSkill({ id: 'attack', name: 'Attack', baseDamage: 9, scalingPerPoint: 3 });
     const debuffSkill = createMockSkill({
       id: 'stat-debuff',
       name: 'Weaken',
-      damageMult: 0.5,
+      baseDamage: 3, scalingPerPoint: 1,
       effects: [
         {
           type: EffectType.DEBUFF,

@@ -10,6 +10,7 @@ import {
   initializeTreasureHunt,
   addMapPiece,
   getTreasureHuntReward,
+  applyFloorHeatDelta,
 } from '../game/systems/LocationSystem';
 import { addToBag, getSellPrice } from '../game/systems/LootSystem';
 
@@ -82,6 +83,8 @@ export interface PendingBagFullItem {
 export interface UseTreasureHandlersReturn {
   /** Open vault (pay openCost chakra) → vault pick phase */
   handleOpenVault: () => void;
+  /** Leave/walk away from vault without opening */
+  handleLeaveVault: () => void;
   /** Reveal one sealed vault face (pay revealCost) */
   handleRevealVaultFace: (index: number) => void;
   /** Claim one revealed vault option */
@@ -171,22 +174,44 @@ export function useTreasureHandlers(
       (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined) ??
       null;
 
+    // F3: optional treasure raises visit heat (authored heatDelta or default valuable +10)
+    const treasureHeat =
+      currentTreasure?.heatDelta ??
+      (currentTreasure ? 10 : 0);
+
     let finalFloor: BranchingFloor | undefined;
     if (locationFloor && roomId) {
       finalFloor = completeActivity(locationFloor, roomId, 'treasure');
+      if (treasureHeat) {
+        finalFloor = applyFloorHeatDelta(finalFloor, treasureHeat);
+        addLog(`Heat +${treasureHeat} from claiming treasure (now ${finalFloor.heat}).`, 'danger');
+        if (finalFloor.hunterArmed && !locationFloor.hunterArmed) {
+          addLog('HEAT critical — a Hunter is now stalking this location!', 'danger');
+        }
+      }
       setLocationFloor(finalFloor);
     }
     if (branchingFloor && roomId) {
-      const updatedFloor = completeActivity(branchingFloor, roomId, 'treasure');
+      let updatedFloor = completeActivity(branchingFloor, roomId, 'treasure');
+      if (treasureHeat) updatedFloor = applyFloorHeatDelta(updatedFloor, treasureHeat);
       setBranchingFloor(updatedFloor);
     }
     setCurrentTreasure(null);
     setCurrentTreasureHunt(null);
     setPendingBagFullItem(null);
     returnToMapActivityComplete(finalFloor);
-  }, [locationFloor, branchingFloor, selectedBranchingRoom,
+  }, [locationFloor, branchingFloor, selectedBranchingRoom, currentTreasure,
       setLocationFloor, setBranchingFloor, setCurrentTreasure,
-      setCurrentTreasureHunt, setPendingBagFullItem, returnToMapActivityComplete]);
+      setCurrentTreasureHunt, setPendingBagFullItem, returnToMapActivityComplete, addLog]);
+
+  // Leave vault — walk away without claiming
+  const handleLeaveVault = useCallback(() => {
+    if (treasureActionLockRef.current) return;
+    treasureActionLockRef.current = true;
+    addLog('Left the sealed vault.', 'info');
+    treasureActionLockRef.current = false;
+    completeTreasureAndReturn();
+  }, [addLog, completeTreasureAndReturn]);
 
   // Open vault — pay openCost, enter pick phase (faces still sealed)
   const handleOpenVault = useCallback(() => {
@@ -607,6 +632,7 @@ export function useTreasureHandlers(
 
   return {
     handleOpenVault,
+    handleLeaveVault,
     handleRevealVaultFace,
     handlePickVaultOption,
     handleTakeMapPiece,

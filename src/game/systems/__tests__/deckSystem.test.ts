@@ -23,13 +23,13 @@ import { LaunchProperties } from '../../../config/featureFlags';
 // damageMult > 0.5 ⇒ offensive; damageMult 0 + SHIELD ⇒ defensive.
 
 const offensiveCard = (id: string): Skill =>
-  createMockSkill({ id, name: id, damageMult: 2.0 });
+  createMockSkill({ id, name: id, baseDamage: 12, scalingPerPoint: 4 });
 
 const defensiveCard = (id: string): Skill =>
   createMockSkill({
     id,
     name: id,
-    damageMult: 0,
+    baseDamage: 0, scalingPerPoint: 0,
     actionType: ActionType.ACTIVE,
     effects: [{ type: EffectType.SHIELD, value: 40, duration: 2, chance: 1.0 }],
   });

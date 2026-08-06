@@ -5,6 +5,7 @@ import {
   EffectType,
   TerrainType,
 } from '../types';
+import { approachHeatPenaltyPp } from '../systems/HeatSystem';
 
 // ============================================================================
 // APPROACH DEFINITIONS — Balance Overhaul
@@ -47,6 +48,7 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
       chakraCost: 0,
       hpCost: 0,
       xpMultiplier: 1.0,
+      heatDelta: 0,
     },
   },
 
@@ -64,8 +66,8 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     requirements: {
       // Primary identity: dexterity. Speed is secondary mobility gate.
       minStats: [
-        { stat: PrimaryStat.DEXTERITY, value: 16 },
-        { stat: PrimaryStat.SPEED, value: 12 },
+        { stat: PrimaryStat.DEXTERITY, value: 3 },
+        { stat: PrimaryStat.SPEED, value: 2 },
       ],
     },
 
@@ -79,14 +81,14 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     },
 
     successEffects: {
-      initiativeBonus: 22,
+      initiativeBonus: 6,
       guaranteedFirst: false,
       firstHitMultiplier: 1.5, // was 2.0 — still strong, not free double damage
       playerBuffs: [
         {
           type: EffectType.BUFF,
           targetStat: PrimaryStat.DEXTERITY,
-          value: 0.10,
+          value: 1.10,
           duration: 1,
           chance: 1.0,
         },
@@ -101,27 +103,27 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
 
     // Spotted: enemy seizes tempo; you eat more damage and lose footing
     failureEffects: {
-      initiativeBonus: -40,
+      initiativeBonus: -10,
       guaranteedFirst: false,
       firstHitMultiplier: 1.0,
       playerBuffs: [
         {
           type: EffectType.CURSE,
-          value: 0.20, // +20% damage taken
+          value: 1.20, // +20% damage taken
           duration: 2,
           chance: 1.0,
         },
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.DEXTERITY,
-          value: 0.15,
+          value: 1.15,
           duration: 2,
           chance: 1.0,
         },
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.SPEED,
-          value: 0.10,
+          value: 1.10,
           duration: 2,
           chance: 1.0,
         },
@@ -147,8 +149,8 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
 
     requirements: {
       minStats: [
-        { stat: PrimaryStat.CALMNESS, value: 14 },
-        { stat: PrimaryStat.INTELLIGENCE, value: 12 },
+        { stat: PrimaryStat.CALMNESS, value: 2 },
+        { stat: PrimaryStat.INTELLIGENCE, value: 2 },
       ],
     },
 
@@ -162,14 +164,14 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     },
 
     successEffects: {
-      initiativeBonus: 8,
+      initiativeBonus: 2,
       guaranteedFirst: false,
       firstHitMultiplier: 1.0,
       playerBuffs: [
         {
           type: EffectType.BUFF,
           targetStat: PrimaryStat.CALMNESS,
-          value: 0.12,
+          value: 1.12,
           duration: 2,
           chance: 1.0,
         },
@@ -183,7 +185,7 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.SPEED,
-          value: 0.20, // was 0.30
+          value: 1.20, // was 0.30
           duration: 2, // was 3
           chance: 1.0,
         },
@@ -196,7 +198,7 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     },
 
     failureEffects: {
-      initiativeBonus: -12,
+      initiativeBonus: -3,
       guaranteedFirst: false,
       firstHitMultiplier: 1.0,
       playerBuffs: [
@@ -208,14 +210,14 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.INTELLIGENCE,
-          value: 0.15,
+          value: 1.15,
           duration: 2,
           chance: 1.0,
         },
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.CALMNESS,
-          value: 0.10,
+          value: 1.10,
           duration: 2,
           chance: 1.0,
         },
@@ -240,8 +242,8 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
 
     requirements: {
       minStats: [
-        { stat: PrimaryStat.INTELLIGENCE, value: 12 },
-        { stat: PrimaryStat.ACCURACY, value: 11 },
+        { stat: PrimaryStat.INTELLIGENCE, value: 2 },
+        { stat: PrimaryStat.ACCURACY, value: 2 },
       ],
       allowedTerrains: [
         TerrainType.TREE_CANOPY,
@@ -273,7 +275,7 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     },
 
     successEffects: {
-      initiativeBonus: 4,
+      initiativeBonus: 1,
       guaranteedFirst: false,
       firstHitMultiplier: 1.0,
       playerBuffs: [],
@@ -281,7 +283,7 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.STRENGTH,
-          value: 0.12,
+          value: 1.12,
           duration: 2,
           chance: 1.0,
         },
@@ -294,20 +296,20 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     },
 
     failureEffects: {
-      initiativeBonus: -8,
+      initiativeBonus: -2,
       guaranteedFirst: false,
       firstHitMultiplier: 1.0,
       playerBuffs: [
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.ACCURACY,
-          value: 0.15,
+          value: 1.15,
           duration: 2,
           chance: 1.0,
         },
         {
           type: EffectType.CURSE,
-          value: 0.10,
+          value: 1.10,
           duration: 1,
           chance: 1.0,
         },
@@ -332,7 +334,7 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
       'Brace with chakra armor. Trade tempo for a shield — if it shatters, you bleed more.',
 
     requirements: {
-      minStat: { stat: PrimaryStat.WILLPOWER, value: 14 },
+      minStat: { stat: PrimaryStat.WILLPOWER, value: 2 },
     },
 
     successCalc: {
@@ -345,20 +347,20 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     },
 
     successEffects: {
-      initiativeBonus: -5, // deliberate slow open (defensive)
+      initiativeBonus: -1, // deliberate slow open (defensive)
       guaranteedFirst: false,
       firstHitMultiplier: 1.0,
       playerBuffs: [
         {
           type: EffectType.SHIELD,
-          value: 18, // was 25
+          value: 3, // was 25
           duration: 2, // was 3
           chance: 1.0,
         },
         {
           type: EffectType.BUFF,
           targetStat: PrimaryStat.WILLPOWER,
-          value: 0.08,
+          value: 1.08,
           duration: 2,
           chance: 1.0,
         },
@@ -372,20 +374,20 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     },
 
     failureEffects: {
-      initiativeBonus: -18,
+      initiativeBonus: -5,
       guaranteedFirst: false,
       firstHitMultiplier: 1.0,
       playerBuffs: [
         {
           type: EffectType.CURSE,
-          value: 0.25, // was 0.20 — broken guard is scary
+          value: 1.25, // was 0.20 — broken guard is scary
           duration: 2,
           chance: 1.0,
         },
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.WILLPOWER,
-          value: 0.12,
+          value: 1.12,
           duration: 2,
           chance: 1.0,
         },
@@ -410,7 +412,7 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
       'Slip past the fight entirely. Expensive, unreliable, no XP or loot — and elites never fall for it.',
 
     requirements: {
-      minStat: { stat: PrimaryStat.SPEED, value: 30 },
+      minStat: { stat: PrimaryStat.SPEED, value: 7 },
     },
 
     successCalc: {
@@ -436,20 +438,20 @@ export const APPROACH_DEFINITIONS: Record<ApproachType, ApproachOption> = {
     },
 
     failureEffects: {
-      initiativeBonus: -55,
+      initiativeBonus: -14,
       guaranteedFirst: false,
       firstHitMultiplier: 1.0,
       playerBuffs: [
         {
           type: EffectType.DEBUFF,
           targetStat: PrimaryStat.SPEED,
-          value: 0.25,
+          value: 1.25,
           duration: 2,
           chance: 1.0,
         },
         {
           type: EffectType.CURSE,
-          value: 0.15,
+          value: 1.15,
           duration: 2,
           chance: 1.0,
         },
@@ -552,7 +554,9 @@ export function getApproachFailureTags(type: ApproachType): string[] {
 export function calculateApproachSuccessChance(
   approach: ApproachType,
   stats: Record<string, number>,
-  terrainStealthBonus: number = 0
+  terrainStealthBonus: number = 0,
+  /** F3 visit heat — PP penalty after base calc, before clamp */
+  heat: number = 0,
 ): number {
   const def = APPROACH_DEFINITIONS[approach];
   const calc = def.successCalc;
@@ -565,6 +569,9 @@ export function calculateApproachSuccessChance(
   if (calc.terrainBonus) {
     chance += terrainStealthBonus;
   }
+
+  // F3: heat PP penalties after normal chance, before clamp
+  chance += approachHeatPenaltyPp(approach, heat);
 
   return Math.min(calc.maxChance, Math.max(0, chance));
 }

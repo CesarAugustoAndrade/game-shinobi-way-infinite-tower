@@ -41,7 +41,7 @@ describe('calculateDerivedStats', () => {
     it('calculates maxHp correctly', () => {
       const derived = calculateDerivedStats(BASE_STATS, {});
       // Formula: HP_BASE + (willpower × HP_PER_WILLPOWER)
-      // 50 + (10 × 12) = 170
+      // 100 + (3 × 20) = 160
       expect(derived.maxHp).toBe(F.HP_BASE + BASE_STATS.willpower * F.HP_PER_WILLPOWER);
     });
 
@@ -54,51 +54,47 @@ describe('calculateDerivedStats', () => {
   });
 
   describe('soft caps', () => {
-    it('caps critChance at 75%', () => {
-      // Need very high dex to hit cap: (75 - 8) / 0.5 = 134
+    it('approaches critChance cap of 55% at high DEX', () => {
       const maxCritStats = { ...HIGH_STATS, dexterity: 200 };
       const derived = calculateDerivedStats(maxCritStats, {});
-      expect(derived.critChance).toBe(75);
+      expect(derived.critChance).toBeLessThanOrEqual(F.CRIT_CHANCE_CAP);
+      expect(derived.critChance).toBeGreaterThan(50);
     });
 
-    it('caps percent defense at 75%', () => {
+    it('caps percent defense at 65%', () => {
       const derived = calculateDerivedStats(HIGH_STATS, {});
-      // All defense types should be capped
-      expect(derived.physicalDefensePercent).toBeLessThanOrEqual(0.75);
-      expect(derived.elementalDefensePercent).toBeLessThanOrEqual(0.75);
-      expect(derived.mentalDefensePercent).toBeLessThanOrEqual(0.75);
+      expect(derived.physicalDefensePercent).toBeLessThanOrEqual(F.PERCENT_DEF_CAP);
+      expect(derived.elementalDefensePercent).toBeLessThanOrEqual(F.PERCENT_DEF_CAP);
+      expect(derived.mentalDefensePercent).toBeLessThanOrEqual(F.PERCENT_DEF_CAP);
     });
   });
 
   describe('edge cases', () => {
-    it('handles zero stats without errors', () => {
+    it('handles minimum stats without errors', () => {
       const derived = calculateDerivedStats(ZERO_STATS, {});
-      expect(derived.maxHp).toBe(F.HP_BASE); // Base HP only
-      expect(derived.maxChakra).toBe(F.CHAKRA_BASE); // Base chakra only
-      expect(derived.critChance).toBe(F.BASE_CRIT_CHANCE); // Base crit only
+      // F1: floor 1 primaries → HP_BASE + 20×1
+      expect(derived.maxHp).toBe(F.HP_BASE + F.HP_PER_WILLPOWER * ZERO_STATS.willpower);
+      expect(derived.maxChakra).toBe(F.CHAKRA_BASE + F.CHAKRA_PER_CHAKRA * ZERO_STATS.chakra);
+      expect(derived.critChance).toBeGreaterThanOrEqual(F.BASE_CRIT_CHANCE);
     });
   });
 });
 
 describe('applyBuffsToPrimaryStats', () => {
-  it('applies buff multipliers (+25%) to targeted stat', () => {
-    // Buffs only affect their targetStat
-    const buff = createStatBuff(0.25, 3, PrimaryStat.STRENGTH);
+  it('applies integer buff (+2) to targeted stat', () => {
+    // F1: buffs are integer primary deltas, not percent multipliers
+    const buff = createStatBuff(2, 3, PrimaryStat.STRENGTH);
     const result = applyBuffsToPrimaryStats(BASE_STATS, [buff]);
 
-    // Only strength should be increased by 25%
-    expect(result.strength).toBe(Math.floor(BASE_STATS.strength * 1.25));
-    // Other stats unchanged
+    expect(result.strength).toBe(BASE_STATS.strength + 2);
     expect(result.willpower).toBe(BASE_STATS.willpower);
   });
 
-  it('applies debuff multipliers (-25%) to targeted stat', () => {
-    const debuff = createStatDebuff(0.25, 3, PrimaryStat.STRENGTH);
+  it('applies integer debuff (−1) with floor 1', () => {
+    const debuff = createStatDebuff(1, 3, PrimaryStat.STRENGTH);
     const result = applyBuffsToPrimaryStats(BASE_STATS, [debuff]);
 
-    // Only strength should be decreased by 25%
-    expect(result.strength).toBe(Math.floor(BASE_STATS.strength * 0.75));
-    // Other stats unchanged
+    expect(result.strength).toBe(Math.max(1, BASE_STATS.strength - 1));
     expect(result.willpower).toBe(BASE_STATS.willpower);
   });
 
@@ -192,7 +188,7 @@ describe('calculateDamage', () => {
 
   it('calculates base damage from scaling stat and damage mult', () => {
     const skill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.AUTO, // Auto-hit for predictable testing
     });
@@ -216,7 +212,7 @@ describe('calculateDamage', () => {
 
   it('applies element effectiveness multiplier', () => {
     const fireSkill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.SPIRIT,
       damageType: DamageType.ELEMENTAL,
       attackMethod: AttackMethod.AUTO,
@@ -241,7 +237,7 @@ describe('calculateDamage', () => {
 
   it('TRUE damage bypasses all defense', () => {
     const trueSkill = createMockSkill({
-      damageMult: 3.0,
+      baseDamage: 18, scalingPerPoint: 6,
       scalingStat: PrimaryStat.STRENGTH,
       damageType: DamageType.TRUE,
       attackMethod: AttackMethod.AUTO,
@@ -253,14 +249,15 @@ describe('calculateDamage', () => {
     );
 
     // TRUE damage should have 0 flat and percent reduction
+    // finalDamage = raw × CESAR_DAMAGE_CONSTANT (temporary global ×2)
     expect(result.flatReduction).toBe(0);
     expect(result.percentReduction).toBe(0);
-    expect(result.finalDamage).toBe(result.rawDamage);
+    expect(result.finalDamage).toBe(result.rawDamage * 2);
   });
 
   it('damageMult 0 utility/heal skills deal 0 damage (no min-1 chip)', () => {
     const healSkill = createMockSkill({
-      damageMult: 0,
+      baseDamage: 0, scalingPerPoint: 0,
       scalingStat: PrimaryStat.INTELLIGENCE,
       damageType: DamageType.PHYSICAL,
       attackMethod: AttackMethod.AUTO,
@@ -277,7 +274,7 @@ describe('calculateDamage', () => {
 
   it('PIERCING ignores flat defense', () => {
     const piercingSkill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       damageProperty: DamageProperty.PIERCING,
       attackMethod: AttackMethod.AUTO,
     });
@@ -295,7 +292,7 @@ describe('calculateDamage', () => {
   it('defenseBypass removes flat and percent mitigation', () => {
     // Deterministic: AUTO never misses/evades; force no-crit via Math.random
     const skill = createMockSkill({
-      damageMult: 5.0,
+      baseDamage: 30, scalingPerPoint: 10,
       scalingStat: PrimaryStat.STRENGTH,
       damageType: DamageType.PHYSICAL,
       attackMethod: AttackMethod.AUTO,
@@ -328,7 +325,7 @@ describe('calculateDamage', () => {
 
   it('forceSuperEffective forces 1.2 element multiplier', () => {
     const fireSkill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.SPIRIT,
       damageType: DamageType.ELEMENTAL,
       attackMethod: AttackMethod.AUTO,
@@ -347,7 +344,7 @@ describe('calculateDamage', () => {
 
   it('forceHit always connects even when RNG would miss/evade', () => {
     const skill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.MELEE,
       critBonus: 0,
@@ -383,7 +380,7 @@ describe('calculateDamage', () => {
 
   it('forceCrit true always crits; forceCrit false never crits', () => {
     const skill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.AUTO,
       critBonus: 0,
@@ -407,7 +404,7 @@ describe('calculateDamage', () => {
 
   it('previewDamage is stable (hit, non-crit) across repeated calls', () => {
     const skill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.MELEE,
       critBonus: 50, // high crit would otherwise flicker
@@ -433,7 +430,7 @@ describe('calculateDamage', () => {
 
   it('previewDamage overrides call-site forceHit/forceCrit flags', () => {
     const skill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.AUTO,
     });
@@ -661,7 +658,7 @@ describe('passive skill damageBonus and defenseBonus (A-014)', () => {
     };
     const defenderDerived = calculateDerivedStats(BASE_STATS, {});
     const skill = createMockSkill({
-      damageMult: 2.0,
+      baseDamage: 12, scalingPerPoint: 4,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.AUTO,
       damageType: DamageType.TRUE, // no defense noise
@@ -691,9 +688,10 @@ describe('passive skill damageBonus and defenseBonus (A-014)', () => {
       { damageBonus: 0.15 }
     );
 
-    // raw before bonus = strength(10) * 2 = 20; with +15% → floor(20 * 1.15) = 23
-    expect(baseline.rawDamage).toBe(20);
-    expect(buffed.rawDamage).toBe(23);
+    // F1: raw = baseDamage + scalingPerPoint × STR = 12 + 4×3 = 24 (BASE_STATS strength 3)
+    const expected = 12 + 4 * BASE_STATS.strength;
+    expect(baseline.rawDamage).toBe(expected);
+    expect(buffed.rawDamage).toBe(Math.floor(expected * 1.15));
     expect(buffed.isCrit).toBe(false);
     expect(buffed.finalDamage).toBeGreaterThan(baseline.finalDamage);
   });
@@ -757,7 +755,7 @@ describe('passive skill damageBonus and defenseBonus (A-014)', () => {
     ).derived;
 
     const skill = createMockSkill({
-      damageMult: 5.0,
+      baseDamage: 30, scalingPerPoint: 10,
       scalingStat: PrimaryStat.STRENGTH,
       attackMethod: AttackMethod.AUTO,
       damageType: DamageType.PHYSICAL,

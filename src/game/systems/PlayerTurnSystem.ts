@@ -35,6 +35,7 @@ import {
   applyMovementPenaltyToMaxAp,
   applyRoomMovementCostToMaxAp,
 } from './LocationTerrainSystem';
+import { canAffordHpCost, resolveHpCost } from './StatSystem';
 import {
   Player,
   Enemy,
@@ -44,7 +45,16 @@ import {
   CharacterStats,
   ActionType,
   Posture,
+  RangeMoveDirection,
 } from '../types';
+import {
+  skillAllowedAt,
+  outOfRangeBlockReason,
+  shiftRange,
+  voluntaryMoveCost,
+  collectRangeReactions,
+} from './RangeSystem';
+import { RangeMoveTrigger } from '../types';
 import {
   calculateDamage,
   resolvePassiveDamageBonus,
@@ -268,6 +278,72 @@ export function processUpkeep(
 }
 
 // ============================================================================
+// VOLUNTARY RANGE MOVE (F2)
+// ============================================================================
+
+export interface VoluntaryMoveResult {
+  success: boolean;
+  combatState: CombatState;
+  logMessage: string;
+  /** True when blocked (no AP, already moved, boundary). */
+  blocked: boolean;
+}
+
+/**
+ * Player voluntary move: one band, once per turn, base 1 AP (+ optional surcharge).
+ * Immutable CombatState update.
+ */
+export function voluntaryPlayerMove(
+  combatState: CombatState,
+  direction: RangeMoveDirection,
+  apSurcharge: number = 0
+): VoluntaryMoveResult {
+  if (combatState.playerMoveUsedThisTurn) {
+    return {
+      success: false,
+      blocked: true,
+      combatState,
+      logMessage: 'Already moved this turn.',
+    };
+  }
+  const cost = voluntaryMoveCost(apSurcharge);
+  if (combatState.currentAp < cost) {
+    return {
+      success: false,
+      blocked: true,
+      combatState,
+      logMessage: `Not enough AP to move (need ${cost}).`,
+    };
+  }
+  const { range, moved } = shiftRange(combatState.currentRange, direction);
+  if (!moved) {
+    return {
+      success: false,
+      blocked: true,
+      combatState,
+      logMessage: 'Cannot move further in that direction.',
+    };
+  }
+  // Empty reaction hooks (no content adapted this delivery)
+  void collectRangeReactions(RangeMoveTrigger.VOLUNTARY, moved, false);
+
+  return {
+    success: true,
+    blocked: false,
+    combatState: {
+      ...combatState,
+      currentRange: range,
+      currentAp: combatState.currentAp - cost,
+      playerMoveUsedThisTurn: true,
+    },
+    logMessage:
+      direction === RangeMoveDirection.APPROACH
+        ? `You close the gap → ${range}.`
+        : `You create distance → ${range}.`,
+  };
+}
+
+// ============================================================================
 // SKILL EXECUTION
 // ============================================================================
 
@@ -325,9 +401,29 @@ export function useSkill(
   const skipCost = Boolean(combatState?.skipFirstSkillCost);
   const effectiveChakraCost = skipCost ? 0 : skill.chakraCost;
 
+  // F2: range gate — distance only blocks, no damage modifiers
+  if (combatState?.currentRange && !skillAllowedAt(skill, combatState.currentRange)) {
+    return {
+      damageDealt: 0,
+      newEnemyHp: enemy.currentHp,
+      newPlayerHp: player.currentHp,
+      newPlayerChakra: player.currentChakra,
+      newEnemyBuffs: enemy.activeBuffs,
+      newPlayerBuffs: player.activeBuffs,
+      logMessage: outOfRangeBlockReason(skill, combatState.currentRange),
+      logType: 'danger',
+      enemyDefeated: false,
+      apCost: 0,
+    };
+  }
+
   // Resource check (chakra/HP and — when in the AP economy — Action Points).
   // Gate uses effectiveChakraCost so free-first works even at low chakra.
-  if (player.currentChakra < effectiveChakraCost || player.currentHp <= skill.hpCost) {
+  const playerMaxHp = playerStats?.derived?.maxHp ?? player.currentHp;
+  if (
+    player.currentChakra < effectiveChakraCost ||
+    !canAffordHpCost(skill, player.currentHp, playerMaxHp)
+  ) {
     return {
       damageDealt: 0,
       newEnemyHp: enemy.currentHp,
@@ -339,6 +435,23 @@ export function useSkill(
       logType: 'danger',
       enemyDefeated: false,
       apCost: 0
+    };
+  }
+
+  // Mutual KO (Reaper Death Seal): both actors defeated without damage pipeline.
+  if (skill.mutualKo) {
+    return {
+      damageDealt: enemy.currentHp,
+      newEnemyHp: 0,
+      newPlayerHp: 0,
+      newPlayerChakra: Math.max(0, player.currentChakra - effectiveChakraCost),
+      newEnemyBuffs: enemy.activeBuffs,
+      newPlayerBuffs: player.activeBuffs,
+      logMessage: `${skill.name}! Mutual seal — both fall.`,
+      logType: 'danger',
+      enemyDefeated: true,
+      playerDefeated: true,
+      apCost,
     };
   }
 

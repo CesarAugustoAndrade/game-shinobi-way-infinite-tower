@@ -37,7 +37,7 @@ describe('CombatSimulationService — HEAL', () => {
       id: 'heal-strike',
       name: 'Mystic Palm Strike',
       chakraCost: 5,
-      damageMult: 5.0,
+      baseDamage: 30, scalingPerPoint: 10,
       attackMethod: AttackMethod.AUTO,
       effects: [{ type: EffectType.HEAL, value: 40, duration: 0, chance: 1 }],
     });
@@ -84,7 +84,7 @@ describe('CombatSimulationService — combat-start passives', () => {
     const skill = createMockSkill({
       id: 'finisher',
       chakraCost: 0,
-      damageMult: 10,
+      baseDamage: 60, scalingPerPoint: 20,
       attackMethod: AttackMethod.AUTO,
     });
     const player = createMockPlayer({
@@ -124,7 +124,7 @@ describe('CombatSimulationService — combat-start passives', () => {
     const skill = createMockSkill({
       id: 'costly',
       chakraCost: 25,
-      damageMult: 10,
+      baseDamage: 60, scalingPerPoint: 20,
       attackMethod: AttackMethod.AUTO,
     });
     const player = createMockPlayer({
@@ -157,7 +157,7 @@ describe('CombatSimulationService — approaches', () => {
     const skill = createMockSkill({
       id: 'punch',
       chakraCost: 0,
-      damageMult: 2,
+      baseDamage: 12, scalingPerPoint: 4,
       attackMethod: AttackMethod.AUTO,
     });
     const player = createMockPlayer({

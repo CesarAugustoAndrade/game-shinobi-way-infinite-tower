@@ -18,7 +18,6 @@ import {
 } from '../game/types';
 import {
   CLAN_STATS,
-  CLAN_GROWTH,
   SKILLS,
   CLAN_FAVORITE_SKILLS,
   getClanStartingSkills,
@@ -129,7 +128,7 @@ function skillProgressionScore(skill: Skill, clan: Clan): number {
   }
 
   const dmg =
-    (skill.damageMult || 0) *
+    (((skill.baseDamage ?? 0) + (skill.scalingPerPoint ?? 0) * 3) || 0) *
     (skill.critBonus ? 1.2 : 1) *
     (skill.penetration ? 1.3 : 1);
 
@@ -144,8 +143,8 @@ function skillProgressionScore(skill: Skill, clan: Clan): number {
  */
 export function getSkillsByDamagePotential(skills: Skill[]): Skill[] {
   return [...skills].sort((a, b) => {
-    const scoreA = a.damageMult * (a.critBonus ? 1.2 : 1) * (a.penetration ? 1.3 : 1);
-    const scoreB = b.damageMult * (b.critBonus ? 1.2 : 1) * (b.penetration ? 1.3 : 1);
+    const scoreA = ((a.baseDamage ?? 0) + (a.scalingPerPoint ?? 0) * 3) * (a.critBonus ? 1.2 : 1) * (a.penetration ? 1.3 : 1);
+    const scoreB = ((b.baseDamage ?? 0) + (b.scalingPerPoint ?? 0) * 3) * (b.critBonus ? 1.2 : 1) * (b.penetration ? 1.3 : 1);
     return scoreB - scoreA;
   });
 }
@@ -201,7 +200,7 @@ export function generateOptimalLoadout(
     // Skip zero-impact pure placeholders (keep utility with effects / toggles / passives)
     if (
       skill.actionType === ActionType.ACTIVE &&
-      skill.damageMult === 0 &&
+      ((skill.baseDamage ?? 0) + (skill.scalingPerPoint ?? 0) * 3) === 0 &&
       !(skill.effects && skill.effects.length > 0)
     ) {
       continue;
@@ -245,18 +244,18 @@ export function calculatePlayerStats(
   customOverrides?: Partial<PrimaryAttributes>
 ): PrimaryAttributes {
   const baseStats = CLAN_STATS[clan];
-  const growth = CLAN_GROWTH[clan];
-
+  // F1: no CLAN_GROWTH — sim dumps (level-1) unspent points into willpower.
+  const levels = Math.max(0, level - 1);
   const calculated: PrimaryAttributes = {
-    willpower: baseStats.willpower + ((growth.willpower || 0) * (level - 1)),
-    chakra: baseStats.chakra + ((growth.chakra || 0) * (level - 1)),
-    strength: baseStats.strength + ((growth.strength || 0) * (level - 1)),
-    spirit: baseStats.spirit + ((growth.spirit || 0) * (level - 1)),
-    intelligence: baseStats.intelligence + ((growth.intelligence || 0) * (level - 1)),
-    calmness: baseStats.calmness + ((growth.calmness || 0) * (level - 1)),
-    speed: baseStats.speed + ((growth.speed || 0) * (level - 1)),
-    accuracy: baseStats.accuracy + ((growth.accuracy || 0) * (level - 1)),
-    dexterity: baseStats.dexterity + ((growth.dexterity || 0) * (level - 1))
+    willpower: baseStats.willpower + levels,
+    chakra: baseStats.chakra,
+    strength: baseStats.strength,
+    spirit: baseStats.spirit,
+    intelligence: baseStats.intelligence,
+    calmness: baseStats.calmness,
+    speed: baseStats.speed,
+    accuracy: baseStats.accuracy,
+    dexterity: baseStats.dexterity,
   };
 
   if (customOverrides) {

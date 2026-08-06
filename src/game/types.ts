@@ -87,6 +87,81 @@ export enum AttackMethod {
 }
 
 // ============================================================================
+// COMBAT DISTANCE (F2)
+// ============================================================================
+
+/** Engagement band between combatants. Distance only gates skills (no global dmg mods). */
+export enum CombatRange {
+  CLOSE = 'CLOSE',
+  MEDIUM = 'MEDIUM',
+  LONG = 'LONG',
+}
+
+// ============================================================================
+// HEAT (F3) — visit alert / greed meter
+// ============================================================================
+
+/** Visible HEAT tiers (plan §3). */
+export enum HeatTier {
+  QUIET = 'QUIET',             // 0–24
+  SUSPICIOUS = 'SUSPICIOUS',   // 25–49
+  ALERT = 'ALERT',             // 50–74
+  HUNTED = 'HUNTED',           // 75–100
+}
+
+/**
+ * Authored heat delta presets (only content may change heat).
+ * Mandatory paths normally use 0; optional rewards raise heat.
+ */
+export enum HeatPreset {
+  NONE = 0,
+  SMALL = 5,
+  VALUABLE = 10,
+  GRAND = 20,
+  JACKPOT = 30,
+  COOL_SMALL = -5,
+  COOL_VALUABLE = -10,
+  COOL_GRAND = -20,
+}
+
+/** Voluntary / forced move direction relative to engagement. */
+export enum RangeMoveDirection {
+  APPROACH = 'APPROACH', // toward CLOSE
+  RETREAT = 'RETREAT',   // toward LONG
+}
+
+export enum RangeMoveSubject {
+  SELF = 'SELF',
+  FOE = 'FOE',
+  BOTH = 'BOTH',
+}
+
+export enum RangeMoveTrigger {
+  VOLUNTARY = 'VOLUNTARY',
+  PUSH = 'PUSH',
+  PULL = 'PULL',
+  OTHER = 'OTHER',
+}
+
+/**
+ * Future range-reaction definition (infra only this delivery — empty registry).
+ * Skills/items are not yet adapted.
+ */
+export interface RangeReactionDef {
+  id: string;
+  trigger: RangeMoveTrigger;
+  subject: RangeMoveSubject;
+  /** Extra AP cost when reaction fires (optional). */
+  apSurcharge?: number;
+  /** Optional damage payload using F1 damage contract. */
+  baseDamage?: number;
+  scalingPerPoint?: number;
+  scalingStat?: PrimaryStat;
+  damageType?: DamageType;
+  safeMovement?: boolean;
+}
+
+// ============================================================================
 // PRIMARY ATTRIBUTES INTERFACE
 // ============================================================================
 export interface PrimaryAttributes {
@@ -134,12 +209,13 @@ export interface DerivedStats {
   statusResistance: number;   // % chance to resist debuffs
   gutsChance: number;         // % chance to survive lethal blow at 1 HP
   
-  // Offensive - Hit Rates (base %, modified by target's evasion)
-  meleeHitRate: number;       // Base hit chance for melee
-  rangedHitRate: number;      // Base hit chance for ranged
+  // Offensive - attacker-side impact contribution (display / legacy).
+  // Live hit uses single impact vs defender SPEED in StatSystem.calculateDamage.
+  meleeHitRate: number;       // ~90 + 6×SPEED (no defender)
+  rangedHitRate: number;      // ~90 + 6×ACCURACY (no defender)
 
-  // Evasion
-  evasion: number;            // % chance to dodge attacks
+  /** @deprecated Dual evasion removed — always 0. Kept for UI compatibility. */
+  evasion: number;
 
   // Critical Strikes
   critChance: number;         // % chance to crit
@@ -149,8 +225,7 @@ export interface DerivedStats {
   // Initiative (turn order in combat)
   initiative: number;
 
-  // Action economy (T-004 deckbuilder/AP system)
-  // AP regenerated at the start of each player turn: AP_BASE + floor(speed / AP_PER_SPEED_DIV)
+  // Action economy: min(9, 3 + floor((SPEED − 1) / 2))
   actionPointsPerTurn: number;
 }
 
@@ -464,6 +539,17 @@ export interface PassiveBonuses {
   chakraRegen: number;
 }
 
+/**
+ * Typed HP cost (optional advanced form). Flat `number` on Skill is the common case.
+ * - flat: pay value HP
+ * - percentMax: pay floor(maxHp × fraction) where value is 0–1 or 0–100
+ * - all: pay remaining HP (pair with mutualKo for Reaper)
+ */
+export type HpCostSpec =
+  | { kind: 'flat'; value: number }
+  | { kind: 'percentMax'; value: number }
+  | { kind: 'all' };
+
 export interface Skill {
   id: string;
   name: string;
@@ -481,18 +567,29 @@ export interface Skill {
 
   // Costs
   chakraCost: number;
+  /** Flat HP toll. Use mutualKo for sacrifice-all techniques (Reaper). */
   hpCost: number;
 
   // Cooldown
   cooldown: number;
   currentCooldown: number;
 
-  // Damage Calculation
-  damageMult: number;
+  // Damage Calculation (F1): raw = baseDamage + scalingPerPoint × effectivePrimary[scalingStat]
+  baseDamage: number;
+  scalingPerPoint: number;
   scalingStat: PrimaryStat;     // Which stat scales the damage
   damageType: DamageType;       // Physical/Elemental/Mental/True
   damageProperty: DamageProperty; // Normal/Piercing/ArmorBreak
   attackMethod: AttackMethod;   // Melee/Ranged/Auto
+
+  /** Explicit mutual KO (Reaper Death Seal). Both actors defeated without damage pipeline. */
+  mutualKo?: boolean;
+
+  /**
+   * Optional override of range bands where this skill can be used.
+   * When omitted, defaults from AttackMethod (MELEE CLOSE; RANGED MEDIUM+LONG; AUTO all).
+   */
+  allowedRanges?: CombatRange[];
 
   // Element (for elemental interactions)
   element: ElementType;
@@ -580,6 +677,12 @@ export interface Player {
 
   // Stats
   primaryStats: PrimaryAttributes;
+  /**
+   * Unspent level-up points. Each level grants exactly 1.
+   * Must reach 0 via mandatory assign modal before continuing play;
+   * full HP/Chakra refill only after all points are spent.
+   */
+  unspentStatPoints: number;
 
   // Resources (tracked separately from derived for current values)
   currentHp: number;
@@ -636,14 +739,23 @@ export interface Enemy {
 
   // Flags
   isBoss?: boolean;
+  /** F3: EXIT Hunter (armed heat 100 upgrade of Guardian). */
+  isHunter?: boolean;
   image?: string;
   dropRateBonus?: number;
+  /** F3: XP/Ryo multiplier for special foes (Hunter = 2). */
+  rewardMultiplier?: number;
 
   // Presentation (T-014)
   /** Archetype key: 'TANK' | 'ASSASSIN' | 'BALANCED' | 'CASTER' | 'GENJUTSU' */
   archetype?: string;
   /** Danger level (1-7) at which this enemy was generated — used for Lv. N badge. */
   dangerLevel?: number;
+  /**
+   * Preferred engagement band (F2). When omitted, derived from archetype.
+   * Bosses/specials may override.
+   */
+  preferredRange?: CombatRange;
 
   // Telegraph (A-003) — next skill intent for UI / combat log
   /** Skill id the enemy intends to use on its next action. */
@@ -746,6 +858,12 @@ export interface EventOutcome {
     // Remove one random item from the player's bag (uses the game PRNG).
     removeRandomItem?: boolean;
 
+    /**
+     * F3: authored visit heat delta for this outcome (presets 0/±5/±10/±20/+30).
+     * Omitted = 0 (mandatory/neutral path).
+     */
+    heatDelta?: number;
+
     // Logging
     logMessage: string;
     logType: 'gain' | 'danger' | 'info' | 'loot';
@@ -801,57 +919,64 @@ export interface GameEvent {
 // ============================================================================
 // STAT CALCULATION FORMULAS (Constants for the calculator)
 // ============================================================================
+/**
+ * F1 stat economy formulas (see docs/combat-distance-heat-stat-migration-plan.md).
+ * Primaries are small integers (start 1, clan affinity 3); no dual-scale conversion.
+ */
 export const STAT_FORMULAS = {
-  // Resource Pools
-  // T-006 B.2: compressed the willpower→HP spread (was 12/50). A smaller
-  // per-point slope pulls tank builds down toward squishy builds so clear-rates
-  // converge instead of fanning out 5x by willpower alone. HP_BASE is kept
-  // modest so low-danger enemies (whose HP is dominated by the flat base) do
-  // not become disproportionately tanky and over-lengthen early fights.
-  HP_PER_WILLPOWER: 9,
-  HP_BASE: 80,
-  CHAKRA_PER_CHAKRA: 8,
+  // Resource Pools: HP = 100 + 20×WILL; Chakra = 30 + 15×CHA
+  // Early combat: slightly lower pools for player and enemies (shared formula).
+  HP_PER_WILLPOWER: 20,
+  HP_BASE: 100,
+  CHAKRA_PER_CHAKRA: 15,
   CHAKRA_BASE: 30,
 
   // Regeneration
-  HP_REGEN_PERCENT: 0.02,        // 2% of max HP per turn based on willpower
-  // T-006 B.2: 0.2→0.5. Caster/mental builds (Uchiha, Glass, Yamanaka, Mind)
-  // were running out of chakra mid-location, falling back to a weak basic attack
-  // and dragging fights into lethal attrition — while free-skill physical
-  // bruisers (Hyuga/Lee) never starved. Higher INT-scaled regen restores their
-  // nuke cadence so they kill on pace and converge upward, with negligible
-  // benefit to the low-INT bruisers who don't lean on chakra.
-  CHAKRA_REGEN_PER_INT: 0.5,    // Chakra regen per INT point
+  // HP: max(1, floor(maxHP × (0.01 + 0.04 × WILL/(WILL+10))))
+  HP_REGEN_BASE_FRACTION: 0.01,
+  HP_REGEN_WILL_FRACTION: 0.04,
+  HP_REGEN_WILL_SOFT: 10,
+  // Chakra: 1 + 2×INTELLIGENCE
+  CHAKRA_REGEN_BASE: 1,
+  CHAKRA_REGEN_PER_INT: 2,
 
-  // Defense Scaling (Diminishing Returns Formula)
-  // Formula: stat / (stat + SOFT_CAP) = % reduction
-  PHYSICAL_DEF_SOFT_CAP: 200,    // BUFFED: Was 120 - harder to cap
-  ELEMENTAL_DEF_SOFT_CAP: 200,   // BUFFED: Was 120
-  MENTAL_DEF_SOFT_CAP: 150,      // BUFFED: Was 100
+  // Defense: flat 1×stat; % = stat/(stat+18) cap 65%
+  PHYSICAL_DEF_SOFT_CAP: 18,
+  ELEMENTAL_DEF_SOFT_CAP: 18,
+  MENTAL_DEF_SOFT_CAP: 18,
+  PERCENT_DEF_CAP: 0.65,
+  FLAT_PHYS_DEF_PER_STR: 1,
+  FLAT_ELEM_DEF_PER_SPIRIT: 1,
+  FLAT_MENTAL_DEF_PER_CALM: 1,
 
-  // Flat Defense - HALVED for better damage scaling
-  FLAT_PHYS_DEF_PER_STR: 0.3,    // NERFED: Was 0.6 - HALVED
-  FLAT_ELEM_DEF_PER_SPIRIT: 0.3, // NERFED: Was 0.6 - HALVED
-  FLAT_MENTAL_DEF_PER_CALM: 0.25,// NERFED: Was 0.5 - HALVED
+  // Impact: clamp(60, 98, 90 + 6×(atkStat − defSPEED)) — no separate evasion
+  IMPACT_BASE: 90,
+  IMPACT_PER_DIFF: 6,
+  IMPACT_MIN: 60,
+  IMPACT_MAX: 98,
 
-  // Evasion & Hit - More reliable attacks
-  EVASION_SOFT_CAP: 250,         // BUFFED: Was 150 - harder to dodge
-  BASE_HIT_CHANCE: 92,           // BUFFED: Was 85 - more reliable
-  HIT_PER_STAT_DIFF: 1.5,        // Per point of SPD/ACC vs target SPD
+  // Critical: 5% + 50%×DEX/(DEX+12), max 55%
+  BASE_CRIT_CHANCE: 5,
+  CRIT_SOFT_CAP: 12,
+  CRIT_SCALE: 0.5,
+  CRIT_CHANCE_CAP: 55,
+  BASE_CRIT_MULT: 1.75,
+  RANGED_CRIT_BONUS_PER_ACC: 0.008,
 
-  // Critical - Slight buff to reward precision
-  BASE_CRIT_CHANCE: 8,           // BUFFED: Was 5
-  CRIT_PER_DEX: 0.5,             // BUFFED: Was 0.4
-  BASE_CRIT_MULT: 1.75,          // BUFFED: Was 1.5
-  RANGED_CRIT_BONUS_PER_ACC: 0.008, // Extra crit multiplier for ranged
+  // Survival: guts 30%×WILL/(WILL+18); resist 60%×CAL/(CAL+12)
+  GUTS_SCALE: 0.3,
+  GUTS_SOFT_CAP: 18,
+  STATUS_RESIST_SCALE: 0.6,
+  STATUS_RESIST_SOFT_CAP: 12,
 
-  // Survival
-  GUTS_SOFT_CAP: 200,           // Willpower / (Willpower + 200) = guts chance
-  STATUS_RESIST_SOFT_CAP: 80,   // Calmness / (Calmness + 80) = resist chance
-
-  // Initiative
+  // Initiative: 10 + 5×SPEED
   INIT_BASE: 10,
-  INIT_PER_SPEED: 1,
+  INIT_PER_SPEED: 5,
+
+  // AP: min(9, 3 + floor((SPEED−1)/2))
+  AP_BASE: 3,
+  AP_MAX: 9,
+  AP_SPEED_STEP: 2,
 } as const;
 
 // ============================================================================
@@ -977,6 +1102,12 @@ export interface ApproachEffects {
 
   // XP modifier
   xpMultiplier: number;           // 1.0 = 100%, 1.15 = 115%
+
+  /**
+   * F3: heat applied when this effect block is used.
+   * Success paths use 0; fail paths use approach fail deltas.
+   */
+  heatDelta?: number;
 }
 
 export interface ApproachOption {
@@ -1170,6 +1301,8 @@ export interface TrainingOffer {
   costType: TrainingCostType;
   cost: number;
   gain: number;
+  /** F3: heat for claiming this optional training (jackpot typically +5..+10). */
+  heatDelta?: number;
 }
 
 export interface TrainingActivity {
@@ -1231,6 +1364,8 @@ export interface TreasureActivity {
   collected: boolean;
   /** Free map-piece alternative (no combat) */
   mapPieceAvailable: boolean;
+  /** F3: heat when claiming optional treasure (default valuable +10). */
+  heatDelta?: number;
 }
 
 export interface TreasureHunt {
@@ -1474,6 +1609,18 @@ export interface BranchingFloor {
    * T-070: full region lootTheme for merchant stock bias.
    */
   lootTheme?: RegionLootTheme;
+
+  /**
+   * F3 visit HEAT (0–100). Runtime only — never on persistent Location.
+   * Resets when leaving / revisiting (new BranchingFloor).
+   */
+  heat: number;
+
+  /**
+   * F3: latched when heat first hits 100 this visit.
+   * Stays true even if heat later drops; drives Hunter EXIT + elite-chain off at 100.
+   */
+  hunterArmed: boolean;
 }
 
 // Room type configuration for generation

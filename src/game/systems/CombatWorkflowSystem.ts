@@ -54,7 +54,7 @@
  * =============================================================================
  */
 
-import { Posture, TerrainDefinition } from '../types';
+import { CombatRange, Posture, TerrainDefinition } from '../types';
 import { CombatModifiers } from './ApproachSystem';
 
 // Re-export types from combat-types.ts (single source of truth)
@@ -117,14 +117,19 @@ export function createCombatState(
     fallDamageOnMiss: roomCombatExtras?.fallDamageOnMiss ?? 0,
     roomConditionNames: roomCombatExtras?.roomConditionNames ?? [],
     enemyFirstHitMultiplier: roomCombatExtras?.enemyFirstHitMultiplier ?? 1,
-    // Deckbuilder/AP economy (T-004) — safe defaults; not consumed by the
-    // combat flow yet. Initialized for real when the deck/hand system lands.
+    // Deckbuilder/AP economy (T-004)
     currentAp: 0,
     maxAp: 0,
     posture: Posture.BALANCED,
     hand: [],
     deck: [],
     discard: [],
+    // F2 distance — seeded by startCombat via resolveInitialRange
+    currentRange: CombatRange.MEDIUM,
+    playerMoveUsedThisTurn: false,
+    enemyMoveUsedThisTurn: false,
+    enemyCurrentAp: 0,
+    enemyMaxAp: 0,
   };
 }
 

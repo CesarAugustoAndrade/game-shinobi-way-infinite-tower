@@ -36,7 +36,8 @@ export type ArtCategory =
   | 'skill'
   | 'enemy'
   | 'event'
-  | 'approach';
+  | 'approach'
+  | 'action';
 
 // ============================================================================
 // HELPERS
@@ -248,6 +249,11 @@ const APPROACHES: Record<string, ArtEntry> = {
   SHADOW_BYPASS: entry('👤', 'Shadow Passage', iconPath('approaches', 'shadow_passage', 'jpg')),
 };
 
+const ACTIONS: Record<string, ArtEntry> = {
+  close_in: entry('⚡', 'Close In', '/assets/actions/action_close_in.png'),
+  back_off: entry('💨', 'Back Off', '/assets/actions/action_back_off.png'),
+};
+
 /** Flat registry: `category:id` → ArtEntry */
 export const ART_REGISTRY: Record<string, ArtEntry> = {
   ...Object.fromEntries(Object.entries(COMPONENTS).map(([id, e]) => [artKey('component', id), e])),
@@ -259,6 +265,7 @@ export const ART_REGISTRY: Record<string, ArtEntry> = {
   ...ENEMY_ENTRIES,
   ...EVENT_ENTRIES,
   ...Object.fromEntries(Object.entries(APPROACHES).map(([id, e]) => [artKey('approach', id), e])),
+  ...Object.fromEntries(Object.entries(ACTIONS).map(([id, e]) => [artKey('action', id), e])),
 };
 
 const MYSTERY: ArtEntry = { emoji: '❓', label: 'Unknown' };
@@ -373,6 +380,10 @@ export function getComponentArt(componentId: ComponentId | string): ArtEntry {
 /** ApproachType enum value → art entry (Imagine icons). */
 export function getApproachArt(approachType: string): ArtEntry {
   return getArt(artKey('approach', approachType));
+}
+
+export function getActionArt(actionId: string): ArtEntry {
+  return getArt(artKey('action', actionId));
 }
 
 export function getArtifactArt(name: string): ArtEntry {
