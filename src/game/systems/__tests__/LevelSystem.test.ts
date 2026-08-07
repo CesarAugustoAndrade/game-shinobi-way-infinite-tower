@@ -19,15 +19,16 @@ function playerAtExp(clan: Clan, exp: number) {
 }
 
 describe('LevelSystem F1', () => {
-  it('grants unspent points without changing primary stats or healing', () => {
-    const p = playerAtExp(Clan.UZUMAKI, 100);
+  it('grants unspent points and restores full HP and Chakra on level up', () => {
+    const p = { ...playerAtExp(Clan.UZUMAKI, 100), currentHp: 10, currentChakra: 5 };
     const before = { ...p.primaryStats };
-    const beforeHp = p.currentHp;
     const next = applyLevelUp(p);
+    const full = getPlayerFullStats(next);
     expect(next.level).toBe(2);
     expect(next.unspentStatPoints).toBe(1);
     expect(next.primaryStats).toEqual(before);
-    expect(next.currentHp).toBe(beforeHp);
+    expect(next.currentHp).toBe(full.derived.maxHp);
+    expect(next.currentChakra).toBe(full.derived.maxChakra);
   });
 
   it('accumulates points for multi-level gains', () => {

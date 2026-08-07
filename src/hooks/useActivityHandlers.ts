@@ -1188,6 +1188,7 @@ export function useActivityHandlers(
           );
         }
         const stealthPts = locationStealthBonusPoints(eventLocMods);
+        const currentIntel = workingLocationFloor?.currentIntel ?? workingBranchingFloor?.currentIntel ?? 0;
         const approachResult = executeApproach(
           resolved.approach,
           postEventPlayer,
@@ -1196,6 +1197,7 @@ export function useActivityHandlers(
           terrainDef,
           stealthPts,
           visitHeatAfterEvent,
+          currentIntel,
         );
         if (approachResult.description) {
           addLog(approachResult.description, approachResult.success ? 'gain' : 'danger');

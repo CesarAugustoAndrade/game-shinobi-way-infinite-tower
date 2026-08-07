@@ -66,18 +66,32 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
     <div className="explore-hud-stack">
       <div className="explore-hud" role="toolbar" aria-label="Exploration HUD">
       <div className="explore-hud__identity">
-        <span className="explore-hud__name">{player.clan}</span>
-        <span className="explore-hud__level">Lv.{player.level}</span>
-        {locationLabel && (
-          <span className="explore-hud__loc" title="Current location">
-            {locationLabel}
-            {dangerLevel != null && (
-              <span className={`explore-hud__loc-d explore-hud__loc-d--d${dangerLevel}`}>
-                D{dangerLevel}
-              </span>
-            )}
+        <div className="explore-hud__identity-row">
+          <span className="explore-hud__name">{player.clan}</span>
+          <span className="explore-hud__level">LV.{player.level}</span>
+          {locationLabel && (
+            <span className="explore-hud__loc" title="Current location">
+              {locationLabel}
+              {dangerLevel != null && (
+                <span className={`explore-hud__loc-d explore-hud__loc-d--d${dangerLevel}`}>
+                  D{dangerLevel}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+        {/* XP Bar under name */}
+        <div className="explore-hud__xp" title={`XP: ${player.exp}/${player.maxExp}`}>
+          <div className="explore-hud__xp-track">
+            <div
+              className="explore-hud__fill explore-hud__fill--xp"
+              style={{ width: `${player.maxExp > 0 ? Math.min(100, (player.exp / player.maxExp) * 100) : 0}%` }}
+            />
+          </div>
+          <span className="explore-hud__xp-val">
+            {player.exp}/{player.maxExp} XP
           </span>
-        )}
+        </div>
       </div>
 
       <div className="explore-hud__bars">

@@ -532,7 +532,7 @@ describe('canLearnSkill', () => {
     });
     const result = canLearnSkill(skill, 10, 1, Clan.UZUMAKI);
     expect(result.canLearn).toBe(false);
-    expect(result.reason).toContain('Intelligence');
+    expect(result.reason).toContain('INT');
   });
 
   it('blocks learning if level too low', () => {
@@ -541,7 +541,7 @@ describe('canLearnSkill', () => {
     });
     const result = canLearnSkill(skill, 20, 5, Clan.UZUMAKI);
     expect(result.canLearn).toBe(false);
-    expect(result.reason).toContain('Level');
+    expect(result.reason).toContain('Lv');
   });
 
   it('blocks learning if wrong clan', () => {

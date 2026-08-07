@@ -84,6 +84,8 @@ interface ApproachSelectorProps {
    * so previews match live PP penalties.
    */
   visitHeat?: number;
+  /** Current location intel (0–100%). Grants up to +15% approach success odds. */
+  currentIntel?: number;
 }
 
 const getSuccessTier = (chance: number): string => {
@@ -109,7 +111,7 @@ const approachAccent = (type: ApproachType): string => {
     case ApproachType.FRONTAL_ASSAULT: return 'frontal';
     case ApproachType.STEALTH_AMBUSH: return 'stealth';
     case ApproachType.GENJUTSU_SETUP: return 'genjutsu';
-    case ApproachType.ENVIRONMENTAL_TRAP: return 'terrain';
+    case ApproachType.ENVIRONMENTAL_TRAP: return 'trap';
     case ApproachType.IRON_GUARD: return 'guard';
     case ApproachType.SHADOW_BYPASS: return 'bypass';
     default: return 'frontal';
@@ -165,6 +167,7 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
   roomConditionNames = null,
   roomConditionHints = null,
   visitHeat = 0,
+  currentIntel = 0,
 }) => {
   const isPreference = mode === 'preference';
   const preferred = currentPreferred ?? player.preferredApproach ?? ApproachType.FRONTAL_ASSAULT;
@@ -239,24 +242,27 @@ const ApproachSelector: React.FC<ApproachSelectorProps> = ({
         isPreference,
       );
 
-      // F3: same heat PP penalties as executeApproach / live roll
+      // F3: same heat PP penalties as executeApproach / live roll; includes Intel bonus
       const successChance = meets
         ? calculateApproachSuccessChance(
             approachType,
             stats,
             isPreference ? 0 : combinedStealthPts,
             visitHeat,
+            currentIntel,
           )
         : 0;
 
       const failHeat = approachFailHeatDelta(approachType);
       const heatPp = approachHeatPenaltyPp(approachType, visitHeat);
+      const intelPp = Math.round((Math.min(100, Math.max(0, currentIntel)) / 100) * 15);
       const failureTags = [
         ...getApproachFailureTags(approachType),
         ...(failHeat > 0 ? [`Fail heat +${failHeat}`] : []),
       ];
       const benefitTags = [
         ...getApproachBenefitTags(approachType),
+        ...(intelPp > 0 && approachType !== ApproachType.FRONTAL_ASSAULT ? [`Intel +${intelPp}%`] : []),
         ...(heatPp < 0 && visitHeat >= 25 ? [`Heat ${heatPp}pp`] : []),
       ];
 

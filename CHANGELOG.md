@@ -5,12 +5,16 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 ## [Unreleased]
 
 ### Added
+- **Tactical Intel Bonus to Approaches:** Higher location Intel (0–100%) adds up to +15% success odds (`+0.15%` per 1% Intel) to pre-combat approaches (`Stealth Ambush`, `Genjutsu Setup`, `Environmental Trap`, `Iron Guard`, `Shadow Bypass`), previewed in `ApproachSelector` and applied during engagement.
+- **Top Bar & Character HUD XP Bars:** Persistent XP progress bar added under player name in both `ExplorationHUD` and `PlayerHUD` with golden gradient fills and numeric indicators (`X/Y XP`).
 - **Visual Range Control Panel (`RangeControlPanel`):** Visual 16:9 cinematic action cards for `Close In` and `Back Off` with generated artwork (`action_close_in.png` / `action_back_off.png`), spectrum range distance meter (`LONG` ↔ `MEDIUM` ↔ `CLOSE`), AP cost badges, directional icons, and rich tooltips.
 - **Sealed Vault Exit Option:** Added exit button and choice option in `TreasureChoice.tsx` & `useTreasureHandlers.ts` to allow leaving the sealed vault room without spending chakra.
 
 ### Changed
-- **Deep Clean Item Cutouts:** All 54 component and artifact cutouts deep-cleaned with 0 green spill; `artRegistry.ts`, `ArtIcon.tsx`, and `index.css` updated to support floating drop-shadow tiles.
-- **Minimalist Enemy Combat Panel:** Simplified floating info panel in `Combat.tsx` to display only Enemy Name, HP bar, and Next Skill telegraph.
+- **Full HP & Chakra Recovery on Level Up:** `applyLevelUp` in `LevelSystem.ts` now fully restores current HP and Chakra to 100% of max stats upon leveling up.
+- **Concise Locked Stat Requirement Format:** Locked jutsu scrolls and skill learning options display precise requirement reasons (e.g. `Req: 2 INT (You have 1)`).
+- **Location Map Meter Alignment:** Structured `IN` (Intel) and `HT` (Heat) meters in `LocationMap` into a clean 3-column CSS grid (`Icon | 6rem Bar | State/Value`) for clean alignment.
+- **Simplified Enemy Combat Panel:** Simplified floating info panel in `Combat.tsx` to display only Enemy Name, HP bar, and Next Skill telegraph.
 - **Constante César de daño:** `CESAR_DAMAGE_CONSTANT = 2` en `src/game/config.ts`, aplicada al final de `calculateDamage` y `calculateDotDamage` (toda salida de daño skills/DoT). Temporal — borrar la constante y usos cuando no haga falta.
 - **Early combat retune:** lower HP/WILL (`HP_PER_WILLPOWER` 25→20; shared player/enemy pool), higher basic skill `baseDamage`/`scalingPerPoint` integers, higher enemy offense bases; no new multipliers (no `PLAYER_DAMAGE_MULTIPLIER` change).
 - **F1 stat economy migration:** primaries start at 1 (clan affinities 3); derived HP/Chakra/def/impact/AP/crit/resist/guts/regen rewritten; single impact roll (no dual evasion); integer buffs; skills use `baseDamage`/`scalingPerPoint` (no `damageMult`) with tier reqs 1/2/3/5/7; additive enemy rank budget; training +1 with jackpot +2; gear components +1 (no floor mult / SLOT×1.5); synthesis thematic primary ≤+1; campaign boons +1; unspent level points + mandatory `StatAssignModal`; event/approach gates on narrative 1–9 scale; helpText/FORMULAS updated. See `docs/FORMULAS.md`.

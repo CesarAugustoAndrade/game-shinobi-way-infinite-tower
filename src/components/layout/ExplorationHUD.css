@@ -76,9 +76,16 @@
 
 .explore-hud__identity {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 9rem;
+}
+
+.explore-hud__identity-row {
+  display: flex;
   align-items: baseline;
   gap: var(--sw-space-2);
-  min-width: 7rem;
 }
 
 .explore-hud__name {
@@ -91,6 +98,36 @@
 .explore-hud__level {
   color: var(--sw-accent-tertiary, #e8b84a);
   font-size: var(--sw-text-xs, 0.75rem);
+}
+
+.explore-hud__xp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 220px;
+}
+
+.explore-hud__xp-track {
+  flex: 1;
+  height: 5px;
+  background: #0a0a12;
+  border: 1px solid #2d3d4a;
+  overflow: hidden;
+}
+
+.explore-hud__fill--xp {
+  height: 100%;
+  background: linear-gradient(90deg, #eab308, #f59e0b);
+  transition: width 0.15s steps(4);
+}
+
+.explore-hud__xp-val {
+  font-size: 8px;
+  color: #e8b84a;
+  font-family: var(--sw-font-mono, monospace);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 /* A4 wave2: location identity — metal/fog instrument chip (not party cyan) */

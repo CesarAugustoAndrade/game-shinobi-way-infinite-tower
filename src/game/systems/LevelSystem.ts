@@ -40,6 +40,15 @@ export function applyLevelUp(player: Player): Player {
     };
   }
 
+  if (levelsGained > 0) {
+    const stats = getPlayerFullStats(p);
+    p = {
+      ...p,
+      currentHp: stats.derived.maxHp,
+      currentChakra: stats.derived.maxChakra,
+    };
+  }
+
   return levelsGained > 0 ? p : player;
 }
 

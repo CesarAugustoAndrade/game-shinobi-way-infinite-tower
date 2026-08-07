@@ -557,6 +557,8 @@ export function calculateApproachSuccessChance(
   terrainStealthBonus: number = 0,
   /** F3 visit heat — PP penalty after base calc, before clamp */
   heat: number = 0,
+  /** Intel 0–100% — grants up to +15% success odds */
+  intel: number = 0,
 ): number {
   const def = APPROACH_DEFINITIONS[approach];
   const calc = def.successCalc;
@@ -568,6 +570,12 @@ export function calculateApproachSuccessChance(
 
   if (calc.terrainBonus) {
     chance += terrainStealthBonus;
+  }
+
+  // Tactical Intel bonus: +0% to +15% based on location intel (0–100%)
+  if (approach !== ApproachType.FRONTAL_ASSAULT) {
+    const clampedIntel = Math.max(0, Math.min(100, intel));
+    chance += (clampedIntel / 100) * 15;
   }
 
   // F3: heat PP penalties after normal chance, before clamp

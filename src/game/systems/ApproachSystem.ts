@@ -126,6 +126,8 @@ export function executeApproach(
   locationStealthBonusPts: number = 0,
   /** F3: current visit heat (PP penalties on success chance) */
   heat: number = 0,
+  /** Location Intel 0–100% (grants up to +15% success odds) */
+  intel: number = 0,
 ): ApproachResult {
   const def = APPROACH_DEFINITIONS[approach];
 
@@ -150,6 +152,7 @@ export function executeApproach(
     stats,
     terrainStealthBonus,
     heat,
+    intel,
   );
 
   // Roll for success (1-100)

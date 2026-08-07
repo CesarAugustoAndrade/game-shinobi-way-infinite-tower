@@ -981,6 +981,21 @@ export function canLearnSkill(
 
   const req = skill.requirements;
 
+  const statAbbr = (name: string): string => {
+    const map: Record<string, string> = {
+      strength: 'STR',
+      willpower: 'WIL',
+      chakra: 'CHA',
+      spirit: 'SPI',
+      intelligence: 'INT',
+      calmness: 'CAL',
+      speed: 'SPD',
+      accuracy: 'ACC',
+      dexterity: 'DEX',
+    };
+    return map[name.toLowerCase()] ?? name.substring(0, 3).toUpperCase();
+  };
+
   if (req.stats) {
     for (const [statKey, min] of Object.entries(req.stats)) {
       if (min === undefined) continue;
@@ -988,7 +1003,7 @@ export function canLearnSkill(
       if (have < min) {
         return {
           canLearn: false,
-          reason: `Requires ${min} ${statKey} (you have ${Math.floor(have)})`,
+          reason: `Req: ${min} ${statAbbr(statKey)} (You have ${Math.floor(have)})`,
         };
       }
     }
@@ -1000,7 +1015,7 @@ export function canLearnSkill(
     if (have < req.intelligence) {
       return {
         canLearn: false,
-        reason: `Requires ${req.intelligence} Intelligence (you have ${Math.floor(have)})`,
+        reason: `Req: ${req.intelligence} INT (You have ${Math.floor(have)})`,
       };
     }
   }
@@ -1008,14 +1023,14 @@ export function canLearnSkill(
   if (req.level && playerLevel < req.level) {
     return {
       canLearn: false,
-      reason: `Requires Level ${req.level}`,
+      reason: `Req: Lv ${req.level}`,
     };
   }
 
   if (req.clan && req.clan !== playerClan) {
     return {
       canLearn: false,
-      reason: `Requires ${req.clan} bloodline`,
+      reason: `Req: ${req.clan} bloodline`,
     };
   }
 

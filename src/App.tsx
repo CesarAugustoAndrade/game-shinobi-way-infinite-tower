@@ -1066,6 +1066,7 @@ const App: React.FC = () => {
     const locMods = getLocationTerrainMods(currentLocation?.terrainEffects);
     const locationStealthPts = locationStealthBonusPoints(locMods);
     const visitHeat = locationFloor?.heat ?? branchingFloor?.heat ?? 0;
+    const currentIntel = locationFloor?.currentIntel ?? branchingFloor?.currentIntel ?? 0;
     const result = executeApproach(
       approach,
       player,
@@ -1074,6 +1075,7 @@ const App: React.FC = () => {
       terrain,
       locationStealthPts,
       visitHeat,
+      currentIntel,
     );
 
     setApproachResult(result);
@@ -2207,6 +2209,7 @@ const App: React.FC = () => {
           onSelectApproach={handlePreferredApproachSelect}
           onCancel={handleApproachPreferenceCancel}
           visitHeat={locationFloor?.heat ?? branchingFloor?.heat ?? 0}
+          currentIntel={locationFloor?.currentIntel ?? branchingFloor?.currentIntel ?? 0}
         />
       )}
 
