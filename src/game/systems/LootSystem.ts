@@ -390,22 +390,12 @@ function lootTableWeightMultipliers(kind: LootTableKind): Partial<Record<Compone
 }
 
 /**
- * T-061: boost components whose primaryStat is in region lootTheme.equipmentFocus.
- * Multiplier stacks with T-059 lootTable bias.
+ * Equipment Focus system removed — returns empty object.
  */
 export function equipmentFocusWeightMultipliers(
-  equipmentFocus?: string[] | null,
+  _equipmentFocus?: string[] | null,
 ): Partial<Record<ComponentId, number>> {
-  if (!equipmentFocus || equipmentFocus.length === 0) return {};
-  const focus = new Set(equipmentFocus.map((s) => s.toLowerCase()));
-  const mults: Partial<Record<ComponentId, number>> = {};
-  for (const [id, def] of Object.entries(COMPONENT_DEFINITIONS) as [ComponentId, { primaryStat: string }][]) {
-    if (id === ComponentId.HASHIRAMA_CELL) continue;
-    if (focus.has(def.primaryStat.toLowerCase())) {
-      mults[id] = 1.4;
-    }
-  }
-  return mults;
+  return {};
 }
 
 /**

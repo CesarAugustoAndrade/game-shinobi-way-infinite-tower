@@ -89,6 +89,8 @@ export interface UseTreasureHandlersReturn {
   handleRevealVaultFace: (index: number) => void;
   /** Claim one revealed vault option */
   handlePickVaultOption: (index: number) => void;
+  /** Pick a random vault option for free (0 CP cost) */
+  handlePickRandom: () => void;
   /** Free map piece (no combat); forgoes vault loot */
   handleTakeMapPiece: () => void;
   handleTreasureHuntRewardClaim: () => void;
@@ -346,7 +348,7 @@ export function useTreasureHandlers(
   ]);
 
   // Claim one revealed vault option (item / hp / ryo / scroll)
-  const handlePickVaultOption = useCallback((index: number) => {
+  const handlePickVaultOption = useCallback((index: number, options?: { isFreePick?: boolean }) => {
     if (!currentTreasure || !player) return;
     if (currentTreasure.collected || treasureActionLockRef.current) return;
 
@@ -358,7 +360,7 @@ export function useTreasureHandlers(
     } else {
       if (index < 0 || index >= opts.length) return;
       const face = opts[index];
-      if (!face.revealed) {
+      if (!face.revealed && !options?.isFreePick) {
         addLog('Unseal that face before claiming it.', 'info');
         return;
       }
@@ -368,7 +370,14 @@ export function useTreasureHandlers(
         treasureActionLockRef.current = true;
         setCurrentTreasure((prev) =>
           prev && !prev.collected
-            ? { ...prev, collected: true, selectedIndex: index }
+            ? {
+                ...prev,
+                collected: true,
+                selectedIndex: index,
+                vaultOptions: prev.vaultOptions?.map((o, i) =>
+                  i === index ? { ...o, revealed: true } : o,
+                ),
+              }
             : prev,
         );
         const maxHp = playerStats?.derived.maxHp ?? player.currentHp + face.hpAmount;
@@ -390,7 +399,14 @@ export function useTreasureHandlers(
         treasureActionLockRef.current = true;
         setCurrentTreasure((prev) =>
           prev && !prev.collected
-            ? { ...prev, collected: true, selectedIndex: index }
+            ? {
+                ...prev,
+                collected: true,
+                selectedIndex: index,
+                vaultOptions: prev.vaultOptions?.map((o, i) =>
+                  i === index ? { ...o, revealed: true } : o,
+                ),
+              }
             : prev,
         );
         const amt = face.ryoAmount;
@@ -404,7 +420,14 @@ export function useTreasureHandlers(
         treasureActionLockRef.current = true;
         setCurrentTreasure((prev) =>
           prev && !prev.collected
-            ? { ...prev, collected: true, selectedIndex: index }
+            ? {
+                ...prev,
+                collected: true,
+                selectedIndex: index,
+                vaultOptions: prev.vaultOptions?.map((o, i) =>
+                  i === index ? { ...o, revealed: true } : o,
+                ),
+              }
             : prev,
         );
         const skill = face.skill;
@@ -436,13 +459,34 @@ export function useTreasureHandlers(
     const hasBagSpace = player.bag.some((slot) => slot === null);
     if (!hasBagSpace) {
       if (pendingBagFullItem) return;
+      if (options?.isFreePick) {
+        setCurrentTreasure((prev) =>
+          prev
+            ? {
+                ...prev,
+                vaultOptions: prev.vaultOptions?.map((o, i) =>
+                  i === index ? { ...o, revealed: true } : o,
+                ),
+              }
+            : prev,
+        );
+      }
       setPendingBagFullItem({ item: selectedItem, index });
       return;
     }
 
     treasureActionLockRef.current = true;
     setCurrentTreasure((prev) =>
-      prev && !prev.collected ? { ...prev, collected: true, selectedIndex: index } : prev,
+      prev && !prev.collected
+        ? {
+            ...prev,
+            collected: true,
+            selectedIndex: index,
+            vaultOptions: prev.vaultOptions?.map((o, i) =>
+              i === index ? { ...o, revealed: true } : o,
+            ),
+          }
+        : prev,
     );
 
     const granted = player.bag.some((slot) => slot === null)
@@ -627,14 +671,38 @@ export function useTreasureHandlers(
     if (box.o === 'full') {
       addLog('Bag filled again — free a pocket first.', 'danger');
     }
-  }, [pendingBagFullItem, currentTreasure, player,
-      addLog, setPlayer, setPendingBagFullItem, setCurrentTreasure, completeTreasureAndReturn]);
+  }, [pendingBagFullItem, currentTreasure, player, addLog, setPlayer, setPendingBagFullItem, setCurrentTreasure, completeTreasureAndReturn]);
+  // Pick a random vault option (free unseal if sealed, 0 CP cost)
+  const handlePickRandom = useCallback(() => {
+    if (!currentTreasure || !player || treasureActionLockRef.current) return;
+    const opts = currentTreasure.vaultOptions;
+    const count = opts?.length || currentTreasure.choices?.length || 0;
+    if (count === 0) return;
+
+    const randomIndex = Math.floor(Math.random() * count);
+
+    if (opts && opts[randomIndex] && !opts[randomIndex].revealed) {
+      setCurrentTreasure((prev) => {
+        if (!prev?.vaultOptions) return prev;
+        const next = prev.vaultOptions.map((o, i) =>
+          i === randomIndex ? { ...o, revealed: true } : o,
+        );
+        return { ...prev, vaultOptions: next };
+      });
+      addLog(`Chosen at random! Free unseal on face ${randomIndex + 1}.`, 'gain');
+    } else {
+      addLog(`Chosen at random! Claiming face ${randomIndex + 1}.`, 'gain');
+    }
+
+    handlePickVaultOption(randomIndex);
+  }, [currentTreasure, player, addLog, setCurrentTreasure, handlePickVaultOption]);
 
   return {
     handleOpenVault,
     handleLeaveVault,
     handleRevealVaultFace,
     handlePickVaultOption,
+    handlePickRandom,
     handleTakeMapPiece,
     handleTreasureHuntRewardClaim,
     handleBagFullSell,

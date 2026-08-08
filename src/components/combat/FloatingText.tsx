@@ -97,20 +97,15 @@ const FloatingText: React.FC<FloatingTextProps> = memo(
       }
     };
 
-    const getSuffix = (): string => {
-      switch (type) {
-        case 'crit':
-          return '!';
-        default:
-          return '';
-      }
-    };
-
     // Damage channel recolor only on damage/crit — status/heal/miss keep their type tint.
     const applyDtype = type === 'damage' || type === 'crit';
+    const isEvade = type === 'miss' && /evade/i.test(value);
     const classes = [
       'floating-text',
       `floating-text--${type}`,
+      type === 'crit' ? 'floating-text--seal' : '',
+      type === 'miss' ? 'floating-text--seal' : '',
+      isEvade ? 'floating-text--evade' : '',
       applyDtype ? damageTypeClass(damageType) : '',
       applyDtype ? elementClass(element) : '',
     ]
@@ -118,6 +113,22 @@ const FloatingText: React.FC<FloatingTextProps> = memo(
       .join(' ');
 
     const driftX = driftFromId(id);
+
+    // Hit seals: CRIT / MISS / EVADE read as ink stamps (kanji + latin)
+    let sealKanji: string | null = null;
+    let sealWord: string | null = null;
+    if (type === 'crit') {
+      sealKanji = '必';
+      sealWord = 'CRIT';
+    } else if (type === 'miss') {
+      if (isEvade) {
+        sealKanji = '見';
+        sealWord = 'EVADE';
+      } else {
+        sealKanji = '空';
+        sealWord = 'MISS';
+      }
+    }
 
     return (
       <div
@@ -128,9 +139,25 @@ const FloatingText: React.FC<FloatingTextProps> = memo(
         }}
         aria-hidden="true"
       >
-        {getPrefix()}
-        {value}
-        {getSuffix()}
+        {sealKanji && sealWord ? (
+          <span className="floating-text__seal">
+            {type === 'crit' && (
+              <span className="floating-text__main">
+                {getPrefix()}
+                {value}
+              </span>
+            )}
+            <span className="floating-text__stamp">
+              <span className="floating-text__kanji">{sealKanji}</span>
+              <span className="floating-text__word">{sealWord}</span>
+            </span>
+          </span>
+        ) : (
+          <>
+            {getPrefix()}
+            {value}
+          </>
+        )}
       </div>
     );
   },

@@ -599,7 +599,7 @@ export const GREAT_NINJA_WAR_CONFIG: RegionConfig = {
 
   lootTheme: {
     primaryElement: ElementType.FIRE,
-    equipmentFocus: ['willpower', 'spirit', 'strength'],
+    equipmentFocus: [],
     goldMultiplier: 1.2,
   },
 

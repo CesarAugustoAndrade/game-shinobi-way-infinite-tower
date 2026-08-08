@@ -595,7 +595,7 @@ export const LAND_OF_WAVES_CONFIG: RegionConfig = {
 
   lootTheme: {
     primaryElement: ElementType.WATER,
-    equipmentFocus: ['speed', 'dexterity', 'spirit'],
+    equipmentFocus: [],
     goldMultiplier: 0.8, // Poor region
   },
 

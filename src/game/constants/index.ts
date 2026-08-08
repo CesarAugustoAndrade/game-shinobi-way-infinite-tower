@@ -92,6 +92,14 @@ export const CLAN_STATS: Record<Clan, PrimaryAttributes> = {
   [Clan.YAMANAKA]: { ...BASE_ONE, intelligence: 3, calmness: 3 },
 };
 
+export const CLAN_PRIMARY_STATS: Record<Clan, (keyof PrimaryAttributes)[]> = {
+  [Clan.UZUMAKI]: ['willpower', 'chakra'],
+  [Clan.UCHIHA]: ['spirit', 'dexterity'],
+  [Clan.HYUGA]: ['accuracy', 'dexterity'],
+  [Clan.LEE]: ['strength', 'speed'],
+  [Clan.YAMANAKA]: ['intelligence', 'calmness'],
+};
+
 // CLAN_GROWTH removed (F1): each level grants 1 unspentStatPoint; player assigns.
 
 // ============================================================================

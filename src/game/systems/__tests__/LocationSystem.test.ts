@@ -419,6 +419,7 @@ describe('generateBranchingFloorFromConfig — dangerLevel plumbing (no double-c
       roomGenerationMode: 'dynamic',
       targetRoomCount: 10,
       difficulty: 40,
+      enemyPool: ['beach_bandit'],
       player,
     });
 
@@ -455,6 +456,7 @@ describe('generateBranchingFloorFromConfig — dangerLevel plumbing (no double-c
         roomGenerationMode: 'dynamic',
         targetRoomCount: 10,
         difficulty: 40,
+        enemyPool: ['beach_bandit'],
         player,
       });
 

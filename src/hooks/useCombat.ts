@@ -386,7 +386,9 @@ export function useCombat({
           isCrit ? 'crit' : 'damage',
           { damageType: skill.damageType, element: skill.element },
         );
-      } else if (result.logMessage.includes('MISSED') || result.logMessage.includes('EVADED')) {
+      } else if (result.logMessage.includes('EVADED')) {
+        combatRef.current?.spawnFloatingText('enemy', 'EVADE', 'miss');
+      } else if (result.logMessage.includes('MISSED')) {
         combatRef.current?.spawnFloatingText('enemy', 'MISS', 'miss');
       }
 
@@ -652,6 +654,8 @@ export function useCombat({
         playerInitiativeBonus: newCombatState.playerInitiativeBonus,
         terrain: newCombatState.terrain,
       });
+      // Persist resolved roll for SEN strip / open banner (not just approach flags)
+      newCombatState.openingInitHolder = whoFirst;
 
       addLog(`Range: ${initialRange}.`, 'info');
 
@@ -857,9 +861,9 @@ export function useCombat({
               element: enemySkill?.element ?? enemy.element,
             },
           );
-        } else if (
-          result.logMessages.some((m) => m.includes('MISSED') || m.includes('EVADED'))
-        ) {
+        } else if (result.logMessages.some((m) => m.includes('EVADED'))) {
+          combatRef.current?.spawnFloatingText('player', 'EVADE', 'miss');
+        } else if (result.logMessages.some((m) => m.includes('MISSED'))) {
           combatRef.current?.spawnFloatingText('player', 'MISS', 'miss');
         }
 

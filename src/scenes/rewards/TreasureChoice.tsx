@@ -19,6 +19,7 @@ import {
   Eye,
   DoorOpen,
   LogOut,
+  Dices,
 } from 'lucide-react';
 import { PendingBagFullItem } from '../../hooks/useTreasureHandlers';
 import { resolveItemArt, getSkillArt } from '../../game/constants/artRegistry';
@@ -36,6 +37,7 @@ interface TreasureChoiceProps {
   onLeaveVault?: () => void;
   onRevealFace: (index: number) => void;
   onPickOption: (index: number) => void;
+  onPickRandom?: () => void;
   onTakeMapPiece: () => void;
   pendingBagFullItem: PendingBagFullItem | null;
   onBagFullSell: () => void;
@@ -101,6 +103,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   onLeaveVault,
   onRevealFace,
   onPickOption,
+  onPickRandom,
   onTakeMapPiece,
   pendingBagFullItem,
   onBagFullSell,
@@ -157,6 +160,11 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
       }
 
       if (phase === 'vault') {
+        if ((e.key === 'r' || e.key === 'R') && onPickRandom) {
+          e.preventDefault();
+          onPickRandom();
+          return;
+        }
         if (e.key >= '1' && e.key <= '3') {
           const idx = parseInt(e.key, 10) - 1;
           if (idx >= options.length) return;
@@ -174,7 +182,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [
     phase, canOpen, canReveal, showMap, options, pendingBagFullItem, bagHasSpace,
-    onOpenVault, onTakeMapPiece, onRevealFace, onPickOption, onBagFullSell,
+    onOpenVault, onTakeMapPiece, onRevealFace, onPickOption, onPickRandom, onBagFullSell,
     onBagFullLeave, onBagFullStash,
   ]);
 
@@ -182,7 +190,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
     phase === 'vault' ? 'Vault Open' : 'Sealed Vault';
   const posterBody =
     phase === 'vault'
-      ? 'Unseal a face with chakra, then claim one reward.'
+      ? 'Unseal a face with chakra, claim at random for free, or walk away.'
       : showMap
         ? 'Break the seals for mixed loot — or take a map fragment and walk.'
         : 'Break the seals. Three faces wait. Only one is yours.';
@@ -241,6 +249,17 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                 {phase === 'entry' ? 'Choose path' : 'Choose reward'}
               </span>
               <div className="treasure-scene__path-bar-right">
+                {phase === 'vault' && onPickRandom && (
+                  <button
+                    type="button"
+                    className="treasure-scene__random-btn"
+                    onClick={onPickRandom}
+                    title="Claim a random face for free without spending CP [R]"
+                  >
+                    <Dices size={14} />
+                    <span>Choose Random (0 CP)</span>
+                  </button>
+                )}
                 <span className="treasure-scene__cp">
                   CP {Math.floor(player.currentChakra)}
                   {playerStats ? `/${playerStats.derived.maxChakra}` : ''}
@@ -398,7 +417,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
 
             {phase === 'vault' && (
               <p className="treasure-scene__hint">
-                Unseal a face [{revealCost} CP] · Claim with 1–3 · only one reward
+                Unseal [{revealCost} CP] · [R] Choose Random (0 CP) · Claim 1–3
               </p>
             )}
             {phase === 'entry' && (

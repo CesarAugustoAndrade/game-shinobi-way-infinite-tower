@@ -21,10 +21,11 @@ import StatBar from '../../components/shared/StatBar';
 import Tooltip from '../../components/shared/Tooltip';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
 import FloatingText, { FloatingTextItem, FloatingTextType } from '../../components/combat/FloatingText';
+import CombatSenStrip from '../../components/combat/CombatSenStrip';
 import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
 import { PostureIndicator } from '../../components/combat/PostureIndicator';
 import { RangeControlPanel } from '../../components/combat/RangeControlPanel';
-import { FeatureFlags } from '../../config/featureFlags';
+import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
 import { getApCost } from '../../game/constants/combatCards';
 import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
 import { ApproachResult } from '../../game/systems/ApproachSystem';
@@ -171,6 +172,10 @@ interface CombatProps {
   /** Damage-preview: still on ambush first strike */
   isFirstTurn?: boolean;
   firstHitMultiplier?: number;
+  /** Room AMBUSH enemy first-strike mult (SEN strip badge) */
+  enemyFirstHitMultiplier?: number;
+  /** Resolved opening initiative from determineTurnOrder */
+  openingInitHolder?: 'player' | 'enemy' | null;
   /** FREE_FIRST_SKILL: first accepted skill costs 0 chakra (from combatState) */
   skipFirstSkillCost?: boolean;
   /** Damage-preview: T-063 location terrain mods */
@@ -210,6 +215,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   locationTerrainLines = null,
   isFirstTurn = false,
   firstHitMultiplier = 1,
+  enemyFirstHitMultiplier = 1,
+  openingInitHolder = null,
   skipFirstSkillCost = false,
   locationTerrainMods = null,
   roomTerrain = null,
@@ -218,12 +225,15 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   // Floating text state
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextItem[]>([]);
   const [hitFlash, setHitFlash] = useState(false);
+  /** Stage edge flash on crit / miss for readable hit outcome */
+  const [hitSignal, setHitSignal] = useState<'crit' | 'miss' | null>(null);
   // T-054: show opening approach/posture banner until first action or timeout
   const [showOpenBanner, setShowOpenBanner] = useState(Boolean(approachResult));
   const enemyRef = useRef<HTMLDivElement>(null);
   /** Anchor for player-side floating text (HP/CP live on ExplorationHUD). */
   const playerFloatRef = useRef<HTMLDivElement>(null);
   const hitFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hitSignalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setShowOpenBanner(Boolean(approachResult));
@@ -283,11 +293,19 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       if (hitFlashTimer.current) clearTimeout(hitFlashTimer.current);
       hitFlashTimer.current = setTimeout(() => setHitFlash(false), 180);
     }
+
+    // Stage edge signal for crit / miss (readable without reading the float)
+    if (type === 'crit' || type === 'miss') {
+      setHitSignal(type === 'crit' ? 'crit' : 'miss');
+      if (hitSignalTimer.current) clearTimeout(hitSignalTimer.current);
+      hitSignalTimer.current = setTimeout(() => setHitSignal(null), 160);
+    }
   }, []);
 
   useEffect(() => {
     return () => {
       if (hitFlashTimer.current) clearTimeout(hitFlashTimer.current);
+      if (hitSignalTimer.current) clearTimeout(hitSignalTimer.current);
     };
   }, []);
 
@@ -399,6 +417,55 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         return;
       }
 
+      // Shortcuts A, S, D, F, G for range and stance
+      const apCost = 1;
+      const moveAvailable = !playerMoveUsedThisTurn && currentAp >= apCost;
+
+      // A: Back Off (Retreat)
+      if (e.code === 'KeyA' || e.key === 'a' || e.key === 'A') {
+        if (onMoveInRange && currentRange && moveAvailable && currentRange !== CombatRange.LONG) {
+          e.preventDefault();
+          onMoveInRange(RangeMoveDirection.RETREAT);
+          return;
+        }
+      }
+
+      // S: Close In (Approach)
+      if (e.code === 'KeyS' || e.key === 's' || e.key === 'S') {
+        if (onMoveInRange && currentRange && moveAvailable && currentRange !== CombatRange.CLOSE) {
+          e.preventDefault();
+          onMoveInRange(RangeMoveDirection.APPROACH);
+          return;
+        }
+      }
+
+      // D: Aggressive Stance
+      if (e.code === 'KeyD' || e.key === 'd' || e.key === 'D') {
+        if (onChangePosture && posture !== Posture.AGGRESSIVE && currentAp >= LaunchProperties.POSTURE_SWITCH_AP_COST) {
+          e.preventDefault();
+          onChangePosture(Posture.AGGRESSIVE);
+          return;
+        }
+      }
+
+      // F: Balanced Stance
+      if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
+        if (onChangePosture && posture !== Posture.BALANCED && currentAp >= LaunchProperties.POSTURE_SWITCH_AP_COST) {
+          e.preventDefault();
+          onChangePosture(Posture.BALANCED);
+          return;
+        }
+      }
+
+      // G: Defensive Stance
+      if (e.code === 'KeyG' || e.key === 'g' || e.key === 'G') {
+        if (onChangePosture && posture !== Posture.DEFENSIVE && currentAp >= LaunchProperties.POSTURE_SWITCH_AP_COST) {
+          e.preventDefault();
+          onChangePosture(Posture.DEFENSIVE);
+          return;
+        }
+      }
+
       // Z/X/C/V play the 4 hand slots
       const handKeyMap: Record<string, number> = {
         'KeyZ': 0, 'z': 0, 'Z': 0,
@@ -420,7 +487,10 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [turnState, handCards, canUseSkill, onUseSkill, onPassTurn, onToggleAutoCombat]);
+  }, [
+    turnState, handCards, canUseSkill, onUseSkill, onPassTurn, onToggleAutoCombat,
+    onMoveInRange, onChangePosture, currentRange, playerMoveUsedThisTurn, currentAp, posture,
+  ]);
 
   // ── Floating enemy info panel (T-014 v3) ─────────────────────────────────
   //
@@ -508,18 +578,17 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     const def = APPROACH_DEFINITIONS[approachResult.approach];
     const postureProfile = describePosture(posture);
     const effects: string[] = [];
+    // Always show resolved SEN (not only approach bonus flags)
+    const senHolder =
+      openingInitHolder ?? (turnState === 'PLAYER' ? 'player' : 'enemy');
+    effects.push(senHolder === 'player' ? 'SEN · You open' : 'SEN · Enemy opens');
     if (approachResult.success) {
-      if (approachResult.guaranteedFirst || approachResult.initiativeBonus > 0) {
-        effects.push('You seize the initiative');
-      }
       if (approachResult.firstHitMultiplier > 1) {
         effects.push(`First hit ×${approachResult.firstHitMultiplier}`);
       }
       if (approachResult.enemyHpReduction > 0) {
         effects.push(`Enemy −${Math.round(approachResult.enemyHpReduction * 100)}% HP`);
       }
-    } else if (turnState === 'ENEMY_TURN') {
-      effects.push('Enemy acts first');
     }
     // T-071/T-079: location + room terrain lines (App merges; cap for clutter)
     const terrainLines = (locationTerrainLines ?? []).slice(0, 4);
@@ -537,14 +606,32 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
     };
   })();
 
+  const combatSignalClass =
+    hitSignal === 'crit'
+      ? 'combat--hit-crit'
+      : hitSignal === 'miss'
+        ? 'combat--hit-miss'
+        : '';
+
   return (
     <div
-      className="combat"
+      className={['combat', combatSignalClass].filter(Boolean).join(' ')}
       style={background ? {
         /* Bright full-bleed biome — no dark gradient crushing the plate */
         backgroundImage: `url("${background}")`,
       } : undefined}
     >
+      {/* SEN tempo — always visible: init at open, then whose turn */}
+      <div className="combat__sen-slot">
+        <CombatSenStrip
+          turnState={turnState}
+          openingInitHolder={openingInitHolder}
+          isFirstTurn={isFirstTurn}
+          firstHitMultiplier={firstHitMultiplier}
+          enemyFirstHitMultiplier={enemyFirstHitMultiplier}
+        />
+      </div>
+
       {openBanner && (
         <div
           className={`combat-open-banner ${openBanner.success ? 'combat-open-banner--success' : 'combat-open-banner--fail'}`}
@@ -610,24 +697,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         </div>
       )}
 
-      {/* WAVE12: Empty hand / no playable cards — explicit pass CTA (anti soft-lock) */}
-      {!isStunned && turnState === 'PLAYER' && (handEmptyNeedsPass || allCardsBlocked) && (
-        <div className="combat-pass-nudge" role="status">
-          <span className="combat-pass-nudge__text">
-            {handEmptyNeedsPass
-              ? 'No cards left — end your turn (Space).'
-              : 'No playable cards — end your turn (Space).'}
-          </span>
-          <button
-            type="button"
-            onClick={onPassTurn}
-            className="combat-pass-nudge__btn"
-          >
-            <Hourglass size={14} />
-            <span>End Turn</span>
-          </button>
-        </div>
-      )}
+
 
       {/* ROW 1 (1fr): Stage — bright biome + enemy + floating info panel only */}
       <div className="combat__stage" ref={enemyRef}>

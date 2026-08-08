@@ -1,27 +1,21 @@
 /**
- * T-091/T-092: pure helpers for region equipmentFocus display cues.
- * Matches item.stats keys against lootTheme.equipmentFocus (case-insensitive).
+ * Equipment Focus system removed — functions return false to disable focus highlights.
  */
 
 import type { Item } from '../types';
 
-/** True if any non-zero item.stats key is in the focus list. */
+/** True if any non-zero item.stats key is in the focus list. Always false (system removed). */
 export function itemMatchesEquipmentFocus(
-  item: Item,
-  focus: string[] | null | undefined,
+  _item: Item,
+  _focus: string[] | null | undefined,
 ): boolean {
-  if (!focus || focus.length === 0) return false;
-  const set = new Set(focus.map((s) => s.toLowerCase()));
-  return Object.entries(item.stats || {}).some(
-    ([key, val]) => typeof val === 'number' && val !== 0 && set.has(key.toLowerCase()),
-  );
+  return false;
 }
 
-/** True if this stat key is a region Focus stat. */
+/** True if this stat key is a region Focus stat. Always false (system removed). */
 export function isFocusStat(
-  statKey: string,
-  focus: string[] | null | undefined,
+  _statKey: string,
+  _focus: string[] | null | undefined,
 ): boolean {
-  if (!focus || focus.length === 0) return false;
-  return focus.some((s) => s.toLowerCase() === statKey.toLowerCase());
+  return false;
 }

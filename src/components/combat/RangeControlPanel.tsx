@@ -111,7 +111,9 @@ export const RangeControlPanel: React.FC<RangeControlPanelProps> = ({
                 <ChevronsLeft className="range-panel__card-arrow" />
                 <span className="range-panel__card-ap">{apCost} AP</span>
               </div>
-              <div className="range-panel__card-title">Back off</div>
+              <div className="range-panel__card-title">
+                Back off <span className="range-panel__hotkey">[A]</span>
+              </div>
             </div>
           </button>
         </Tooltip>
@@ -121,7 +123,7 @@ export const RangeControlPanel: React.FC<RangeControlPanelProps> = ({
           position="top"
           content={
             <div className="combat-tooltip">
-              <div className="combat-tooltip__title">Close In (Advance)</div>
+              <div className="combat-tooltip__title">Close In (Advance) [S]</div>
               <div className="combat-tooltip__description">
                 Flash-step forward to close distance with the enemy.
               </div>
@@ -151,7 +153,9 @@ export const RangeControlPanel: React.FC<RangeControlPanelProps> = ({
                 <span className="range-panel__card-ap">{apCost} AP</span>
                 <ChevronsRight className="range-panel__card-arrow" />
               </div>
-              <div className="range-panel__card-title">Close in</div>
+              <div className="range-panel__card-title">
+                Close in <span className="range-panel__hotkey">[S]</span>
+              </div>
             </div>
           </button>
         </Tooltip>

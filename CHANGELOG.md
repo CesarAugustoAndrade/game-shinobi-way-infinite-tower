@@ -5,6 +5,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 ## [Unreleased]
 
 ### Added
+- **Combat SEN signals (init / miss / crit):** persistent `CombatSenStrip` (先 YOU · THEM) shows who won opening initiative and whose turn it is; open banner always reports `SEN · You/Enemy open`. Hit floats use ink stamps for **CRIT (必)**, **MISS (空)**, **EVADE (見)**; brief stage edge flash on crit/miss. Stores `combatState.openingInitHolder` from the real `determineTurnOrder` roll.
 - **Tactical Intel Bonus to Approaches:** Higher location Intel (0–100%) adds up to +15% success odds (`+0.15%` per 1% Intel) to pre-combat approaches (`Stealth Ambush`, `Genjutsu Setup`, `Environmental Trap`, `Iron Guard`, `Shadow Bypass`), previewed in `ApproachSelector` and applied during engagement.
 - **Top Bar & Character HUD XP Bars:** Persistent XP progress bar added under player name in both `ExplorationHUD` and `PlayerHUD` with golden gradient fills and numeric indicators (`X/Y XP`).
 - **Visual Range Control Panel (`RangeControlPanel`):** Visual 16:9 cinematic action cards for `Close In` and `Back Off` with generated artwork (`action_close_in.png` / `action_back_off.png`), spectrum range distance meter (`LONG` ↔ `MEDIUM` ↔ `CLOSE`), AP cost badges, directional icons, and rich tooltips.
@@ -29,6 +30,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - **Waves enemy variety:** each Land of Waves location `enemyPool` expanded from 3 foes to 5–7 thematic ids so room combat no longer cycles the same trio (e.g. water spirit) endlessly. Waves-arc name fallback also widened when no pool is present.
 
 ### Fixed
+- **Vault Treasure Random Pick:** Fixed `handlePickRandom` in `useTreasureHandlers.ts` to pass `{ isFreePick: true }` to `handlePickVaultOption`, ensuring random picks unseal and claim sealed vault faces in a single action instead of getting stuck on unsealed cards.
 - **F2 sim/auto range parity:** `CombatSimulationService.selectSkill` no longer fires out-of-range skills (returns null / idle). `BattleSimulator` seeds `currentRange` via `resolveInitialRange`, enemy turns use `planEnemyAction` (move-then-skill or Guard), and `SkillSelectionAI.selectBestCard` filters with `skillAllowedAt` so balance sims match live legality.
 - **Enemy art verify:** removed orphan demo plate `public/assets/enemies/enemy_demo_transparent_try.png` that broke `python scripts/verify_enemy_art_chroma.py` (flat count 45≠44, non-chroma bg, missing cutout).
 - **Combat viewscreen divider:** removed `border-bottom` on `.cinematic` in [`CinematicViewscreen.css`](file:///C:/Users/PC/workspace/SHINOBI-WAY-the-inifinite-tower/src/components/layout/CinematicViewscreen.css) to eliminate the horizontal line floating across the middle of the screen above the action dock.

@@ -57,6 +57,11 @@ export interface CombatState {
    * T-105: enemy first-turn damage mult from room AMBUSH (default 1).
    */
   enemyFirstHitMultiplier: number;
+  /**
+   * Resolved opening initiative holder from `determineTurnOrder` (not approach
+   * `guaranteedFirst` alone). Used by SEN strip / open banner UI.
+   */
+  openingInitHolder?: 'player' | 'enemy';
 
   // ──────────────────────────────────────────────────────────────────────────
   // DECKBUILDER / AP ECONOMY (T-004)

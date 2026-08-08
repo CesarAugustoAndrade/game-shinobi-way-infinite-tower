@@ -217,6 +217,13 @@
   margin-top: 0.1rem;
 }
 
+.range-panel__hotkey {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 0.65rem;
+  color: var(--sw-gold, #f59e0b);
+  opacity: 0.9;
+}
+
 .combat-tooltip__warn {
   color: #f87171;
   font-weight: 700;

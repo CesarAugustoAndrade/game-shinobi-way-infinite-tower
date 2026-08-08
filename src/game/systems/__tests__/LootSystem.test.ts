@@ -76,11 +76,9 @@ describe('lootTheme (T-061)', () => {
     expect(applyLootThemeGoldMultiplier(100, null)).toBe(100);
   });
 
-  it('boosts equipmentFocus stats in weight mults', () => {
+  it('returns empty weight mults (equipmentFocus system removed)', () => {
     const mults = equipmentFocusWeightMultipliers(['speed', 'spirit']);
-    expect(mults[ComponentId.SWIFT_SANDALS]).toBe(1.4);
-    expect(mults[ComponentId.SPIRIT_TAG]).toBe(1.4);
-    expect(mults[ComponentId.NINJA_STEEL]).toBeUndefined();
+    expect(Object.keys(mults).length).toBe(0);
   });
 });
 

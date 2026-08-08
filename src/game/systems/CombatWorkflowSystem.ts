@@ -117,6 +117,7 @@ export function createCombatState(
     fallDamageOnMiss: roomCombatExtras?.fallDamageOnMiss ?? 0,
     roomConditionNames: roomCombatExtras?.roomConditionNames ?? [],
     enemyFirstHitMultiplier: roomCombatExtras?.enemyFirstHitMultiplier ?? 1,
+    openingInitHolder: undefined,
     // Deckbuilder/AP economy (T-004)
     currentAp: 0,
     maxAp: 0,

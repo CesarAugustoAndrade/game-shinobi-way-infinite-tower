@@ -54,10 +54,92 @@
 
 .floating-text--miss {
   font-size: 1rem;
-  font-style: italic;
+  font-style: normal;
   font-weight: 700;
   color: var(--sw-fog, #8a9199);
-  animation: floating-text-fade 1s ease-out forwards;
+  animation: floating-text-fade 1.05s ease-out forwards;
+}
+
+.floating-text--evade {
+  color: #9aa8b8;
+}
+
+/* Ink-stamp layout for CRIT / MISS / EVADE */
+.floating-text--seal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.floating-text__seal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.floating-text__main {
+  line-height: 1;
+}
+
+.floating-text__stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.1rem 0.28rem 0.12rem;
+  border: 2px solid currentColor;
+  background: rgba(5, 6, 8, 0.55);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  transform: rotate(-4deg);
+}
+
+.floating-text--crit .floating-text__stamp {
+  border-color: var(--sw-rust-light, #c47a52);
+  color: var(--sw-bone, #e8e4dc);
+  box-shadow:
+    2px 2px 0 var(--sw-void, #050608),
+    0 0 8px rgba(166, 93, 63, 0.4);
+}
+
+.floating-text--miss .floating-text__stamp {
+  border-color: rgba(138, 145, 153, 0.75);
+  color: var(--sw-fog, #8a9199);
+  transform: rotate(3deg);
+}
+
+.floating-text--evade .floating-text__stamp {
+  border-color: rgba(154, 168, 184, 0.8);
+  color: #b0bcc8;
+}
+
+.floating-text__kanji {
+  font-family: var(--sw-font-display, 'Silkscreen', system-ui, sans-serif);
+  font-size: 0.75em;
+  line-height: 1;
+}
+
+.floating-text__word {
+  font-family: var(--sw-font-display, 'Silkscreen', system-ui, sans-serif);
+  font-size: 0.55em;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+.floating-text--crit .floating-text__kanji {
+  font-size: 0.55em;
+}
+
+.floating-text--crit .floating-text__word {
+  font-size: 0.42em;
+}
+
+.floating-text--miss .floating-text__kanji {
+  font-size: 1.05em;
+}
+
+.floating-text--miss .floating-text__word {
+  font-size: 0.72em;
 }
 
 .floating-text--block {

@@ -600,7 +600,7 @@ export const SASUKE_RETRIEVAL_CONFIG: RegionConfig = {
 
   lootTheme: {
     primaryElement: ElementType.LIGHTNING,
-    equipmentFocus: ['strength', 'speed', 'dexterity'],
+    equipmentFocus: [],
     goldMultiplier: 1.1,
   },
 

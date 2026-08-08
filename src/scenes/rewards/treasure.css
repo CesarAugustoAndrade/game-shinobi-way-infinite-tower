@@ -200,6 +200,30 @@
   color: #fff;
 }
 
+.treasure-scene__random-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  font-family: var(--sw-font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a7f3d0;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  border-radius: var(--sw-radius-sm, 4px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.treasure-scene__random-btn:hover {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: #34d399;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.4);
+}
+
 .treasure-scene__choices {
   display: flex;
   flex-direction: column;

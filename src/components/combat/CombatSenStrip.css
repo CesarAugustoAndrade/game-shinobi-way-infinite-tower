@@ -1,0 +1,209 @@
+/**
+ * SEN tempo strip — initiative / turn ownership (pixel-arcade hard shadow)
+ */
+
+@import '../../styles/design-system/index.css';
+
+.combat-sen {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  width: min(22rem, 92vw);
+  margin: 0 auto;
+  padding: 0.28rem 0.55rem 0.32rem;
+  background: rgba(8, 10, 14, 0.78);
+  border: 2px solid var(--sw-frame, #3a3530);
+  box-shadow: 3px 3px 0 var(--sw-hard, #0a0c10);
+  pointer-events: none;
+  user-select: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.25s ease;
+}
+
+.combat-sen--opening {
+  padding: 0.4rem 0.65rem 0.45rem;
+  border-color: var(--sw-rust, #a65d3f);
+  box-shadow:
+    4px 4px 0 var(--sw-hard, #0a0c10),
+    0 0 0 1px rgba(166, 93, 63, 0.35);
+  transform: scale(1.04);
+}
+
+.combat-sen--you {
+  border-color: rgba(196, 122, 82, 0.55);
+}
+
+.combat-sen--them {
+  border-color: rgba(220, 80, 70, 0.55);
+}
+
+.combat-sen__side {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+  opacity: 0.42;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.combat-sen__side--you {
+  justify-content: flex-start;
+}
+
+.combat-sen__side--them {
+  justify-content: flex-end;
+}
+
+.combat-sen__side.is-active {
+  opacity: 1;
+  filter: drop-shadow(0 0 4px rgba(232, 228, 220, 0.25));
+}
+
+.combat-sen--you .combat-sen__side--you.is-active {
+  filter: drop-shadow(0 0 5px rgba(196, 122, 82, 0.45));
+}
+
+.combat-sen--them .combat-sen__side--them.is-active {
+  filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.4));
+}
+
+.combat-sen__seal {
+  font-family: var(--sw-font-display, 'Silkscreen', system-ui, sans-serif);
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--sw-fog, #8a9199);
+  border: 1px solid rgba(138, 145, 153, 0.45);
+  padding: 0.12rem 0.18rem;
+  background: rgba(5, 6, 8, 0.55);
+}
+
+.combat-sen__side.is-active .combat-sen__seal {
+  color: var(--sw-bone, #e8e4dc);
+  border-color: rgba(232, 228, 220, 0.55);
+}
+
+.combat-sen__side--them.is-active .combat-sen__seal {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
+.combat-sen__label {
+  font-family: var(--sw-font-display, 'Silkscreen', system-ui, sans-serif);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--sw-fog, #8a9199);
+}
+
+.combat-sen__side.is-active .combat-sen__label {
+  color: var(--sw-bone, #e8e4dc);
+}
+
+.combat-sen__side--them.is-active .combat-sen__label {
+  color: #fecaca;
+}
+
+.combat-sen__amp {
+  font-family: var(--sw-font-mono, 'VT323', monospace);
+  font-size: 0.85rem;
+  color: var(--sw-rust-light, #c47a52);
+  letter-spacing: 0.02em;
+}
+
+.combat-sen__amp--enemy {
+  color: #f87171;
+}
+
+.combat-sen__core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  min-width: 6.5rem;
+  text-align: center;
+}
+
+.combat-sen__kanji {
+  font-family: var(--sw-font-display, 'Silkscreen', system-ui, sans-serif);
+  font-size: 0.95rem;
+  line-height: 1;
+  color: var(--sw-rust-light, #c47a52);
+  text-shadow: 1px 1px 0 var(--sw-void, #050608);
+}
+
+.combat-sen--them .combat-sen__kanji {
+  color: #f87171;
+}
+
+.combat-sen__mode {
+  font-family: var(--sw-font-display, 'Silkscreen', system-ui, sans-serif);
+  font-size: 0.5rem;
+  letter-spacing: 0.14em;
+  color: var(--sw-fog, #8a9199);
+}
+
+.combat-sen__call {
+  font-family: var(--sw-font-mono, 'VT323', monospace);
+  font-size: 0.8rem;
+  line-height: 1.1;
+  color: var(--sw-bone, #e8e4dc);
+  max-width: 11rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.combat-sen--opening .combat-sen__call {
+  font-size: 0.9rem;
+  color: var(--sw-rust-light, #c47a52);
+}
+
+.combat-sen--opening.combat-sen--open-them .combat-sen__call {
+  color: #fca5a5;
+}
+
+/* Soft pulse on active side (respect reduced motion below) */
+.combat-sen:not(.combat-sen--opening) .combat-sen__side.is-active .combat-sen__label {
+  animation: combat-sen-pulse 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes combat-sen-pulse {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combat-sen,
+  .combat-sen--opening {
+    transition: none;
+    transform: none;
+  }
+
+  .combat-sen:not(.combat-sen--opening) .combat-sen__side.is-active .combat-sen__label {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .combat-sen {
+    width: min(100%, 96vw);
+    gap: 0.2rem 0.3rem;
+    padding: 0.22rem 0.4rem;
+  }
+
+  .combat-sen__call {
+    font-size: 0.72rem;
+    max-width: 8.5rem;
+  }
+
+  .combat-sen__seal {
+    display: none;
+  }
+}

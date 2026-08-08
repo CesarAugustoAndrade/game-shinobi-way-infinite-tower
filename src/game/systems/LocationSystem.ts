@@ -681,10 +681,10 @@ function getTreasureConfig(wealthLevel: number): {
 
 /**
  * Calculate chakra cost to reveal treasure choices.
- * Formula: 10 + (floor * 2) + (choiceCount * 5)
+ * Formula: 5 + floor + (choiceCount * 2)
  */
 function calculateRevealCost(floor: number, choiceCount: number): number {
-  return 10 + (floor * 2) + (choiceCount * 5);
+  return 5 + floor + (choiceCount * 2);
 }
 
 /**
@@ -784,7 +784,7 @@ function generateTreasureActivity(
 
   const baseRyo = 50 + floor * 10 + Math.floor(Math.random() * 67);
   const openCost = calculateRevealCost(floor, choiceCount);
-  const revealCost = Math.max(5, Math.floor(openCost / 3));
+  const revealCost = Math.max(3, Math.floor(openCost / 3));
 
   const isFirstTreasure = !treasureHunt;
   const isHuntRoom = treasureHunt?.isActive ?? false;

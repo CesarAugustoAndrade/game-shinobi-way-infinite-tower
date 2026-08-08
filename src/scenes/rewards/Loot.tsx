@@ -233,29 +233,7 @@ const Loot: React.FC<LootProps> = ({
             ? 'The field is quiet — only dust and victory remain'
             : `Take each spoil${remainingCount > 1 ? ` (${remainingCount} left)` : ''}`}
         </p>
-        {/* T-093: drops already bias via lootTheme — surface region identity */}
-        {lootTheme && (
-          <div className="loot__theme" aria-label="Region loot theme">
-            {lootTheme.primaryElement && (
-              <span className="loot__theme-chip loot__theme-chip--affinity">
-                Affinity {lootTheme.primaryElement}
-              </span>
-            )}
-            {lootTheme.equipmentFocus?.length > 0 && (
-              <span className="loot__theme-chip loot__theme-chip--focus">
-                Focus{' '}
-                {lootTheme.equipmentFocus
-                  .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                  .join(' · ')}
-              </span>
-            )}
-            {lootTheme.goldMultiplier !== 1 && (
-              <span className="loot__theme-chip loot__theme-chip--gold">
-                Ryo ×{lootTheme.goldMultiplier}
-              </span>
-            )}
-          </div>
-        )}
+
       </div>
 
       {/* Keyboard Hints */}

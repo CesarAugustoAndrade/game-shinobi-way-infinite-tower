@@ -1,9 +1,26 @@
 /**
  * Posture Indicator Component Styles (T-004)
- * Pixel-arcade segmented stance control (blocky frame + hard shadow).
+ * Pixel-arcade segmented stance control (blocky frame + hard shadow + stance identities).
  */
 
 @import '../../styles/design-system/index.css';
+
+:root {
+  --posture-agg-color: #f87171;
+  --posture-agg-border: rgba(239, 68, 68, 0.65);
+  --posture-agg-bg: linear-gradient(135deg, rgba(220, 38, 38, 0.35) 0%, rgba(127, 29, 29, 0.65) 100%);
+  --posture-agg-glow: rgba(239, 68, 68, 0.45);
+
+  --posture-bal-color: #34d399;
+  --posture-bal-border: rgba(16, 185, 129, 0.65);
+  --posture-bal-bg: linear-gradient(135deg, rgba(5, 150, 105, 0.35) 0%, rgba(6, 78, 59, 0.65) 100%);
+  --posture-bal-glow: rgba(52, 211, 153, 0.45);
+
+  --posture-def-color: #fbbf24;
+  --posture-def-border: rgba(245, 158, 11, 0.65);
+  --posture-def-bg: linear-gradient(135deg, rgba(217, 119, 6, 0.35) 0%, rgba(120, 53, 15, 0.65) 100%);
+  --posture-def-glow: rgba(251, 191, 36, 0.45);
+}
 
 .posture-indicator {
   display: flex;
@@ -22,19 +39,19 @@
 
 .posture-indicator__options {
   display: flex;
-  gap: var(--sw-space-1);
+  gap: var(--sw-space-1-5);
 }
 
-/* Blocky toggle chip — 2px frame + hard shadow, matching the pixel-arcade
-   vocabulary used by the action buttons and skill cards (T-001). */
+/* Blocky toggle chip — 2px frame + hard shadow, matching pixel-arcade vocabulary */
 .posture-indicator__btn {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--sw-space-1-5);
-  padding: var(--sw-space-1) var(--sw-space-2);
+  gap: 0.45rem;
+  padding: 0.4rem 0.65rem;
   border: 2px solid var(--sw-metal, #2d3d4a);
   border-radius: var(--sw-radius-sm);
-  background: rgba(5, 6, 8, 0.55);
+  background: rgba(8, 10, 14, 0.85);
   color: var(--sw-fog, #8a9199);
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-2xs);
@@ -43,29 +60,88 @@
   letter-spacing: var(--sw-tracking-wide);
   cursor: pointer;
   box-shadow: 2px 2px 0 var(--sw-void, #050608);
+  overflow: hidden;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
     color var(--sw-transition-base), border-color var(--sw-transition-base),
     background var(--sw-transition-base);
 }
 
-.posture-indicator__btn:hover:not(:disabled):not(.posture-indicator__btn--active) {
-  color: var(--sw-bone, #e8e4dc);
-  border-color: var(--sw-fog, #8a9199);
+.posture-indicator__btn-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.35;
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+
+.posture-indicator__btn-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.posture-indicator__btn-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(8, 10, 14, 0.8) 0%, rgba(8, 10, 14, 0.5) 50%, rgba(8, 10, 14, 0.8) 100%);
+}
+
+.posture-indicator__btn:hover:not(:disabled) .posture-indicator__btn-bg {
+  opacity: 0.6;
+  transform: scale(1.05);
+}
+
+.posture-indicator__btn--active .posture-indicator__btn-bg {
+  opacity: 0.75;
+  transform: scale(1.05);
+}
+
+/* Stance hover states with thematic tinting */
+.posture-indicator__btn--aggressive:hover:not(:disabled):not(.posture-indicator__btn--active) {
+  color: #fca5a5;
+  border-color: var(--posture-agg-border);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--sw-void, #050608);
+}
+
+.posture-indicator__btn--balanced:hover:not(:disabled):not(.posture-indicator__btn--active) {
+  color: #6ee7b7;
+  border-color: var(--posture-bal-border);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--sw-void, #050608);
+}
+
+.posture-indicator__btn--defensive:hover:not(:disabled):not(.posture-indicator__btn--active) {
+  color: #fde68a;
+  border-color: var(--posture-def-border);
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0 var(--sw-void, #050608);
 }
 
 .posture-indicator__btn:active:not(:disabled) {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 0 var(--sw-hard);
+  box-shadow: 1px 1px 0 0 var(--sw-hard, #04060d);
 }
 
-/* Active stance: rust heat fill — sole warm signal of the combat chrome. */
-.posture-indicator__btn--active {
-  color: var(--sw-bone, #e8e4dc);
-  background: var(--sw-rust, #a65d3f);
-  border-color: var(--sw-rust-light, #c47a52);
-  box-shadow: 2px 2px 0 var(--sw-void, #050608), 0 0 8px var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
+/* Active stance states with distinct color identity & glow */
+.posture-indicator__btn--aggressive.posture-indicator__btn--active {
+  color: #fff;
+  border-color: var(--posture-agg-color);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608), 0 0 12px var(--posture-agg-glow);
+}
+
+.posture-indicator__btn--balanced.posture-indicator__btn--active {
+  color: #fff;
+  border-color: var(--posture-bal-color);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608), 0 0 12px var(--posture-bal-glow);
+}
+
+.posture-indicator__btn--defensive.posture-indicator__btn--active {
+  color: #fff;
+  border-color: var(--posture-def-color);
+  box-shadow: 2px 2px 0 var(--sw-void, #050608), 0 0 12px var(--posture-def-glow);
 }
 
 .posture-indicator__btn:disabled {
@@ -75,8 +151,27 @@
 }
 
 .posture-indicator__icon {
+  position: relative;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
+  transition: transform 0.15s ease;
+}
+
+.posture-indicator__btn--active .posture-indicator__icon {
+  transform: scale(1.1);
+}
+
+.posture-indicator__btn--aggressive.posture-indicator__btn--active .posture-indicator__icon {
+  color: #fca5a5;
+}
+
+.posture-indicator__btn--balanced.posture-indicator__btn--active .posture-indicator__icon {
+  color: #6ee7b7;
+}
+
+.posture-indicator__btn--defensive.posture-indicator__btn--active .posture-indicator__icon {
+  color: #fde68a;
 }
 
 .posture-indicator__icon svg {
@@ -85,16 +180,34 @@
 }
 
 .posture-indicator__label {
+  position: relative;
+  z-index: 2;
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-2xs);
+  letter-spacing: var(--sw-tracking-wide);
   line-height: 1;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* Keycap button badge */
+.posture-indicator__keycap {
+  position: relative;
+  z-index: 2;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 0.625rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 1px 4px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--sw-gold, #f59e0b);
+  border-radius: 2px;
+  color: var(--sw-gold, #f59e0b);
+  margin-left: 0.15rem;
+  box-shadow: 1px 1px 0 #000;
 }
 
 /* ============================================================
    Mobile — portrait phones (≤ 480px)
-   The full-label row measures ~418px at 390px viewport (Silkscreen
-   labels + wide tracking), clipping the DEFENSIVE button. Collapse
-   to icon-only chips: labels are visually hidden (still exposed to
-   screen readers), icons grow and padding widens so each button
-   keeps a ~40×36px touch target. Total row ≈ 170px at 390px.
    ============================================================ */
 
 @media (max-width: 480px) {
@@ -108,9 +221,8 @@
     height: 1.25rem;
   }
 
-  /* Visually hidden, accessible label (icon-only buttons on mobile).
-     Active stance stays legible via the rust fill + tooltip. */
-  .posture-indicator__label {
+  .posture-indicator__label,
+  .posture-indicator__keycap {
     position: absolute;
     width: 1px;
     height: 1px;

@@ -612,6 +612,7 @@ const App: React.FC = () => {
     handleLeaveVault,
     handleRevealVaultFace,
     handlePickVaultOption,
+    handlePickRandom,
     handleTakeMapPiece,
     handleTreasureHuntRewardClaim,
     handleBagFullSell,
@@ -1877,6 +1878,8 @@ const App: React.FC = () => {
                 })()}
                 isFirstTurn={combatState?.isFirstTurn ?? false}
                 firstHitMultiplier={combatState?.firstHitMultiplier ?? 1}
+                enemyFirstHitMultiplier={combatState?.enemyFirstHitMultiplier ?? 1}
+                openingInitHolder={combatState?.openingInitHolder ?? null}
                 locationTerrainMods={combatState?.locationTerrainMods ?? null}
                 skipFirstSkillCost={combatState?.skipFirstSkillCost ?? false}
                 roomTerrain={combatState?.terrain ?? null}
@@ -2009,6 +2012,7 @@ const App: React.FC = () => {
                 onLeaveVault={handleLeaveVault}
                 onRevealFace={handleRevealVaultFace}
                 onPickOption={handlePickVaultOption}
+                onPickRandom={handlePickRandom}
                 onTakeMapPiece={handleTakeMapPiece}
                 pendingBagFullItem={pendingBagFullItem}
                 onBagFullSell={handleBagFullSell}

@@ -220,16 +220,7 @@ const RegionMap: React.FC<RegionMapProps> = ({
                 )}
               </p>
             )}
-            {region.lootTheme?.equipmentFocus && region.lootTheme.equipmentFocus.length > 0 && (
-              <p className="region-map__focus" aria-label="Region loot focus stats">
-                Focus:{' '}
-                <span className="region-map__focus-stats">
-                  {region.lootTheme.equipmentFocus
-                    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                    .join(' · ')}
-                </span>
-              </p>
-            )}
+
           </div>
         </div>
       </div>

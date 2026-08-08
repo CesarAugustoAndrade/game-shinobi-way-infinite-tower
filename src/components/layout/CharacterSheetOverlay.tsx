@@ -112,14 +112,7 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
                     Affinity {lootTheme.primaryElement}
                   </span>
                 )}
-                {lootTheme.equipmentFocus?.length > 0 && (
-                  <span className="explore-overlay__region-chip explore-overlay__region-chip--focus">
-                    Focus{' '}
-                    {lootTheme.equipmentFocus
-                      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                      .join(' · ')}
-                  </span>
-                )}
+
                 {lootTheme.goldMultiplier !== 1 && (
                   <span className="explore-overlay__region-chip explore-overlay__region-chip--gold">
                     Ryo ×{lootTheme.goldMultiplier}

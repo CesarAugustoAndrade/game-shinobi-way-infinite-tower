@@ -405,15 +405,7 @@ const Bag: React.FC<BagProps> = ({
           <button type="button" onClick={cancelSynthesis} className="bag__cancel">Cancel</button>
         )}
       </div>
-      {/* T-096: region Focus while equipping between loot peaks */}
-      {equipmentFocus && equipmentFocus.length > 0 && (
-        <div className="bag__focus-chip" title="Region Focus — matching items marked F">
-          Focus{' '}
-          {equipmentFocus
-            .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-            .join(' · ')}
-        </div>
-      )}
+
 
       {synthesisMode && selectedComponent && (
         <div className="bag__synthesis-hint">

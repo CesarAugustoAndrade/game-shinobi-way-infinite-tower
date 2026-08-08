@@ -598,7 +598,7 @@ export const CHUNIN_EXAMS_CONFIG: RegionConfig = {
 
   lootTheme: {
     primaryElement: ElementType.WIND,
-    equipmentFocus: ['speed', 'intelligence', 'dexterity'],
+    equipmentFocus: [],
     goldMultiplier: 1.0,
   },
 
