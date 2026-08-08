@@ -417,9 +417,26 @@ function executeAttack(
     );
     ctx.enemy.activeBuffs = [...ctx.enemy.activeBuffs, ...newPassiveDebuffs];
 
-    // Handle reflection
+    // Handle reflection — guts check if reflected damage would be lethal (parity with PlayerTurnSystem)
     if (mitigation.reflectedDamage > 0) {
-      ctx.player.currentHp -= mitigation.reflectedDamage;
+      const gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
+      const artifactGuts = checkGutsPassive(ctx.player);
+      const lethalCheck = checkLethalDamage(
+        ctx.player.currentHp,
+        mitigation.reflectedDamage,
+        ctx.playerStats.derived.gutsChance,
+        gutsContext,
+        artifactGuts,
+        ctx.artifactGutsUsed,
+        ctx.playerStats.derived.maxHp,
+      );
+      ctx.player.currentHp = lethalCheck.newHp;
+      if (lethalCheck.gutsTriggered) {
+        ctx.metrics.gutsTriggered++;
+      }
+      if (lethalCheck.artifactGutsTriggered) {
+        ctx.artifactGutsUsed = true;
+      }
       ctx.metrics.damageReceived += mitigation.reflectedDamage;
     }
   } else {

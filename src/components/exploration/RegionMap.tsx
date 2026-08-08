@@ -8,6 +8,7 @@ import {
 } from '../../game/types';
 import { getCardDisplayInfo } from '../../game/systems/RegionSystem';
 import LocationCardDisplay from './LocationCardDisplay';
+import { queryBlockingModal } from '../../game/ui/overlayStack';
 import './exploration.css';
 
 // ============================================================================
@@ -62,12 +63,8 @@ const RegionMap: React.FC<RegionMapProps> = ({
     if (e.repeat) return;
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if ((e.target as HTMLElement | null)?.isContentEditable) return;
-    // Never steal keys from overlays / result / approach modals (some lack role=dialog)
-    if (
-      document.querySelector(
-        '[role="dialog"][aria-modal="true"], .reward-modal, .event-result, .loc-complete, .intel-result, .rest-result, .explore-overlay, .approach-modal, .confirm-modal',
-      )
-    ) {
+    // Never steal keys from result / approach modals (DOM fallback via shared selector)
+    if (queryBlockingModal()) {
       return;
     }
 

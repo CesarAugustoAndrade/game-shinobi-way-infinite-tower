@@ -46,7 +46,6 @@ import {
 import {
   moveToRoom,
   getCurrentActivity,
-  completeActivity,
   applyFloorHeatDelta,
 } from './game/systems/LocationSystem';
 import {
@@ -91,7 +90,13 @@ import { useInventoryHandlers } from './hooks/useInventoryHandlers';
 import { useActivityHandlers } from './hooks/useActivityHandlers';
 import { useCombatVictory } from './hooks/useCombatVictory';
 import { gameSessionStore } from './hooks/useGameSession';
-import { resolveSceneState, type SceneEnterContext } from './game/session';
+import {
+  resolveSceneState,
+  resolveVisitContext,
+  completeActivityOnVisit,
+  visitToFloorPatch,
+  type SceneEnterContext,
+} from './game/session';
 import { getDamageTypeColor, getRarityTextColorWithEffects as getRarityColor, resolveLaminaPaths } from './utils/colorHelpers';
 import { GameProvider, GameContextValue } from './contexts/GameContext';
 import { LIMITS, MERCHANT } from './game/config';
@@ -299,6 +304,12 @@ const App: React.FC = () => {
       branchingFloor,
     });
   }, [gameState, player, region, locationFloor, branchingFloor]);
+
+  /** Sync gameState into the session store in the same tick (probes / soft-lock). */
+  const setGameStateSynced = useCallback((s: GameState) => {
+    setGameState(s);
+    gameSessionStore.dispatch({ type: 'SET_GAME_STATE', gameState: s });
+  }, []);
 
   const addLog = useCallback((text: string, type: LogEntry['type'] = 'info', details?: string) => {
     setLogs(prev => {
@@ -871,6 +882,7 @@ const App: React.FC = () => {
   // GameState.EXPLORE has no App branch (blank shell). LOCATION_EXPLORE needs floor + region.
   // Activity scenes gate UI on payload (trainingData, activeEvent, …) — missing payload = blank stage.
   // COMBAT without enemy and without victory reward is a blank center stage (Combat UI gates on enemy).
+  // Uses setGameStateSynced so session store (probes / observers) sees the recovery immediately.
   useEffect(() => {
     const exploreFallback =
       region?.currentLocationId && locationFloor
@@ -878,17 +890,17 @@ const App: React.FC = () => {
         : GameState.REGION_MAP;
 
     if (gameState === GameState.EXPLORE) {
-      setGameState(exploreFallback === GameState.LOCATION_EXPLORE ? exploreFallback : GameState.REGION_MAP);
+      setGameStateSynced(exploreFallback === GameState.LOCATION_EXPLORE ? exploreFallback : GameState.REGION_MAP);
       return;
     }
     if (gameState === GameState.LOCATION_EXPLORE && (!region || !locationFloor)) {
-      setGameState(GameState.REGION_MAP);
+      setGameStateSynced(GameState.REGION_MAP);
       return;
     }
     // Dead player still in COMBAT (desync / mid-delay cancel residual) → GAME_OVER shell
     if (gameState === GameState.COMBAT && player && player.currentHp <= 0 && !combatReward) {
       setEnemy(null);
-      setGameState(GameState.GAME_OVER);
+      setGameStateSynced(GameState.GAME_OVER);
       return;
     }
     // Blank COMBAT shell: no foe, no reward modal staging, not mid-approach.
@@ -899,13 +911,13 @@ const App: React.FC = () => {
       !combatReward &&
       !showApproachSelector
     ) {
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     // Approach modal is HUD preference only (no room foe required).
     // MERCHANT always mounts but returns null without player — blank shop shell
     if (gameState === GameState.MERCHANT && !player) {
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     // COMBAT with enemy but no deck/AP state — cannot play cards (useSkill gates on combatState)
@@ -917,38 +929,38 @@ const App: React.FC = () => {
       !showApproachSelector
     ) {
       setEnemy(null);
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     // Activity scenes that render nothing without their payload
     if (gameState === GameState.EVENT && !activeEvent && !eventOutcome) {
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     if (gameState === GameState.TRAINING && !trainingData) {
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     if (gameState === GameState.SCROLL_DISCOVERY && !scrollDiscoveryData) {
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     if (gameState === GameState.ELITE_CHALLENGE && !eliteChallengeData) {
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     if (gameState === GameState.TREASURE && !currentTreasure) {
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     if (gameState === GameState.TREASURE_HUNT_REWARD && !treasureHuntReward) {
-      setGameState(exploreFallback);
+      setGameStateSynced(exploreFallback);
       return;
     }
     // INTERLUDE only mounts when meta is set — orphan shell is blank main layout
     if (gameState === GameState.INTERLUDE && !interludeMeta) {
       setInterludeBoons([]);
-      setGameState(GameState.REGION_MAP);
+      setGameStateSynced(GameState.REGION_MAP);
       return;
     }
     // Empty LOOT pile with no skill drop — blank leave-only shell (desync belt).
@@ -969,7 +981,7 @@ const App: React.FC = () => {
     // SCENE_REGISTRY_PROBE is debug-only — never leave a live run stuck on it.
     // Registry still proves the module is wired via import + SCENE_REGISTRY entry.
     if (gameState === GameState.SCENE_REGISTRY_PROBE) {
-      setGameState(GameState.MENU);
+      setGameStateSynced(GameState.MENU);
       return;
     }
 
@@ -991,7 +1003,7 @@ const App: React.FC = () => {
     ) {
       const resolved = resolveSceneState(gameState, sceneCtx);
       if (resolved !== gameState) {
-        setGameState(resolved);
+        setGameStateSynced(resolved);
       }
     }
   }, [
@@ -1016,6 +1028,7 @@ const App: React.FC = () => {
     isProcessingLoot,
     player,
     returnToMap,
+    setGameStateSynced,
   ]);
 
   // Preference overlay open → re-arm engage lock (in case residual after prior fight)
@@ -1152,28 +1165,21 @@ const App: React.FC = () => {
     }
 
     if (result.skipCombat) {
-      // Successfully bypassed combat — complete LIVE locationFloor (not only legacy branchingFloor)
+      // Successfully bypassed combat — complete only the active visit floor
       logExplorationCheckpoint('Combat bypassed via approach');
       addLog('You slip past undetected!', 'gain');
       setShowApproachSelector(false);
 
       const activityType = isEliteChallenge ? 'eliteChallenge' : 'combat';
 
-      let updatedLocationFloor: BranchingFloor | undefined;
-
-      if (locationFloor) {
-        updatedLocationFloor = completeActivity(
-          locationFloor,
-          room.id,
-          activityType,
-        );
-        setLocationFloor(updatedLocationFloor);
-      }
-
-      if (branchingFloor) {
-        setBranchingFloor(
-          completeActivity(branchingFloor, room.id, activityType),
-        );
+      const visit = resolveVisitContext({ locationFloor, branchingFloor });
+      let updatedFloor: BranchingFloor | undefined;
+      if (visit) {
+        const next = completeActivityOnVisit(visit, room.id, activityType);
+        const patch = visitToFloorPatch(next);
+        if (patch.locationFloor) setLocationFloor(patch.locationFloor);
+        if (patch.branchingFloor) setBranchingFloor(patch.branchingFloor);
+        updatedFloor = next.floor;
       }
 
       if (isEliteChallenge) {
@@ -1182,7 +1188,7 @@ const App: React.FC = () => {
       }
 
       // Pass completed floor so we never re-open combat from a stale closure
-      returnToMapActivityComplete(updatedLocationFloor);
+      returnToMapActivityComplete(updatedFloor);
       return;
     }
 

@@ -21,6 +21,7 @@ import { COMBAT_MODIFIER_EFFECTS } from '../../game/constants/roomTypes';
 import { CombatModifierType } from '../../game/types';
 import { formatHeatTier, tierFromHeat } from '../../game/systems/HeatSystem';
 import { resolveLaminaPaths } from '../../utils/colorHelpers';
+import { queryBlockingModal } from '../../game/ui/overlayStack';
 import './exploration.css';
 
 interface LocationMapProps {
@@ -172,13 +173,8 @@ const LocationMap: React.FC<LocationMapProps> = ({
       if (e.repeat) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if ((e.target as HTMLElement | null)?.isContentEditable) return;
-      // Leave Enter/Space to bag / character / reward / approach / complete modals
-      // (some result panels lack role=dialog — keep class fallbacks)
-      if (
-        document.querySelector(
-          '[role="dialog"][aria-modal="true"], .reward-modal, .event-result, .loc-complete, .intel-result, .rest-result, .explore-overlay, .approach-modal, .confirm-modal',
-        )
-      ) {
+      // Leave Enter/Space to reward / approach / complete modals (DOM fallback)
+      if (queryBlockingModal()) {
         return;
       }
 

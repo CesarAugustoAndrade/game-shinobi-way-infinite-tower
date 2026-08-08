@@ -64,6 +64,25 @@ export function visitToFloorPatch(visit: VisitContext): {
 }
 
 /**
+ * Resolve active visit, complete one activity, and build dual-floor patch.
+ * Pure: no React. Returns null when neither floor is present.
+ */
+export function applyVisitActivityComplete(args: {
+  locationFloor: BranchingFloor | null;
+  branchingFloor: BranchingFloor | null;
+  roomId: string;
+  activityType: keyof RoomActivities;
+}): { visit: VisitContext; patch: ReturnType<typeof visitToFloorPatch> } | null {
+  const resolved = resolveVisitContext({
+    locationFloor: args.locationFloor,
+    branchingFloor: args.branchingFloor,
+  });
+  if (!resolved) return null;
+  const visit = completeActivityOnVisit(resolved, args.roomId, args.activityType);
+  return { visit, patch: visitToFloorPatch(visit) };
+}
+
+/**
  * Which GameState to return after activity when still exploring.
  * Equivalent to resolveExploreReturnState(region, !!locationFloor):
  * LOCATION_EXPLORE only when region has a current location and the active

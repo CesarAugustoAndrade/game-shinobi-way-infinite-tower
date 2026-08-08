@@ -80,6 +80,9 @@ export {
   applyDamageMultipliers,
   applyPostMitigationMultipliers,
   applyEnemyDefenseBonusToDamage,
+  buildPlayerPreMitigationMults,
+  buildEnemyPreMitigationMults,
+  buildPlayerDefensePostMults,
   resolveMitigatedHit,
   resolveSuccessfulHit,
 } from './SkillResolutionSystem';

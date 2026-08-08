@@ -5,7 +5,7 @@ import {
 } from '../game/types';
 import { CombatState } from '../game/systems/CombatWorkflowSystem';
 import {
-  getCurrentRoom, completeActivity, applyFloorHeatDelta,
+  getCurrentRoom, applyFloorHeatDelta,
 } from '../game/systems/LocationSystem';
 import {
   calculateLocationXP, calculateLocationRyo, INTEL_GAIN,
@@ -29,6 +29,8 @@ import { logActivityComplete, logIntelGain } from '../game/utils/explorationDebu
 import {
   resolvePostActivityGameState,
   resolveVisitContext,
+  completeActivityOnVisit,
+  visitToFloorPatch,
 } from '../game/session';
 import {
   accumulateEncounterStage,
@@ -279,36 +281,32 @@ export function useCombatVictory(
       }
 
       if (visit) {
-        const applyComplete = (prevFloor: BranchingFloor | null): BranchingFloor | null => {
-          if (!prevFloor) return prevFloor;
-          let updatedFloor = completeActivity(prevFloor, roomId, activityType);
-          // Repair currentRoomId if completeActivity left us on a different room
-          if (updatedFloor.currentRoomId !== roomId) {
-            updatedFloor = {
-              ...updatedFloor,
+        let next = completeActivityOnVisit(visit, roomId, activityType);
+        // completeActivity does not move currentRoomId — repair if snapshot was off-room
+        if (next.floor.currentRoomId !== roomId) {
+          next = {
+            ...next,
+            floor: {
+              ...next.floor,
               currentRoomId: roomId,
-              rooms: updatedFloor.rooms.map(room => ({
+              rooms: next.floor.rooms.map(room => ({
                 ...room,
                 isCurrent: room.id === roomId,
               })),
-            };
-          }
-          const updatedRoom = updatedFloor.rooms.find(r => r.id === roomId);
-          if (updatedRoom?.isCleared && updatedRoom.isExit) {
-            if (visit!.kind === 'location') {
-              addLog('Location cleared! Return when ready to choose the next destination.', 'gain');
-            } else {
-              addLog('You cleared the exit! Proceed to the next floor?', 'gain');
-            }
-          }
-          return updatedFloor;
-        };
-
-        if (visit.kind === 'location') {
-          setLocationFloor(applyComplete);
-        } else {
-          setBranchingFloor(applyComplete);
+            },
+          };
         }
+        const updatedRoom = next.floor.rooms.find(r => r.id === roomId);
+        if (updatedRoom?.isCleared && updatedRoom.isExit) {
+          if (next.kind === 'location') {
+            addLog('Location cleared! Return when ready to choose the next destination.', 'gain');
+          } else {
+            addLog('You cleared the exit! Proceed to the next floor?', 'gain');
+          }
+        }
+        const patch = visitToFloorPatch(next);
+        if (patch.locationFloor) setLocationFloor(patch.locationFloor);
+        if (patch.branchingFloor) setBranchingFloor(patch.branchingFloor);
       }
     }
 

@@ -5,7 +5,6 @@ import {
   TreasureActivity, TreasureHunt,
 } from '../game/types';
 import {
-  completeActivity,
   getCurrentRoom,
   initializeTreasureHunt,
   addMapPiece,
@@ -13,6 +12,12 @@ import {
   applyFloorHeatDelta,
 } from '../game/systems/LocationSystem';
 import { addToBag, getSellPrice } from '../game/systems/LootSystem';
+import {
+  resolveVisitContext,
+  completeActivityOnVisit,
+  visitToFloorPatch,
+  resolvePostActivityGameState,
+} from '../game/session';
 
 /**
  * State dependencies for treasure handlers
@@ -166,14 +171,15 @@ export function useTreasureHandlers(
   /**
    * Helper: Complete treasure activity and return to map.
    * Extracts common logic from vault selection, bag-full sell, and bag-full leave.
-   * Room id falls back to floor currentRoom (parity merchant leave / training skip) so a
+   * Room id falls back to visit currentRoom (parity merchant leave / training skip) so a
    * lost selectedBranchingRoom pointer cannot soft-lock TREASURE after a successful claim.
+   * Single active visit via VisitContext (location preferred over branching).
    */
   const completeTreasureAndReturn = useCallback(() => {
+    const visit = resolveVisitContext({ locationFloor, branchingFloor });
     const roomId =
       selectedBranchingRoom?.id ??
-      (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
-      (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined) ??
+      (visit ? getCurrentRoom(visit.floor)?.id : undefined) ??
       null;
 
     // F3: optional treasure raises visit heat (authored heatDelta or default valuable +10)
@@ -181,30 +187,43 @@ export function useTreasureHandlers(
       currentTreasure?.heatDelta ??
       (currentTreasure ? 10 : 0);
 
-    let finalFloor: BranchingFloor | undefined;
-    if (locationFloor && roomId) {
-      finalFloor = completeActivity(locationFloor, roomId, 'treasure');
+    if (visit && roomId) {
+      let next = completeActivityOnVisit(visit, roomId, 'treasure');
       if (treasureHeat) {
-        finalFloor = applyFloorHeatDelta(finalFloor, treasureHeat);
-        addLog(`Heat +${treasureHeat} from claiming treasure (now ${finalFloor.heat}).`, 'danger');
-        if (finalFloor.hunterArmed && !locationFloor.hunterArmed) {
-          addLog('HEAT critical — a Hunter is now stalking this location!', 'danger');
+        const prevHunterArmed = next.floor.hunterArmed;
+        next = { ...next, floor: applyFloorHeatDelta(next.floor, treasureHeat) };
+        // Heat / hunter logs only on location visit (product path)
+        if (next.kind === 'location') {
+          addLog(`Heat +${treasureHeat} from claiming treasure (now ${next.floor.heat}).`, 'danger');
+          if (next.floor.hunterArmed && !prevHunterArmed) {
+            addLog('HEAT critical — a Hunter is now stalking this location!', 'danger');
+          }
         }
       }
-      setLocationFloor(finalFloor);
+      const patch = visitToFloorPatch(next);
+      if (patch.locationFloor) setLocationFloor(patch.locationFloor);
+      if (patch.branchingFloor) setBranchingFloor(patch.branchingFloor);
+
+      setCurrentTreasure(null);
+      setCurrentTreasureHunt(null);
+      setPendingBagFullItem(null);
+
+      if (next.kind === 'location') {
+        returnToMapActivityComplete(next.floor);
+      } else {
+        setGameState(resolvePostActivityGameState(region, next));
+      }
+      return;
     }
-    if (branchingFloor && roomId) {
-      let updatedFloor = completeActivity(branchingFloor, roomId, 'treasure');
-      if (treasureHeat) updatedFloor = applyFloorHeatDelta(updatedFloor, treasureHeat);
-      setBranchingFloor(updatedFloor);
-    }
+
     setCurrentTreasure(null);
     setCurrentTreasureHunt(null);
     setPendingBagFullItem(null);
-    returnToMapActivityComplete(finalFloor);
-  }, [locationFloor, branchingFloor, selectedBranchingRoom, currentTreasure,
+    returnToMapActivityComplete();
+  }, [locationFloor, branchingFloor, selectedBranchingRoom, currentTreasure, region,
       setLocationFloor, setBranchingFloor, setCurrentTreasure,
-      setCurrentTreasureHunt, setPendingBagFullItem, returnToMapActivityComplete, addLog]);
+      setCurrentTreasureHunt, setPendingBagFullItem, setGameState,
+      returnToMapActivityComplete, addLog]);
 
   // Leave vault — walk away without claiming
   const handleLeaveVault = useCallback(() => {

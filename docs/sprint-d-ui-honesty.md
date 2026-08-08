@@ -10,13 +10,13 @@ Thin pure helpers so combat/merchant/bag UI and explore chrome read the same gat
 | Skill card view-model | `combatSkillViewModel` | Hand / SkillCard |
 | Merchant buy price | `getMerchantBuyPrice` (`InventorySystem` / Loot facade) | Merchant |
 | Craft options | `listCraftOptions` (`CraftSystem` / Loot facade) | Bag synthesis |
-| Modal shell | `ModalShell` + `useModalShellClose` (closedRef once-dismiss) | Intel, Rest, Event result modals |
+| Modal shell | `ModalShell` + `useModalShellClose` (closedRef once-dismiss) | Intel, Rest, Event, LocationComplete, Reward |
 | Explore chrome block | `isBlockingExploreChrome` (`game/ui/overlayStack`) | App A/I/C keyboard, HUD bag/char/approach, bag-close effect |
 
 ## Overlay stack (`src/game/ui/overlayStack.ts`)
 
 - **`isBlockingExploreChrome(flags)`** — true when reward / event outcome / intel / rest / location-complete / approach is open. Prefer App React flags over `document.querySelector`.
-- **`queryBlockingModal` / `BLOCKING_MODAL_SELECTOR`** — DOM fallback for nested or unflagged dialogs (maps may still use query locally).
+- **`queryBlockingModal` / `BLOCKING_MODAL_SELECTOR`** — DOM fallback; LocationMap / RegionMap use `queryBlockingModal()`.
 - **`OverlayKind` / `OverlayStackState`** — typed ids for a future ordered stack without rewriting App routing.
 
 ## ModalShell migration
@@ -26,8 +26,8 @@ Thin pure helpers so combat/merchant/bag UI and explore chrome read the same gat
 | IntelResultModal | ModalShell |
 | RestResultModal | ModalShell |
 | EventResultModal | ModalShell |
-| LocationCompleteModal | own closedRef (candidate) |
-| RewardModal | own pattern (candidate) |
+| LocationCompleteModal | ModalShell |
+| RewardModal | ModalShell |
 
 Shell owns dialog role, focus trap, Esc/Space/Enter, and once-guard dismiss. Visual chrome stays on each modal’s CSS classes.
 

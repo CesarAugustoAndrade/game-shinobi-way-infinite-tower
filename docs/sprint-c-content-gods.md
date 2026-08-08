@@ -21,8 +21,8 @@ Facade only. Re-exports:
 | Subsystem | Role | Public API (via LootSystem) |
 |-----------|------|-----------------------------|
 | `ItemGenerationSystem` | Skills, components, artifacts, merchant, loot tables | `generateSkillLoot`, `generateSkillForFloor`, `parseLootTableKind`, `equipmentFocusWeightMultipliers`, `applyLootThemeGoldMultiplier`, `generateBrokenComponent`, `generateComponent`, `generateComponentByQuality`, `generateLoot`, `generateMerchantItem`, `generateRandomArtifact`, `grantHashiramaCell` (+ type `LootTableKind`) |
-| `CraftSystem` | TFT synthesis / upgrades / disassemble | `getCraftCombination`, `upgradeComponent`, `synthesize`, `upgradeArtifact`, `disassemble` (+ types `CraftResult`, `CraftMode`, `CraftCombination`) |
-| `InventorySystem` | Equip / sell / bag CRUD | `equipItem`, `getSellPrice`, `sellItem`, `addToBag`, `addToBagAtIndex`, `swapBagSlots`, `removeFromBag`, `bagHasItem`, `hasBagSpace` (+ type `EquipResult`) |
+| `CraftSystem` | TFT synthesis / upgrades / disassemble | `getCraftCombination`, `canCraftWith`, `listCraftOptions`, `upgradeComponent`, `synthesize`, `upgradeArtifact`, `disassemble` (+ types `CraftResult`, `CraftMode`, `CraftCombination`, `CraftPreviewOption`) |
+| `InventorySystem` | Equip / sell / bag CRUD | `equipItem`, `getSellPrice`, `getMerchantBasePrice`, `getMerchantBuyPrice`, `sellItem`, `addToBag`, `addToBagAtIndex`, `swapBagSlots`, `removeFromBag`, `bagHasItem`, `hasBagSpace` (+ type `EquipResult`) |
 
 ## Event flags
 
@@ -32,6 +32,6 @@ Facade only. Re-exports:
 ## Config direction
 
 - Bag size: `LaunchProperties.MAX_BAG_SIZE` → `MAX_BAG_SLOTS` in types
-- Stat math tables: `STAT_FORMULAS` (types; used by `StatSystem`)
+- Stat math tables: `STAT_FORMULAS` lives in `src/game/statFormulas.ts`, re-exported via `config` / `types` (used by `StatSystem`)
 
 Consumers should keep importing from `LocationSystem` / `LootSystem` / `EventSystem` unless intentionally depending on a subsystem.

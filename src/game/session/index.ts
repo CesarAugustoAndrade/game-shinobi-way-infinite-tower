@@ -2,8 +2,8 @@
  * Game session module public surface (pure — no React).
  * React bindings live in `src/hooks/useGameSession.ts`.
  *
- * Visit helpers: prefer `resolveVisitContext` + `completeActivityOnVisit` over
- * dual locationFloor/branchingFloor branches in hooks.
+ * Visit helpers: prefer `resolveVisitContext` / `applyVisitActivityComplete`
+ * over dual locationFloor/branchingFloor branches in hooks.
  * Scene soft-lock: `resolveSceneState` + `SCENE_REGISTRY`.
  */
 
@@ -31,6 +31,7 @@ export {
   resolveVisitContext,
   completeActivityOnVisit,
   visitToFloorPatch,
+  applyVisitActivityComplete,
   resolvePostActivityGameState,
 } from './visitContext';
 

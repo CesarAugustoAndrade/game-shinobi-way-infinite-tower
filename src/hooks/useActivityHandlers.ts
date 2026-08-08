@@ -43,6 +43,7 @@ import {
   resolveVisitContext,
   completeActivityOnVisit,
   visitToFloorPatch,
+  applyVisitActivityComplete,
   resolvePostActivityGameState,
 } from '../game/session';
 
@@ -87,6 +88,116 @@ function applyTrainingVisitComplete(args: {
       args.setSelectedBranchingRoom(null);
       args.setGameState(resolvePostActivityGameState(args.region, next));
     }
+  } else if (args.locationFloor && args.region?.currentLocationId) {
+    args.setSelectedBranchingRoom(null);
+    args.setGameState(GameState.LOCATION_EXPLORE);
+  } else {
+    args.setSelectedBranchingRoom(null);
+    args.setGameState(GameState.REGION_MAP);
+  }
+}
+
+/**
+ * Complete event on the active VisitContext (location preferred over branching).
+ * Heat is applied earlier in handleEventChoice (working floors) — not here.
+ * Optional intel is granted only on the location complete path.
+ * Returns true when the activity was completed on a visit floor.
+ */
+function applyEventVisitComplete(args: {
+  locationFloor: BranchingFloor | null;
+  branchingFloor: BranchingFloor | null;
+  roomId: string | null | undefined;
+  region: Region | null;
+  setLocationFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>;
+  setBranchingFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>;
+  setSelectedBranchingRoom: React.Dispatch<React.SetStateAction<BranchingRoom | null>>;
+  setGameState: (state: GameState) => void;
+  returnToMapActivityComplete: (
+    updatedFloor?: BranchingFloor,
+    options?: { floor?: BranchingFloor | null; intel?: number }
+  ) => void;
+  /** Absolute intel after this event (location path only). */
+  intel?: number;
+  /** Delta for logIntelGain when intel is granted. */
+  intelGain?: number;
+  setCurrentIntel?: React.Dispatch<React.SetStateAction<number>>;
+}): boolean {
+  const visit = resolveVisitContext({
+    locationFloor: args.locationFloor,
+    branchingFloor: args.branchingFloor,
+  });
+  if (!visit || !args.roomId) return false;
+
+  logActivityComplete(args.roomId, 'event');
+  const next = completeActivityOnVisit(visit, args.roomId, 'event');
+  const patch = visitToFloorPatch(next);
+  if (patch.locationFloor) args.setLocationFloor(patch.locationFloor);
+  if (patch.branchingFloor) args.setBranchingFloor(patch.branchingFloor);
+
+  if (next.kind === 'location' && args.region?.currentLocationId) {
+    if (args.intel !== undefined && args.setCurrentIntel) {
+      args.setCurrentIntel(args.intel);
+      if (args.intelGain !== undefined) {
+        logIntelGain('Event', args.intelGain, args.intel);
+      }
+      // Pass fresh floor + intel so location-complete redraw is not stale
+      args.returnToMapActivityComplete(next.floor, { intel: args.intel });
+    } else {
+      args.returnToMapActivityComplete(next.floor);
+    }
+  } else {
+    args.setSelectedBranchingRoom(null);
+    args.setGameState(resolvePostActivityGameState(args.region, next));
+  }
+  return true;
+}
+
+/**
+ * Complete scrollDiscovery on the active VisitContext (location preferred over branching).
+ * Clan rite sets floor.clanRiteUsed so the location cannot re-offer the free rite.
+ */
+function applyScrollVisitComplete(args: {
+  locationFloor: BranchingFloor | null;
+  branchingFloor: BranchingFloor | null;
+  roomId: string | undefined;
+  region: Region | null;
+  isClan?: boolean;
+  setLocationFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>;
+  setBranchingFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>;
+  setSelectedBranchingRoom: React.Dispatch<React.SetStateAction<BranchingRoom | null>>;
+  setGameState: (state: GameState) => void;
+  returnToMapActivityComplete: (
+    updatedFloor?: BranchingFloor,
+    options?: { floor?: BranchingFloor | null; intel?: number }
+  ) => void;
+}): void {
+  const visit = resolveVisitContext({
+    locationFloor: args.locationFloor,
+    branchingFloor: args.branchingFloor,
+  });
+  if (visit && args.roomId) {
+    let next = completeActivityOnVisit(visit, args.roomId, 'scrollDiscovery');
+    if (args.isClan) {
+      next = { ...next, floor: { ...next.floor, clanRiteUsed: true } };
+    }
+    const patch = visitToFloorPatch(next);
+    if (patch.locationFloor) args.setLocationFloor(patch.locationFloor);
+    if (patch.branchingFloor) args.setBranchingFloor(patch.branchingFloor);
+    if (next.kind === 'location' && args.region?.currentLocationId) {
+      args.returnToMapActivityComplete(next.floor);
+    } else {
+      args.setSelectedBranchingRoom(null);
+      args.setGameState(resolvePostActivityGameState(args.region, next));
+    }
+  } else if (args.locationFloor && args.isClan) {
+    // Room id lost but clan rite already spent — still seal the floor flag
+    args.setLocationFloor({ ...args.locationFloor, clanRiteUsed: true });
+    args.setSelectedBranchingRoom(null);
+    args.setGameState(
+      args.region?.currentLocationId
+        ? GameState.LOCATION_EXPLORE
+        : GameState.REGION_MAP
+    );
   } else if (args.locationFloor && args.region?.currentLocationId) {
     args.setSelectedBranchingRoom(null);
     args.setGameState(GameState.LOCATION_EXPLORE);
@@ -362,10 +473,19 @@ export function useActivityHandlers(
       (visit ? getCurrentRoom(visit.floor)?.id : undefined);
 
     /** Complete merchant on the active visit floor and exit to map / explore. */
-    const finishMerchantLeave = (activeVisit: NonNullable<typeof visit>, id: string) => {
+    const finishMerchantLeave = (id: string) => {
       logActivityComplete(id, 'merchant');
-      const next = completeActivityOnVisit(activeVisit, id, 'merchant');
-      const patch = visitToFloorPatch(next);
+      const result = applyVisitActivityComplete({
+        locationFloor,
+        branchingFloor,
+        roomId: id,
+        activityType: 'merchant',
+      });
+      if (!result) {
+        setGameState(resolvePostActivityGameState(region, visit));
+        return;
+      }
+      const { visit: next, patch } = result;
       if (patch.locationFloor) setLocationFloor(patch.locationFloor);
       if (patch.branchingFloor) setBranchingFloor(patch.branchingFloor);
 
@@ -384,7 +504,7 @@ export function useActivityHandlers(
       setMerchantDiscount(0);
       addLog('The merchant has packed up.', 'info');
       if (visit && roomId) {
-        finishMerchantLeave(visit, roomId);
+        finishMerchantLeave(roomId);
       } else {
         setGameState(resolvePostActivityGameState(region, visit));
       }
@@ -400,7 +520,7 @@ export function useActivityHandlers(
     addLog('The merchant waves goodbye.', 'info');
 
     if (visit && roomId) {
-      finishMerchantLeave(visit, roomId);
+      finishMerchantLeave(roomId);
     } else {
       // Mid-location without a successful complete — stay on site map (never REGION_MAP)
       setGameState(resolvePostActivityGameState(region, visit));
@@ -679,30 +799,18 @@ export function useActivityHandlers(
     }
     logStateChange('SCROLL_DISCOVERY', 'LOCATION_EXPLORE|REGION_MAP', 'scroll done');
 
-    if (branchingFloor && roomId) {
-      let updatedFloor = completeActivity(branchingFloor, roomId, 'scrollDiscovery');
-      if (isClan) updatedFloor = { ...updatedFloor, clanRiteUsed: true };
-      setBranchingFloor(updatedFloor);
-    }
-
-    let updatedLocationFloor: BranchingFloor | undefined;
-    if (locationFloor && region && roomId) {
-      updatedLocationFloor = completeActivity(locationFloor, roomId, 'scrollDiscovery');
-      if (isClan) updatedLocationFloor = { ...updatedLocationFloor, clanRiteUsed: true };
-      setLocationFloor(updatedLocationFloor);
-    } else if (locationFloor && isClan) {
-      setLocationFloor({ ...locationFloor, clanRiteUsed: true });
-    }
-
-    if (updatedLocationFloor && region?.currentLocationId) {
-      returnToMapActivityComplete(updatedLocationFloor);
-    } else if (locationFloor && region?.currentLocationId) {
-      setSelectedBranchingRoom(null);
-      setGameState(GameState.LOCATION_EXPLORE);
-    } else {
-      setSelectedBranchingRoom(null);
-      setGameState(GameState.REGION_MAP);
-    }
+    applyScrollVisitComplete({
+      locationFloor,
+      branchingFloor,
+      roomId,
+      region,
+      isClan,
+      setLocationFloor,
+      setBranchingFloor,
+      setSelectedBranchingRoom,
+      setGameState,
+      returnToMapActivityComplete,
+    });
   }, [branchingFloor, locationFloor, region, setBranchingFloor, setLocationFloor, setSelectedBranchingRoom, setGameState, returnToMapActivityComplete]);
 
   /** Vendor buy (ryo) or clan skill pick (free + clanLevel++) */
@@ -862,31 +970,23 @@ export function useActivityHandlers(
       (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
       (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined);
 
-    if (branchingFloor && roomId) {
+    if (roomId) {
       logActivityComplete(roomId, 'scrollDiscovery');
-      const updatedFloor = completeActivity(branchingFloor, roomId, 'scrollDiscovery');
-      setBranchingFloor(updatedFloor);
     }
-
-    let updatedLocationFloor: BranchingFloor | undefined;
-    if (locationFloor && region && roomId) {
-      logActivityComplete(roomId, 'scrollDiscovery');
-      updatedLocationFloor = completeActivity(locationFloor, roomId, 'scrollDiscovery');
-      setLocationFloor(updatedLocationFloor);
-    }
-
     logStateChange('SCROLL_DISCOVERY', 'LOCATION_EXPLORE|REGION_MAP', 'scroll skipped');
     addLog('You leave the scrolls behind.', 'info');
 
-    if (updatedLocationFloor && region?.currentLocationId) {
-      returnToMapActivityComplete(updatedLocationFloor);
-    } else if (locationFloor && region?.currentLocationId) {
-      setSelectedBranchingRoom(null);
-      setGameState(GameState.LOCATION_EXPLORE);
-    } else {
-      setSelectedBranchingRoom(null);
-      setGameState(GameState.REGION_MAP);
-    }
+    applyScrollVisitComplete({
+      locationFloor,
+      branchingFloor,
+      roomId,
+      region,
+      setLocationFloor,
+      setBranchingFloor,
+      setSelectedBranchingRoom,
+      setGameState,
+      returnToMapActivityComplete,
+    });
   }, [branchingFloor, selectedBranchingRoom, locationFloor, region, setBranchingFloor, setLocationFloor, setScrollDiscoveryData, setSelectedBranchingRoom, setGameState, addLog, returnToMapActivityComplete]);
 
   const handleEliteFight = useCallback(() => {
@@ -928,56 +1028,37 @@ export function useActivityHandlers(
     const result = attemptEliteEscape(player, playerStats, challenge.enemy);
     logExplorationCheckpoint('Elite Escape attempt', { success: result.success, roll: result.roll, chance: result.chance });
 
+    // Single active visit (location preferred) — avoid dual-write completeActivity
+    const visit = resolveVisitContext({ locationFloor, branchingFloor });
+
     if (result.success) {
       logActivityComplete(challenge.room.id, 'eliteChallenge');
-
-      // Prefer locationFloor (region mode): complete activity + pass fresh floor so
-      // return path does not re-trigger the elite challenge from a stale snapshot.
-      if (locationFloor && region) {
-        const updatedFloor = completeActivity(
-          locationFloor,
-          challenge.room.id,
-          'eliteChallenge',
-        );
-        setLocationFloor(updatedFloor);
-        if (branchingFloor) {
-          setBranchingFloor(
-            completeActivity(branchingFloor, challenge.room.id, 'eliteChallenge'),
-          );
-        }
-        addLog(result.message, 'info');
-        returnToMapActivityComplete(updatedFloor);
-        return;
-      }
-
-      if (branchingFloor) {
-        const updatedFloor = completeActivity(
-          branchingFloor,
-          challenge.room.id,
-          'eliteChallenge',
-        );
-        setBranchingFloor(updatedFloor);
-        addLog(result.message, 'info');
-        setGameState(GameState.REGION_MAP);
-        return;
-      }
-
       addLog(result.message, 'info');
-      if (locationFloor && region && region.currentLocationId) {
-        setGameState(GameState.LOCATION_EXPLORE);
-      } else {
-        setGameState(GameState.REGION_MAP);
+
+      // Complete on active visit only + pass fresh floor so return path does not
+      // re-trigger the elite challenge from a stale snapshot.
+      if (visit) {
+        const next = completeActivityOnVisit(visit, challenge.room.id, 'eliteChallenge');
+        const patch = visitToFloorPatch(next);
+        if (patch.locationFloor) setLocationFloor(patch.locationFloor);
+        if (patch.branchingFloor) setBranchingFloor(patch.branchingFloor);
+
+        if (next.kind === 'location' && region?.currentLocationId) {
+          returnToMapActivityComplete(next.floor);
+        } else {
+          setGameState(resolvePostActivityGameState(region, next));
+        }
+        return;
       }
+
+      setGameState(resolvePostActivityGameState(region, null));
     } else {
       logExplorationCheckpoint('Elite Escape failed - must fight');
       addLog(result.message, 'danger');
       setPendingArtifact(challenge.artifact);
       setSelectedBranchingRoom(challenge.room);
-      if (locationFloor && region && region.currentLocationId) {
-        setGameState(GameState.LOCATION_EXPLORE);
-      } else {
-        setGameState(GameState.REGION_MAP);
-      }
+      // Map behind combat (same return state as fight path; heat chain untouched)
+      setGameState(resolvePostActivityGameState(region, visit));
       if (onEngageCombat) {
         onEngageCombat(challenge.room, challenge.enemy);
       } else {
@@ -1404,17 +1485,21 @@ export function useActivityHandlers(
 
     // No outcome panel — mark event consumed immediately so it cannot re-open
     setActiveEvent(null);
-    if (eventRoomId && workingLocationFloor && region) {
-      logActivityComplete(eventRoomId, 'event');
-      const updatedFloor = completeActivity(workingLocationFloor, eventRoomId, 'event');
-      setLocationFloor(updatedFloor);
-      returnToMapActivityComplete(updatedFloor);
+    // Single visit floor (heat already on working floors above)
+    if (
+      applyEventVisitComplete({
+        locationFloor: workingLocationFloor,
+        branchingFloor: workingBranchingFloor,
+        roomId: eventRoomId,
+        region,
+        setLocationFloor,
+        setBranchingFloor,
+        setSelectedBranchingRoom,
+        setGameState,
+        returnToMapActivityComplete,
+      })
+    ) {
       return true;
-    }
-    if (eventRoomId && workingBranchingFloor) {
-      logActivityComplete(eventRoomId, 'event');
-      const updatedFloor = completeActivity(workingBranchingFloor, eventRoomId, 'event');
-      setBranchingFloor(updatedFloor);
     }
     if (inLocationMode) {
       setGameState(GameState.LOCATION_EXPLORE);
@@ -1422,7 +1507,7 @@ export function useActivityHandlers(
       setGameState(GameState.REGION_MAP);
     }
     return true;
-  }, [player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty, region, locationFloor, branchingFloor, selectedBranchingRoom, currentLocation, eventOutcome, setPlayer, setRegion, setLocationFloor, setBranchingFloor, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, addLog, checkLevelUp, handleCombatVictory, startCombat, returnToMapActivityComplete]);
+  }, [player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty, region, locationFloor, branchingFloor, selectedBranchingRoom, currentLocation, eventOutcome, setPlayer, setRegion, setLocationFloor, setBranchingFloor, setSelectedBranchingRoom, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, addLog, checkLevelUp, handleCombatVictory, startCombat, returnToMapActivityComplete]);
 
   const handleEventOutcomeClose = useCallback(() => {
     logModalClose('EventOutcomeModal');
@@ -1477,33 +1562,33 @@ export function useActivityHandlers(
       (branchingFloor ? getCurrentRoom(branchingFloor)?.id : undefined) ??
       null;
 
-    if (locationFloor && roomId) {
-      logActivityComplete(roomId, 'event');
-      const updatedFloor = completeActivity(locationFloor, roomId, 'event');
-      setLocationFloor(updatedFloor);
+    // T-068: fog/visibility_penalty scales event intel (parity combat/infoGather)
+    // Granted only on location complete path inside applyEventVisitComplete.
+    const baseEventIntel =
+      closed.outcome?.effects?.intelGain ?? INTEL_GAIN.EVENT_DEFAULT;
+    const eventIntelGain = applyVisibilityToIntelGain(
+      baseEventIntel,
+      getLocationTerrainMods(currentLocation?.terrainEffects),
+    );
+    const nextIntel = Math.min(100, currentIntel + eventIntelGain);
 
-      // T-068: fog/visibility_penalty scales event intel (parity combat/infoGather)
-      const baseEventIntel =
-        closed.outcome?.effects?.intelGain ?? INTEL_GAIN.EVENT_DEFAULT;
-      const eventIntelGain = applyVisibilityToIntelGain(
-        baseEventIntel,
-        getLocationTerrainMods(currentLocation?.terrainEffects),
-      );
-      const nextIntel = Math.min(100, currentIntel + eventIntelGain);
-      setCurrentIntel(nextIntel);
-      logIntelGain('Event', eventIntelGain, nextIntel);
-
-      // Pass fresh floor + intel so location-complete redraw is not stale
-      returnToMapActivityComplete(updatedFloor, { intel: nextIntel });
-      return;
-    }
-
-    if (branchingFloor && roomId) {
-      logActivityComplete(roomId, 'event');
-      const updatedFloor = completeActivity(branchingFloor, roomId, 'event');
-      setBranchingFloor(updatedFloor);
-      setSelectedBranchingRoom(null);
-      setGameState(GameState.REGION_MAP);
+    // Single visit floor via resolveVisitContext / completeActivityOnVisit
+    if (
+      applyEventVisitComplete({
+        locationFloor,
+        branchingFloor,
+        roomId,
+        region,
+        setLocationFloor,
+        setBranchingFloor,
+        setSelectedBranchingRoom,
+        setGameState,
+        returnToMapActivityComplete,
+        intel: nextIntel,
+        intelGain: eventIntelGain,
+        setCurrentIntel,
+      })
+    ) {
       return;
     }
 

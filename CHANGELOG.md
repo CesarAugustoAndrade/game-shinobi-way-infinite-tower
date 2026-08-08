@@ -13,6 +13,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - **Sealed Vault Exit Option:** Added exit button and choice option in `TreasureChoice.tsx` & `useTreasureHandlers.ts` to allow leaving the sealed vault room without spending chakra.
 
 ### Changed
+- **SoC follow-ups:** VisitContext on treasure/scroll/event/elite/approach/victory; Survival guts for hazards + sim reflection; RoomGraph cycle broken (`moveToRoom` wrapper in LocationSystem); ModalShell on Reward + LocationComplete; maps use `queryBlockingModal`; mult-list builders + Player/Enemy wire; skill preview floor parity; session soft-lock `setGameStateSynced`.
 - **Sprint D UI honesty:** combat skill playability/view-model (`skillPlayability` + `combatSkillViewModel`); unified `getMerchantBuyPrice`; craft `listCraftOptions` for Bag; `ModalShell` + explore chrome block helper; Hand/Combat/Merchant/Bag wired to shared pure helpers.
 - **Sprint C content & gods:** split LocationSystem (`RoomGraphSystem`, `TreasureHuntSystem`, `FloorVisitSystem`) and LootSystem (`ItemGenerationSystem`, `CraftSystem`, `InventorySystem`) with facade re-exports; move STAT_FORMULAS/bag limits toward config; event `EVENT_FLAG_RUN_MODIFIERS` data + effect handler pipeline in EventSystem.
 - **Sprint B combat single path:** `SurvivalSystem` (`checkLethalDamage` out of EnemyTurn); `SkillResolutionSystem` shared hit pipeline (`resolveSuccessfulHit`); `skillPlayability` gates; PlayerTurn/EnemyTurn/CombatSimulationService/BattleSimulator wire into shared hit core; see `docs/combat-single-path.md`.

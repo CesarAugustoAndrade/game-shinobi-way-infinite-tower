@@ -1,7 +1,8 @@
-# Combat Single Path (Sprint B)
+# Combat Single Path (Sprint B + D)
 
-Contract for consolidating the three combat entry points onto one shared hit core.
-Does **not** change combat math — only where the hit pipeline lives.
+Contract for consolidating the three combat entry points onto one shared hit core,
+plus Sprint D UI honesty for playability / skill-card view-models.
+Does **not** change combat math — only where the hit pipeline and UI gates live.
 
 ## Three entry paths
 
@@ -41,7 +42,8 @@ Suggested pre-mitigation stacks (product of mults; floor after each — see `Ski
 - **Enemy → player:** `LaunchProperties.ENEMY_DAMAGE_MULTIPLIER`, ambush mult, `(1 + enemyAttackBonus)`  
   Post defender: damage reduction % then postureDefenseMod.
 
-Playability gates for UI/AI (not part of damage math): **`skillPlayability.canPlaySkill` / `getSkillBlockReason`**.
+Playability gates for UI/AI (not part of damage math): **`skillPlayability.canPlaySkill` / `getSkillBlockReason`**.  
+Skill-card damage preview / block copy: **`combatSkillViewModel`** (`previewSkillDamageForUi`, `formatSkillBlockReason`, …).
 
 ### Import surface
 
@@ -56,15 +58,17 @@ import {
   canPlaySkill,
 } from './CombatWorkflowSystem';
 // or directly from SurvivalSystem / SkillResolutionSystem / skillPlayability
+// UI preview helpers: combatSkillViewModel
 ```
 
-## Wiring status (Sprint B — done)
+## Wiring status (Sprint B hit core ✅ · Sprint D UI ✅)
 
 | Module | `checkLethalDamage` | `resolveSuccessfulHit` / shared hit | Notes |
 |--------|---------------------|--------------------------------------|--------|
 | **SurvivalSystem** | ✅ | n/a | Extracted from EnemyTurn |
 | **SkillResolutionSystem** | n/a | ✅ | Pure hit core |
-| **skillPlayability** | n/a | n/a | ✅ gates ready; UI not fully switched yet |
+| **skillPlayability** | n/a | n/a | ✅ gates; **Combat UI uses** `canPlaySkill` / `getSkillBlockReason` |
+| **combatSkillViewModel** | n/a | n/a | ✅ **Hand** damage preview + block-reason formatting |
 | **PlayerTurnSystem** | ✅ reflection lethal | ✅ pre mults + defense bonus → `resolveSuccessfulHit` | Live player hits |
 | **EnemyTurnSystem** | ✅ attacks + DoT lethal | ✅ pre/post mults → `resolveSuccessfulHit` | Live enemy hits |
 | **CombatSimulationService** | ✅ hits + DoT | ✅ | Auto-resolve in-run |
@@ -72,27 +76,38 @@ import {
 
 ## Formal subset (honest gaps remaining)
 
-Sprint B delivers a **shared hit core**, not full turn-orchestrator identity.
+Sprint B delivers a **shared hit core**, not full turn-orchestrator identity.  
+Sprint D closes live **playability / hand preview** onto pure helpers; auto/balance still use lighter filters.
 
 | Area | Live | Auto (`simulateGameCombat`) | Balance (`resolveBattle`) | Notes |
 |------|------|-----------------------------|---------------------------|--------|
-| Hit core | **`resolveSuccessfulHit`** | **`resolveSuccessfulHit`** | **`resolveSuccessfulHit`** | Mult *lists* still built per caller (order documented) |
-| Guts / lethal | **`checkLethalDamage`** | **`checkLethalDamage`** | **`checkLethalDamage`** | Shared SurvivalSystem |
+| Hit core | **`resolveSuccessfulHit`** | **`resolveSuccessfulHit`** | **`resolveSuccessfulHit`** | Mult lists via `buildPlayer/Enemy*Mults` factories where wired |
+| Guts / lethal | **`checkLethalDamage`** | **`checkLethalDamage`** | **`checkLethalDamage`** | Shared SurvivalSystem (incl. hazards + sim reflection) |
 | Turn orchestration | PlayerTurn / EnemyTurn | Parallel auto loop | Parallel sim loop | Not merged end-to-end |
-| Deck / hand / AP | Full T-004 | **Not full deck** (skill list select) | Mirrors deck/hand/AP | Auto is weaker formal subset |
-| Playability gates | Partial (Combat.tsx / useSkill) | skillAllowedAt filters | skillAllowedAt | Prefer `skillPlayability` next |
+| Deck / hand / AP | Full T-004 | **Not full deck** (skill list select) | Mirrors deck/hand/AP | **Auto remains the weaker formal subset** |
+| Playability gates | **`skillPlayability`** via Combat.tsx → Hand | `skillAllowedAt` (+ local filters) | `skillAllowedAt` / AI select | Live UI switched; sims keep range/skillAllowedAt |
+| Skill card preview | **`combatSkillViewModel`** | n/a | n/a | Hand only |
 | Effects / DoT / passives | Full live phases | Simplified ticks | Simplified ticks | Outside hit-core scope |
 
-### Follow-ups (post Sprint B)
+### Adjacent residuals (not combat-hit-core, still open)
 
-1. Switch Combat UI / Hand gates to `skillPlayability`.
-2. Optionally drive auto-combat via `useSkill` / `processEnemyTurn` end-to-end for full parity.
-3. Align mult-list construction helpers so player/enemy/sim build stacks from one factory.
+| Residual | Status |
+|----------|--------|
+| **Auto deck subset** | Auto combat still selects from a skill list rather than full live draw/hand/AP economy. Documented formal gap above. |
+| **VisitContext** | Treasure / scroll / event / elite / approach / victory / merchant / training use VisitContext single-floor. App still dual-*holds* floors in state (legacy); rest/infoGather may still complete via room-enter path. |
+| **RoomGraph cycle** | **Fixed.** `RoomGraphSystem.moveToRoom` is pure graph; `LocationSystem.moveToRoom` wraps graph + `ensureGrandchildrenExist`. One-way: Location → RoomGraph. |
 
-**Bottom line:** Live, auto, and balance all share **Survival + SkillResolution** for connected hits and lethal. Orchestration loops remain separate; auto deck/AP remains a documented subset.
+### Follow-ups (remaining)
+
+1. ~~Switch Combat UI / Hand gates to `skillPlayability`.~~ **Done (Sprint D).**
+2. Optionally drive auto-combat via `useSkill` / `processEnemyTurn` end-to-end for full deck/AP parity.
+3. ~~Mult-list factory.~~ **Done** (`buildPlayerPreMitigationMults` / `buildEnemyPreMitigationMults` / `buildPlayerDefensePostMults`); wire remaining sim callers optionally.
+4. ~~Break RoomGraph ↔ Location cycle.~~ **Done.** VisitContext residual: rest/infoGather enter-complete only.
+
+**Bottom line:** Live, auto, and balance all share **Survival + SkillResolution** for connected hits and lethal (incl. hazard/sim reflection guts). Live Combat/Hand share **skillPlayability + combatSkillViewModel**. Orchestration loops remain separate; **auto deck/AP remains a documented subset**.
 
 ## Out of scope for this doc
 
 - Changing formulas in `docs/FORMULAS.md` / `CombatCalculationSystem` / `StatSystem`
-- Forcing auto onto `useSkill`/`processEnemyTurn` end-to-end
+- Forcing auto onto `useSkill`/`processEnemyTurn` end-to-end (listed as optional follow-up only)
 - Unit tests (add only when explicitly requested)

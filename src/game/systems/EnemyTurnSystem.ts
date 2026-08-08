@@ -35,7 +35,6 @@ import {
   RangeMoveTrigger,
 } from '../types';
 import {
-  checkGuts,
   resistStatus,
   calculateDotDamage,
   calculateDamage,
@@ -66,7 +65,11 @@ import {
   getDamageReductionPercent,
 } from './EquipmentPassiveSystem';
 import { postureDefenseMod } from './PostureSystem';
-import { resolveSuccessfulHit } from './SkillResolutionSystem';
+import {
+  resolveSuccessfulHit,
+  buildEnemyPreMitigationMults,
+  buildPlayerDefensePostMults,
+} from './SkillResolutionSystem';
 import { chance } from '../utils/rng';
 import type { CombatState, EnemyTurnResult } from './combat-types';
 import { LaunchProperties } from '../../config/featureFlags';
@@ -445,20 +448,20 @@ export function executeEnemyAction(
     // T-064: location enemy_attack_bonus (fraction) from terrainEffects
     const atkBonus = combatState?.locationTerrainMods?.enemyAttackBonus ?? 0;
 
-    // Pre-mitigation: launch mult → ambush → attack bonus (1.0 entries skipped)
-    const preMitigationMultipliers = [
-      LaunchProperties.ENEMY_DAMAGE_MULTIPLIER,
+    // Pre-mitigation: launch mult → ambush → attack bonus (shared factory)
+    const preMitigationMultipliers = buildEnemyPreMitigationMults({
+      enemyDamageMultiplier: LaunchProperties.ENEMY_DAMAGE_MULTIPLIER,
       ambushMult,
-      atkBonus !== 0 ? 1 + atkBonus : 1,
-    ];
+      enemyAttackBonus: atkBonus !== 0 ? atkBonus : undefined,
+    });
 
     // Post-mitigation: artifact DR then posture defense (T-004)
     const drPercent = getDamageReductionPercent(player, playerStats.derived.maxHp);
     const postureMod = combatState ? postureDefenseMod(combatState.posture) : 1;
-    const postMitigationMultipliers = [
-      drPercent !== 0 ? 1 - drPercent / 100 : 1,
-      postureMod,
-    ];
+    const postMitigationMultipliers = buildPlayerDefensePostMults({
+      damageReductionPercent: drPercent !== 0 ? drPercent : undefined,
+      postureDefenseMod: postureMod,
+    });
 
     // Shared hit pipeline: pre-mult → mitigation → post-mult
     const hit = resolveSuccessfulHit({
@@ -672,6 +675,7 @@ export function processPostTurnResources(
  * @param terrain - Terrain definition
  * @param playerStats - Player stats for guts check
  * @param gutsContext - Current guts state for this turn
+ * @param artifactGutsUsed - Whether artifact guts was already used this combat
  */
 export function applyTerrainHazardsPhase(
   playerHp: number,
@@ -680,7 +684,8 @@ export function applyTerrainHazardsPhase(
   enemy: Enemy,
   terrain: TerrainDefinition,
   playerStats: CharacterStats,
-  gutsContext: GutsContext
+  gutsContext: GutsContext,
+  artifactGutsUsed?: boolean
 ): TerrainHazardPhaseResult {
   let newPlayerHp = playerHp;
   let newEnemyHp = enemyHp;
@@ -708,19 +713,28 @@ export function applyTerrainHazardsPhase(
     enemyDefeated = true;
   }
 
+  // Player died from hazard — SurvivalSystem (stat guts + artifact guts)
   if (newPlayerHp <= 0 && !enemyDefeated) {
-    if (!updatedGutsContext.triggered) {
-      const gutsResult = checkGuts(newPlayerHp, 0, playerStats.derived.gutsChance);
-      if (!gutsResult.survived) {
-        playerDefeated = true;
-      } else {
-        newPlayerHp = 1;
-        updatedGutsContext.triggered = true;
-        logs.push("GUTS! You survived the hazard!");
-      }
-    } else {
-      // Guts already used this turn, player dies
+    const artifactGuts = checkGutsPassive(player);
+    const lethalCheck = checkLethalDamage(
+      newPlayerHp,
+      0, // HP already reduced by hazard
+      playerStats.derived.gutsChance,
+      updatedGutsContext,
+      artifactGuts,
+      artifactGutsUsed,
+      playerStats.derived.maxHp
+    );
+
+    if (!lethalCheck.survived) {
       playerDefeated = true;
+    } else {
+      newPlayerHp = lethalCheck.newHp;
+      updatedGutsContext.triggered = lethalCheck.gutsTriggered;
+      updatedGutsContext.artifactTriggered = lethalCheck.artifactGutsTriggered;
+      if (lethalCheck.log) {
+        logs.push(lethalCheck.log);
+      }
     }
   }
 
@@ -1118,7 +1132,8 @@ export function processEnemyTurn(
       updatedEnemy,
       combatState.terrain,
       playerStats,
-      gutsContext
+      gutsContext,
+      combatState.artifactGutsUsed
     );
 
     updatedPlayer.currentHp = hazardResult.playerHp;

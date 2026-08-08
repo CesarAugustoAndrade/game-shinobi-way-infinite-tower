@@ -10,8 +10,9 @@
  * - Room state queries
  * - Combat setup readout for a room
  *
- * Zero React/DOM. Generation (ensureGrandchildrenExist) stays in LocationSystem;
- * moveToRoom calls it so foresight levels remain populated after travel.
+ * Zero React/DOM. Does NOT import LocationSystem (avoids circular deps).
+ * Floor expansion (ensureGrandchildrenExist) is applied by LocationSystem's
+ * public moveToRoom wrapper after this pure navigation step.
  */
 
 import {
@@ -21,11 +22,9 @@ import {
   RoomActivities,
   RoomTier,
   TerrainType,
-  Player,
   Enemy,
   ACTIVITY_ORDER,
 } from '../types';
-import { ensureGrandchildrenExist } from './LocationSystem';
 
 // ============================================================================
 // ROOM NAVIGATION
@@ -51,13 +50,13 @@ export function isRoomAccessible(
 }
 
 /**
- * Move to a new room
- * Also triggers dynamic generation of grandchildren for the new room
+ * Pure move to a new room (graph flags only).
+ * Callers that need foresight generation should use LocationSystem.moveToRoom,
+ * which wraps this and runs ensureGrandchildrenExist.
  */
 export function moveToRoom(
   branchingFloor: BranchingFloor,
   targetRoomId: string,
-  player?: Player
 ): BranchingFloor {
   const targetRoom = branchingFloor.rooms.find(r => r.id === targetRoomId);
 
@@ -76,17 +75,12 @@ export function moveToRoom(
     isCurrent: room.id === targetRoomId,
   }));
 
-  let updatedFloor: BranchingFloor = {
+  return {
     ...branchingFloor,
     currentRoomId: targetRoomId,
     rooms: updatedRooms,
     roomsVisited: isNewRoom ? branchingFloor.roomsVisited + 1 : branchingFloor.roomsVisited,
   };
-
-  // Generate grandchildren for this room's children (ensure 2 levels visible)
-  updatedFloor = ensureGrandchildrenExist(updatedFloor, targetRoomId, player);
-
-  return updatedFloor;
 }
 
 // ============================================================================

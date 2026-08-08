@@ -46,6 +46,7 @@ import {
   type LocationTerrainMods,
 } from './LocationTerrainSystem';
 import { getTerrainElementAmplification } from './CombatCalculationSystem';
+import { applyDamageMultipliers } from './SkillResolutionSystem';
 
 // ============================================================================
 // BLOCK REASON FORMATTING
@@ -183,11 +184,13 @@ export function previewSkillDamageForUi(input: SkillDamagePreviewInput): {
     modified = applyEnemyDefenseBonus(modified, locationTerrainMods);
   }
 
-  const predictedDamage = Math.floor(
-    Math.floor(modified * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER) *
-      postureDamageMod(posture) *
-      stanceBonusDamageMult(skill, posture),
-  );
+  // Match PlayerTurn resolveSuccessfulHit preMitigation stack:
+  // launch → posture → stance, floor after each (not product then one floor).
+  const predictedDamage = applyDamageMultipliers(modified, [
+    LaunchProperties.PLAYER_DAMAGE_MULTIPLIER,
+    postureDamageMod(posture),
+    stanceBonusDamageMult(skill, posture),
+  ]);
 
   const effectiveness = getElementEffectiveness(skill.element, enemy.element);
   const isSuperEffective = effectiveness > 1.0;

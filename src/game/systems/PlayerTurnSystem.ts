@@ -70,6 +70,7 @@ import {
 import {
   applyDamageMultipliers,
   applyEnemyDefenseBonusToDamage,
+  buildPlayerPreMitigationMults,
   resolveSuccessfulHit,
 } from './SkillResolutionSystem';
 import {
@@ -573,28 +574,30 @@ export function useSkill(
     // Successful hit — shared SkillResolution pipeline (order preserved):
     // firstHit → terrainAmp → locSkill → enemyDef (additive-style) →
     // PLAYER_DAMAGE_MULTIPLIER → posture → stance → mitigation
-    const earlyMults: number[] = [];
-    let firstHitApplied = false;
-
-    if (combatState?.isFirstTurn && combatState.firstHitMultiplier > 1.0) {
-      earlyMults.push(combatState.firstHitMultiplier);
-      firstHitApplied = true;
-    }
-
+    //
+    // enemyDef must stay BETWEEN early mults and late mults, so the builder
+    // is applied in two passes (same helper, split opts).
+    let terrainAmp: number | undefined;
     if (combatState?.terrain && player.element) {
-      const terrainAmp = getTerrainElementAmplification(combatState.terrain, player.element);
-      if (terrainAmp > 1.0) {
-        earlyMults.push(terrainAmp);
-      }
+      const amp = getTerrainElementAmplification(combatState.terrain, player.element);
+      if (amp > 1.0) terrainAmp = amp;
     }
 
-    // T-063: location terrain skill mult (water/fire/mental); enemy defense after product mults
+    let locationSkillMult: number | undefined;
     if (combatState?.locationTerrainMods) {
       const locMult = skillLocationDamageMult(skill, combatState.locationTerrainMods);
-      if (locMult !== 1) {
-        earlyMults.push(locMult);
-      }
+      if (locMult !== 1) locationSkillMult = locMult;
     }
+
+    const firstHitApplied =
+      !!combatState?.isFirstTurn && (combatState.firstHitMultiplier ?? 1) > 1.0;
+
+    const earlyMults = buildPlayerPreMitigationMults({
+      isFirstTurn: combatState?.isFirstTurn,
+      firstHitMultiplier: combatState?.firstHitMultiplier,
+      terrainAmp,
+      locationSkillMult,
+    });
 
     const afterLoc = applyDamageMultipliers(damageResult.finalDamage, earlyMults);
     const afterDef = applyEnemyDefenseBonusToDamage(
@@ -611,11 +614,11 @@ export function useSkill(
 
     const hit = resolveSuccessfulHit({
       rawDamage: afterDef,
-      preMitigationMultipliers: [
-        LaunchProperties.PLAYER_DAMAGE_MULTIPLIER,
-        postureDamageMod(posture),
-        stanceCardMult,
-      ],
+      preMitigationMultipliers: buildPlayerPreMitigationMults({
+        playerDamageMultiplier: LaunchProperties.PLAYER_DAMAGE_MULTIPLIER,
+        postureMod: postureDamageMod(posture),
+        stanceMult: stanceCardMult,
+      }),
       defenderBuffs: enemy.activeBuffs,
       defenderLabel: enemy.name,
     });

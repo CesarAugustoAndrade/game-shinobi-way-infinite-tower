@@ -104,6 +104,7 @@ import { getAvailableEventsForPlayer, selectWeightedEvent } from './EventSystem'
 import { calculateXP, calculateRyo } from './ScalingSystem';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
 import { generateHunterFromGuardian } from './FloorVisitSystem';
+import { moveToRoom as moveToRoomGraph } from './RoomGraphSystem';
 
 // Re-export scaling functions for backward compatibility
 export { dangerToFloor, getWealthMultiplier, applyWealthToRyo } from './ScalingSystem';
@@ -1677,12 +1678,29 @@ export function generateBranchingFloor(
 }
 
 // ============================================================================
-// ROOM GRAPH (navigation / activity / queries) — re-exported from RoomGraphSystem
+// ROOM GRAPH (navigation / activity / queries)
 // ============================================================================
+// Pure graph ops live in RoomGraphSystem (no import of this file).
+// moveToRoom is wrapped here so foresight expansion stays with generation.
+
+/**
+ * Move to a room and ensure two levels of foresight rooms exist ahead.
+ * Public API — prefer this over RoomGraphSystem.moveToRoom.
+ */
+export function moveToRoom(
+  branchingFloor: BranchingFloor,
+  targetRoomId: string,
+  player?: Player,
+): BranchingFloor {
+  const moved = moveToRoomGraph(branchingFloor, targetRoomId);
+  if (moved.currentRoomId !== targetRoomId) {
+    return moved;
+  }
+  return ensureGrandchildrenExist(moved, targetRoomId, player);
+}
 
 export {
   isRoomAccessible,
-  moveToRoom,
   getCurrentActivity,
   completeActivity,
   clearRoomIfSpent,
