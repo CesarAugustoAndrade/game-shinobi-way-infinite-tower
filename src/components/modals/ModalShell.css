@@ -1,0 +1,8 @@
+/**
+ * ModalShell — minimal shared styles.
+ * Layout, chrome, and CTAs live on each modal (e.g. intel-result, rest-result).
+ */
+
+.modal-shell__title {
+  margin: 0;
+}

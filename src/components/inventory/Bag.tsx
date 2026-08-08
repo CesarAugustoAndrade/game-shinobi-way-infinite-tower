@@ -9,7 +9,12 @@ import {
   getArtifactArt,
   getComponentArt,
 } from '../../game/constants/artRegistry';
-import { getCraftCombination, CraftCombination } from '../../game/systems/LootSystem';
+import {
+  getCraftCombination,
+  canCraftWith,
+  listCraftOptions,
+  CraftCombination,
+} from '../../game/systems/LootSystem';
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import {
   itemMatchesEquipmentFocus,
@@ -394,7 +399,7 @@ const Bag: React.FC<BagProps> = ({
     if (!synthesisMode || !selectedComponent) return false;
     if (selectedComponent.id === item.id) return false;
     // Broken + same Broken, Common + recipe partner, or matching Rare artifacts
-    return getCraftCombination(selectedComponent, item) !== null;
+    return canCraftWith(selectedComponent, item);
   };
 
   return (
@@ -474,20 +479,17 @@ const Bag: React.FC<BagProps> = ({
       </div>
 
       {synthesisMode && selectedComponent && (() => {
-        const partners = items.filter(
-          (c): c is Item => c !== null && c.id !== selectedComponent.id && getCraftCombination(selectedComponent, c) !== null,
-        );
+        const craftOptions = listCraftOptions(selectedComponent, items);
         return (
         <div className="bag__synthesis-preview">
           <div className="bag__synthesis-title">Result · click partner to craft</div>
-          {partners.length === 0 ? (
+          {craftOptions.length === 0 ? (
             <div className="bag__synthesis-empty" role="status">
               No echo answers this piece. Another shard waits elsewhere in the dark.
             </div>
           ) : (
           <div className="bag__synthesis-grid">
-            {partners.map((c) => {
-                const combo = getCraftCombination(selectedComponent, c)!;
+            {craftOptions.map(({ partner: c, combination: combo, previewName }) => {
                 const resultArt = craftResultArt(combo, c);
                 const modeLabel =
                   combo.mode === 'upgrade_broken'
@@ -501,13 +503,13 @@ const Bag: React.FC<BagProps> = ({
                     key={c.id}
                     onClick={() => handleComponentClick(c)}
                     className="bag__synthesis-option"
-                    title={`${modeLabel}: ${combo.previewName}`}
+                    title={`${modeLabel}: ${previewName}`}
                   >
                     {/* StS / TFT: result identity dominates the row */}
                     <div className="bag__synthesis-option-result">
-                      <ArtIcon art={resultArt} size="sm" title={combo.previewName} />
+                      <ArtIcon art={resultArt} size="sm" title={previewName} />
                       <div className="bag__synthesis-option-copy">
-                        <span className="bag__synthesis-option-name">{combo.previewName}</span>
+                        <span className="bag__synthesis-option-name">{previewName}</span>
                         <span className="bag__synthesis-option-mode">{modeLabel}</span>
                       </div>
                     </div>

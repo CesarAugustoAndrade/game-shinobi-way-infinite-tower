@@ -5,6 +5,7 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 ## [Unreleased]
 
 ### Added
+- **Sprint A session foundation:** pure `GameSession` store (`src/game/session` + `useGameSession`), unified `VisitContext` / `completeActivityOnVisit` for dual-floor completion, minimal `SCENE_REGISTRY` + `GameState.SCENE_REGISTRY_PROBE`, App dual-writes core session fields; merchant/training/victory paths migrate to VisitContext.
 - **Combat SEN signals (init / miss / crit):** persistent `CombatSenStrip` (先 YOU · THEM) shows who won opening initiative and whose turn it is; open banner always reports `SEN · You/Enemy open`. Hit floats use ink stamps for **CRIT (必)**, **MISS (空)**, **EVADE (見)**; brief stage edge flash on crit/miss. Stores `combatState.openingInitHolder` from the real `determineTurnOrder` roll.
 - **Tactical Intel Bonus to Approaches:** Higher location Intel (0–100%) adds up to +15% success odds (`+0.15%` per 1% Intel) to pre-combat approaches (`Stealth Ambush`, `Genjutsu Setup`, `Environmental Trap`, `Iron Guard`, `Shadow Bypass`), previewed in `ApproachSelector` and applied during engagement.
 - **Top Bar & Character HUD XP Bars:** Persistent XP progress bar added under player name in both `ExplorationHUD` and `PlayerHUD` with golden gradient fills and numeric indicators (`X/Y XP`).
@@ -12,6 +13,9 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - **Sealed Vault Exit Option:** Added exit button and choice option in `TreasureChoice.tsx` & `useTreasureHandlers.ts` to allow leaving the sealed vault room without spending chakra.
 
 ### Changed
+- **Sprint D UI honesty:** combat skill playability/view-model (`skillPlayability` + `combatSkillViewModel`); unified `getMerchantBuyPrice`; craft `listCraftOptions` for Bag; `ModalShell` + explore chrome block helper; Hand/Combat/Merchant/Bag wired to shared pure helpers.
+- **Sprint C content & gods:** split LocationSystem (`RoomGraphSystem`, `TreasureHuntSystem`, `FloorVisitSystem`) and LootSystem (`ItemGenerationSystem`, `CraftSystem`, `InventorySystem`) with facade re-exports; move STAT_FORMULAS/bag limits toward config; event `EVENT_FLAG_RUN_MODIFIERS` data + effect handler pipeline in EventSystem.
+- **Sprint B combat single path:** `SurvivalSystem` (`checkLethalDamage` out of EnemyTurn); `SkillResolutionSystem` shared hit pipeline (`resolveSuccessfulHit`); `skillPlayability` gates; PlayerTurn/EnemyTurn/CombatSimulationService/BattleSimulator wire into shared hit core; see `docs/combat-single-path.md`.
 - **Full HP & Chakra Recovery on Level Up:** `applyLevelUp` in `LevelSystem.ts` now fully restores current HP and Chakra to 100% of max stats upon leveling up.
 - **Concise Locked Stat Requirement Format:** Locked jutsu scrolls and skill learning options display precise requirement reasons (e.g. `Req: 2 INT (You have 1)`).
 - **Location Map Meter Alignment:** Structured `IN` (Intel) and `HT` (Heat) meters in `LocationMap` into a clean 3-column CSS grid (`Icon | 6rem Bar | State/Value`) for clean alignment.

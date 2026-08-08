@@ -31,7 +31,6 @@
 
 import {
   skillLocationDamageMult,
-  applyEnemyDefenseBonus,
   applyMovementPenaltyToMaxAp,
   applyRoomMovementCostToMaxAp,
 } from './LocationTerrainSystem';
@@ -65,10 +64,14 @@ import { logFlowCheckpoint, logDamage } from '../utils/combatDebug';
 import { LaunchProperties } from '../../config/featureFlags';
 import {
   generateId,
-  applyMitigation,
   getTerrainElementAmplification,
   getTerrainEvasionBonus,
 } from './CombatCalculationSystem';
+import {
+  applyDamageMultipliers,
+  applyEnemyDefenseBonusToDamage,
+  resolveSuccessfulHit,
+} from './SkillResolutionSystem';
 import {
   processPassivesOnHit,
   processPassivesOnTurnStart,
@@ -88,7 +91,7 @@ import {
   stanceShiftFromSkill,
 } from './PostureSystem';
 import { drawNewTurnHand } from './DeckSystem';
-import { checkLethalDamage } from './EnemyTurnSystem';
+import { checkLethalDamage } from './SurvivalSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
 
 // ============================================================================
@@ -567,53 +570,57 @@ export function useSkill(
   } else if (damageResult.isEvaded) {
     logMsg = `You used ${skill.name} but ${enemy.name} EVADED!`;
   } else {
-    // Apply first hit multiplier from approach if on first turn
-    let modifiedDamage = damageResult.finalDamage;
+    // Successful hit — shared SkillResolution pipeline (order preserved):
+    // firstHit → terrainAmp → locSkill → enemyDef (additive-style) →
+    // PLAYER_DAMAGE_MULTIPLIER → posture → stance → mitigation
+    const earlyMults: number[] = [];
     let firstHitApplied = false;
 
     if (combatState?.isFirstTurn && combatState.firstHitMultiplier > 1.0) {
-      modifiedDamage = Math.floor(modifiedDamage * combatState.firstHitMultiplier);
+      earlyMults.push(combatState.firstHitMultiplier);
       firstHitApplied = true;
     }
 
-    // Apply terrain element amplification
     if (combatState?.terrain && player.element) {
       const terrainAmp = getTerrainElementAmplification(combatState.terrain, player.element);
       if (terrainAmp > 1.0) {
-        modifiedDamage = Math.floor(modifiedDamage * terrainAmp);
+        earlyMults.push(terrainAmp);
       }
     }
 
-    // T-063: location terrain effects (water/fire/mental + enemy defense)
+    // T-063: location terrain skill mult (water/fire/mental); enemy defense after product mults
     if (combatState?.locationTerrainMods) {
       const locMult = skillLocationDamageMult(skill, combatState.locationTerrainMods);
       if (locMult !== 1) {
-        modifiedDamage = Math.floor(modifiedDamage * locMult);
+        earlyMults.push(locMult);
       }
-      modifiedDamage = applyEnemyDefenseBonus(
-        modifiedDamage,
-        combatState.locationTerrainMods,
-      );
     }
 
-    // Apply player damage multiplier from launch properties
-    modifiedDamage = Math.floor(modifiedDamage * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
-
-    // T-004: light posture modifier on outgoing damage (base math untouched).
-    modifiedDamage = Math.floor(modifiedDamage * postureDamageMod(posture));
+    const afterLoc = applyDamageMultipliers(damageResult.finalDamage, earlyMults);
+    const afterDef = applyEnemyDefenseBonusToDamage(
+      afterLoc,
+      combatState?.locationTerrainMods,
+    );
 
     // Card-combat plan: stanceBonus match (multiplicative on final pre-mitigation dmg).
     const stanceCardMult = stanceBonusDamageMult(skill, posture);
     let stanceMatchNote = '';
     if (stanceCardMult !== 1) {
-      modifiedDamage = Math.floor(modifiedDamage * stanceCardMult);
       stanceMatchNote = ` Stance match (${posture}): ×${stanceCardMult.toFixed(2)} dmg.`;
     }
 
-    // Apply Mitigation Logic
-    const mitigation = applyMitigation(enemy.activeBuffs, modifiedDamage, enemy.name);
-    finalDamageToEnemy = mitigation.finalDamage;
-    newEnemyBuffs = mitigation.updatedBuffs;
+    const hit = resolveSuccessfulHit({
+      rawDamage: afterDef,
+      preMitigationMultipliers: [
+        LaunchProperties.PLAYER_DAMAGE_MULTIPLIER,
+        postureDamageMod(posture),
+        stanceCardMult,
+      ],
+      defenderBuffs: enemy.activeBuffs,
+      defenderLabel: enemy.name,
+    });
+    finalDamageToEnemy = hit.finalDamage;
+    newEnemyBuffs = hit.updatedDefenderBuffs;
 
     // Check execute threshold (instant kill at low HP)
     const enemyMaxHp = enemyStats.derived.maxHp;
@@ -651,11 +658,11 @@ export function useSkill(
 
     // Handle Reflection — guts check if reflected damage would be lethal
     let reflectionGutsLog: string | undefined;
-    if (mitigation.reflectedDamage > 0) {
+    if (hit.reflectedDamage > 0) {
       const artifactGuts = checkGutsPassive(player);
       const lethalCheck = checkLethalDamage(
         newPlayerHp,
-        mitigation.reflectedDamage,
+        hit.reflectedDamage,
         playerStats.derived.gutsChance,
         { triggered: false, artifactTriggered: false },
         artifactGuts,
@@ -684,11 +691,11 @@ export function useSkill(
     }
     if (skipCost) logMsg += " FREE!";
     if (firstHitApplied) logMsg += " AMBUSH!";
-    if (mitigation.messages.length > 0) {
-      logMsg += ` [${mitigation.messages.join(', ')}]`;
+    if (hit.messages.length > 0) {
+      logMsg += ` [${hit.messages.join(', ')}]`;
     }
-    if (mitigation.reflectedDamage > 0) {
-      logMsg += ` (Reflected ${mitigation.reflectedDamage}!)`;
+    if (hit.reflectedDamage > 0) {
+      logMsg += ` (Reflected ${hit.reflectedDamage}!)`;
     }
     if (reflectionGutsLog) {
       logMsg += ` ${reflectionGutsLog}`;

@@ -12,11 +12,13 @@ import {
   CombatRange,
   RangeMoveDirection,
 } from '../../game/types';
+import { skillAllowedAt } from '../../game/systems/RangeSystem';
 import {
-  skillAllowedAt,
-  outOfRangeBlockReason,
-  skillAllowedRanges,
-} from '../../game/systems/RangeSystem';
+  canPlaySkill,
+  getSkillBlockReason as getMachineBlockReason,
+  type SkillPlayContext,
+} from '../../game/systems/skillPlayability';
+import { formatSkillBlockReason } from '../../game/systems/combatSkillViewModel';
 import StatBar from '../../components/shared/StatBar';
 import Tooltip from '../../components/shared/Tooltip';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
@@ -329,63 +331,69 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
   const isSilencedStatus = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
 
-  // Helper to check if a card can be played this turn (resources + AP + state).
-  // FREE_FIRST_SKILL: effective chakra cost is 0 while skipFirstSkillCost is set.
-  const canUseSkill = useCallback((skill: Skill): boolean => {
-    const effectiveChakraCost = skipFirstSkillCost ? 0 : skill.chakraCost;
-    const hasResources =
-      player.currentChakra >= effectiveChakraCost && player.currentHp > skill.hpCost;
-    const noCooldown = skill.currentCooldown === 0;
-    const isPlayerStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
-    const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
-    // Silence blocks chakra-cost skills; allow free taijutsu and toggle deactivation
-    const silencedBlocked = isSilenced && skill.chakraCost > 0 && !skill.isActive;
-    const hasAp = currentAp >= getApCost(skill);
-    const inRange =
-      !currentRange || skillAllowedAt(skill, currentRange);
+  /** Assemble pure playability context from live combat fields. */
+  const buildSkillPlayContext = useCallback(
+    (skill: Skill): SkillPlayContext => ({
+      skill,
+      currentChakra: player.currentChakra,
+      currentHp: player.currentHp,
+      maxHp: playerStats.derived.maxHp,
+      currentAp,
+      currentRange: currentRange ?? undefined,
+      activeBuffs: player.activeBuffs,
+      skipFirstSkillCost,
+    }),
+    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost],
+  );
 
-    return Boolean(
-      (hasResources || skill.isActive) &&
-        noCooldown &&
-        !isPlayerStunned &&
-        !silencedBlocked &&
-        hasAp &&
-        inRange
-    );
-  }, [player, currentAp, skipFirstSkillCost, currentRange]);
+  /**
+   * Card playability (resources + AP + state).
+   * Routes normal skills through skillPlayability; active toggles keep the
+   * legacy deactivation path (bypass chakra/hp/silence, still gate stun/cd/range/ap).
+   */
+  const canUseSkill = useCallback(
+    (skill: Skill): boolean => {
+      if (skill.isActive) {
+        if (player.activeBuffs.some((b) => b?.effect?.type === EffectType.STUN)) return false;
+        if (skill.currentCooldown > 0) return false;
+        if (currentRange != null && !skillAllowedAt(skill, currentRange)) return false;
+        if (currentAp < getApCost(skill)) return false;
+        return true;
+      }
+      return canPlaySkill(buildSkillPlayContext(skill));
+    },
+    [player.activeBuffs, currentAp, currentRange, buildSkillPlayContext],
+  );
 
   /** R1 Confuso: explain greyed hand cards (AP / chakra / silence / stun / range). */
-  const getSkillBlockReason = useCallback((skill: Skill): string | null => {
-    if (canUseSkill(skill)) return null;
-    if (player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN)) {
-      return 'Stunned — end turn';
-    }
-    if (
-      player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE) &&
-      skill.chakraCost > 0 &&
-      !skill.isActive
-    ) {
-      return 'Silenced — chakra jutsu blocked';
-    }
-    if (skill.currentCooldown > 0) {
-      return `On cooldown (${skill.currentCooldown})`;
-    }
-    if (currentRange && !skillAllowedAt(skill, currentRange)) {
-      return outOfRangeBlockReason(skill, currentRange);
-    }
-    const ap = getApCost(skill);
-    if (currentAp < ap) {
-      return `Need ${ap} AP (have ${currentAp})`;
-    }
-    const chakraCost = skipFirstSkillCost ? 0 : skill.chakraCost;
-    if (player.currentChakra < chakraCost) {
-      return `Need ${chakraCost} chakra`;
-    }
-    if (skill.hpCost > 0 && player.currentHp <= skill.hpCost) {
-      return `Need more HP (costs ${skill.hpCost})`;
-    }
-    return 'Cannot play this card';
-  }, [canUseSkill, player, currentAp, skipFirstSkillCost, currentRange]);
+  const getSkillBlockReason = useCallback(
+    (skill: Skill): string | null => {
+      if (canUseSkill(skill)) return null;
+
+      const ctx = buildSkillPlayContext(skill);
+
+      // Active toggle deactivation never hits silence/resource gates.
+      if (skill.isActive) {
+        if (player.activeBuffs.some((b) => b?.effect?.type === EffectType.STUN)) {
+          return formatSkillBlockReason('stun', ctx);
+        }
+        if (skill.currentCooldown > 0) {
+          return formatSkillBlockReason('cooldown', ctx);
+        }
+        if (currentRange != null && !skillAllowedAt(skill, currentRange)) {
+          return formatSkillBlockReason('range', ctx);
+        }
+        if (currentAp < getApCost(skill)) {
+          return formatSkillBlockReason('ap', ctx);
+        }
+        return 'Cannot play this card';
+      }
+
+      const reason = getMachineBlockReason(ctx);
+      return formatSkillBlockReason(reason, ctx) ?? 'Cannot play this card';
+    },
+    [canUseSkill, buildSkillPlayContext, player.activeBuffs, currentAp, currentRange],
+  );
 
   /** Hand empty on player turn — surface End Turn so the player is never stuck. */
   const handEmptyNeedsPass = turnState === 'PLAYER' && handCards.length === 0;

@@ -24,7 +24,6 @@ import {
 import { skillAllowedAt, resolveInitialRange } from './RangeSystem';
 import {
   calculateDamage,
-  checkGuts,
   resistStatus,
   calculateDotDamage,
   getPlayerFullStats,
@@ -33,7 +32,6 @@ import {
 } from './StatSystem';
 import {
   generateId,
-  applyMitigation as applyMitigationCalc,
   tickBuffDurations,
   getTerrainElementAmplification,
   applyTerrainHazard,
@@ -62,13 +60,17 @@ import {
   calculateApproachSuccessChance,
 } from '../constants/approaches';
 import {
-  applyEnemyDefenseBonus,
   applyLocationHazardsToPlayer,
   skillLocationDamageMult,
   type LocationTerrainMods,
 } from './LocationTerrainSystem';
 import { applyRoomCombatModifiers } from './RoomCombatModifierSystem';
 import type { CombatModifiers } from './ApproachSystem';
+import { resolveSuccessfulHit } from './SkillResolutionSystem';
+import {
+  checkLethalDamage,
+  type GutsContext,
+} from './SurvivalSystem';
 
 /**
  * Result of an auto-simulated combat
@@ -184,21 +186,6 @@ function selectSkill(
   });
 
   return sorted[0];
-}
-
-/**
- * Apply mitigation (shields, invuln, curses, reflection)
- */
-function applyMitigation(
-  buffs: Buff[],
-  damage: number
-): { finalDamage: number; reflectedDamage: number; updatedBuffs: Buff[] } {
-  const result = applyMitigationCalc(buffs, damage, 'target');
-  return {
-    finalDamage: result.finalDamage,
-    reflectedDamage: result.reflectedDamage,
-    updatedBuffs: result.updatedBuffs,
-  };
 }
 
 /**
@@ -341,66 +328,81 @@ function executeAttack(
     ctx.metrics.crits++;
   }
 
-  let damage = result.finalDamage;
+  // Pre/post mult stacks (same factors & floor-after-each order as before; shared pipeline)
+  const preMitigationMultipliers: number[] = [];
+  const postMitigationMultipliers: number[] = [];
 
-  // Apply terrain element amplification for player
-  if (isPlayer && ctx.terrain) {
-    const terrainAmp = getTerrainElementAmplification(ctx.terrain, ctx.player.element);
-    if (terrainAmp > 1.0) {
-      damage = Math.floor(damage * terrainAmp);
-    }
-  }
-
-  // T-070: location terrain mods (parity with PlayerTurnSystem / EnemyTurnSystem)
-  if (isPlayer && ctx.locationTerrainMods) {
-    const locMult = skillLocationDamageMult(skill, ctx.locationTerrainMods);
-    if (locMult !== 1) {
-      damage = Math.floor(damage * locMult);
-    }
-    damage = applyEnemyDefenseBonus(damage, ctx.locationTerrainMods);
-  } else if (!isPlayer && ctx.locationTerrainMods) {
-    const atkBonus = ctx.locationTerrainMods.enemyAttackBonus;
-    if (atkBonus !== 0) {
-      damage = Math.floor(damage * (1 + atkBonus));
-    }
-  }
-
-  // Apply LaunchProperties Multipliers
   if (isPlayer) {
-    damage = Math.floor(damage * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
+    // Terrain element amp → location skill mult → enemy defense mult → launch → ambush first-hit
+    if (ctx.terrain) {
+      const terrainAmp = getTerrainElementAmplification(ctx.terrain, ctx.player.element);
+      if (terrainAmp > 1.0) {
+        preMitigationMultipliers.push(terrainAmp);
+      }
+    }
+    if (ctx.locationTerrainMods) {
+      const locMult = skillLocationDamageMult(skill, ctx.locationTerrainMods);
+      if (locMult !== 1) {
+        preMitigationMultipliers.push(locMult);
+      }
+      // Same formula as applyEnemyDefenseBonus (mid-stack floor preserved via mult list)
+      if (ctx.locationTerrainMods.enemyDefenseBonus !== 0) {
+        preMitigationMultipliers.push(
+          Math.max(0.25, 1 - ctx.locationTerrainMods.enemyDefenseBonus),
+        );
+      }
+    }
+    preMitigationMultipliers.push(LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
+    if (ctx.isFirstTurn && ctx.firstHitMultiplier > 1.0) {
+      preMitigationMultipliers.push(ctx.firstHitMultiplier);
+    }
   } else {
-    damage = Math.floor(damage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
+    // Location enemy attack bonus → launch → room AMBUSH first-strike
+    if (ctx.locationTerrainMods) {
+      const atkBonus = ctx.locationTerrainMods.enemyAttackBonus;
+      if (atkBonus !== 0) {
+        preMitigationMultipliers.push(1 + atkBonus);
+      }
+    }
+    preMitigationMultipliers.push(LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
+    if (ctx.isFirstTurn && ctx.enemyFirstHitMultiplier > 1.0) {
+      preMitigationMultipliers.push(ctx.enemyFirstHitMultiplier);
+    }
+    // Artifact DAMAGE_REDUCTION (incl. below_half_hp) after buff mitigation
+    const drPercent = getDamageReductionPercent(ctx.player, ctx.playerStats.derived.maxHp);
+    if (drPercent !== 0) {
+      postMitigationMultipliers.push(1 - drPercent / 100);
+    }
   }
 
-  // Opening ambush first-hit mult (STEALTH_AMBUSH success → 1.5× from APPROACH_DEFINITIONS)
-  if (isPlayer && ctx.isFirstTurn && ctx.firstHitMultiplier > 1.0) {
-    damage = Math.floor(damage * ctx.firstHitMultiplier);
-  }
-  // T-106: room AMBUSH enemy first-strike
-  if (!isPlayer && ctx.isFirstTurn && ctx.enemyFirstHitMultiplier > 1.0) {
-    damage = Math.floor(damage * ctx.enemyFirstHitMultiplier);
-  }
-
-  // Apply execute threshold for player
+  // Execute threshold replaces damage after pre-mults, before mitigation (prior sim behavior)
+  let rawDamage = result.finalDamage;
   if (isPlayer) {
     const enemyMaxHp = ctx.enemyStats.derived.maxHp;
     if (checkExecuteThreshold(ctx.player, ctx.enemy, enemyMaxHp)) {
-      damage = ctx.enemy.currentHp;
+      rawDamage = ctx.enemy.currentHp;
+      // Pre-mults discarded on execute overwrite (same as previous direct assignment)
+      preMitigationMultipliers.length = 0;
     }
   }
 
-  // Apply mitigation
-  const mitigation = applyMitigation(defender.activeBuffs, damage);
-  damage = mitigation.finalDamage;
+  const mitigation = resolveSuccessfulHit({
+    rawDamage,
+    preMitigationMultipliers,
+    defenderBuffs: defender.activeBuffs,
+    defenderLabel: isPlayer ? (ctx.enemy.name || 'Enemy') : 'You',
+    postMitigationMultipliers,
+  });
+  const damage = mitigation.finalDamage;
 
   if (isPlayer) {
-    ctx.enemy.activeBuffs = mitigation.updatedBuffs;
+    ctx.enemy.activeBuffs = mitigation.updatedDefenderBuffs;
     ctx.enemy.currentHp -= damage;
     ctx.metrics.damageDealt += damage;
 
     // Process passives on hit
     const onHitResult = processPassivesOnHit(ctx.player, ctx.enemy, damage, result.isCrit);
-    
+
     // Apply lifesteal
     if (onHitResult.healToPlayer > 0) {
       ctx.player.currentHp = Math.min(ctx.playerStats.derived.maxHp, ctx.player.currentHp + onHitResult.healToPlayer);
@@ -421,35 +423,26 @@ function executeAttack(
       ctx.metrics.damageReceived += mitigation.reflectedDamage;
     }
   } else {
-    ctx.player.activeBuffs = mitigation.updatedBuffs;
+    ctx.player.activeBuffs = mitigation.updatedDefenderBuffs;
 
-    // Artifact DAMAGE_REDUCTION (incl. below_half_hp)
-    const drPercent = getDamageReductionPercent(ctx.player, ctx.playerStats.derived.maxHp);
-    if (drPercent !== 0 && damage > 0) {
-      damage = Math.max(0, Math.floor(damage * (1 - drPercent / 100)));
+    // Lethal damage + guts via SurvivalSystem (stat guts, then artifact guts)
+    const gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
+    const artifactGuts = checkGutsPassive(ctx.player);
+    const lethalCheck = checkLethalDamage(
+      ctx.player.currentHp,
+      damage,
+      ctx.playerStats.derived.gutsChance,
+      gutsContext,
+      artifactGuts,
+      ctx.artifactGutsUsed,
+      ctx.playerStats.derived.maxHp,
+    );
+    ctx.player.currentHp = lethalCheck.newHp;
+    if (lethalCheck.gutsTriggered) {
+      ctx.metrics.gutsTriggered++;
     }
-
-    // Check guts
-    const hpBefore = ctx.player.currentHp;
-    const hpAfterDamage = hpBefore - damage;
-    if (hpAfterDamage <= 0) {
-      const statGutsResult = checkGuts(hpBefore, damage, ctx.playerStats.derived.gutsChance);
-      if (statGutsResult.survived) {
-        ctx.player.currentHp = 1;
-        ctx.metrics.gutsTriggered++;
-      } else {
-        const artifactGuts = checkGutsPassive(ctx.player);
-        if (artifactGuts.hasGuts && !ctx.artifactGutsUsed) {
-          const healAmount = Math.floor(ctx.playerStats.derived.maxHp * (artifactGuts.healPercent / 100));
-          ctx.player.currentHp = Math.max(1, healAmount);
-          ctx.artifactGutsUsed = true;
-          ctx.metrics.gutsTriggered++;
-        } else {
-          ctx.player.currentHp = 0;
-        }
-      }
-    } else {
-      ctx.player.currentHp = hpAfterDamage;
+    if (lethalCheck.artifactGutsTriggered) {
+      ctx.artifactGutsUsed = true;
     }
     ctx.metrics.damageReceived += damage;
 
@@ -832,22 +825,29 @@ export function simulateGameCombat(
     ctx.player.activeBuffs = playerBuffResult.newBuffs;
     ctx.metrics.damageReceived += playerBuffResult.dotDamage;
 
-    // Check player guts from DoT
+    // Check player guts from DoT (shared SurvivalSystem — HP already reduced)
     if (ctx.player.currentHp <= 0) {
-      const statGutsResult = checkGuts(ctx.player.currentHp, 0, ctx.playerStats.derived.gutsChance);
-      if (statGutsResult.survived) {
-        ctx.player.currentHp = 1;
-        ctx.metrics.gutsTriggered++;
-      } else {
-        const artifactGuts = checkGutsPassive(ctx.player);
-        if (artifactGuts.hasGuts && !ctx.artifactGutsUsed) {
-          const healAmount = Math.floor(ctx.playerStats.derived.maxHp * (artifactGuts.healPercent / 100));
-          ctx.player.currentHp = Math.max(1, healAmount);
-          ctx.artifactGutsUsed = true;
+      const gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
+      const artifactGuts = checkGutsPassive(ctx.player);
+      const lethalCheck = checkLethalDamage(
+        ctx.player.currentHp,
+        0,
+        ctx.playerStats.derived.gutsChance,
+        gutsContext,
+        artifactGuts,
+        ctx.artifactGutsUsed,
+        ctx.playerStats.derived.maxHp,
+      );
+      if (lethalCheck.survived) {
+        ctx.player.currentHp = lethalCheck.newHp;
+        if (lethalCheck.gutsTriggered) {
           ctx.metrics.gutsTriggered++;
-        } else {
-          break;
         }
+        if (lethalCheck.artifactGutsTriggered) {
+          ctx.artifactGutsUsed = true;
+        }
+      } else {
+        break;
       }
     }
 

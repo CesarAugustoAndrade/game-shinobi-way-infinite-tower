@@ -21,7 +21,11 @@ import {
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import { MERCHANT } from '../../game/config';
 import { calculateMerchantRerollCost } from '../../game/systems/ScalingSystem';
-import { getSellPrice } from '../../game/systems/LootSystem';
+import {
+  getSellPrice,
+  getMerchantBuyPrice,
+  getMerchantBasePrice,
+} from '../../game/systems/LootSystem';
 import { resolveItemArt, getActivityArt } from '../../game/constants/artRegistry';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import ArtIcon from '../../components/shared/ArtIcon';
@@ -349,7 +353,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
             </span>
             {discountPercent > 0 && (
               <span className="item-card__price-original">
-                {Math.floor(item.value * MERCHANT.ITEM_PRICE_MULTIPLIER)}
+                {getMerchantBasePrice(item)}
               </span>
             )}
             {bagFull && (
@@ -508,7 +512,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
         {discountPercent > 0 && (
           <>
             <span className="preview-panel__price-original">
-              {Math.floor(item.value * MERCHANT.ITEM_PRICE_MULTIPLIER)}
+              {getMerchantBasePrice(item)}
             </span>
             <div className="preview-panel__price-discount">
               {discountPercent}% OFF!
@@ -592,10 +596,7 @@ const Merchant: React.FC<MerchantProps> = ({
   );
 
   const getPrice = useCallback(
-    (item: Item) => {
-      const basePrice = item.value * MERCHANT.ITEM_PRICE_MULTIPLIER;
-      return Math.floor(basePrice * (1 - discountPercent / 100));
-    },
+    (item: Item) => getMerchantBuyPrice(item, discountPercent),
     [discountPercent]
   );
 

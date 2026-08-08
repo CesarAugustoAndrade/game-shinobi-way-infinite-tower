@@ -90,6 +90,8 @@ import { useTreasureHandlers, TreasureHuntRewardData, PendingBagFullItem } from 
 import { useInventoryHandlers } from './hooks/useInventoryHandlers';
 import { useActivityHandlers } from './hooks/useActivityHandlers';
 import { useCombatVictory } from './hooks/useCombatVictory';
+import { gameSessionStore } from './hooks/useGameSession';
+import { resolveSceneState, type SceneEnterContext } from './game/session';
 import { getDamageTypeColor, getRarityTextColorWithEffects as getRarityColor, resolveLaminaPaths } from './utils/colorHelpers';
 import { GameProvider, GameContextValue } from './contexts/GameContext';
 import { LIMITS, MERCHANT } from './game/config';
@@ -135,6 +137,7 @@ import {
   logIntelGain, logIntelReset
 } from './game/utils/explorationDebug';
 import { FeatureFlags, LaunchProperties } from './config/featureFlags';
+import { isBlockingExploreChrome } from './game/ui/overlayStack';
 
 // Center-stage void plate + left-panel chrome
 import './App.css';
@@ -284,6 +287,18 @@ const App: React.FC = () => {
     selectedCardIndex, setSelectedCardIndex,
     currentIntel, setCurrentIntel,
   } = sharedExplorationState;
+
+  // Sprint A: dual-write core session fields into the external store (hydrate / observers).
+  // React useState remains source of truth until a later migration replaces it.
+  useEffect(() => {
+    gameSessionStore.patch({
+      gameState,
+      player,
+      region,
+      locationFloor,
+      branchingFloor,
+    });
+  }, [gameState, player, region, locationFloor, branchingFloor]);
 
   const addLog = useCallback((text: string, type: LogEntry['type'] = 'info', details?: string) => {
     setLogs(prev => {
@@ -948,6 +963,36 @@ const App: React.FC = () => {
       !isProcessingLoot
     ) {
       returnToMap();
+      return;
+    }
+
+    // SCENE_REGISTRY_PROBE is debug-only — never leave a live run stuck on it.
+    // Registry still proves the module is wired via import + SCENE_REGISTRY entry.
+    if (gameState === GameState.SCENE_REGISTRY_PROBE) {
+      setGameState(GameState.MENU);
+      return;
+    }
+
+    // Registry soft-lock for registered scenes after combat/activity special cases.
+    // Covers: LOCATION_EXPLORE / REGION_MAP without player; COMBAT with no player
+    // (blank/dead combat handled above). Unregistered states pass through.
+    const sceneCtx: SceneEnterContext = {
+      session: {
+        gameState,
+        player,
+        region,
+        locationFloor,
+      },
+    };
+    if (
+      gameState === GameState.LOCATION_EXPLORE ||
+      gameState === GameState.REGION_MAP ||
+      gameState === GameState.COMBAT
+    ) {
+      const resolved = resolveSceneState(gameState, sceneCtx);
+      if (resolved !== gameState) {
+        setGameState(resolved);
+      }
     }
   }, [
     gameState,
@@ -1526,13 +1571,14 @@ const App: React.FC = () => {
   // Close bag/character when a higher result/approach modal owns the screen
   // (prevents stuck-under-modal overlay + I/C keyboard trap feel)
   useEffect(() => {
-    const blocking =
-      Boolean(combatReward) ||
-      Boolean(eventOutcome) ||
-      Boolean(intelResult) ||
-      Boolean(restResult) ||
-      Boolean(locationCompleteResult) ||
-      showApproachSelector;
+    const blocking = isBlockingExploreChrome({
+      combatReward: Boolean(combatReward),
+      eventOutcome: Boolean(eventOutcome),
+      intelResult: Boolean(intelResult),
+      restResult: Boolean(restResult),
+      locationCompleteResult: Boolean(locationCompleteResult),
+      showApproachSelector,
+    });
     if (blocking) {
       setExploreBagOpen(false);
       setExploreCharacterOpen(false);
@@ -1560,27 +1606,33 @@ const App: React.FC = () => {
       ) {
         return;
       }
-      const blockingModal = document.querySelector(
-        '[role="dialog"][aria-modal="true"]:not(.explore-overlay), .reward-modal, .event-result, .loc-complete, .intel-result, .rest-result, .approach-modal, .confirm-modal',
-      );
+      // Pure React flags (prefer over document.querySelector for known modals)
+      const chromeBlocked = isBlockingExploreChrome({
+        combatReward: Boolean(combatReward),
+        eventOutcome: Boolean(eventOutcome),
+        intelResult: Boolean(intelResult),
+        restResult: Boolean(restResult),
+        locationCompleteResult: Boolean(locationCompleteResult),
+        showApproachSelector,
+      });
       const key = event.key.toLowerCase();
       if (key === 'a') {
         // Toggle approach preference (A is free on explore; combat uses number keys for hand)
         if (isCombat) return;
-        // Allow A to open only when no other modal; approach-modal itself handles Esc
-        if (blockingModal && !showApproachSelector) return;
+        // Allow A to toggle when approach is open; block under other result modals
+        if (chromeBlocked && !showApproachSelector) return;
         event.preventDefault();
         setExploreBagOpen(false);
         setExploreCharacterOpen(false);
         setShowApproachSelector((prev) => !prev);
       } else if (key === 'i') {
-        if (blockingModal) return;
+        if (chromeBlocked) return;
         event.preventDefault();
         setExploreBagOpen((prev) => !prev);
       } else if (key === 'c') {
         // Combat hand uses C for the 3rd skill card
         if (isCombat) return;
-        if (blockingModal) return;
+        if (chromeBlocked) return;
         event.preventDefault();
         setExploreCharacterOpen((prev) => !prev);
       } else if (event.key === 'Escape' && (exploreBagOpen || exploreCharacterOpen)) {
@@ -1592,7 +1644,18 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showExploreChrome, isCombat, exploreBagOpen, exploreCharacterOpen, showApproachSelector]);
+  }, [
+    showExploreChrome,
+    isCombat,
+    exploreBagOpen,
+    exploreCharacterOpen,
+    showApproachSelector,
+    combatReward,
+    eventOutcome,
+    intelResult,
+    restResult,
+    locationCompleteResult,
+  ]);
 
   // --- Full-screen scenes (no game shell) — only after all hooks ---
   if (gameState === GameState.MENU) {
@@ -1790,13 +1853,14 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col relative bg-zinc-950">
         {/* T-022: minimal HUD on exploration maps */}
         {showExploreChrome && player && playerStats && (() => {
-          const exploreModalBlocksHud =
-            Boolean(combatReward) ||
-            Boolean(eventOutcome) ||
-            Boolean(intelResult) ||
-            Boolean(restResult) ||
-            Boolean(locationCompleteResult) ||
-            showApproachSelector;
+          const exploreModalBlocksHud = isBlockingExploreChrome({
+            combatReward: Boolean(combatReward),
+            eventOutcome: Boolean(eventOutcome),
+            intelResult: Boolean(intelResult),
+            restResult: Boolean(restResult),
+            locationCompleteResult: Boolean(locationCompleteResult),
+            showApproachSelector,
+          });
           return (
           <ExplorationHUD
             player={player}
@@ -1811,7 +1875,8 @@ const App: React.FC = () => {
               setExploreCharacterOpen((p) => !p);
             }}
             onOpenApproach={() => {
-              if (exploreModalBlocksHud) return;
+              // Allow toggle when approach is already open (parity with A key)
+              if (exploreModalBlocksHud && !showApproachSelector) return;
               setExploreBagOpen(false);
               setExploreCharacterOpen(false);
               setShowApproachSelector((p) => !p);

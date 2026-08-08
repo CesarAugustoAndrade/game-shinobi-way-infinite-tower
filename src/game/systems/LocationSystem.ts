@@ -52,12 +52,10 @@ import {
   RoomActivities,
   RoomTier,
   RoomPosition,
-  TerrainType,
   Player,
   Enemy,
   Item,
   PrimaryStat,
-  ACTIVITY_ORDER,
   ACTIVITY_EXCLUSIONS,
   ActivityCountWeights,
   ActivityWeights,
@@ -77,11 +75,9 @@ import {
 } from './EnemySystem';
 import { getEnemyFullStats } from './StatSystem';
 import {
-  applyHeatDelta,
   HUNTER_EXIT_CHANCE_BONUS,
   initialHeatState,
 } from './HeatSystem';
-import { preferredRangeForEnemy } from './RangeSystem';
 import { generateLoot, generateRandomArtifact, generateSkillForFloor, generateComponentByQuality, generateMerchantItem } from './LootSystem';
 import {
   getClanLevelSkillChoices,
@@ -107,9 +103,14 @@ import { EVENTS } from '../constants';
 import { getAvailableEventsForPlayer, selectWeightedEvent } from './EventSystem';
 import { calculateXP, calculateRyo } from './ScalingSystem';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
+import { generateHunterFromGuardian } from './FloorVisitSystem';
 
 // Re-export scaling functions for backward compatibility
 export { dangerToFloor, getWealthMultiplier, applyWealthToRyo } from './ScalingSystem';
+
+// Re-export extracted systems (public API facade)
+export { getRequiredMapPieces, initializeTreasureHunt, addMapPiece, getTreasureHuntReward } from './TreasureHuntSystem';
+export { applyFloorHeatDelta, armHunterOnFloor, generateHunterFromGuardian } from './FloorVisitSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -688,16 +689,6 @@ function calculateRevealCost(floor: number, choiceCount: number): number {
 }
 
 /**
- * Get required map pieces for treasure hunt based on danger level.
- */
-export function getRequiredMapPieces(dangerLevel: number): number {
-  const pieces = LaunchProperties.TREASURE_MAP_PIECES;
-  if (dangerLevel <= 2) return pieces.lowDanger;
-  if (dangerLevel <= 4) return pieces.midDanger;
-  return pieces.highDanger;
-}
-
-/**
  * Build one sealed vault face: item | hp | ryo | scroll (weighted).
  */
 function generateVaultRewardOption(
@@ -817,117 +808,7 @@ function generateTreasureActivity(
   };
 }
 
-/**
- * Initialize a treasure hunt for a location.
- * Called when first treasure room is encountered and player chooses to start hunt.
- */
-export function initializeTreasureHunt(
-  floor: BranchingFloor
-): BranchingFloor {
-  const treasureHunt: TreasureHunt = {
-    isActive: true,
-    requiredPieces: getRequiredMapPieces(floor.dangerLevel),
-    collectedPieces: 0,
-  };
 
-  return {
-    ...floor,
-    treasureHunt,
-  };
-}
-
-/**
- * Add a map piece to the treasure hunt.
- * Returns updated floor and whether the map is now complete.
- */
-export function addMapPiece(
-  floor: BranchingFloor
-): { floor: BranchingFloor; isComplete: boolean } {
-  if (!floor.treasureHunt) {
-    return { floor, isComplete: false };
-  }
-
-  const newPieces = floor.treasureHunt.collectedPieces + 1;
-  const isComplete = newPieces >= floor.treasureHunt.requiredPieces;
-
-  return {
-    floor: {
-      ...floor,
-      treasureHunt: {
-        ...floor.treasureHunt,
-        collectedPieces: newPieces,
-        isActive: !isComplete, // Deactivate when complete
-      },
-    },
-    isComplete,
-  };
-}
-
-/**
- * Get treasure hunt completion reward based on pieces collected and wealth level.
- */
-export function getTreasureHuntReward(
-  pieces: number,
-  wealthLevel: number,
-  floor: number,
-  difficulty: number,
-  /** T-072: location/region loot bias for component rewards */
-  lootTable?: string,
-  lootTheme?: import('../types').RegionLootTheme,
-  clan?: Player['clan'],
-): { items: Item[]; skills: import('../types').Skill[]; ryo: number } {
-  const items: Item[] = [];
-  const skills: import('../types').Skill[] = [];
-  let ryo = 0;
-  const genComp = (q: TreasureQuality) =>
-    generateComponentByQuality(floor, difficulty, q, lootTable, lootTheme);
-  const genSkill = () => generateSkillForFloor(floor, lootTheme, clan);
-
-  // Reward matrix based on pieces and wealth
-  if (pieces === 2) {
-    if (wealthLevel <= 2) {
-      items.push(genComp(TreasureQuality.COMMON));
-      ryo = 100;
-    } else if (wealthLevel <= 4) {
-      items.push(genComp(TreasureQuality.RARE));
-      ryo = 150;
-    } else if (wealthLevel <= 6) {
-      // T-114: themed skill rewards (same as scroll discovery)
-      skills.push(genSkill());
-    } else {
-      items.push(generateRandomArtifact(floor, difficulty));
-    }
-  } else if (pieces === 3) {
-    if (wealthLevel <= 2) {
-      items.push(genComp(TreasureQuality.RARE));
-      ryo = 150;
-    } else if (wealthLevel <= 4) {
-      skills.push(genSkill());
-      ryo = 200;
-    } else if (wealthLevel <= 6) {
-      items.push(generateRandomArtifact(floor, difficulty));
-    } else {
-      items.push(generateRandomArtifact(floor, difficulty));
-      skills.push(genSkill());
-    }
-  } else if (pieces >= 4) {
-    if (wealthLevel <= 2) {
-      skills.push(genSkill());
-      ryo = 200;
-    } else if (wealthLevel <= 4) {
-      items.push(generateRandomArtifact(floor, difficulty));
-    } else if (wealthLevel <= 6) {
-      items.push(generateRandomArtifact(floor, difficulty));
-      ryo = 300;
-    } else {
-      items.push(generateRandomArtifact(floor, difficulty));
-      skills.push(genSkill());
-      ryo = 500;
-    }
-  }
-
-  return { items, skills, ryo };
-}
 
 /**
  * Generate info gathering activity for a room.
@@ -1260,89 +1141,6 @@ function generateGuardian(
     primaryStats,
     currentHp: derived.maxHp,
     currentChakra: derived.maxChakra,
-  };
-}
-
-/**
- * F3: Upgrade a Guardian (or any exit foe) into a Hunter.
- * ×1.75 HP, ×1.35 damage (STR/SPI scaled), preferred range, 2× XP/Ryo, artifact guaranteed.
- */
-export function generateHunterFromGuardian(guardian: Enemy): Enemy {
-  const primaryStats = {
-    ...guardian.primaryStats,
-    strength: Math.max(1, Math.round(guardian.primaryStats.strength * 1.35)),
-    spirit: Math.max(1, Math.round(guardian.primaryStats.spirit * 1.35)),
-    intelligence: Math.max(1, Math.round(guardian.primaryStats.intelligence * 1.2)),
-  };
-  const base = { ...guardian, primaryStats, isHunter: true, isBoss: false };
-  const derived = getEnemyFullStats(base).derived;
-  const maxHp = Math.max(1, Math.floor(derived.maxHp * 1.75));
-  const preferred = preferredRangeForEnemy(guardian);
-  const nameBase = guardian.name.replace(/^Guardian\s+/i, '').replace(/^Hunter\s+/i, '');
-  return {
-    ...base,
-    name: `Hunter ${nameBase}`,
-    tier: 'Hunter',
-    isHunter: true,
-    preferredRange: preferred,
-    rewardMultiplier: 2,
-    currentHp: maxHp,
-    currentChakra: derived.maxChakra,
-    dropRateBonus: Math.max(guardian.dropRateBonus ?? 0, 100),
-  };
-}
-
-/**
- * F3: Apply heat delta to a floor; if newly armed, swap EXIT guardian → Hunter.
- */
-export function applyFloorHeatDelta(
-  floor: BranchingFloor,
-  delta: number,
-): BranchingFloor {
-  const result = applyHeatDelta(floor.heat ?? 0, delta, floor.hunterArmed ?? false);
-  let next: BranchingFloor = {
-    ...floor,
-    heat: result.heat,
-    hunterArmed: result.hunterArmed,
-  };
-  if (result.newlyArmed || (result.hunterArmed && !floor.hunterArmed)) {
-    next = armHunterOnFloor(next);
-  }
-  return next;
-}
-
-/**
- * F3: Latch hunter + immutably replace EXIT combat enemy with Hunter when present and not cleared.
- * Does not force EXIT spawn before min rooms.
- */
-export function armHunterOnFloor(floor: BranchingFloor): BranchingFloor {
-  let rooms = floor.rooms;
-  if (floor.exitRoomId) {
-    rooms = floor.rooms.map((room) => {
-      if (room.id !== floor.exitRoomId) return room;
-      if (room.isCleared) return room;
-      const combat = room.activities.combat;
-      if (!combat || combat.completed) return room;
-      if (combat.enemy.isHunter) return room;
-      const hunter = generateHunterFromGuardian(combat.enemy);
-      return {
-        ...room,
-        name: room.name.includes('Hunter') ? room.name : `Hunter Gate`,
-        description: room.description,
-        activities: {
-          ...room.activities,
-          combat: {
-            ...combat,
-            enemy: hunter,
-          },
-        },
-      };
-    });
-  }
-  return {
-    ...floor,
-    hunterArmed: true,
-    rooms,
   };
 }
 
@@ -1879,268 +1677,22 @@ export function generateBranchingFloor(
 }
 
 // ============================================================================
-// ROOM NAVIGATION
+// ROOM GRAPH (navigation / activity / queries) — re-exported from RoomGraphSystem
 // ============================================================================
 
-/**
- * Check if a room is accessible from the current room
- */
-export function isRoomAccessible(
-  branchingFloor: BranchingFloor,
-  targetRoomId: string
-): boolean {
-  const currentRoom = branchingFloor.rooms.find(r => r.id === branchingFloor.currentRoomId);
-  if (!currentRoom) return false;
-
-  // Can always access current room
-  if (targetRoomId === branchingFloor.currentRoomId) return true;
-
-  // Can only move to child rooms if current room is cleared
-  if (!currentRoom.isCleared) return false;
-
-  return currentRoom.childIds.includes(targetRoomId);
-}
-
-/**
- * Move to a new room
- * Also triggers dynamic generation of grandchildren for the new room
- */
-export function moveToRoom(
-  branchingFloor: BranchingFloor,
-  targetRoomId: string,
-  player?: Player
-): BranchingFloor {
-  const targetRoom = branchingFloor.rooms.find(r => r.id === targetRoomId);
-
-  // Check if target room exists and is accessible
-  if (!targetRoom || !targetRoom.isAccessible) {
-    return branchingFloor;
-  }
-
-  // Only increment roomsVisited if actually moving to a different room
-  // (re-entering current room for remaining activities shouldn't count)
-  const isNewRoom = branchingFloor.currentRoomId !== targetRoomId;
-
-  // Update current room flags - preserve existing accessibility
-  const updatedRooms = branchingFloor.rooms.map(room => ({
-    ...room,
-    isCurrent: room.id === targetRoomId,
-  }));
-
-  let updatedFloor: BranchingFloor = {
-    ...branchingFloor,
-    currentRoomId: targetRoomId,
-    rooms: updatedRooms,
-    roomsVisited: isNewRoom ? branchingFloor.roomsVisited + 1 : branchingFloor.roomsVisited,
-  };
-
-  // Generate grandchildren for this room's children (ensure 2 levels visible)
-  updatedFloor = ensureGrandchildrenExist(updatedFloor, targetRoomId, player);
-
-  return updatedFloor;
-}
-
-// ============================================================================
-// ACTIVITY MANAGEMENT
-// ============================================================================
-
-/**
- * Get the current activity for a room
- */
-export function getCurrentActivity(room: BranchingRoom): keyof RoomActivities | null {
-  for (const activityKey of ACTIVITY_ORDER) {
-    const activity = room.activities[activityKey];
-    if (activity && !isActivityCompleted(activity)) {
-      return activityKey;
-    }
-  }
-  return null;
-}
-
-/**
- * Check if an activity is completed
- */
-function isActivityCompleted(activity: RoomActivities[keyof RoomActivities]): boolean {
-  if (!activity) return true;
-
-  if ('completed' in activity) return activity.completed;
-  if ('collected' in activity) return activity.collected;
-
-  return false;
-}
-
-/**
- * Mark an activity as completed
- */
-export function completeActivity(
-  branchingFloor: BranchingFloor,
-  roomId: string,
-  activityKey: keyof RoomActivities
-): BranchingFloor {
-  const updatedRooms = branchingFloor.rooms.map(room => {
-    if (room.id !== roomId) return room;
-
-    const activity = room.activities[activityKey];
-    if (!activity) return room;
-
-    const updatedActivity = { ...activity };
-    if ('completed' in updatedActivity) {
-      updatedActivity.completed = true;
-    }
-    if ('collected' in updatedActivity) {
-      updatedActivity.collected = true;
-    }
-
-    const updatedActivities = {
-      ...room.activities,
-      [activityKey]: updatedActivity,
-    };
-
-    // Check if all activities are now complete
-    const allCompleted = ACTIVITY_ORDER.every(key => {
-      const act = updatedActivities[key];
-      return !act || isActivityCompleted(act);
-    });
-
-    // Update child rooms accessibility if room is now cleared
-    let updatedChildIds = room.childIds;
-
-    return {
-      ...room,
-      activities: updatedActivities,
-      isCleared: allCompleted,
-    };
-  });
-
-  // If the room was cleared, unlock children without mutating prior room objects
-  // (map kept non-target rooms by reference — in-place isAccessible=true corrupted history).
-  const clearedRoom = updatedRooms.find(r => r.id === roomId);
-  const roomsAfterUnlock =
-    clearedRoom?.isCleared
-      ? updatedRooms.map((room) =>
-          clearedRoom.childIds.includes(room.id) && !room.isAccessible
-            ? { ...room, isAccessible: true }
-            : room
-        )
-      : updatedRooms;
-
-  // Count cleared rooms
-  const clearedCount = roomsAfterUnlock.filter(r => r.isCleared).length;
-
-  return {
-    ...branchingFloor,
-    rooms: roomsAfterUnlock,
-    clearedRooms: clearedCount,
-  };
-}
-
-/**
- * Soft-lock recovery: room has no remaining activities but is still !isCleared
- * (empty gen after event/elite flag dropouts, or spent residue). Without this,
- * children never unlock and the branch is permanently sealed.
- * No-op when room already cleared or still has a pending activity.
- */
-export function clearRoomIfSpent(
-  branchingFloor: BranchingFloor,
-  roomId: string
-): BranchingFloor {
-  const room = branchingFloor.rooms.find((r) => r.id === roomId);
-  if (!room || room.isCleared) return branchingFloor;
-  if (getCurrentActivity(room)) return branchingFloor;
-
-  const updatedRooms = branchingFloor.rooms.map((r) =>
-    r.id === roomId ? { ...r, isCleared: true } : r
-  );
-  const clearedRoom = updatedRooms.find((r) => r.id === roomId);
-  const roomsAfterUnlock = clearedRoom
-    ? updatedRooms.map((r) =>
-        clearedRoom.childIds.includes(r.id) && !r.isAccessible
-          ? { ...r, isAccessible: true }
-          : r
-      )
-    : updatedRooms;
-
-  return {
-    ...branchingFloor,
-    rooms: roomsAfterUnlock,
-    clearedRooms: roomsAfterUnlock.filter((r) => r.isCleared).length,
-  };
-}
-
-/**
- * Check if the floor is complete (exit room cleared)
- */
-export function isFloorComplete(branchingFloor: BranchingFloor): boolean {
-  const exitRoom = branchingFloor.rooms.find(r => r.id === branchingFloor.exitRoomId);
-  return exitRoom?.isCleared ?? false;
-}
-
-// ============================================================================
-// ROOM STATE QUERIES
-// ============================================================================
-
-/**
- * Get a room by ID
- */
-export function getRoomById(
-  branchingFloor: BranchingFloor,
-  roomId: string
-): BranchingRoom | undefined {
-  return branchingFloor.rooms.find(r => r.id === roomId);
-}
-
-/**
- * Get the current room
- */
-export function getCurrentRoom(branchingFloor: BranchingFloor): BranchingRoom | undefined {
-  return branchingFloor.rooms.find(r => r.id === branchingFloor.currentRoomId);
-}
-
-/**
- * Get child rooms of a room
- */
-export function getChildRooms(
-  branchingFloor: BranchingFloor,
-  roomId: string
-): BranchingRoom[] {
-  const room = branchingFloor.rooms.find(r => r.id === roomId);
-  if (!room) return [];
-
-  return room.childIds
-    .map(childId => branchingFloor.rooms.find(r => r.id === childId))
-    .filter((r): r is BranchingRoom => r !== undefined);
-}
-
-/**
- * Get rooms by tier
- */
-export function getRoomsByTier(
-  branchingFloor: BranchingFloor,
-  tier: RoomTier
-): BranchingRoom[] {
-  return branchingFloor.rooms.filter(r => r.tier === tier);
-}
-
-// ============================================================================
-// COMBAT MODIFIER HELPERS
-// ============================================================================
-
-/**
- * Get combat setup for a room
- */
-export function getCombatSetup(room: BranchingRoom): {
-  enemy: Enemy | null;
-  modifiers: CombatModifierType[];
-  terrain: TerrainType;
-} {
-  const combat = room.activities.combat;
-
-  return {
-    enemy: combat?.enemy ?? null,
-    modifiers: combat?.modifiers ?? [CombatModifierType.NONE],
-    terrain: room.terrain,
-  };
-}
+export {
+  isRoomAccessible,
+  moveToRoom,
+  getCurrentActivity,
+  completeActivity,
+  clearRoomIfSpent,
+  isFloorComplete,
+  getRoomById,
+  getCurrentRoom,
+  getChildRooms,
+  getRoomsByTier,
+  getCombatSetup,
+} from './RoomGraphSystem';
 
 // ============================================================================
 // INTEL SYSTEM

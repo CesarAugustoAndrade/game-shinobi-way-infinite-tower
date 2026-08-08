@@ -26,7 +26,10 @@ import { chance } from '../game/utils/rng';
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { logVictory, logRewardModal, logFlowCheckpoint } from '../game/utils/combatDebug';
 import { logActivityComplete, logIntelGain } from '../game/utils/explorationDebug';
-import { resolveExploreReturnState } from './exploreReturnState';
+import {
+  resolvePostActivityGameState,
+  resolveVisitContext,
+} from '../game/session';
 import {
   accumulateEncounterStage,
   canRollHeatEliteChain,
@@ -263,34 +266,23 @@ export function useCombatVictory(
     const merged = mergeEncounterRewards(chain);
     const wasEliteChallenge = pendingArtifact !== null && !chain.stages.some(s => s.isHeatChainElite);
 
-    // Complete activity only on commit
+    // Complete activity only on commit — single floor via VisitContext / floorKind
     if (chain.activity) {
       const { roomId, activityType, floorKind } = chain.activity;
-      if (floorKind === 'branching' || branchingFloor) {
-        setBranchingFloor(prevFloor => {
-          if (!prevFloor) return prevFloor;
-          let updatedFloor = completeActivity(prevFloor, roomId, activityType);
-          if (updatedFloor.currentRoomId !== roomId) {
-            updatedFloor = {
-              ...updatedFloor,
-              currentRoomId: roomId,
-              rooms: updatedFloor.rooms.map(room => ({
-                ...room,
-                isCurrent: room.id === roomId,
-              })),
-            };
-          }
-          const updatedRoom = updatedFloor.rooms.find(r => r.id === roomId);
-          if (updatedRoom?.isCleared && updatedRoom.isExit) {
-            addLog('You cleared the exit! Proceed to the next floor?', 'gain');
-          }
-          return updatedFloor;
-        });
+
+      // Prefer explicit floorKind from chain when the matching floor is present
+      let visit = resolveVisitContext({ locationFloor, branchingFloor });
+      if (floorKind === 'location' && locationFloor) {
+        visit = { kind: 'location', floor: locationFloor };
+      } else if (floorKind === 'branching' && branchingFloor) {
+        visit = { kind: 'branching', floor: branchingFloor };
       }
-      if (floorKind === 'location' || locationFloor) {
-        setLocationFloor(prevFloor => {
+
+      if (visit) {
+        const applyComplete = (prevFloor: BranchingFloor | null): BranchingFloor | null => {
           if (!prevFloor) return prevFloor;
           let updatedFloor = completeActivity(prevFloor, roomId, activityType);
+          // Repair currentRoomId if completeActivity left us on a different room
           if (updatedFloor.currentRoomId !== roomId) {
             updatedFloor = {
               ...updatedFloor,
@@ -303,10 +295,20 @@ export function useCombatVictory(
           }
           const updatedRoom = updatedFloor.rooms.find(r => r.id === roomId);
           if (updatedRoom?.isCleared && updatedRoom.isExit) {
-            addLog('Location cleared! Return when ready to choose the next destination.', 'gain');
+            if (visit!.kind === 'location') {
+              addLog('Location cleared! Return when ready to choose the next destination.', 'gain');
+            } else {
+              addLog('You cleared the exit! Proceed to the next floor?', 'gain');
+            }
           }
           return updatedFloor;
-        });
+        };
+
+        if (visit.kind === 'location') {
+          setLocationFloor(applyComplete);
+        } else {
+          setBranchingFloor(applyComplete);
+        }
       }
     }
 
@@ -376,7 +378,12 @@ export function useCombatVictory(
 
     encounterChainRef.current = createEmptyEncounterChain();
     logFlowCheckpoint('Transitioning to explore with reward modal (commit)');
-    setGameState(resolveExploreReturnState(region, !!locationFloor));
+    setGameState(
+      resolvePostActivityGameState(
+        region,
+        resolveVisitContext({ locationFloor, branchingFloor }),
+      ),
+    );
   }, [
     pendingArtifact, branchingFloor, locationFloor, region, currentIntel,
     setBranchingFloor, setLocationFloor, setCurrentIntel, setPlayer, setCombatReward,

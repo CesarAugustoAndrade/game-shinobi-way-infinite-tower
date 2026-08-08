@@ -185,3 +185,15 @@ export const MERCHANT = {
     RARE: 700,    // COMMON → RARE
   },
 } as const;
+
+// ---------------------------------------------------------------------------
+// Sprint C — unified knobs home (definitions live in cycle-safe modules)
+// ---------------------------------------------------------------------------
+export { STAT_FORMULAS } from './statFormulas';
+export {
+  MAX_BAG_SLOTS,
+  DISASSEMBLE_RETURN_RATE,
+  DEFAULT_MERCHANT_SLOTS,
+  MAX_MERCHANT_SLOTS,
+  DEFAULT_TREASURE_QUALITY,
+} from './gameLimits';

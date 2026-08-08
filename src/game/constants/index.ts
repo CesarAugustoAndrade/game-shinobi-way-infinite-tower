@@ -18,6 +18,9 @@ export * from './skills';
 // Art registry (T-019) — central key→asset with emoji cascade
 export * from './artRegistry';
 
+// Story flag → combat/loot run modifiers (T-034 table)
+export * from './eventFlagRunModifiers';
+
 // MAX_LOGS removed - use LIMITS.MAX_LOG_ENTRIES from config.ts instead
 
 // ============================================================================
