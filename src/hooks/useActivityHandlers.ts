@@ -141,19 +141,85 @@ function resolveEventRoomId(args: {
 }
 
 /**
+ * Force-complete pending event on a floor.
+ * Returns { floor, completed } — completed true when event is done (or was already).
+ * null floor only when roomId missing from floor.
+ */
+function forceCompleteEventOnFloor(
+  floor: BranchingFloor | null,
+  roomId: string | null,
+): { floor: BranchingFloor; completed: boolean } | null {
+  if (!floor || !roomId) return null;
+  const room = floor.rooms.find((r) => r.id === roomId);
+  if (!room) return null;
+  if (!room.activities.event) {
+    // No event activity — treat as nothing to complete
+    return { floor, completed: true };
+  }
+  if (room.activities.event.completed) {
+    return { floor, completed: true };
+  }
+  const next = completeActivity(floor, roomId, 'event');
+  const after = next.rooms.find((r) => r.id === roomId);
+  if (after?.activities.event && !after.activities.event.completed) {
+    return { floor, completed: false };
+  }
+  logActivityComplete(roomId, 'event');
+  return { floor: next, completed: true };
+}
+
+/**
  * Leave event UI without auto-chaining when complete failed.
+ * First tries hard-complete so the room does not stay sealed forever.
  * Calling returnToMapActivityComplete with an incomplete event re-opens it (~100ms).
  */
 function leaveEventWithoutChain(args: {
   locationFloor: BranchingFloor | null;
+  branchingFloor?: BranchingFloor | null;
   region: Region | null;
+  setLocationFloor?: React.Dispatch<React.SetStateAction<BranchingFloor | null>>;
+  setBranchingFloor?: React.Dispatch<React.SetStateAction<BranchingFloor | null>>;
   setSelectedBranchingRoom: React.Dispatch<React.SetStateAction<BranchingRoom | null>>;
   setGameState: (state: GameState) => void;
+  returnToMapActivityComplete?: (
+    updatedFloor?: BranchingFloor,
+    options?: { floor?: BranchingFloor | null; intel?: number }
+  ) => void;
   reason: string;
 }): void {
-  logSyncWarning(`Event leave without complete/chain: ${args.reason}`, {
-    sessionRoomId: getEventSessionRoomId(),
+  const roomId = resolveEventRoomId({
+    locationFloor: args.locationFloor,
+    branchingFloor: args.branchingFloor ?? null,
   });
+  logSyncWarning(`Event leave without chain: ${args.reason}`, {
+    sessionRoomId: getEventSessionRoomId(),
+    roomId,
+  });
+
+  // Last-chance complete so children can unlock / badge clears
+  const locDone = forceCompleteEventOnFloor(args.locationFloor, roomId);
+  if (locDone?.completed && args.setLocationFloor) {
+    args.setLocationFloor(locDone.floor);
+    clearEventSessionRoom();
+    args.setSelectedBranchingRoom(null);
+    if (args.returnToMapActivityComplete && args.region?.currentLocationId) {
+      args.returnToMapActivityComplete(locDone.floor);
+      return;
+    }
+    args.setGameState(
+      args.region?.currentLocationId ? GameState.LOCATION_EXPLORE : GameState.REGION_MAP,
+    );
+    return;
+  }
+  const brDone = forceCompleteEventOnFloor(args.branchingFloor ?? null, roomId);
+  if (brDone?.completed && args.setBranchingFloor) {
+    args.setBranchingFloor(brDone.floor);
+    clearEventSessionRoom();
+    args.setSelectedBranchingRoom(null);
+    args.setGameState(GameState.REGION_MAP);
+    return;
+  }
+
   clearEventSessionRoom();
   args.setSelectedBranchingRoom(null);
   if (args.locationFloor && args.region?.currentLocationId) {
@@ -201,11 +267,21 @@ function applyEventVisitComplete(args: {
       locationFloor: args.locationFloor,
       branchingFloor: args.branchingFloor,
     });
-  if (!visit || !roomId) return false;
+  if (!visit || !roomId) {
+    logExplorationCheckpoint('applyEventVisitComplete fail', {
+      reason: !visit ? 'no-visit' : 'no-roomId',
+      roomId: roomId ?? null,
+    });
+    return false;
+  }
 
   const roomBefore = visit.floor.rooms.find((r) => r.id === roomId);
   if (!roomBefore) {
     logSyncWarning('applyEventVisitComplete: roomId not on floor', { roomId });
+    logExplorationCheckpoint('applyEventVisitComplete fail', {
+      reason: 'roomId-not-on-floor',
+      roomId,
+    });
     return false;
   }
 
@@ -219,6 +295,11 @@ function applyEventVisitComplete(args: {
     logSyncWarning('applyEventVisitComplete: event still incomplete after completeActivity', {
       roomId,
     });
+    logExplorationCheckpoint('applyEventVisitComplete fail', {
+      reason: 'still-incomplete',
+      roomId,
+      eventCompletedAfter: false,
+    });
     return false;
   }
 
@@ -226,6 +307,12 @@ function applyEventVisitComplete(args: {
   const patch = visitToFloorPatch(next);
   if (patch.locationFloor) args.setLocationFloor(patch.locationFloor);
   if (patch.branchingFloor) args.setBranchingFloor(patch.branchingFloor);
+
+  logExplorationCheckpoint('applyEventVisitComplete success', {
+    roomId,
+    eventCompletedAfter: true,
+    visitKind: next.kind,
+  });
 
   if (next.kind === 'location' && args.region?.currentLocationId) {
     if (args.intel !== undefined && args.setCurrentIntel) {
@@ -1339,6 +1426,7 @@ export function useActivityHandlers(
       });
 
       // completeActivity on heat-updated working floor (never stale pre-heat snapshot)
+      let eventCompletedAfter = false;
       if (workingLocationFloor && combatEventRoomId) {
         logActivityComplete(combatEventRoomId, 'event');
         workingLocationFloor = completeActivity(
@@ -1347,6 +1435,8 @@ export function useActivityHandlers(
           'event',
         );
         clearEventSessionRoom();
+        const roomAfter = workingLocationFloor.rooms.find((r) => r.id === combatEventRoomId);
+        eventCompletedAfter = !roomAfter?.activities.event || !!roomAfter.activities.event.completed;
       } else if (workingBranchingFloor && combatEventRoomId) {
         logActivityComplete(combatEventRoomId, 'event');
         workingBranchingFloor = completeActivity(
@@ -1355,12 +1445,19 @@ export function useActivityHandlers(
           'event',
         );
         clearEventSessionRoom();
+        const roomAfter = workingBranchingFloor.rooms.find((r) => r.id === combatEventRoomId);
+        eventCompletedAfter = !roomAfter?.activities.event || !!roomAfter.activities.event.completed;
       } else {
         logSyncWarning('Event combat: no roomId — completing skipped', {
           hasLocation: Boolean(workingLocationFloor),
           hasBranching: Boolean(workingBranchingFloor),
         });
       }
+      logExplorationCheckpoint('handleEventChoice: combat', {
+        branch: 'combat',
+        roomId: combatEventRoomId,
+        eventCompletedAfter,
+      });
 
       // T-063/T-070: location terrain for manual + auto event combat
       const eventLocMods = getLocationTerrainMods(currentLocation?.terrainEffects);
@@ -1521,15 +1618,6 @@ export function useActivityHandlers(
       return true;
     }
 
-    // Non-combat path: commit heat-updated floors now (completeActivity on close
-    // reads React state after re-render, which includes this heat).
-    if (workingLocationFloor && workingLocationFloor !== locationFloor) {
-      setLocationFloor(workingLocationFloor);
-    }
-    if (workingBranchingFloor && workingBranchingFloor !== branchingFloor) {
-      setBranchingFloor(workingBranchingFloor);
-    }
-
     // Session bind first — selection/currentRoomId can drift under outcome modal
     const eventRoomId = resolveEventRoomId({
       selectedRoomId: selectedBranchingRoom?.id ?? null,
@@ -1540,17 +1628,25 @@ export function useActivityHandlers(
       bindEventSessionRoom(eventRoomId);
     }
 
-    // T-008/T-011: chain into the next event. The eventFlags written by this
-    // outcome were already persisted via setPlayer(postEventPlayer) above, so
-    // the next event (and its choices) see them when gating. In the location
-    // explorer the chain routes through the result panel first — the player
-    // sees WHAT CHANGED and an explicit "continue the story" step, and the hop
-    // to the next event happens on close (handleEventOutcomeClose). The room's
-    // event activity is intentionally left incomplete until the final link
-    // resolves normally.
+    // T-008/T-011: chain intermediate — leave room event incomplete until terminal link.
+    // Terminal choices complete the activity NOW (not on modal close) so a lost
+    // Continue / soft-lock / double-key never leaves event.completed=false → cascade.
     const inLocationMode = Boolean(workingLocationFloor && region && region.currentLocationId);
     if (result.nextEventId) {
+      // Commit heat only; activity stays open for the story chain
+      if (workingLocationFloor && workingLocationFloor !== locationFloor) {
+        setLocationFloor(workingLocationFloor);
+      }
+      if (workingBranchingFloor && workingBranchingFloor !== branchingFloor) {
+        setBranchingFloor(workingBranchingFloor);
+      }
       if (inLocationMode && result.outcome) {
+        logExplorationCheckpoint('handleEventChoice: chain', {
+          branch: 'chain',
+          roomId: eventRoomId,
+          nextEventId: result.nextEventId,
+          eventCompletedAfter: false,
+        });
         setEventOutcome({
           message: result.message || 'Choice resolved.',
           outcome: result.outcome,
@@ -1558,6 +1654,7 @@ export function useActivityHandlers(
           changes: outcomeChanges,
           nextEventId: result.nextEventId,
           roomId: eventRoomId,
+          eventAlreadyCompleted: false,
         });
         setActiveEvent(null);
         setGameState(GameState.LOCATION_EXPLORE);
@@ -1566,7 +1663,13 @@ export function useActivityHandlers(
       // Legacy branching explorer has no result panel — hop directly.
       const nextEvent = EVENTS.find(e => e.id === result.nextEventId);
       if (nextEvent) {
-        // Next link must accept a confirm (UI remounts; parent mutex must rearm)
+        logExplorationCheckpoint('handleEventChoice: chain', {
+          branch: 'chain',
+          roomId: eventRoomId,
+          nextEventId: result.nextEventId,
+          eventCompletedAfter: false,
+          hop: 'direct-legacy',
+        });
         eventChoiceLockRef.current = false;
         setCameFromChain(true);
         setActiveEvent(nextEvent);
@@ -1575,14 +1678,57 @@ export function useActivityHandlers(
       }
     }
 
-    // Show result panel, then complete the room event on close (roomId carried in payload)
+    // ── Terminal path: complete event activity immediately on working floors ──
+    // Must finish BEFORE staging eventOutcome so a lost Continue cannot leave
+    // event.completed=false (cascade re-open + sealed children).
+    let eventAlreadyCompleted = false;
+    if (eventRoomId && workingLocationFloor) {
+      const forced = forceCompleteEventOnFloor(workingLocationFloor, eventRoomId);
+      if (forced) {
+        workingLocationFloor = forced.floor;
+        if (forced.completed) eventAlreadyCompleted = true;
+      }
+    }
+    // Dual-write seal (heat already updated both copies earlier)
+    if (eventRoomId && workingBranchingFloor) {
+      const forced = forceCompleteEventOnFloor(workingBranchingFloor, eventRoomId);
+      if (forced) {
+        workingBranchingFloor = forced.floor;
+        if (forced.completed) eventAlreadyCompleted = true;
+      }
+    }
+    if (eventAlreadyCompleted) {
+      clearEventSessionRoom();
+    } else if (eventRoomId) {
+      logSyncWarning('Event terminal: completeActivity did not seal event', {
+        roomId: eventRoomId,
+        hasLocation: Boolean(workingLocationFloor),
+        hasBranching: Boolean(workingBranchingFloor),
+      });
+    }
+
+    // Commit heat + complete in one floor write (avoid heat-then-stale-complete race)
+    if (workingLocationFloor) {
+      setLocationFloor(workingLocationFloor);
+    }
+    if (workingBranchingFloor) {
+      setBranchingFloor(workingBranchingFloor);
+    }
+
+    // Show result panel; close only grants intel + leave (activity already done)
     if (result.outcome) {
+      logExplorationCheckpoint('handleEventChoice: outcome', {
+        branch: 'outcome',
+        roomId: eventRoomId,
+        eventCompletedAfter: eventAlreadyCompleted,
+      });
       setEventOutcome({
         message: result.message || 'Choice resolved.',
         outcome: result.outcome,
         logType: logType as 'gain' | 'danger' | 'info' | 'loot',
         changes: outcomeChanges,
         roomId: eventRoomId,
+        eventAlreadyCompleted,
       });
       setActiveEvent(null);
       if (inLocationMode) {
@@ -1593,30 +1739,51 @@ export function useActivityHandlers(
       return true;
     }
 
-    // No outcome panel — mark event consumed immediately so it cannot re-open
+    // No outcome panel — leave immediately (already completed when possible)
     setActiveEvent(null);
-    // Single visit floor (heat already on working floors above)
-    if (
-      applyEventVisitComplete({
-        locationFloor: workingLocationFloor,
-        branchingFloor: workingBranchingFloor,
+    if (eventAlreadyCompleted) {
+      logExplorationCheckpoint('handleEventChoice: direct-complete', {
+        branch: 'direct-complete',
         roomId: eventRoomId,
-        region,
-        setLocationFloor,
-        setBranchingFloor,
-        setSelectedBranchingRoom,
-        setGameState,
-        returnToMapActivityComplete,
-      })
-    ) {
+        eventCompletedAfter: true,
+      });
+      if (workingLocationFloor && region?.currentLocationId) {
+        returnToMapActivityComplete(workingLocationFloor);
+      } else if (workingLocationFloor) {
+        setGameState(GameState.LOCATION_EXPLORE);
+      } else {
+        setGameState(GameState.REGION_MAP);
+      }
       return true;
     }
-    // Complete failed — leave map idle without auto-chain (would re-open same event)
-    leaveEventWithoutChain({
+    const completeOk = applyEventVisitComplete({
       locationFloor: workingLocationFloor,
+      branchingFloor: workingBranchingFloor,
+      roomId: eventRoomId,
       region,
+      setLocationFloor,
+      setBranchingFloor,
       setSelectedBranchingRoom,
       setGameState,
+      returnToMapActivityComplete,
+    });
+    logExplorationCheckpoint('handleEventChoice: direct-complete', {
+      branch: 'direct-complete',
+      roomId: eventRoomId,
+      eventCompletedAfter: completeOk,
+    });
+    if (completeOk) {
+      return true;
+    }
+    leaveEventWithoutChain({
+      locationFloor: workingLocationFloor,
+      branchingFloor: workingBranchingFloor,
+      region,
+      setLocationFloor,
+      setBranchingFloor,
+      setSelectedBranchingRoom,
+      setGameState,
+      returnToMapActivityComplete,
       reason: 'no-outcome path complete failed',
     });
     return true;
@@ -1638,6 +1805,7 @@ export function useActivityHandlers(
         changes: OutcomeChange[];
         nextEventId?: string;
         roomId?: string | null;
+        eventAlreadyCompleted?: boolean;
       } | null;
     } = { outcome: null };
     setEventOutcome((prev: typeof eventOutcome) => {
@@ -1656,7 +1824,11 @@ export function useActivityHandlers(
     if (closed.nextEventId) {
       const nextEvent = EVENTS.find(e => e.id === closed.nextEventId);
       if (nextEvent) {
-        // Keep session room bound across narrative hops
+        logExplorationCheckpoint('handleEventOutcomeClose: chain hop', {
+          roomId: closed.roomId ?? null,
+          nextEventId: closed.nextEventId,
+          completeOk: false,
+        });
         if (closed.roomId) bindEventSessionRoom(closed.roomId);
         eventChoiceLockRef.current = false;
         eventOutcomeCloseLockRef.current = false;
@@ -1670,7 +1842,6 @@ export function useActivityHandlers(
     // Terminal link: the chain (if any) is over — clear the chain flag.
     setCameFromChain(false);
 
-    // Session bind > stamp > selection > current room with pending event
     const roomId = resolveEventRoomId({
       stampedRoomId: closed.roomId ?? null,
       selectedRoomId: selectedBranchingRoom?.id ?? null,
@@ -1679,7 +1850,6 @@ export function useActivityHandlers(
     });
 
     // T-068: fog/visibility_penalty scales event intel (parity combat/infoGather)
-    // Granted only on location complete path inside applyEventVisitComplete.
     const baseEventIntel =
       closed.outcome?.effects?.intelGain ?? INTEL_GAIN.EVENT_DEFAULT;
     const eventIntelGain = applyVisibilityToIntelGain(
@@ -1688,33 +1858,73 @@ export function useActivityHandlers(
     );
     const nextIntel = Math.min(100, currentIntel + eventIntelGain);
 
-    // Single visit floor via resolveVisitContext / completeActivityOnVisit
-    if (
-      applyEventVisitComplete({
-        locationFloor,
-        branchingFloor,
+    // Already completed on-choice? Floor state is source of truth — never trust the
+    // stamp alone (stale locationFloor + returnToMapActivityComplete re-opens event).
+    const visit = resolveVisitContext({ locationFloor, branchingFloor });
+    const roomOnVisit = visit && roomId
+      ? visit.floor.rooms.find((r) => r.id === roomId)
+      : undefined;
+    const eventDoneOnFloor =
+      Boolean(roomOnVisit?.activities.event?.completed) ||
+      // no event activity left counts as done
+      (roomOnVisit != null && !roomOnVisit.activities.event);
+
+    if (eventDoneOnFloor && visit) {
+      // Do NOT re-call applyEventVisitComplete — grant intel + leave with sealed floor
+      clearEventSessionRoom();
+      logExplorationCheckpoint('handleEventOutcomeClose: terminal', {
         roomId,
-        region,
-        setLocationFloor,
-        setBranchingFloor,
-        setSelectedBranchingRoom,
-        setGameState,
-        returnToMapActivityComplete,
-        intel: nextIntel,
-        intelGain: eventIntelGain,
-        setCurrentIntel,
-      })
-    ) {
+        completeOk: true,
+        path: 'already-completed',
+        stamped: Boolean(closed.eventAlreadyCompleted),
+      });
+      if (visit.kind === 'location' && region?.currentLocationId) {
+        setCurrentIntel(nextIntel);
+        logIntelGain('Event', eventIntelGain, nextIntel);
+        returnToMapActivityComplete(visit.floor, { intel: nextIntel });
+        return;
+      }
+      setSelectedBranchingRoom(null);
+      setGameState(resolvePostActivityGameState(region, visit));
       return;
     }
 
-    // Fallback: leave map idle WITHOUT auto-chain (incomplete event + chain = cascade)
+    // Incomplete (early complete skipped/failed / stamp lied / stale floor) — complete now
+    const completeOk = applyEventVisitComplete({
+      locationFloor,
+      branchingFloor,
+      roomId,
+      region,
+      setLocationFloor,
+      setBranchingFloor,
+      setSelectedBranchingRoom,
+      setGameState,
+      returnToMapActivityComplete,
+      intel: nextIntel,
+      intelGain: eventIntelGain,
+      setCurrentIntel,
+    });
+    logExplorationCheckpoint('handleEventOutcomeClose: terminal', {
+      roomId,
+      completeOk,
+      path: 'complete-on-close',
+      stamped: Boolean(closed.eventAlreadyCompleted),
+      floorHadCompleted: Boolean(roomOnVisit?.activities.event?.completed),
+    });
+    if (completeOk) {
+      return;
+    }
+
     addLog('Event resolved.', 'info');
     leaveEventWithoutChain({
       locationFloor,
+      branchingFloor,
       region,
+      setLocationFloor,
+      setBranchingFloor,
       setSelectedBranchingRoom,
       setGameState,
+      returnToMapActivityComplete,
       reason: 'outcome close complete failed',
     });
   }, [

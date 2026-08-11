@@ -7,7 +7,7 @@ import {
   CharacterStats,
 } from '../../game/types';
 import RoomCard from './RoomCard';
-import { getCurrentRoom, getChildRooms, isFloorComplete } from '../../game/systems/LocationSystem';
+import { getCurrentRoom, getChildRooms, getCurrentActivity, isFloorComplete } from '../../game/systems/LocationSystem';
 import { ACTIVITY_FULL_NAMES } from '../../game/constants/activityLabels';
 import {
   formatLocationTerrainEffectLines,
@@ -152,14 +152,22 @@ const LocationMap: React.FC<LocationMapProps> = ({
       .filter(Boolean) as string[];
   }, [selectedRoom]);
 
+  // Next pending activity (ACTIVITY_ORDER) — multi-activity rooms stay uncleared
+  // until all finish; surface which one Enter will open so the map never looks stuck.
+  const selectedNextActivity = useMemo(
+    () => (selectedRoom && !selectedRoom.isCleared ? getCurrentActivity(selectedRoom) : null),
+    [selectedRoom],
+  );
+
   // Handle room click
   const handleRoomClick = (room: BranchingRoom) => {
     setSelectedRoomId(room.id);
     onRoomSelect(room);
   };
 
-  // Handle enter button
+  // Handle enter button (parity with keyboard: block under result/approach modals)
   const handleEnterRoom = useCallback(() => {
+    if (queryBlockingModal()) return;
     if (selectedRoom && selectedRoom.isAccessible && !selectedRoom.isCleared) {
       onRoomEnter(selectedRoom);
     }
@@ -590,50 +598,56 @@ const LocationMap: React.FC<LocationMapProps> = ({
                 </div>
               )}
 
-              {/* Activity list */}
+              {/* Activity list — highlight next pending so multi-activity rooms
+                  (event done, scroll/training still open) do not look stuck. */}
               <div className="location-map__selected-activities">
+                {selectedNextActivity && (
+                  <span className="location-map__activity-next" aria-live="polite">
+                    Next: {ACTIVITY_FULL_NAMES[selectedNextActivity]}
+                  </span>
+                )}
                 {selectedRoom.activities.combat && !selectedRoom.activities.combat.completed && (
-                  <span className="location-map__activity-tag location-map__activity-tag--combat">
+                  <span className={`location-map__activity-tag location-map__activity-tag--combat${selectedNextActivity === 'combat' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.combat}: {selectedRoom.activities.combat.enemy.name}
                   </span>
                 )}
                 {selectedRoom.activities.eliteChallenge && !selectedRoom.activities.eliteChallenge.completed && (
-                  <span className="location-map__activity-tag location-map__activity-tag--elite">
+                  <span className={`location-map__activity-tag location-map__activity-tag--elite${selectedNextActivity === 'eliteChallenge' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.eliteChallenge}: {selectedRoom.activities.eliteChallenge.enemy.name}
                   </span>
                 )}
                 {selectedRoom.activities.merchant && !selectedRoom.activities.merchant.completed && (
-                  <span className="location-map__activity-tag location-map__activity-tag--merchant">
+                  <span className={`location-map__activity-tag location-map__activity-tag--merchant${selectedNextActivity === 'merchant' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.merchant}
                   </span>
                 )}
                 {selectedRoom.activities.event && !selectedRoom.activities.event.completed && (
-                  <span className="location-map__activity-tag location-map__activity-tag--event">
+                  <span className={`location-map__activity-tag location-map__activity-tag--event${selectedNextActivity === 'event' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.event}
                   </span>
                 )}
                 {selectedRoom.activities.scrollDiscovery && !selectedRoom.activities.scrollDiscovery.completed && (
-                  <span className="location-map__activity-tag location-map__activity-tag--scroll">
+                  <span className={`location-map__activity-tag location-map__activity-tag--scroll${selectedNextActivity === 'scrollDiscovery' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.scrollDiscovery}
                   </span>
                 )}
                 {selectedRoom.activities.rest && !selectedRoom.activities.rest.completed && (
-                  <span className="location-map__activity-tag location-map__activity-tag--rest">
+                  <span className={`location-map__activity-tag location-map__activity-tag--rest${selectedNextActivity === 'rest' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.rest} (+{selectedRoom.activities.rest.healPercent}% HP)
                   </span>
                 )}
                 {selectedRoom.activities.training && !selectedRoom.activities.training.completed && (
-                  <span className="location-map__activity-tag location-map__activity-tag--training">
+                  <span className={`location-map__activity-tag location-map__activity-tag--training${selectedNextActivity === 'training' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.training}
                   </span>
                 )}
                 {selectedRoom.activities.treasure && !selectedRoom.activities.treasure.collected && (
-                  <span className="location-map__activity-tag location-map__activity-tag--treasure">
+                  <span className={`location-map__activity-tag location-map__activity-tag--treasure${selectedNextActivity === 'treasure' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.treasure}
                   </span>
                 )}
                 {selectedRoom.activities.infoGathering && !selectedRoom.activities.infoGathering.completed && (
-                  <span className="location-map__activity-tag location-map__activity-tag--intel">
+                  <span className={`location-map__activity-tag location-map__activity-tag--intel${selectedNextActivity === 'infoGathering' ? ' location-map__activity-tag--current' : ''}`}>
                     {ACTIVITY_FULL_NAMES.infoGathering}
                     {selectedRoom.activities.infoGathering.intelGain > 0
                       ? ` (+${selectedRoom.activities.infoGathering.intelGain}%)`
@@ -641,6 +655,11 @@ const LocationMap: React.FC<LocationMapProps> = ({
                   </span>
                 )}
               </div>
+              {selectedNextActivity && selectedRoom.isCurrent && !selectedRoom.isCleared && (
+                <p className="location-map__multi-activity-hint">
+                  Paths unlock when all room activities are finished
+                </p>
+              )}
             </div>
 
             {/* Action buttons */}
@@ -650,9 +669,19 @@ const LocationMap: React.FC<LocationMapProps> = ({
                   type="button"
                   onClick={handleEnterRoom}
                   className={getActionButtonClass()}
-                  aria-label={`Enter ${selectedRoom.name}`}
+                  aria-label={
+                    selectedRoom.isExit
+                      ? `Enter Guardian — ${selectedRoom.name}`
+                      : selectedNextActivity
+                        ? `Continue ${ACTIVITY_FULL_NAMES[selectedNextActivity]} in ${selectedRoom.name}`
+                        : `Enter ${selectedRoom.name}`
+                  }
                 >
-                  {selectedRoom.isExit ? 'Enter Guardian' : 'Enter Room'}
+                  {selectedRoom.isExit
+                    ? 'Enter Guardian'
+                    : selectedNextActivity
+                      ? `Continue: ${ACTIVITY_FULL_NAMES[selectedNextActivity]}`
+                      : 'Enter Room'}
                 </button>
               )}
               {floorComplete && onLeaveLocation && (

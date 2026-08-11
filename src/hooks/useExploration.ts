@@ -9,7 +9,12 @@ import {
   isFloorComplete,
   clearRoomIfSpent,
 } from '../game/systems/LocationSystem';
-import { logRoomExit, logStateChange, logSyncWarning } from '../game/utils/explorationDebug';
+import {
+  logRoomExit,
+  logStateChange,
+  logSyncWarning,
+  logExplorationCheckpoint,
+} from '../game/utils/explorationDebug';
 import { CombatExplorationState } from './useCombatExplorationState';
 import { useActivityHandler, ActivitySceneSetters } from './useActivityHandler';
 import { useLocationCards, CompleteLocationOptions } from './useLocationCards';
@@ -20,6 +25,78 @@ import { resolveExploreReturnState } from './exploreReturnState';
 export type { ActivitySceneSetters } from './useActivityHandler';
 // Re-export pure helper for callers that still import from this module
 export { resolveExploreReturnState } from './exploreReturnState';
+
+/**
+ * Resolve which floor/room the multi-activity chain timer should execute.
+ * Prefers the post-complete scheduled snapshot; never swaps to a lagging live
+ * ref that still has event incomplete when scheduled already completed it.
+ * If live is ahead on event completion (stale schedule from returnToMap), use live.
+ */
+function resolveActivityChainExec(
+  scheduledFloor: BranchingFloor,
+  chainRoomId: string,
+  liveFloor: BranchingFloor | null | undefined,
+  source: string,
+): { floor: BranchingFloor; room: BranchingRoom } | null {
+  const scheduledRoom =
+    scheduledFloor.rooms.find((r) => r.id === chainRoomId) ?? null;
+  if (!scheduledRoom) return null;
+
+  const liveRoom = liveFloor?.rooms.find((r) => r.id === chainRoomId) ?? null;
+  const scheduledEventDone =
+    !scheduledRoom.activities.event || scheduledRoom.activities.event.completed;
+  const liveEventDone =
+    !liveRoom?.activities.event || liveRoom.activities.event.completed;
+
+  // Default: post-complete / schedule snapshot (always prefer updatedFloor).
+  // Only take live when it is strictly ahead on event completion (stale schedule).
+  // Never swap to a lagging ref that still has event incomplete after complete.
+  let floorForExec = scheduledFloor;
+  let roomForExec = scheduledRoom;
+
+  if (liveRoom && liveFloor && !scheduledEventDone && liveEventDone) {
+    floorForExec = liveFloor;
+    roomForExec = liveRoom;
+  }
+
+  const nextAct = getCurrentActivity(roomForExec);
+  if (!nextAct) return null;
+
+  const evt = roomForExec.activities.event;
+  const execEventIncomplete = Boolean(evt && !evt.completed);
+  const eventCompletedOnRoom = !evt || !!evt.completed;
+
+  // Never chain-open event when it is already completed on the exec floor
+  if (nextAct === 'event' && evt?.completed) {
+    logSyncWarning(`${source}: chain next is event but event already completed on exec floor`, {
+      roomId: chainRoomId,
+    });
+    return null;
+  }
+
+  // Expected complete (schedule snapshot) but exec would re-open incomplete event
+  if (scheduledEventDone && nextAct === 'event' && execEventIncomplete) {
+    logSyncWarning(
+      `${source}: chain would re-open incomplete event after expected complete`,
+      {
+        roomId: chainRoomId,
+        usedLive: floorForExec === liveFloor,
+        scheduledEventDone,
+        liveEventDone,
+      },
+    );
+    return null;
+  }
+
+  logExplorationCheckpoint(`chain timer fire (${source})`, {
+    nextActivity: nextAct,
+    roomId: chainRoomId,
+    eventCompletedOnRoom,
+    usedLive: floorForExec === liveFloor,
+  });
+
+  return { floor: floorForExec, room: roomForExec };
+}
 
 /**
  * Dependencies for the useExploration hook
@@ -285,26 +362,17 @@ export function useExploration(
           const scheduledFloor = floor;
           activityChainTimerRef.current = setTimeout(() => {
             activityChainTimerRef.current = null;
-            const scheduledRoom =
-              scheduledFloor.rooms.find((r) => r.id === chainRoomId) ?? null;
-            if (!scheduledRoom || !getCurrentActivity(scheduledRoom)) return;
-
-            const liveFloor = locationFloorRef.current;
-            const liveRoom = liveFloor?.rooms.find((r) => r.id === chainRoomId);
-            const scheduledEventDone =
-              !scheduledRoom.activities.event ||
-              scheduledRoom.activities.event.completed;
-            const liveEventDone =
-              !liveRoom?.activities.event || liveRoom.activities.event.completed;
-            const useLive =
-              Boolean(liveRoom && liveFloor && scheduledEventDone && liveEventDone);
-            const floorForExec = useLive ? liveFloor! : scheduledFloor;
-            const roomForExec = useLive ? liveRoom! : scheduledRoom;
-            if (!getCurrentActivity(roomForExec)) return;
+            const resolved = resolveActivityChainExec(
+              scheduledFloor,
+              chainRoomId,
+              locationFloorRef.current,
+              'returnToMap',
+            );
+            if (!resolved) return;
 
             executeRoomActivity(
-              roomForExec,
-              floorForExec,
+              resolved.room,
+              resolved.floor,
               setLocationFloor,
               GameState.LOCATION_EXPLORE,
             );
@@ -400,34 +468,22 @@ export function useExploration(
             'returnToMapActivityComplete - chain activity',
           );
           const chainRoomId = currentRoom.id;
-          // Post-complete floor snapshot — do not swap for a lagging ref that still
-          // has event.completed=false (that re-opened the same event after Continue).
+          // Post-complete floor snapshot (updatedFloor) — resolveActivityChainExec
+          // will not swap for a lagging ref that still has event.completed=false.
           const scheduledFloor = floorToCheck;
           activityChainTimerRef.current = setTimeout(() => {
             activityChainTimerRef.current = null;
-            const liveFloor = locationFloorRef.current;
-            // Prefer live only when it is at least as complete as the schedule snapshot
-            // (event already done on both). Otherwise stick to scheduledFloor.
-            const scheduledRoom =
-              scheduledFloor.rooms.find((r) => r.id === chainRoomId) ?? null;
-            if (!scheduledRoom || !getCurrentActivity(scheduledRoom)) return;
-
-            const liveRoom = liveFloor?.rooms.find((r) => r.id === chainRoomId);
-            const scheduledEventDone =
-              !scheduledRoom.activities.event ||
-              scheduledRoom.activities.event.completed;
-            const liveEventDone =
-              !liveRoom?.activities.event || liveRoom.activities.event.completed;
-
-            const useLive =
-              Boolean(liveRoom && liveFloor && scheduledEventDone && liveEventDone);
-            const floorForExec = useLive ? liveFloor! : scheduledFloor;
-            const roomForExec = useLive ? liveRoom! : scheduledRoom;
-            if (!getCurrentActivity(roomForExec)) return;
+            const resolved = resolveActivityChainExec(
+              scheduledFloor,
+              chainRoomId,
+              locationFloorRef.current,
+              'returnToMapActivityComplete',
+            );
+            if (!resolved) return;
 
             executeRoomActivity(
-              roomForExec,
-              floorForExec,
+              resolved.room,
+              resolved.floor,
               setLocationFloor,
               GameState.LOCATION_EXPLORE,
             );

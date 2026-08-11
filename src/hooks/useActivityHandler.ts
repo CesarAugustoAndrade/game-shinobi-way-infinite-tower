@@ -225,7 +225,10 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
 
       case 'event':
         if (currentRoom.activities.event) {
-          logActivityStart(currentRoom.id, 'event', { eventId: currentRoom.activities.event.definition.id });
+          logActivityStart(currentRoom.id, 'event', {
+            roomId: currentRoom.id,
+            eventId: currentRoom.activities.event.definition.id,
+          });
           logStateChange(exploreState.toString(), 'EVENT', 'event activity');
           // Fresh event from a room — not reached via a chain.
           setCameFromChain(false);

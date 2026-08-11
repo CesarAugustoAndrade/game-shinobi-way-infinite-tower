@@ -43,7 +43,9 @@ export function isRoomAccessible(
   // Can always access current room
   if (targetRoomId === branchingFloor.currentRoomId) return true;
 
-  // Can only move to child rooms if current room is cleared
+  // Children stay sealed until the current room is fully cleared (all activities).
+  // Multi-activity rooms (e.g. event + scroll + training) intentionally keep
+  // the next 2 paths locked after only the event completes.
   if (!currentRoom.isCleared) return false;
 
   return currentRoom.childIds.includes(targetRoomId);
@@ -113,7 +115,13 @@ function isActivityCompleted(activity: RoomActivities[keyof RoomActivities]): bo
 }
 
 /**
- * Mark an activity as completed
+ * Mark an activity as completed.
+ *
+ * isCleared requires ALL present activities (ACTIVITY_ORDER) to be done —
+ * not just the one just completed. Child rooms unlock only when isCleared
+ * becomes true (see roomsAfterUnlock below). Do not relax this for
+ * multi-activity rooms; partial clear (e.g. event done, scroll/training
+ * still open) must keep children sealed.
  */
 export function completeActivity(
   branchingFloor: BranchingFloor,
@@ -139,14 +147,11 @@ export function completeActivity(
       [activityKey]: updatedActivity,
     };
 
-    // Check if all activities are now complete
+    // Room cleared only when every present activity is finished
     const allCompleted = ACTIVITY_ORDER.every(key => {
       const act = updatedActivities[key];
       return !act || isActivityCompleted(act);
     });
-
-    // Update child rooms accessibility if room is now cleared
-    let updatedChildIds = room.childIds;
 
     return {
       ...room,

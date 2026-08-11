@@ -1904,6 +1904,29 @@
   border-radius: var(--sw-radius-sm);
 }
 
+/* Next activity label in selected-room panel (multi-activity honesty) */
+.location-map__activity-next {
+  flex: 1 0 100%;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+
+.location-map__activity-tag--current {
+  outline: 1px solid rgba(248, 250, 252, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  font-weight: 700;
+}
+
+.location-map__multi-activity-hint {
+  margin: var(--sw-space-1) 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: rgba(148, 163, 184, 0.95);
+}
+
 .location-map__activity-tag--combat { background: rgba(154, 52, 18, 0.5); color: #fb923c; }
 .location-map__activity-tag--elite { background: rgba(127, 29, 29, 0.5); color: #f87171; }
 .location-map__activity-tag--merchant { background: rgba(113, 63, 18, 0.5); color: #facc15; }

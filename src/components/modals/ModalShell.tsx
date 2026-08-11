@@ -55,6 +55,10 @@ const ModalShell: React.FC<ModalShellProps> = ({
   const rootRef = useRef<HTMLDivElement>(null);
   // Space hold / Enter+click same-tick double Continue → double returnToMap chain
   const closedRef = useRef(false);
+  // Ignore Space/Enter briefly after open so the key that confirmed the prior
+  // action (e.g. Event choice) cannot immediately dismiss a freshly mounted modal.
+  // Escape is never gated — always dismiss.
+  const confirmKeysArmedRef = useRef(false);
   useFocusTrap(rootRef, open);
 
   const dismiss = useCallback(() => {
@@ -63,9 +67,21 @@ const ModalShell: React.FC<ModalShellProps> = ({
     onClose();
   }, [onClose]);
 
-  // Remount / re-open resets the once-guard
+  // Remount / re-open resets the once-guard and re-arms confirm keys after grace
   useEffect(() => {
-    if (open) closedRef.current = false;
+    if (!open) {
+      confirmKeysArmedRef.current = false;
+      return;
+    }
+    closedRef.current = false;
+    confirmKeysArmedRef.current = false;
+    const id = window.setTimeout(() => {
+      confirmKeysArmedRef.current = true;
+    }, 100);
+    return () => {
+      window.clearTimeout(id);
+      confirmKeysArmedRef.current = false;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -77,6 +93,12 @@ const ModalShell: React.FC<ModalShellProps> = ({
       const isConfirm =
         closeOnConfirmKeys && (e.code === 'Space' || e.code === 'Enter');
       if (!isEscape && !isConfirm) return;
+      // Esc always; confirm keys only after mount grace
+      if (isConfirm && !confirmKeysArmedRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       dismiss();

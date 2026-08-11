@@ -175,6 +175,8 @@ const App: React.FC = () => {
     nextEventId?: string;
     /** Room that owns the event activity — used on close to mark completed */
     roomId?: string | null;
+    /** True when terminal choice already ran completeActivity (close only grants intel/leave) */
+    eventAlreadyCompleted?: boolean;
   } | null>(null);
   /** T-049/T-086: info gathering result panel */
   const [intelResult, setIntelResult] = useState<{
@@ -944,6 +946,16 @@ const App: React.FC = () => {
       return;
     }
     // Activity scenes that render nothing without their payload.
+    // EVENT + outcome but no activeEvent: force map so EventResultModal can show
+    // (modal is global, but wrong state left Continue / chrome desynced).
+    if (gameState === GameState.EVENT && !activeEvent && eventOutcome) {
+      setGameStateSynced(
+        region?.currentLocationId && locationFloor
+          ? GameState.LOCATION_EXPLORE
+          : GameState.REGION_MAP,
+      );
+      return;
+    }
     // Blank EVENT must consume the room event when identifiable — bare map leave
     // left event.completed=false → auto-chain / re-enter cascade + sealed children.
     if (gameState === GameState.EVENT && !activeEvent && !eventOutcome) {
@@ -1993,6 +2005,7 @@ const App: React.FC = () => {
 
           {gameState === GameState.EVENT && activeEvent && (
             <Event
+              key={activeEvent.id}
               activeEvent={activeEvent}
               onChoice={handleEventChoice}
               player={player}
@@ -2201,7 +2214,23 @@ const App: React.FC = () => {
                   currentIntel={currentIntel}
                   locationName={locationName}
                   onRoomSelect={handleLocationRoomSelect}
-                  onRoomEnter={handleLocationRoomEnter}
+                  onRoomEnter={(room) => {
+                    // Click path does not always see DOM dialogs yet; block while
+                    // event outcome (or other result modals) own the screen.
+                    if (
+                      isBlockingExploreChrome({
+                        combatReward: Boolean(combatReward),
+                        eventOutcome: Boolean(eventOutcome),
+                        intelResult: Boolean(intelResult),
+                        restResult: Boolean(restResult),
+                        locationCompleteResult: Boolean(locationCompleteResult),
+                        showApproachSelector,
+                      })
+                    ) {
+                      return;
+                    }
+                    handleLocationRoomEnter(room);
+                  }}
                   onLeaveLocation={handleLeaveLocation}
                 />
                 {/* Combat Victory Reward Modal */}
@@ -2230,14 +2259,6 @@ const App: React.FC = () => {
                   />
                 )}
 
-                {/* Event Outcome Modal */}
-                {eventOutcome && (
-                  <EventResultModal
-                    outcome={eventOutcome}
-                    onClose={handleEventOutcomeClose}
-                  />
-                )}
-
               </div>
             );
           })()}
@@ -2249,6 +2270,14 @@ const App: React.FC = () => {
           */}
         </div>
       </div>
+
+      {/* Event outcome — global (not only LOCATION_EXPLORE) so Continue always runs */}
+      {eventOutcome && (
+        <EventResultModal
+          outcome={eventOutcome}
+          onClose={handleEventOutcomeClose}
+        />
+      )}
 
       {/* T-049: Info gathering result (location + branching explore) */}
       {intelResult && (
