@@ -16,6 +16,7 @@ import {
   applyVisibilityToIntelGain,
   getLocationTerrainMods,
 } from '../game/systems/LocationTerrainSystem';
+import { bindEventSessionRoom } from '../game/session';
 
 /**
  * Activity scene data setters - passed from App.tsx
@@ -230,6 +231,8 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
           setCameFromChain(false);
           // Keep room identity for outcome close → completeActivity (must not rely only on currentRoomId)
           setSelectedBranchingRoom(currentRoom);
+          // Session roomId survives selection/currentRoomId drift under the outcome modal
+          bindEventSessionRoom(currentRoom.id);
           setActiveEvent(currentRoom.activities.event.definition);
           setGameState(GameState.EVENT);
         }

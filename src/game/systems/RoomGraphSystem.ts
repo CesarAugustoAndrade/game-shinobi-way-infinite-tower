@@ -211,11 +211,14 @@ export function clearRoomIfSpent(
 }
 
 /**
- * Check if the floor is complete (exit room cleared)
+ * Check if the floor is complete (exit room cleared or any boss/exit room cleared)
  */
 export function isFloorComplete(branchingFloor: BranchingFloor): boolean {
-  const exitRoom = branchingFloor.rooms.find(r => r.id === branchingFloor.exitRoomId);
-  return exitRoom?.isCleared ?? false;
+  if (branchingFloor.exitRoomId) {
+    const exitRoom = getRoomById(branchingFloor, branchingFloor.exitRoomId);
+    if (exitRoom && exitRoom.isCleared) return true;
+  }
+  return branchingFloor.rooms.some((r) => r.isExit && r.isCleared);
 }
 
 // ============================================================================

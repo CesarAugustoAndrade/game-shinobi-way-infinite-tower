@@ -1,0 +1,1676 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Especificación canónica del combate táctico por capas de Shinobi Way: Support, Combat Modes, Side Attacks, Attacks, weighted draw, cooldowns, Marks y setup multi-turno.">
+  <title>Shinobi Way — Tactical Setup & Combat Modes Spec</title>
+  <style>
+    :root {
+      --ink-1000: #080907;
+      --ink-950: #0e100d;
+      --ink-900: #141713;
+      --ink-850: #1b1f19;
+      --ink-800: #24291f;
+      --paper-50: #fff8e8;
+      --paper-100: #f4ead2;
+      --paper-200: #e5d5b4;
+      --paper-300: #c9b78f;
+      --paper-500: #94856a;
+      --vermilion: #e2583d;
+      --vermilion-dark: #8f2f23;
+      --gold: #d0a75f;
+      --jade: #7da58e;
+      --cyan: #77aeb1;
+      --violet: #9c83ad;
+      --danger: #e17262;
+      --support: #7da58e;
+      --mode: #c697e1;
+      --side: #d0a75f;
+      --attack: #e2583d;
+      --passive: #89918a;
+      --rule: #7da58e;
+      --tuning: #d0a75f;
+      --risk: #e17262;
+      --fact: #77aeb1;
+      --sidebar: 19rem;
+      --line: rgba(244, 234, 210, 0.13);
+      --line-strong: rgba(244, 234, 210, 0.26);
+      --shadow: 0 24px 90px rgba(0, 0, 0, 0.38);
+      --display: "Bahnschrift Condensed", "Franklin Gothic Medium", "Arial Narrow", sans-serif;
+      --body: Baskerville, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+      --mono: "Cascadia Code", "IBM Plex Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 1.25rem; }
+    body {
+      margin: 0;
+      min-width: 19rem;
+      color: var(--paper-100);
+      background:
+        radial-gradient(circle at 78% 4%, rgba(226, 88, 61, 0.13), transparent 30rem),
+        radial-gradient(circle at 16% 84%, rgba(125, 165, 142, 0.09), transparent 34rem),
+        repeating-linear-gradient(112deg, transparent 0 62px, rgba(255,255,255,0.012) 63px 64px),
+        var(--ink-1000);
+      font-family: var(--body);
+      font-size: 17px;
+      line-height: 1.62;
+      text-rendering: optimizeLegibility;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: .42;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,.035) 0 1px, transparent 1.4px),
+        radial-gradient(circle at 70% 80%, rgba(0,0,0,.28) 0 1px, transparent 1.4px);
+      background-size: 13px 17px, 19px 23px;
+      mix-blend-mode: soft-light;
+    }
+    a { color: inherit; }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+    ::selection { color: var(--ink-1000); background: var(--gold); }
+
+    .skip-link {
+      position: fixed;
+      top: .75rem;
+      left: .75rem;
+      z-index: 100;
+      padding: .65rem .85rem;
+      color: var(--ink-1000);
+      background: var(--paper-100);
+      transform: translateY(-180%);
+      transition: transform 160ms ease;
+    }
+    .skip-link:focus { transform: translateY(0); }
+    .reading-progress {
+      position: fixed;
+      inset: 0 auto auto 0;
+      z-index: 90;
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--vermilion), var(--gold));
+      box-shadow: 0 0 18px rgba(226,88,61,.8);
+    }
+
+    .shell { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); min-height: 100vh; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 1.6rem 1.25rem;
+      border-right: 1px solid var(--line);
+      background: rgba(14,16,13,.94);
+      backdrop-filter: blur(18px);
+      scrollbar-width: thin;
+    }
+    .brand { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.35rem; }
+    .brand__seal {
+      display: grid;
+      place-items: center;
+      width: 3rem;
+      aspect-ratio: 1;
+      color: var(--paper-50);
+      background: var(--vermilion-dark);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 4px rgba(0,0,0,.12), 0 8px 24px rgba(0,0,0,.3);
+      font-family: var(--display);
+      font-size: 1.35rem;
+      transform: rotate(-5deg);
+    }
+    .brand__kicker, .brand__name { margin: 0; }
+    .brand__kicker {
+      color: var(--vermilion);
+      font: 700 .7rem/1 var(--mono);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .brand__name { margin-top: .35rem; font: 700 1.1rem/1 var(--display); letter-spacing: .05em; }
+    .meta {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: .25rem .75rem;
+      margin: 0 0 1.3rem;
+      padding: .9rem 0;
+      border-block: 1px solid var(--line);
+      font: .68rem/1.5 var(--mono);
+    }
+    .meta dt { color: var(--paper-500); text-transform: uppercase; }
+    .meta dd { margin: 0; text-align: right; }
+    .historic-link {
+      display: block;
+      margin-bottom: 1.25rem;
+      padding: .65rem .75rem;
+      border: 1px solid rgba(119,174,177,.35);
+      color: var(--cyan);
+      background: rgba(119,174,177,.06);
+      font: 700 .69rem/1.45 var(--mono);
+      text-decoration: none;
+    }
+    .historic-link:hover { border-color: var(--cyan); background: rgba(119,174,177,.12); }
+    .nav-title {
+      margin: 1rem 0 .55rem;
+      color: var(--paper-500);
+      font: 700 .64rem/1 var(--mono);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .toc { margin: 0; padding: 0; list-style: none; }
+    .toc a {
+      display: grid;
+      grid-template-columns: 1.7rem 1fr;
+      gap: .5rem;
+      padding: .42rem .5rem;
+      border-left: 2px solid transparent;
+      color: var(--paper-300);
+      font: 700 .73rem/1.25 var(--mono);
+      text-decoration: none;
+      transition: 150ms ease;
+    }
+    .toc a span { color: var(--paper-500); }
+    .toc a:hover, .toc a[aria-current="true"] {
+      color: var(--paper-50);
+      border-left-color: var(--vermilion);
+      background: rgba(226,88,61,.08);
+    }
+    .sidebar-actions { display: grid; gap: .5rem; margin-top: 1rem; }
+    .utility-button {
+      padding: .7rem;
+      border: 1px solid var(--line-strong);
+      color: var(--paper-200);
+      background: transparent;
+      cursor: pointer;
+      font: 700 .69rem/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .utility-button:hover { border-color: var(--gold); color: var(--gold); }
+
+    .main { min-width: 0; overflow: clip; }
+    .hero {
+      position: relative;
+      min-height: 40rem;
+      display: grid;
+      align-items: end;
+      padding: clamp(3rem, 7vw, 7rem) clamp(1.4rem, 6vw, 6rem);
+      border-bottom: 1px solid var(--line);
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "先";
+      position: absolute;
+      top: -7rem;
+      right: -1rem;
+      color: rgba(244,234,210,.027);
+      font: 700 min(38vw, 30rem)/1 var(--display);
+      transform: rotate(8deg);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 45%;
+      pointer-events: none;
+      background: linear-gradient(transparent, rgba(8,9,7,.88));
+    }
+    .hero__inner { position: relative; z-index: 1; width: min(64rem, 100%); }
+    .eyebrow, .section-kicker {
+      margin: 0 0 .9rem;
+      color: var(--vermilion);
+      font: 700 .72rem/1.35 var(--mono);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, h4 { text-wrap: balance; }
+    h1 {
+      max-width: 13ch;
+      margin: 0;
+      color: var(--paper-50);
+      font: 800 clamp(3.2rem, 8.5vw, 7.7rem)/.86 var(--display);
+      letter-spacing: -.035em;
+      text-transform: uppercase;
+    }
+    h1 em { color: var(--vermilion); font-style: normal; }
+    .hero__verdict {
+      max-width: 58rem;
+      margin: 2rem 0 0;
+      color: var(--paper-200);
+      font-size: clamp(1.08rem, 2vw, 1.42rem);
+      line-height: 1.48;
+    }
+    .hero__verdict strong { color: var(--paper-50); }
+    .hero__tags { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1.5rem; }
+    .hero__tag {
+      padding: .42rem .65rem;
+      border: 1px solid var(--line-strong);
+      background: rgba(255,255,255,.025);
+      font: 700 .66rem/1 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .document { counter-reset: section; }
+    .document-section {
+      position: relative;
+      padding: clamp(4rem, 7vw, 7.5rem) clamp(1.4rem, 6vw, 6rem);
+      border-bottom: 1px solid var(--line);
+    }
+    .document-section:nth-child(even) { background: rgba(255,255,255,.012); }
+    .section-inner { width: min(74rem, 100%); margin-inline: auto; }
+    .section-heading {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 1rem;
+      margin-bottom: 1.8rem;
+    }
+    .section-heading h2 {
+      max-width: 16ch;
+      margin: 0;
+      color: var(--paper-50);
+      font: 800 clamp(2.2rem, 5vw, 4.5rem)/.93 var(--display);
+      letter-spacing: -.02em;
+      text-transform: uppercase;
+    }
+    .section-number {
+      color: rgba(244,234,210,.11);
+      font: 800 clamp(3.5rem, 8vw, 7rem)/.8 var(--display);
+    }
+    .section-lead { max-width: 60rem; margin: 0 0 2rem; color: var(--paper-200); font-size: 1.15rem; }
+    .anchor-copy {
+      margin-left: .5rem;
+      border: 0;
+      color: var(--paper-500);
+      background: none;
+      cursor: pointer;
+      font: 400 1rem var(--mono);
+      opacity: 0;
+    }
+    h2:hover .anchor-copy, h2:focus-within .anchor-copy { opacity: 1; }
+
+    .grid { display: grid; gap: 1rem; }
+    .grid--2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .grid--3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+    .grid--4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .card {
+      position: relative;
+      padding: 1.25rem;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(255,255,255,.035), rgba(255,255,255,.008));
+      box-shadow: 0 10px 32px rgba(0,0,0,.12);
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 2px;
+      background: var(--accent, var(--paper-500));
+    }
+    .card h3, .card h4 { margin: 0 0 .55rem; color: var(--paper-50); font-family: var(--display); }
+    .card h3 { font-size: 1.45rem; text-transform: uppercase; letter-spacing: .025em; }
+    .card h4 { font-size: 1.15rem; }
+    .card p:last-child { margin-bottom: 0; }
+    .card--rule { --accent: var(--rule); }
+    .card--tuning { --accent: var(--tuning); }
+    .card--risk { --accent: var(--risk); }
+    .card--fact { --accent: var(--fact); }
+    .signal-label {
+      display: inline-block;
+      margin-bottom: .65rem;
+      color: var(--accent, var(--paper-500));
+      font: 800 .61rem/1 var(--mono);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .callout {
+      margin: 1.5rem 0;
+      padding: 1.1rem 1.2rem;
+      border: 1px solid var(--line-strong);
+      border-left: 4px solid var(--accent, var(--gold));
+      background: rgba(0,0,0,.16);
+    }
+    .callout strong { color: var(--paper-50); }
+    .callout--rule { --accent: var(--rule); }
+    .callout--risk { --accent: var(--risk); }
+    .callout--tuning { --accent: var(--tuning); }
+    .callout--fact { --accent: var(--fact); }
+    .rule-list { display: grid; gap: .65rem; margin: 0; padding: 0; list-style: none; }
+    .rule-list li {
+      position: relative;
+      padding-left: 1.55rem;
+    }
+    .rule-list li::before {
+      content: "◆";
+      position: absolute;
+      left: 0;
+      top: .15rem;
+      color: var(--gold);
+      font-size: .65rem;
+    }
+    .micro { color: var(--paper-500); font: .72rem/1.5 var(--mono); }
+    code, pre { font-family: var(--mono); }
+    code {
+      padding: .08rem .25rem;
+      color: var(--paper-50);
+      background: rgba(255,255,255,.07);
+    }
+    pre {
+      margin: 1rem 0 0;
+      padding: 1rem;
+      overflow: auto;
+      border: 1px solid var(--line);
+      color: #d8e0cd;
+      background: #0a0c09;
+      font-size: .76rem;
+      line-height: 1.55;
+      tab-size: 2;
+    }
+
+    .role-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .75rem; }
+    .role-card {
+      padding: 1rem;
+      border-top: 3px solid var(--role-color);
+      background: rgba(255,255,255,.03);
+    }
+    .role-card[data-role="SUPPORT"] { --role-color: var(--support); }
+    .role-card[data-role="MODE"] { --role-color: var(--mode); }
+    .role-card[data-role="SIDE"] { --role-color: var(--side); }
+    .role-card[data-role="ATTACK"] { --role-color: var(--attack); }
+    .role-card__badge, .role-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 1.35rem;
+      padding: .26rem .42rem;
+      border: 1px solid currentColor;
+      color: var(--role-color);
+      font: 800 .61rem/1 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .role-card h3 { margin: .8rem 0 .45rem; font: 800 1.55rem/1 var(--display); text-transform: uppercase; }
+    .role-card p { margin: 0; color: var(--paper-300); font-size: .93rem; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+      align-items: stretch;
+      gap: .5rem;
+      margin: 1.8rem 0;
+    }
+    .flow__node {
+      display: grid;
+      align-content: center;
+      min-height: 8rem;
+      padding: 1rem;
+      border: 1px solid var(--line-strong);
+      background: rgba(255,255,255,.025);
+      text-align: center;
+    }
+    .flow__node strong { color: var(--paper-50); font: 800 1.25rem/1 var(--display); text-transform: uppercase; }
+    .flow__node span { margin-top: .45rem; color: var(--paper-500); font: .69rem/1.4 var(--mono); }
+    .flow__arrow { display: grid; place-items: center; color: var(--vermilion); font: 800 1.5rem var(--display); }
+
+    .formula {
+      display: grid;
+      gap: .7rem;
+      padding: 1.25rem;
+      border: 1px solid var(--line-strong);
+      background: #0a0c09;
+      font-family: var(--mono);
+    }
+    .formula__main { color: var(--paper-50); font-size: clamp(.82rem,2vw,1.08rem); }
+    .formula__parts { display: flex; flex-wrap: wrap; gap: .45rem; }
+    .formula__part { padding: .35rem .5rem; border: 1px solid var(--line); color: var(--paper-300); font-size: .7rem; }
+
+    .probability-lab {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(17rem,.65fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .lab-controls { padding: 1.2rem; border: 1px solid var(--line); background: rgba(255,255,255,.025); }
+    .control { display: grid; grid-template-columns: 1fr auto; gap: .4rem 1rem; margin-bottom: 1rem; }
+    .control label { font: 700 .72rem/1 var(--mono); text-transform: uppercase; }
+    .control output { color: var(--gold); font: 800 1rem/1 var(--mono); }
+    .control input { grid-column: 1 / -1; width: 100%; accent-color: var(--vermilion); }
+    .lab-result {
+      display: grid;
+      place-items: center;
+      padding: 1.4rem;
+      border: 1px solid rgba(208,167,95,.4);
+      background: radial-gradient(circle, rgba(208,167,95,.1), transparent 66%);
+      text-align: center;
+    }
+    .lab-result strong { color: var(--gold); font: 800 clamp(3rem,7vw,5.2rem)/1 var(--display); }
+    .lab-result span { max-width: 20rem; color: var(--paper-300); font: .72rem/1.5 var(--mono); }
+
+    .timeline { position: relative; display: grid; gap: .75rem; margin: 1.5rem 0; }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 1.1rem;
+      width: 1px;
+      background: var(--line-strong);
+    }
+    .timeline__step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 2.2rem 1fr;
+      gap: .8rem;
+      align-items: start;
+    }
+    .timeline__index {
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 2.2rem;
+      aspect-ratio: 1;
+      border: 1px solid var(--line-strong);
+      border-radius: 50%;
+      color: var(--gold);
+      background: var(--ink-900);
+      font: 800 .72rem var(--mono);
+    }
+    .timeline__body { padding: .2rem 0 1rem; }
+    .timeline__body h3 { margin: 0 0 .25rem; font: 800 1.16rem/1 var(--display); text-transform: uppercase; }
+    .timeline__body p { margin: 0; color: var(--paper-300); }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,.12);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: .72rem .8rem; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      color: var(--paper-300);
+      background: #141713;
+      font: 800 .63rem/1.25 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    td { color: var(--paper-200); font-size: .88rem; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+    .mode-table td:first-child, .tuning-table td:first-child { color: var(--paper-50); font-weight: 700; }
+
+    .mode-machine {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: .5rem;
+      align-items: center;
+      margin: 1.5rem 0;
+    }
+    .mode-machine__state {
+      min-height: 6.5rem;
+      display: grid;
+      place-items: center;
+      padding: .8rem;
+      border: 1px solid rgba(198,151,225,.35);
+      background: rgba(198,151,225,.055);
+      text-align: center;
+      font: 800 .74rem/1.35 var(--mono);
+      text-transform: uppercase;
+    }
+    .mode-machine__arrow { color: var(--mode); text-align: center; font-size: 1.4rem; }
+
+    .tunnel-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+    .tunnel-tab {
+      padding: .55rem .75rem;
+      border: 1px solid var(--line-strong);
+      background: transparent;
+      cursor: pointer;
+      font: 800 .67rem/1 var(--mono);
+      text-transform: uppercase;
+    }
+    .tunnel-tab[aria-selected="true"] { color: var(--ink-1000); border-color: var(--gold); background: var(--gold); }
+    .tunnel-panel { display: none; }
+    .tunnel-panel.is-active { display: block; animation: reveal 220ms ease both; }
+    .tunnel-track {
+      display: grid;
+      grid-template-columns: repeat(4,minmax(0,1fr));
+      gap: .65rem;
+    }
+    .tunnel-beat { position: relative; min-height: 10rem; padding: 1rem; border: 1px solid var(--line); }
+    .tunnel-beat small { color: var(--vermilion); font: 800 .62rem var(--mono); text-transform: uppercase; }
+    .tunnel-beat h4 { margin: .55rem 0; color: var(--paper-50); font: 800 1.25rem/1 var(--display); }
+    .tunnel-beat p { margin: 0; color: var(--paper-300); font-size: .9rem; }
+
+    .catalog-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 12;
+      display: grid;
+      gap: .75rem;
+      margin: 1.25rem 0;
+      padding: 1rem;
+      border: 1px solid var(--line-strong);
+      background: rgba(14,16,13,.96);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    .catalog-toolbar__top { display: grid; grid-template-columns: minmax(12rem,1fr) auto; gap: .75rem; }
+    .search {
+      width: 100%;
+      padding: .75rem .85rem;
+      border: 1px solid var(--line-strong);
+      border-radius: 0;
+      color: var(--paper-50);
+      background: #090b08;
+      font: .76rem var(--mono);
+    }
+    .catalog-count { align-self: center; color: var(--gold); font: 800 .72rem var(--mono); white-space: nowrap; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .filter-chip {
+      padding: .45rem .6rem;
+      border: 1px solid var(--line-strong);
+      background: transparent;
+      cursor: pointer;
+      font: 800 .62rem/1 var(--mono);
+      text-transform: uppercase;
+    }
+    .filter-chip[aria-pressed="true"] { color: var(--ink-1000); border-color: var(--paper-100); background: var(--paper-100); }
+    .catalog-table { min-width: 78rem; }
+    .catalog-table td { font-size: .79rem; line-height: 1.45; }
+    .catalog-table .tech-name { display: block; color: var(--paper-50); font: 800 1rem/1.1 var(--display); }
+    .catalog-table .tech-id { color: var(--paper-500); font: .61rem/1.3 var(--mono); }
+    .catalog-table .role-badge { --role-color: var(--paper-500); margin-bottom: .35rem; }
+    .catalog-table .role-badge[data-role="SUPPORT"] { --role-color: var(--support); }
+    .catalog-table .role-badge[data-role="MODE"] { --role-color: var(--mode); }
+    .catalog-table .role-badge[data-role="SIDE"] { --role-color: var(--side); }
+    .catalog-table .role-badge[data-role="ATTACK"] { --role-color: var(--attack); }
+    .catalog-table .role-badge[data-role="PASSIVE"] { --role-color: var(--passive); }
+    .tag-list { display: flex; flex-wrap: wrap; gap: .22rem; }
+    .tag {
+      padding: .18rem .28rem;
+      border: 1px solid var(--line);
+      color: var(--paper-300);
+      font: .56rem/1 var(--mono);
+      text-transform: uppercase;
+    }
+    .origin-new { color: var(--gold); font: 800 .61rem var(--mono); text-transform: uppercase; }
+    .origin-current { color: var(--fact); font: 800 .61rem var(--mono); text-transform: uppercase; }
+    .now { color: var(--paper-500); }
+    .proposal { color: var(--paper-100); }
+    .catalog-empty { display: none; padding: 2rem; text-align: center; color: var(--paper-500); }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .65rem; }
+    .metric { min-height: 7rem; padding: .9rem; border: 1px solid var(--line); }
+    .metric strong { display: block; color: var(--gold); font: 800 1.15rem/1 var(--display); text-transform: uppercase; }
+    .metric span { display: block; margin-top: .5rem; color: var(--paper-300); font-size: .87rem; }
+
+    .decision-log { columns: 2; column-gap: 2rem; margin: 0; padding-left: 1.25rem; }
+    .decision-log li { break-inside: avoid; margin-bottom: .55rem; padding-left: .25rem; color: var(--paper-300); }
+    .decision-log strong { color: var(--paper-50); }
+    .footer {
+      padding: 2rem clamp(1.4rem,6vw,6rem);
+      color: var(--paper-500);
+      background: #080907;
+      font: .7rem/1.6 var(--mono);
+    }
+    .footer a { color: var(--cyan); }
+
+    .reveal { opacity: 0; transform: translateY(12px); }
+    .reveal.is-visible { animation: reveal 420ms ease forwards; }
+    @keyframes reveal { to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    @media (max-width: 72rem) {
+      :root { --sidebar: 16.5rem; }
+      .grid--4, .role-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .flow { grid-template-columns: 1fr; }
+      .flow__arrow { transform: rotate(90deg); }
+      .mode-machine { grid-template-columns: 1fr; }
+      .mode-machine__arrow { transform: rotate(90deg); }
+      .tunnel-track { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width: 54rem) {
+      .shell { display: block; }
+      .sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .toc { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .sidebar-actions { grid-template-columns: 1fr 1fr; }
+      .hero { min-height: 34rem; }
+      .grid--2, .grid--3, .probability-lab { grid-template-columns: 1fr; }
+      .metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .catalog-toolbar { position: relative; }
+    }
+    @media (max-width: 36rem) {
+      body { font-size: 16px; }
+      .toc, .role-grid, .grid--4, .tunnel-track, .metric-grid { grid-template-columns: 1fr; }
+      .hero { padding-top: 4rem; }
+      .section-heading { grid-template-columns: 1fr; }
+      .section-number { display: none; }
+      .catalog-toolbar__top { grid-template-columns: 1fr; }
+      .decision-log { columns: 1; }
+    }
+    @media print {
+      :root { color-scheme: light; }
+      body { color: #211e18; background: #fff; font-size: 10.5pt; }
+      body::before, .reading-progress, .sidebar, .catalog-toolbar, .anchor-copy { display: none !important; }
+      .shell { display: block; }
+      .hero { min-height: auto; padding: 1.5cm; color: #211e18; border: 0; }
+      .hero::before, .hero::after { display: none; }
+      h1, .section-heading h2, .card h3, .card h4, .tunnel-beat h4, .catalog-table .tech-name { color: #211e18; }
+      .hero__verdict, .section-lead, .card p, td, .rule-list li, .decision-log li { color: #423a2f; }
+      .document-section { padding: 1cm 1.5cm; break-before: page; border-color: #c8baa0; background: transparent !important; }
+      .card, .callout, .table-wrap, .formula, .mode-machine__state, .tunnel-beat, .metric { border-color: #bfb29a; background: transparent; box-shadow: none; break-inside: avoid; }
+      .catalog-table { min-width: 0; font-size: 7pt; }
+      .catalog-table th:nth-child(3), .catalog-table td:nth-child(3),
+      .catalog-table th:nth-child(7), .catalog-table td:nth-child(7) { display: none; }
+      th { position: static; color: #211e18; background: #eee4cf; }
+      pre { color: #211e18; background: #f4ead2; white-space: pre-wrap; }
+      .footer { color: #423a2f; background: transparent; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar a la especificación</a>
+  <div class="reading-progress" id="readingProgress" aria-hidden="true"></div>
+
+  <div class="shell">
+    <aside class="sidebar" aria-label="Navegación de la especificación">
+      <div class="brand">
+        <div class="brand__seal" aria-hidden="true">先</div>
+        <div>
+          <p class="brand__kicker">Shinobi Way</p>
+          <p class="brand__name">Manual de campo</p>
+        </div>
+      </div>
+      <dl class="meta">
+        <dt>Expediente</dt><dd>SW–CTS–01</dd>
+        <dt>Fecha</dt><dd>10·08·2026</dd>
+        <dt>Estado</dt><dd>Spec canónica v1</dd>
+        <dt>Entrega</dt><dd>Documentación</dd>
+      </dl>
+      <a class="historic-link" href="./support-card-system-analysis.html">← Abrir la auditoría del sistema actual</a>
+      <p class="nav-title">Índice táctico</p>
+      <nav>
+        <ol class="toc" id="toc">
+          <li><a href="#mandato"><span>00</span>Mandato</a></li>
+          <li><a href="#lenguaje"><span>01</span>Lenguaje del sistema</a></li>
+          <li><a href="#sorteo"><span>02</span>Weighted draw</a></li>
+          <li><a href="#reloj"><span>03</span>Reloj del turno</a></li>
+          <li><a href="#modes"><span>04</span>Combat Modes</a></li>
+          <li><a href="#setup"><span>05</span>Marks y Setup</a></li>
+          <li><a href="#espacio"><span>06</span>AP, postura y rango</a></li>
+          <li><a href="#tuneles"><span>07</span>Túneles de clan</a></li>
+          <li><a href="#nuevas"><span>08</span>12 técnicas nuevas</a></li>
+          <li><a href="#catalogo"><span>09</span>Catálogo 128</a></li>
+          <li><a href="#contratos"><span>10</span>Contratos técnicos</a></li>
+          <li><a href="#presentacion"><span>11</span>UI y preview</a></li>
+          <li><a href="#integracion"><span>12</span>AI, sim y artifacts</a></li>
+          <li><a href="#aceptacion"><span>13</span>Riesgos y aceptación</a></li>
+          <li><a href="#decisiones"><span>14</span>Decisiones cerradas</a></li>
+        </ol>
+      </nav>
+      <div class="sidebar-actions">
+        <button class="utility-button" id="printDocument" type="button">Imprimir / PDF</button>
+        <button class="utility-button" id="expandCatalog" type="button">Ir al catálogo</button>
+      </div>
+    </aside>
+
+    <main class="main" id="contenido">
+      <header class="hero">
+        <div class="hero__inner">
+          <p class="eyebrow">Especificación normativa · initial tuning · corte completo</p>
+          <h1>Preparar. Leer. <em>Disparar.</em></h1>
+          <p class="hero__verdict">
+            El combate conserva su pulso de <strong>AP, postura y distancia</strong>, pero deja de tratar las cartas de soporte como porcentajes decorativos: el jugador monta un <strong>Tactical Setup</strong>, mantiene uno o varios <strong>Combat Modes</strong>, arma el golpe con Side Attacks y decide cuándo cobrarlo con un Attack.
+          </p>
+          <div class="hero__tags" aria-label="Resumen de alcance">
+            <span class="hero__tag">4 roles jugables</span>
+            <span class="hero__tag">mano de 4</span>
+            <span class="hero__tag">pool 6–20</span>
+            <span class="hero__tag">8 modes v1</span>
+            <span class="hero__tag">128 técnicas</span>
+            <span class="hero__tag">sin código runtime</span>
+          </div>
+        </div>
+      </header>
+
+      <article class="document">
+        <section class="document-section" id="mandato" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">00 · Contrato editorial</p>
+                <h2>Qué decide este documento</h2>
+              </div>
+              <span class="section-number">00</span>
+            </div>
+            <p class="section-lead">Esta página reemplaza la ambigüedad de la visión anterior con reglas cerradas. No afirma que el runtime ya las ejecute: separa la norma futura, el tuning inicial, los riesgos conocidos y los hechos actuales.</p>
+            <div class="grid grid--4">
+              <div class="card card--rule reveal"><span class="signal-label">Normative rule</span><h3>Obligatorio</h3><p>Invariante del sistema. Una implementación que lo contradiga no cumple la spec.</p></div>
+              <div class="card card--tuning reveal"><span class="signal-label">Initial tuning</span><h3>Ajustable</h3><p>Número v1 concreto para simular y probar; puede balancearse sin cambiar el contrato.</p></div>
+              <div class="card card--risk reveal"><span class="signal-label">Risk</span><h3>Vigilancia</h3><p>Consecuencia intencional o punto de fallo que debe medirse, no esconderse.</p></div>
+              <div class="card card--fact reveal"><span class="signal-label">Current fact</span><h3>Realidad</h3><p>Comportamiento verificado en el juego actual que se conserva o sustituye.</p></div>
+            </div>
+            <div class="callout callout--rule">
+              <strong>Dirección canónica:</strong> Support prepara o sostiene; Mode mantiene una identidad persistente; Side Attack hace chip sin romper el plan; Attack cobra el plan. El setup serio emerge en 2–4 turnos por AP, mano, cooldown, recursos y presión enemiga; no por un timer artificial.
+            </div>
+            <div class="grid grid--2">
+              <div class="card card--fact">
+                <span class="signal-label">Conservado</span>
+                <ul class="rule-list">
+                  <li>AP derivado de SPEED, entre 3 y 9.</li>
+                  <li>Posturas Aggressive, Balanced y Defensive.</li>
+                  <li>Bandas CLOSE, MEDIUM y LONG.</li>
+                  <li>Mano de cuatro y técnicas con cooldown.</li>
+                  <li>PASSIVE fuera del mazo y artifacts automáticos.</li>
+                </ul>
+              </div>
+              <div class="card card--risk">
+                <span class="signal-label">Sustituido en un solo corte</span>
+                <ul class="rule-list">
+                  <li>Deck/discard/reshuffle persistentes.</li>
+                  <li>Clasificación heurística por daño esperado.</li>
+                  <li>Toggles como buffs temporales de stats.</li>
+                  <li>Tool como rol excluyente.</li>
+                  <li>Tooltips porcentuales que el runtime convierte en puntos.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="lenguaje" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">01 · Taxonomía obligatoria</p><h2>Cuatro verbos, una mano</h2></div>
+              <span class="section-number">01</span>
+            </div>
+            <p class="section-lead">El rol deja de inferirse por daño. Toda técnica jugable declara exactamente uno; los tags describen afinidades combinables sin secuestrar su función.</p>
+            <div class="role-grid">
+              <article class="role-card" data-role="SUPPORT"><span class="role-card__badge">Support</span><h3>Preparar</h3><p>Defensa, sustain, control, posición, búsqueda, Marks y stats honestos al servicio de una jugada.</p></article>
+              <article class="role-card" data-role="MODE"><span class="role-card__badge">Mode</span><h3>Mantener</h3><p>Estado persistente con cargas, upkeep, rutas explícitas y cláusulas de finalización.</p></article>
+              <article class="role-card" data-role="SIDE"><span class="role-card__badge">Side</span><h3>Armar</h3><p>Daño directo mayor que cero, normalmente barato, que hace chip y no consume el motor salvo excepción visible.</p></article>
+              <article class="role-card" data-role="ATTACK"><span class="role-card__badge">Attack</span><h3>Cobrar</h3><p>Daño principal normal, híbrido o payoff. Puede leer y consumir Modes, Marks y estados declarados.</p></article>
+            </div>
+            <div class="flow" aria-label="Flujo conceptual del combate">
+              <div class="flow__node"><strong>Support</strong><span>sobrevivir · mover · buscar · marcar</span></div><div class="flow__arrow">→</div>
+              <div class="flow__node"><strong>Mode</strong><span>habilitar · pagar upkeep · acumular cargas</span></div><div class="flow__arrow">→</div>
+              <div class="flow__node"><strong>Side</strong><span>chip · afinar · provocar reacción</span></div><div class="flow__arrow">→</div>
+              <div class="flow__node"><strong>Attack</strong><span>base o enhanced · consumir · cerrar</span></div>
+            </div>
+            <div class="grid grid--2">
+              <div class="card card--rule">
+                <span class="signal-label">Main Attack</span>
+                <p>Es una designación única del loadout, no un quinto rol. Solo una ATTACK puede ser Main. No recibe peso gratis y nunca puede quedar vacía.</p>
+                <p class="micro">Offensive Skill = ATTACK + SIDE · PASSIVE no cuenta entre las 6–20 jugables.</p>
+              </div>
+              <div class="card card--rule">
+                <span class="signal-label">Skill tags</span>
+                <p><code>TOOL</code>, <code>WEAPON</code>, <code>TAIJUTSU</code>, <code>NINJUTSU</code>, <code>GENJUTSU</code>, elementos y familias son enums combinables.</p>
+                <p class="micro">Un ataque puede ser a la vez LIGHTNING · NINJUTSU · UCHIHA · SIGNATURE.</p>
+              </div>
+            </div>
+            <div class="callout callout--rule">
+              <strong>Compatibilidad interna:</strong> MODE se valida contra <code>ActionType.TOGGLE</code>; SUPPORT, SIDE y ATTACK contra <code>ActionType.ACTIVE</code>; PASSIVE permanece fuera de la mano. La categoría visible siempre viene de <code>cardRole</code>, nunca de una heurística.
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="sorteo" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">02 · Consistencia sin tutor invisible</p><h2>Weighted draw transparente</h2></div>
+              <span class="section-number">02</span>
+            </div>
+            <p class="section-lead">Cada turno sortea de nuevo sobre el pool completo. La consistencia se compra adelgazando el loadout, eligiendo postura y jugando efectos de peso o Discover; nunca mediante una garantía secreta.</p>
+            <div class="formula">
+              <div class="formula__main">effectiveWeight = max(1, 2 + posture + mode + support − activeSelf − cooldown)</div>
+              <div class="formula__parts">
+                <span class="formula__part">baseWeight = 2</span>
+                <span class="formula__part">Main = +0</span>
+                <span class="formula__part">Mode propio ON = −1</span>
+                <span class="formula__part">cooldown = −1</span>
+                <span class="formula__part">sin cap inicial</span>
+              </div>
+            </div>
+            <div class="grid grid--3" style="margin-top:1rem">
+              <div class="card card--tuning"><span class="signal-label">Aggressive</span><h3>ATTACK +1</h3><p>Favorece el disparo y el daño directo.</p></div>
+              <div class="card card--tuning"><span class="signal-label">Balanced</span><h3>MODE +1 · SIDE +1</h3><p>Favorece construcción y armado.</p></div>
+              <div class="card card--tuning"><span class="signal-label">Defensive</span><h3>SUPPORT +1</h3><p>Favorece supervivencia y control.</p></div>
+            </div>
+            <div class="probability-lab">
+              <div class="lab-controls">
+                <p class="section-kicker">Laboratorio de consistencia</p>
+                <div class="control"><label for="poolSize">Técnicas en el pool</label><output id="poolSizeOut">20</output><input id="poolSize" type="range" min="6" max="20" value="20"></div>
+                <div class="control"><label for="targetWeight">Peso de la pieza buscada</label><output id="targetWeightOut">3</output><input id="targetWeight" type="range" min="1" max="8" value="3"></div>
+                <div class="control"><label for="otherWeight">Peso medio del resto</label><output id="otherWeightOut">2</output><input id="otherWeight" type="range" min="1" max="5" value="2"></div>
+                <p class="micro">Cálculo exacto para una pieza y rivales de peso uniforme, robando hasta cuatro sin reemplazo.</p>
+              </div>
+              <div class="lab-result"><div><strong id="singleTurnChance">—</strong><span id="multiTurnChance">probabilidad de verla en una mano</span></div></div>
+            </div>
+            <div class="grid grid--2" style="margin-top:1rem">
+              <div class="card card--rule">
+                <span class="signal-label">Algoritmo</span>
+                <ul class="rule-list">
+                  <li>Pool de 6–20 técnicas jugables únicas.</li>
+                  <li>Cuatro extracciones ponderadas sin reemplazo.</li>
+                  <li>La mano completa desaparece al finalizar el turno.</li>
+                  <li>No existe deck, discard, reshuffle ni Retain.</li>
+                  <li>La primera mano no recibe reglas especiales.</li>
+                </ul>
+              </div>
+              <div class="card card--risk">
+                <span class="signal-label">Mano muerta deliberada</span>
+                <p>Cooldown, AP, recursos, rango y hard requirements no excluyen una carta del sorteo. Puede ocupar un hueco deshabilitada. No existe redraw de seguridad ni ataque externo.</p>
+                <p class="micro">Aún quedan las acciones sistémicas: mover, cambiar postura o pasar.</p>
+              </div>
+            </div>
+            <div class="callout callout--rule">
+              <strong>Discover 3:</strong> la Support se resuelve y libera su hueco; genera hasta tres candidatos distintos del filtro declarado con los pesos actuales; excluye la fuente y la mano presente; permite candidatos en cooldown, que entran deshabilitados. El elegido ocupa el hueco y los otros regresan al pool virtual.
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="reloj" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">03 · Semántica temporal</p><h2>Un reloj que no engaña</h2></div>
+              <span class="section-number">03</span>
+            </div>
+            <p class="section-lead">Cooldown, upkeep y duración no compiten por un “inicio de turno” ambiguo. El orden garantiza que una Support de duración 1 proteja la respuesta enemiga y afecte exactamente al siguiente draw antes de expirar.</p>
+            <div class="timeline">
+              <div class="timeline__step"><span class="timeline__index">01</span><div class="timeline__body"><h3>Upkeep de Modes</h3><p>Se procesa por prioridad configurada. Se paga CP/HP antes de regenerar; si no puede pagarse, el Mode termina y arranca su cooldown.</p></div></div>
+              <div class="timeline__step"><span class="timeline__index">02</span><div class="timeline__body"><h3>Ticks y regeneración</h3><p>Se aplican los ticks propios correspondientes y luego la recuperación. El upkeep no puede financiarse con la regen del mismo turno.</p></div></div>
+              <div class="timeline__step"><span class="timeline__index">03</span><div class="timeline__body"><h3>Snapshot y draw</h3><p>Se fijan pesos, cooldown y playability del turno; se roban cuatro. Los modificadores aún activos influyen antes de decrementar su duración.</p></div></div>
+              <div class="timeline__step"><span class="timeline__index">04</span><div class="timeline__body"><h3>Duración propia</h3><p>Supports y Marks del jugador decrementan después del draw. Un efecto que llega a cero deja de afectar la fase de acciones.</p></div></div>
+              <div class="timeline__step"><span class="timeline__index">05</span><div class="timeline__body"><h3>Acciones y respuesta</h3><p>El jugador gasta AP y resuelve; después actúa el enemigo. DoT y hard control decrementan tras la oportunidad del actor afectado.</p></div></div>
+              <div class="timeline__step"><span class="timeline__index">06</span><div class="timeline__body"><h3>Descarte virtual</h3><p>La mano se elimina. La siguiente comienza desde el pool completo con el estado actualizado.</p></div></div>
+            </div>
+            <div class="grid grid--2">
+              <div class="card card--rule">
+                <span class="signal-label">Cooldown estricto</span>
+                <p>Una carta usada en el turno T con cooldown 2 queda bloqueada durante las manos T+1 y T+2; vuelve en T+3. Conceptualmente: <code>readyOnTurn = T + cooldown + 1</code>.</p>
+              </div>
+              <div class="card card--rule">
+                <span class="signal-label">Frontera de encuentro</span>
+                <p>Cooldowns, Modes, cargas y Tactical Setup se reinician al comenzar cada combate. No persisten por Heat ni por Encounter Chain.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="modes" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">04 · Motor persistente</p><h2>Combat Modes hasta cláusula de fin</h2></div>
+              <span class="section-number">04</span>
+            </div>
+            <p class="section-lead">Un Mode no es un buff con duración. Permanece en mesa, paga su peaje, altera rutas concretas y se cierra por consumo, off manual, upkeep fallido, cargas a cero, reemplazo familiar o regla de finisher.</p>
+            <div class="mode-machine" aria-label="Máquina de estados de un Combat Mode">
+              <div class="mode-machine__state">OFF<br><span class="micro">puede estar ready o en cooldown</span></div><div class="mode-machine__arrow">→</div>
+              <div class="mode-machine__state">ACTIVATION<br><span class="micro">AP + coste · cargas al máximo</span></div><div class="mode-machine__arrow">→</div>
+              <div class="mode-machine__state">ON<br><span class="micro">upkeep · rutas · cargas</span></div>
+            </div>
+            <div class="mode-machine" aria-hidden="true">
+              <div class="mode-machine__state">FIN CLAUSE<br><span class="micro">payoff · off · 0 cargas · fallo</span></div><div class="mode-machine__arrow">→</div>
+              <div class="mode-machine__state">COOLDOWN<br><span class="micro">N manos bloqueado</span></div><div class="mode-machine__arrow">→</div>
+              <div class="mode-machine__state">READY<br><span class="micro">puede volver a sortearse</span></div>
+            </div>
+            <div class="table-wrap">
+              <table class="mode-table">
+                <thead><tr><th>Mode</th><th>AP</th><th>Activación</th><th>Upkeep</th><th>Cargas</th><th>Cooldown</th><th>Identidad v1</th></tr></thead>
+                <tbody>
+                  <tr><td>Sharingan 2-Tomoe</td><td>2</td><td>4 CP</td><td>4 CP</td><td>3</td><td>4</td><td>Katon + lectura predictiva.</td></tr>
+                  <tr><td>Sharingan 3-Tomoe</td><td>3</td><td>6 CP</td><td>6 CP</td><td>3</td><td>5</td><td>Lightning/Chidori; habilita MEDIUM.</td></tr>
+                  <tr><td>Byakugan</td><td>2</td><td>4 CP</td><td>4 CP</td><td>4</td><td>4</td><td>Chakra Point Marks y penetración Hyuga.</td></tr>
+                  <tr><td>Shadow Clones</td><td>2</td><td>12 CP</td><td>2 CP</td><td>3</td><td>5</td><td>Recurso explícito; Rasengan weight +4.</td></tr>
+                  <tr><td>Gate of Life</td><td>3</td><td>15 HP</td><td>8 HP</td><td>3</td><td>6</td><td>Stage 3; STR/SPD y finishers Lotus.</td></tr>
+                  <tr><td>Gate of Limit</td><td>4</td><td>35 HP</td><td>12 HP</td><td>4</td><td>8</td><td>Stage 5; payoff extremo y riesgo alto.</td></tr>
+                  <tr><td>Curse Mark I</td><td>2</td><td>12 HP</td><td>5 HP</td><td>3</td><td>5</td><td>Wildcard ofensivo; vulnerabilidad acumulada.</td></tr>
+                  <tr><td>Curse Mark II</td><td>3</td><td>25 HP</td><td>10 HP</td><td>4</td><td>6</td><td>Stage superior; más output y self-damage.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="grid grid--3" style="margin-top:1rem">
+              <div class="card card--rule"><span class="signal-label">Coexistencia</span><p>Varios Modes compatibles pueden estar ON. Solo se excluyen variantes del mismo <code>modeFamily</code>.</p></div>
+              <div class="card card--rule"><span class="signal-label">Ascenso</span><p>Gate/Curse superior paga AP completo y diferencia de activación; conserva cargas restantes +1, con cap del nuevo stage.</p></div>
+              <div class="card card--rule"><span class="signal-label">Cambio lateral</span><p>Sharingan 2T↔3T paga activación completa y transfiere cargas sin refill ni +1.</p></div>
+              <div class="card card--rule"><span class="signal-label">Off manual</span><p>Solo al volver a robar y jugar la carta; paga AP completo, sin coste de activación, y empieza cooldown.</p></div>
+              <div class="card card--rule"><span class="signal-label">Apagado forzado</span><p>En v1 solo un drain explícito de cargas puede romper un Mode enemigo. Stun/Silence no lo apagan.</p></div>
+              <div class="card card--risk"><span class="signal-label">Upkeep múltiple</span><p>Se mantiene todo lo pagable por prioridad; una caída no detiene el intento de mantener los Modes posteriores.</p></div>
+            </div>
+            <div class="callout callout--tuning">
+              <strong>Techo de enhanced payoff:</strong> una contribución de Mode añade normalmente 40–60% de valor efectivo. Los bonus porcentuales de Tactical Setup se suman en un bucket; postura, crítico, elemento y mitigación continúan como capas separadas.
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="setup" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">05 · Estado de mesa</p><h2>Marks, estados y consumo</h2></div>
+              <span class="section-number">05</span>
+            </div>
+            <p class="section-lead">“Preparar terreno” significa dejar estado táctico legible, no modificar el Terrain del Room. Cada pieza dice quién la posee, cuánto dura, qué lee y cuándo se consume.</p>
+            <div class="grid grid--3">
+              <div class="card card--rule"><span class="signal-label">Mark propia</span><h3>Consumir al intento</h3><p>Cloak, Aim o un boost al próximo Attack se gastan cuando la acción válida se compromete, aunque luego falle.</p></div>
+              <div class="card card--rule"><span class="signal-label">Mark enemiga</span><h3>Consumir al impacto</h3><p>Vulnerability, Wire o Chakra Point marcados como consumibles desaparecen solo si al menos un golpe aterriza.</p></div>
+              <div class="card card--rule"><span class="signal-label">Lectura</span><h3>No implica consumo</h3><p>Burn, Poison, Stun o una Mark pueden habilitar bonus sin desaparecer, salvo declaración explícita.</p></div>
+            </div>
+            <div class="table-wrap" style="margin-top:1rem">
+              <table>
+                <thead><tr><th>Familia</th><th>Stacking</th><th>Reloj</th><th>Resolución</th></tr></thead>
+                <tbody>
+                  <tr><td>DoT</td><td>Cada instancia suma daño.</td><td>Tick y decremento tras oportunidad del afectado.</td><td>BLEED físico; BURN elemental; POISON/TRUE según autoría.</td></tr>
+                  <tr><td>Shield</td><td>Absorción aditiva por instancia.</td><td>Duración propia o cláusula “primer impacto”.</td><td>Se consume antes de HP, respetando el pipeline actual.</td></tr>
+                  <tr><td>Stat buff/debuff</td><td>Puntos enteros aditivos.</td><td>Normalmente 1–2 turnos; 3 solo para piezas fuertes.</td><td><code>+2 DEX</code>, nunca “+15%” convertido en secreto.</td></tr>
+                  <tr><td>Hard control</td><td>Instancias coexisten.</td><td>Después de la oportunidad afectada.</td><td>Dos Stun 1 simultáneos provocan un único skip, no dos.</td></tr>
+                  <tr><td>Range reaction</td><td>Por Mark/registry.</td><td>Tras cambio real de banda.</td><td>Manual, carta, AI y PUSH/PULL disparan; borde sin movimiento no.</td></tr>
+                  <tr><td>Mode charge</td><td>Cap por Mode; nunca sobrecarga.</td><td>No decae con tiempo.</td><td>Support puede recargar solo un Mode ya ON.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="callout callout--rule"><strong>Multi-hit:</strong> N tiradas independientes de impacto, crítico y mitigación. <code>effects[]</code>, artifacts on-hit, cargas y “next attack” se procesan una vez por carta si al menos un golpe conecta, salvo <code>perHit: true</code>. DRAIN cura una sola vez sobre el daño total post-mitigación.</div>
+          </div>
+        </section>
+
+        <section class="document-section" id="espacio" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">06 · El tablero que ya existe</p><h2>AP, postura y distancia siguen mandando</h2></div>
+              <span class="section-number">06</span>
+            </div>
+            <div class="grid grid--3">
+              <div class="card card--fact"><span class="signal-label">Action Points</span><h3>3 + ⌊(SPD−1)/2⌋</h3><p>Cap 9. Support/Side suelen costar 1–2; Mode 2–4; Attack 2–3; payoff pesado 4–6.</p></div>
+              <div class="card card--tuning"><span class="signal-label">Posture</span><h3>±20%</h3><p>Aggressive da/recibe ×1.20; Balanced ×1; Defensive da/recibe ×0.80. Cambio manual: 1 AP.</p></div>
+              <div class="card card--fact"><span class="signal-label">Range bands</span><h3>C · M · L</h3><p>Mover manualmente cuesta 1 AP una vez/turno. Las cartas y forced movement no consumen esa acción.</p></div>
+            </div>
+            <div class="grid grid--2" style="margin-top:1rem">
+              <div class="card card--rule">
+                <span class="signal-label">Activar vs mantener</span>
+                <p>El requisito de rango de un Mode se comprueba solo al activarlo. Después permanece ON al cambiar de banda; cada Attack conserva sus propios <code>allowedRanges</code>.</p>
+              </div>
+              <div class="card card--rule">
+                <span class="signal-label">Movimiento y reacción</span>
+                <p>Se mueve, se confirma la banda real, se disparan reacciones en orden y luego continúa la carta. No existe reacción si CLOSE recibe PULL o LONG recibe PUSH.</p>
+              </div>
+            </div>
+            <div class="callout callout--risk"><strong>Cartas demasiado caras:</strong> una técnica de 6 AP puede entrar en la mano de un personaje con máximo 4. Permanece deshabilitada y ocupa hueco. El coste alto es una promesa de build SPEED, no un filtro del RNG.</div>
+          </div>
+        </section>
+
+        <section class="document-section" id="tuneles" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">07 · Arquetipos jugables</p><h2>Cinco túneles, cinco ritmos</h2></div>
+              <span class="section-number">07</span>
+            </div>
+            <p class="section-lead">Los túneles no fuerzan una rotación fija. Explican qué se enciende, qué piezas pueden jugarse sin romperlo y qué cobra la ventaja cuando mano, AP, rango y riesgo coinciden.</p>
+            <div class="tunnel-tabs" role="tablist" aria-label="Túneles de clan">
+              <button class="tunnel-tab" role="tab" aria-selected="true" aria-controls="tunnel-uchiha" id="tab-uchiha">Uchiha</button>
+              <button class="tunnel-tab" role="tab" aria-selected="false" aria-controls="tunnel-uzumaki" id="tab-uzumaki">Uzumaki</button>
+              <button class="tunnel-tab" role="tab" aria-selected="false" aria-controls="tunnel-hyuga" id="tab-hyuga">Hyuga</button>
+              <button class="tunnel-tab" role="tab" aria-selected="false" aria-controls="tunnel-lee" id="tab-lee">Lee</button>
+              <button class="tunnel-tab" role="tab" aria-selected="false" aria-controls="tunnel-yamanaka" id="tab-yamanaka">Yamanaka</button>
+            </div>
+            <div class="tunnel-panel is-active" id="tunnel-uchiha" role="tabpanel" aria-labelledby="tab-uchiha">
+              <div class="tunnel-track">
+                <div class="tunnel-beat"><small>T1 · Motor</small><h4>Sharingan</h4><p>2T favorece Katon y anticipa intención; 3T abre Lightning/Chidori. Cambiar variante transfiere cargas.</p></div>
+                <div class="tunnel-beat"><small>T1–2 · Seguridad</small><h4>Smoke / Predict</h4><p>Reduce la primera presión enemiga y recarga lectura sin consumir el Mode.</p></div>
+                <div class="tunnel-beat"><small>T2–3 · Armado</small><h4>Kunai / Burn</h4><p>Side Attacks afinan impacto, rango o Burn. Phoenix Flower sigue siendo Attack normal.</p></div>
+                <div class="tunnel-beat"><small>T2–4 · Cobro</small><h4>Fireball / Chidori</h4><p>Enhanced automático y consumo declarado. Chidori 3T usa 2 cargas y gana MEDIUM.</p></div>
+              </div>
+            </div>
+            <div class="tunnel-panel" id="tunnel-uzumaki" role="tabpanel" aria-labelledby="tab-uzumaki">
+              <div class="tunnel-track">
+                <div class="tunnel-beat"><small>T1 · Motor</small><h4>Shadow Clones</h4><p>Entra con 3 cargas; no desaparecen por atacar ni por tiempo. Rasengan obtiene weight +4.</p></div>
+                <div class="tunnel-beat"><small>T1–2 · Posición</small><h4>Reel / Shunshin</h4><p>Llegar a CLOSE sin gastar el movimiento manual preserva AP para el payoff.</p></div>
+                <div class="tunnel-beat"><small>T2–3 · Chip</small><h4>Uzumaki Barrage</h4><p>Side multi-hit; puede gastar 1 carga para dos golpes extra. La excepción se anuncia en rojo.</p></div>
+                <div class="tunnel-beat"><small>T2–4 · Cobro</small><h4>Rasengan</h4><p>Base siempre viable; con clones obtiene +50% y consume 1 carga por intento.</p></div>
+              </div>
+            </div>
+            <div class="tunnel-panel" id="tunnel-hyuga" role="tabpanel" aria-labelledby="tab-hyuga">
+              <div class="tunnel-track">
+                <div class="tunnel-beat"><small>T1 · Motor</small><h4>Byakugan</h4><p>ACC +2, lectura defensiva y cuatro cargas. Hyuga Side aplica Chakra Point.</p></div>
+                <div class="tunnel-beat"><small>T1–2 · Marcado</small><h4>Air Palm</h4><p>Chip a rango, PUSH y un Chakra Point por impacto sin gastar cargas.</p></div>
+                <div class="tunnel-beat"><small>T2–3 · Defensa</small><h4>Rotation</h4><p>Hard require Byakugan; gasta 1 carga para shield + reflect durante la respuesta.</p></div>
+                <div class="tunnel-beat"><small>T3–4 · Cobro</small><h4>64 Palms / Lions</h4><p>Lee Marks, penetra defensa y consume al impacto; el fallo conserva las Marks enemigas.</p></div>
+              </div>
+            </div>
+            <div class="tunnel-panel" id="tunnel-lee" role="tabpanel" aria-labelledby="tab-lee">
+              <div class="tunnel-track">
+                <div class="tunnel-beat"><small>T1 · Preparación</small><h4>Gate Prep</h4><p>Reduce 50% el próximo coste de activación HP y da +3 weight a un Gate para el siguiente draw.</p></div>
+                <div class="tunnel-beat"><small>T1–2 · Motor</small><h4>Gate of Life</h4><p>Stage 3 a 8 HP de upkeep; puede ascender a Limit pagando diferencia y AP completo.</p></div>
+                <div class="tunnel-beat"><small>T2–3 · Presión</small><h4>Dynamic Entry</h4><p>Entra desde MEDIUM, cierra rango y deja intactas las cargas.</p></div>
+                <div class="tunnel-beat"><small>T3–4 · Finisher</small><h4>Lotus / Peacock</h4><p>Escala con todas las cargas, las consume al intento y cierra el Gate.</p></div>
+              </div>
+            </div>
+            <div class="tunnel-panel" id="tunnel-yamanaka" role="tabpanel" aria-labelledby="tab-yamanaka">
+              <div class="tunnel-track">
+                <div class="tunnel-beat"><small>T1 · Lectura</small><h4>Mind Reading</h4><p>Revela intención completa y Discover 3 MENTAL. Demuestra que un túnel no necesita Mode.</p></div>
+                <div class="tunnel-beat"><small>T1–2 · Control</small><h4>Mind Transfer</h4><p>Stun 2 al 70%; fallar provoca self-Stun 1. Riesgo alto, payoff de tempo real.</p></div>
+                <div class="tunnel-beat"><small>T2–3 · Armado</small><h4>False Surroundings</h4><p>Confusion y Read Mind preparan el golpe sin tocar Terrain ni inventar un dōjutsu.</p></div>
+                <div class="tunnel-beat"><small>T2–4 · Cobro</small><h4>Hell Viewing</h4><p>Main inicial, daño mental sólido y penalización a la próxima acción enemiga.</p></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="nuevas" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">08 · Paquete de contenido v1</p><h2>Doce técnicas para cerrar huecos</h2></div>
+              <span class="section-number">08</span>
+            </div>
+            <p class="section-lead">Siete piezas universales hacen tangible búsqueda, PUSH/PULL, Range Reactions y anti-Mode. Cinco piezas de clan completan una ruta sin cambiar los kits iniciales.</p>
+            <div class="table-wrap">
+              <table class="tuning-table">
+                <thead><tr><th>Técnica</th><th>Rol</th><th>Coste v1</th><th>Contrato funcional</th></tr></thead>
+                <tbody>
+                  <tr><td>Tactical Scroll: Rehearsal</td><td>SUPPORT</td><td>1 AP · CD 5</td><td>Elegir un tag presente en el loadout; Discover 3 de ese tag.</td></tr>
+                  <tr><td>Chakra Control Drill</td><td>SUPPORT</td><td>1 AP · CD 3</td><td>Main Attack weight +2 en el próximo draw; recuperar 4 CP.</td></tr>
+                  <tr><td>Wire Kunai: Reel In</td><td>SIDE</td><td>1 AP · CD 2</td><td>6 dmg; MEDIUM/LONG; PULL 1 y Off-Balance (+20% próximo Attack).</td></tr>
+                  <tr><td>Explosive Kunai: Blastback</td><td>SIDE</td><td>1 AP · 1 CP · CD 3</td><td>7 dmg; CLOSE/MEDIUM; PUSH 1 y Exposed (+15% próximo ranged Attack).</td></tr>
+                  <tr><td>Backstep Shuriken</td><td>SIDE</td><td>1 AP · CD 2</td><td>5 dmg; aleja al usuario una banda tras el intento.</td></tr>
+                  <tr><td>Sealing Tag: Chakra Lock</td><td>SUPPORT</td><td>2 AP · 4 CP · CD 6</td><td>Mode enemigo prioritario pierde 1 carga; si no hay Mode, Silence 1.</td></tr>
+                  <tr><td>Tripwire Perimeter</td><td>SUPPORT</td><td>1 AP · CD 4</td><td>Range Reaction Mark 2: primer movimiento enemigo causa 8 dmg y 60% Stun 1.</td></tr>
+                  <tr><td>Sharingan 3-Tomoe</td><td>MODE</td><td>3 AP · 6/6 CP · CD 5</td><td>3 cargas; Lightning/Chidori; variante lateral de Sharingan.</td></tr>
+                  <tr><td>Uzumaki Barrage</td><td>SIDE</td><td>2 AP · CD 3</td><td>3×4 dmg; con clones gasta 1 carga y añade dos golpes.</td></tr>
+                  <tr><td>Gentle Step: Twin Lion Fists</td><td>ATTACK</td><td>4 AP · 9 CP · CD 5</td><td>2×9; con Byakugan + Chakra Points: +50%, 30% penetration y consumo.</td></tr>
+                  <tr><td>Morning Peacock</td><td>ATTACK</td><td>5 AP · 10 HP · CD 7</td><td>6×4; requiere Gate of Limit, +15% por carga, consume todas y cierra.</td></tr>
+                  <tr><td>Mind Reading Technique</td><td>SUPPORT</td><td>1 AP · 4 CP · CD 4</td><td>Revela intención completa y Discover 3 MENTAL.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="callout callout--fact"><strong>Adquisición:</strong> ninguna entra en los starter kits. Las siete universales usan los pools actuales de scroll/vendor; cada técnica de clan respeta <code>requirements.clan</code> y entra por sus canales de aprendizaje.</div>
+          </div>
+        </section>
+
+        <section class="document-section" id="catalogo" data-section>
+          <div class="section-inner" style="width:min(92rem,100%)">
+            <div class="section-heading">
+              <div><p class="section-kicker">09 · Reauthoring completo</p><h2>Catálogo de 128 técnicas</h2></div>
+              <span class="section-number">09</span>
+            </div>
+            <p class="section-lead">Cada fila es una decisión concreta de v1. “Ahora” resume el packaging actual; “Propuesta” define rol, coste, rango, hits, interacción y texto funcional inicial.</p>
+            <div class="catalog-toolbar">
+              <div class="catalog-toolbar__top">
+                <input class="search" id="catalogSearch" type="search" placeholder="Buscar nombre, id, tag, Mode o efecto…" aria-label="Buscar en el catálogo">
+                <span class="catalog-count" id="catalogCount">128 / 128</span>
+              </div>
+              <div class="filter-row" role="group" aria-label="Filtrar por rol">
+                <button class="filter-chip" data-role-filter="ALL" aria-pressed="true">Todos</button>
+                <button class="filter-chip" data-role-filter="SUPPORT" aria-pressed="false">Support</button>
+                <button class="filter-chip" data-role-filter="MODE" aria-pressed="false">Mode</button>
+                <button class="filter-chip" data-role-filter="SIDE" aria-pressed="false">Side</button>
+                <button class="filter-chip" data-role-filter="ATTACK" aria-pressed="false">Attack</button>
+                <button class="filter-chip" data-role-filter="PASSIVE" aria-pressed="false">Passive</button>
+                <button class="filter-chip" data-origin-filter="Nueva" aria-pressed="false">Solo nuevas</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="catalog-table">
+                <thead><tr><th>Técnica</th><th>Origen / rol</th><th>Tags</th><th>AP · recurso · CD</th><th>Rango · hits</th><th>Ahora</th><th>Propuesta v1</th></tr></thead>
+                <tbody id="catalogBody"></tbody>
+              </table>
+              <div class="catalog-empty" id="catalogEmpty">No hay técnicas que coincidan con el filtro.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="contratos" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">10 · Modelo conceptual</p><h2>Interfaces mínimas para no improvisar</h2></div>
+              <span class="section-number">10</span>
+            </div>
+            <p class="section-lead">Los nombres son propuesta de contrato, no instrucciones de archivo. La lógica pura pertenece a <code>src/game/systems/</code>; React solo proyecta estado y envía intenciones.</p>
+            <div class="grid grid--2">
+              <div>
+                <h3>Skill authoring</h3>
+                <pre>enum CardRole { SUPPORT, MODE, SIDE_ATTACK, ATTACK }
+enum TargetScope { MAIN_ATTACK, ATTACK, SIDE_ATTACK, OFFENSIVE_SKILL }
+
+interface Skill {
+  cardRole: CardRole
+  tags: SkillTag[]
+  baseWeight: number          // v1 = 2
+  allowedRanges: CombatRange[]
+  hitCount?: number           // default 1
+  perHitEffects?: EffectType[]
+  discover?: DiscoverSpec
+  markEffects?: MarkSpec[]
+  modeInteraction?: ModeInteraction
+}</pre>
+              </div>
+              <div>
+                <h3>Mode y Mark</h3>
+                <pre>interface ModeDefinition {
+  id: ModeId
+  family: ModeFamily
+  stage?: number
+  maxCharges: number
+  activationCost: TypedCost
+  upkeep: TypedCost
+  cooldown: number
+  weightModifiers: WeightModifier[]
+  enhancements: EnhancementRule[]
+  endClauses: ModeEndClause[]
+}
+
+interface Mark {
+  id: MarkId
+  sourceSkillId: string
+  owner: CombatActor
+  target: CombatActor
+  duration: number
+  stacks: number
+  trigger?: CombatTrigger
+  consume?: ConsumptionRule
+}</pre>
+              </div>
+            </div>
+            <div class="grid grid--2" style="margin-top:1rem">
+              <div>
+                <h3>Weighted draw</h3>
+                <pre>drawHand(pool, combatState, size = 4):
+  candidates = unique(playable-role skills)
+  repeat min(size, candidates.length):
+    weight = max(1, sumWeight(candidate, state))
+    chosen = weightedRandom(candidates, weight, gameRng)
+    hand.push(snapshotPlayability(chosen, state))
+    candidates.remove(chosen)
+  return hand</pre>
+              </div>
+              <div>
+                <h3>Commit de acción</h3>
+                <pre>resolveSkill(intent):
+  validate card snapshot, AP, resource, range, hard gates
+  if invalid: consume nothing
+
+  commit AP + CP/HP + readyOnTurn
+  consume own attempt-marks + declared Mode charges
+  roll each hit independently
+  if any hit:
+    consume declared enemy marks
+    apply once-per-card effects and artifact procs
+  apply explicit per-hit effects
+  resolve movement, then range reactions</pre>
+              </div>
+            </div>
+            <div class="callout callout--rule"><strong>Skill Config:</strong> fuera de combate guarda <code>mainAttackId</code> y <code>modeUpkeepPriority[]</code>. Main no puede quedar vacía; no puede olvidarse la última ATTACK ni bajar de seis jugables. Si se olvida la Main con otras ATTACK disponibles, se elige una uniformemente con el RNG del juego y se notifica. Aprender no cambia la Main.</div>
+          </div>
+        </section>
+
+        <section class="document-section" id="presentacion" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">11 · Honestidad de interfaz</p><h2>El jugador debe ver el coste del plan</h2></div>
+              <span class="section-number">11</span>
+            </div>
+            <div class="grid grid--2">
+              <div class="card card--rule">
+                <span class="signal-label">En la carta</span>
+                <ul class="rule-list">
+                  <li>Badge SUPPORT / MODE / SIDE / ATTACK.</li>
+                  <li>Ribbon de Main Attack.</li>
+                  <li>AP, CP/HP, cooldown restante, rango y hit count.</li>
+                  <li>Texto rojo para cualquier consumo de Mode/cargas.</li>
+                  <li>Estado disabled con una razón única y priorizada.</li>
+                </ul>
+              </div>
+              <div class="card card--rule">
+                <span class="signal-label">Preview contextual</span>
+                <ul class="rule-list">
+                  <li>Base frente a enhanced, con fuente de cada bonus.</li>
+                  <li>Daño estimado total y por golpe.</li>
+                  <li>Modes compatibles y cargas que se comprometen.</li>
+                  <li>Marks/status leídos y consumidos.</li>
+                  <li>Movimiento esperado y Range Reactions armadas.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="grid grid--3" style="margin-top:1rem">
+              <div class="card card--fact"><span class="signal-label">Combat Modes panel</span><p>Mode, variante/stage, cargas/max, upkeep, prioridad y rutas compatibles. No es un buff diminuto entre status.</p></div>
+              <div class="card card--fact"><span class="signal-label">Tactical Setup</span><p>Marks propias y enemigas con icono, stacks, reloj, trigger y cláusula de consumo.</p></div>
+              <div class="card card--fact"><span class="signal-label">Skill Config</span><p>Acceso desde HUD de exploración; catálogo, Main, prioridades y desglose exacto de peso. Bloqueado en combate.</p></div>
+            </div>
+            <div class="callout callout--risk"><strong>Ruido controlado:</strong> el peso exacto y su desglose viven en inspector/configuración, no en la cara principal de cada carta. La mano prioriza decisión inmediata; el detalle sigue siendo auditable a un clic.</div>
+          </div>
+        </section>
+
+        <section class="document-section" id="integracion" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">12 · Capas adyacentes</p><h2>AI, simulación y artifacts deben aprender Setup</h2></div>
+              <span class="section-number">12</span>
+            </div>
+            <div class="grid grid--3">
+              <div class="card card--rule"><span class="signal-label">Enemy AI</span><h3>Misma física</h3><p>Usa Modes, Marks, charges, range y resolución compartida; selecciona técnicas directamente, sin mano ponderada ni Main Config.</p></div>
+              <div class="card card--rule"><span class="signal-label">Elite / Boss</span><h3>Plan autorado</h3><p>Scoring state-aware general más túneles y telegraphs específicos. Sharingan lee la intención ya existente.</p></div>
+              <div class="card card--risk"><span class="signal-label">Simulator</span><h3>Paridad o nada</h3><p>No puede seguir puntuando casi solo daño: debe ejecutar el mismo pipeline y valorar estado futuro.</p></div>
+            </div>
+            <div class="metric-grid" style="margin-top:1rem">
+              <div class="metric"><strong>Setup completion</strong><span>% de combates donde el túnel alcanza su payoff.</span></div>
+              <div class="metric"><strong>Death during setup</strong><span>Muertes antes de cobrar la preparación.</span></div>
+              <div class="metric"><strong>Enhanced / base</strong><span>Relación de usos y valor marginal real.</span></div>
+              <div class="metric"><strong>Mode lifetime</strong><span>Turnos ON, causa de apagado y cargas desperdiciadas.</span></div>
+              <div class="metric"><strong>Dead-card rate</strong><span>Huecos bloqueados por cooldown, recurso, rango o gate.</span></div>
+              <div class="metric"><strong>Weight influence</strong><span>Cuántas apariciones adicionales produce cada modificador.</span></div>
+              <div class="metric"><strong>Range reactions</strong><span>Triggers por movimiento manual, carta y forced movement.</span></div>
+              <div class="metric"><strong>Payoff share</strong><span>% del daño total concentrado en el disparo principal.</span></div>
+              <div class="metric"><strong>Upkeep failure</strong><span>Modes caídos por CP/HP y orden de prioridad.</span></div>
+            </div>
+            <div class="grid grid--2" style="margin-top:1rem">
+              <div class="card card--rule">
+                <span class="signal-label">Artifacts</span>
+                <p><code>FREE_FIRST_SKILL</code> anula únicamente el primer coste de chakra: nunca AP, HP, upkeep, cargas ni cooldown. Los textos deben decirlo.</p>
+              </div>
+              <div class="card card--rule">
+                <span class="signal-label">Cooldown reset</span>
+                <p>Reinicia cartas y Modes apagados, pero no activa un Mode ni restaura cargas. Los on-hit procs ocurren una vez por carta con ≥1 impacto.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="aceptacion" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">13 · Corte y verificación</p><h2>Qué debe demostrar una implementación</h2></div>
+              <span class="section-number">13</span>
+            </div>
+            <div class="grid grid--2">
+              <div class="card card--risk">
+                <span class="signal-label">Migración big bang</span>
+                <p>Roles, draw, cooldown semántico, Modes, Marks, catálogo, AI/sim y UI cambian en un único corte. No se publica una mezcla de skills legacy y v1; el código sustituido se elimina.</p>
+              </div>
+              <div class="card card--fact">
+                <span class="signal-label">Sin pacing fijo</span>
+                <p>No se fuerza una duración global. Trash puede caer con Side/base Attack; Elite/Boss convierte Setup en necesidad. Las métricas describen el resultado antes de retocar números.</p>
+              </div>
+            </div>
+            <div class="table-wrap" style="margin-top:1rem">
+              <table>
+                <thead><tr><th>Escenario</th><th>Aceptación observable</th></tr></thead>
+                <tbody>
+                  <tr><td>Cooldown 2</td><td>La carta puede salir bloqueada en las dos manos siguientes y vuelve a ser utilizable en la tercera.</td></tr>
+                  <tr><td>Mano totalmente bloqueada</td><td>No se sustituye ninguna carta; mover, postura y Pass siguen disponibles.</td></tr>
+                  <tr><td>Discover con cooldown</td><td>La carta aparece entre candidatos y, si se elige, entra disabled.</td></tr>
+                  <tr><td>Upkeep insuficiente</td><td>Mode cae antes de regen, comienza cooldown y los Modes posteriores aún intentan mantenerse.</td></tr>
+                  <tr><td>HP upkeep letal</td><td>El Mode se apaga; el jugador nunca baja de 1 HP por ese upkeep.</td></tr>
+                  <tr><td>Ascenso Gate/Curse</td><td>AP completo, diferencia de recurso, cargas restantes +1 y sin downgrade.</td></tr>
+                  <tr><td>Sharingan lateral</td><td>Transfiere cargas sin refill; el anterior entra en cooldown.</td></tr>
+                  <tr><td>Dos Modes compatibles</td><td>Ambos mejoran una Attack solo si la Attack los declara; cada uno consume su coste.</td></tr>
+                  <tr><td>Multi-hit parcial</td><td>Effects y artifacts una vez si ≥1 golpe impacta; setup/cargas una vez por carta.</td></tr>
+                  <tr><td>PUSH contra LONG</td><td>No hay movimiento ni Range Reaction; la carta continúa con resultado de borde.</td></tr>
+                  <tr><td>Main olvidada</td><td>Otra ATTACK se elige uniformemente y se notifica; nunca queda vacía.</td></tr>
+                  <tr><td>Fin de encuentro</td><td>Cooldown, Modes, cargas y Marks reinician para el siguiente combate.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="decisiones" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div><p class="section-kicker">14 · Registro canónico</p><h2>Decisiones cerradas</h2></div>
+              <span class="section-number">14</span>
+            </div>
+            <ol class="decision-log">
+              <li><strong>Entrega:</strong> documentación HTML; ningún cambio runtime.</li>
+              <li><strong>Terminología:</strong> SUPPORT, MODE, SIDE y ATTACK.</li>
+              <li><strong>Tool:</strong> tag, nunca rol.</li>
+              <li><strong>Main:</strong> una ATTACK; sin peso inherente.</li>
+              <li><strong>Loadout:</strong> mínimo 6, máximo 20 jugables.</li>
+              <li><strong>Draw:</strong> cuatro distintas del pool completo cada turno.</li>
+              <li><strong>Peso:</strong> base 2; aditivo; mínimo 1; sin cap.</li>
+              <li><strong>Inicio:</strong> sin mano amañada ni garantía de Mode.</li>
+              <li><strong>Cooldown:</strong> sigue sorteable con −1 y bloquea N manos completas.</li>
+              <li><strong>Mano muerta:</strong> riesgo real, sin fallback oculto.</li>
+              <li><strong>Discover:</strong> tres candidatos actuales; cooldown permitido.</li>
+              <li><strong>Posture:</strong> pesos por rol y multiplicadores ±20%.</li>
+              <li><strong>Movement:</strong> carta/forced no gasta el movimiento manual.</li>
+              <li><strong>Terrain/Heat:</strong> sin interacción de cartas en v1.</li>
+              <li><strong>Mode:</strong> persistente, con cargas y cláusula de fin.</li>
+              <li><strong>Upkeep:</strong> antes de regen y ordenado por Skill Config.</li>
+              <li><strong>Coexistencia:</strong> solo se excluye el mismo modeFamily.</li>
+              <li><strong>Charges:</strong> no decaen; gasto al intento.</li>
+              <li><strong>Marks:</strong> primera clase, apilables y con consumo explícito.</li>
+              <li><strong>Multi-hit:</strong> rolls por hit; procs por carta por defecto.</li>
+              <li><strong>Legacy flavor:</strong> se implementa la promesa, no se borra.</li>
+              <li><strong>Enemies:</strong> mismas reglas, selección sin mano.</li>
+              <li><strong>Migración:</strong> big bang, sin compatibilidad dual.</li>
+              <li><strong>Contenido:</strong> 116 actuales + 12 nuevas, mayoría universal.</li>
+            </ol>
+            <div class="callout callout--rule"><strong>Frase para el equipo:</strong> el Sharingan no es un buff de dos turnos; es un modo de combate que mantienes mientras preparas la mano, el rango y el estado enemigo, y que solo termina cuando el payoff, el peaje o el jugador lo cierran.</div>
+          </div>
+        </section>
+      </article>
+
+      <footer class="footer">
+        <p>SHINOBI WAY · Tactical Setup & Combat Modes · SW–CTS–01 · Spec v1 · Initial Tuning</p>
+        <p>Documento complementario: <a href="./support-card-system-analysis.html">Auditoría de cartas de soporte y setup multi-turno</a>. Esa auditoría conserva la fotografía del runtime anterior; esta página contiene la decisión normativa.</p>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    "use strict";
+
+    const skill = (id, name, origin, role, tags, ap, cost, cd, range, hits, now, proposal) => ({
+      id, name, origin, role, tags, ap, cost, cd, range, hits, now, proposal
+    });
+
+    const catalog = [
+      skill("basic_atk", "Taijutsu: Strike", "Actual", "ATTACK", ["TAIJUTSU", "PHYSICAL"], 2, "—", 0, "CLOSE", "1 hit", "ACTIVE · 12 dmg.", "12 dmg base. Ataque de piso; no requiere ni consume Mode."),
+      skill("heavy_kick", "Taijutsu: Heavy Kick", "Actual", "ATTACK", ["TAIJUTSU", "PHYSICAL"], 2, "—", 1, "CLOSE", "1 hit", "ACTIVE · 14 dmg.", "14 dmg. Main inicial Uzumaki; no consume Mode."),
+      skill("shuriken", "Ninja Tool: Shuriken", "Actual", "SIDE", ["TOOL", "WEAPON", "PHYSICAL"], 1, "—", 1, "MEDIUM · LONG", "1 hit", "ACTIVE · 11 dmg.", "11 dmg. Al impactar aplica Aim 2: próximo ATTACK obtiene +1 ACC."),
+      skill("mud_wall", "Mud Wall", "Actual", "SUPPORT", ["NINJUTSU", "EARTH", "DEFENSE"], 1, "4 CP", 4, "ANY", "sin hit", "ACTIVE · Shield.", "Shield 35 hasta absorberse; cambia a Defensive dentro del coste de la carta."),
+      skill("phoenix_flower", "Phoenix Flower", "Actual", "ATTACK", ["NINJUTSU", "FIRE", "UCHIHA"], 2, "5 CP", 2, "MEDIUM · LONG", "3 hits", "ACTIVE · 14 dmg + Burn.", "3×5 dmg; si impacta, Burn 4 durante 2 oportunidades. Main inicial Uchiha. Sharingan 2T: +40%, consume 1 carga."),
+      skill("kawarimi", "Body Replacement", "Actual", "SUPPORT", ["NINJUTSU", "DEFENSE", "MOVEMENT"], 1, "3 CP", 4, "ANY", "sin hit", "ACTIVE · Shield + BUFF.", "Substitution 2: ignora el primer golpe enemigo y aleja una banda al dispararse; se consume."),
+      skill("bunshin", "Clone Technique", "Actual", "SUPPORT", ["NINJUTSU", "ILLUSION", "DEFENSE"], 1, "1 CP", 3, "ANY", "sin hit", "ACTIVE · BUFF.", "Decoy 1: el primer Offensive Skill enemigo sufre −20 puntos de impacto; no concede Shadow Clone charges."),
+      skill("henge", "Transformation", "Actual", "SUPPORT", ["NINJUTSU", "MENTAL", "SETUP"], 1, "1 CP", 4, "ANY", "sin hit", "ACTIVE · BUFF.", "Misdirect 2: SIDE weight +2 en el próximo draw y el próximo SIDE aplica Exposed 10%."),
+      skill("shunshin", "Body Flicker", "Actual", "SUPPORT", ["NINJUTSU", "MOVEMENT", "PHYSICAL"], 1, "4 CP", 3, "ANY", "sin hit", "ACTIVE · BUFF.", "Mover al usuario una banda elegida sin gastar movimiento manual; próximo Offensive Skill obtiene +1 DEX."),
+      skill("kai", "Release", "Actual", "SUPPORT", ["NINJUTSU", "MENTAL", "CLEANSE"], 1, "3 CP", 2, "ANY", "sin hit", "ACTIVE · BUFF.", "Elimina Confusion, Silence y una Mark MENTAL enemiga; si limpia algo, recupera 3 CP."),
+      skill("leaf_whirlwind", "Leaf Whirlwind", "Actual", "ATTACK", ["TAIJUTSU", "PHYSICAL"], 2, "—", 2, "CLOSE", "1 hit", "ACTIVE · 14 dmg + DEBUFF.", "14 dmg; al impactar, −1 SPD durante 2 oportunidades."),
+      skill("dynamic_entry", "Dynamic Entry", "Actual", "ATTACK", ["TAIJUTSU", "PHYSICAL", "MOVEMENT"], 2, "—", 3, "MEDIUM", "1 hit", "ACTIVE · 14 dmg.", "Mueve a CLOSE antes del golpe; 14 dmg y +20% Setup dmg si el movimiento cambió banda. Main inicial Lee."),
+      skill("rising_wind", "Leaf Rising Wind", "Actual", "SIDE", ["TAIJUTSU", "PHYSICAL", "SETUP"], 1, "—", 2, "CLOSE", "1 hit", "ACTIVE · 8 dmg + BUFF.", "8 dmg; Launched 2: próximo ATTACK MELEE obtiene +20% Setup dmg."),
+      skill("strong_fist", "Strong Fist Combo", "Actual", "ATTACK", ["TAIJUTSU", "PHYSICAL", "MULTI_HIT"], 2, "—", 1, "CLOSE", "2 hits", "ACTIVE · un hit de 10; texto promete combo.", "2×5 dmg con rolls independientes; los efectos on-hit se resuelven una vez por carta."),
+      skill("sweeping_kick", "Sweeping Kick", "Actual", "SIDE", ["TAIJUTSU", "PHYSICAL", "CONTROL"], 1, "—", 2, "CLOSE", "1 hit", "ACTIVE · 7 dmg + Stun.", "7 dmg; 40% Stun 1 al impactar."),
+      skill("elbow_strike", "Elbow Strike", "Actual", "SIDE", ["TAIJUTSU", "PHYSICAL"], 1, "—", 1, "CLOSE", "1 hit", "ACTIVE · 8 dmg.", "8 dmg; Guard Break 2: próximo ATTACK ignora 15% defensa."),
+      skill("feint_strike", "Feint Strike", "Actual", "SIDE", ["TAIJUTSU", "PHYSICAL", "SETUP"], 1, "—", 2, "CLOSE", "1 hit", "ACTIVE · 7 dmg.", "7 dmg AUTO; Feint 2 da +15 puntos de impacto al próximo ATTACK."),
+      skill("counter_stance", "Counter Stance", "Actual", "SUPPORT", ["TAIJUTSU", "DEFENSE", "REACTION"], 1, "1 CP", 4, "ANY", "sin hit", "ACTIVE · 8 dmg inmediato + Reflect.", "Counter 1: refleja 30% del primer MELEE recibido y da SIDE weight +1 al siguiente draw; sin daño inmediato."),
+      skill("dancing_leaf", "Shadow of Dancing Leaf", "Actual", "SUPPORT", ["TAIJUTSU", "MOVEMENT", "GATES"], 1, "1 CP", 3, "ANY", "sin hit", "ACTIVE · dos BUFF de stats.", "Mover a CLOSE; Lotus Opening 2 da +25% al próximo finisher GATES y +2 weight a LOTUS en el siguiente draw."),
+      skill("focused_breathing", "Focused Breathing", "Actual", "SUPPORT", ["CHAKRA", "SUSTAIN"], 1, "—", 2, "ANY", "sin hit", "ACTIVE · ChakraRegen.", "Recupera 8 CP; el próximo upkeep de CP cuesta 2 menos, una sola vez."),
+      skill("kunai_slash", "Kunai Slash", "Actual", "SIDE", ["TOOL", "WEAPON", "PHYSICAL"], 1, "—", 1, "CLOSE", "1 hit", "ACTIVE · 8 dmg + Bleed.", "8 dmg; Bleed 3 durante 2 oportunidades."),
+      skill("kunai_throw", "Kunai Throw", "Actual", "SIDE", ["TOOL", "WEAPON", "PHYSICAL"], 1, "—", 1, "MEDIUM · LONG", "1 hit", "ACTIVE · 7 dmg.", "7 dmg; al impactar, TOOL weight +1 en el próximo draw."),
+      skill("shuriken_barrage", "Shuriken Barrage", "Actual", "SIDE", ["TOOL", "WEAPON", "PHYSICAL", "MULTI_HIT"], 2, "1 CP", 2, "MEDIUM · LONG", "3 hits", "ACTIVE · un hit de 6.", "3×3 dmg; si conecta algún hit, próximo ATTACK obtiene +10% Setup dmg."),
+      skill("windmill_shuriken", "Windmill Shuriken", "Actual", "SIDE", ["TOOL", "WEAPON", "PHYSICAL", "MOVEMENT"], 2, "—", 3, "MEDIUM · LONG", "1 hit", "ACTIVE · 12 dmg.", "12 dmg; PULL 1 al impactar y dispara Range Reactions tras mover."),
+      skill("senbon", "Senbon Needle", "Actual", "SIDE", ["TOOL", "WEAPON", "PHYSICAL", "CONTROL"], 1, "—", 1, "MEDIUM · LONG", "1 hit", "ACTIVE · 7 dmg + Silence.", "7 dmg; 35% Silence 1 al impactar."),
+      skill("senbon_rain", "Senbon Rain", "Actual", "SIDE", ["TOOL", "WEAPON", "PHYSICAL", "MULTI_HIT"], 2, "3 CP", 3, "MEDIUM · LONG", "4 hits", "ACTIVE · un hit de 6 + Poison.", "4×2 dmg; si algún golpe conecta, Poison 3 durante 2 oportunidades."),
+      skill("explosive_tag", "Explosive Tag", "Actual", "SIDE", ["TOOL", "FIRE", "MOVEMENT"], 1, "—", 2, "CLOSE · MEDIUM", "1 hit", "ACTIVE · 11 dmg.", "11 dmg; PUSH 1 al impactar."),
+      skill("explosive_barrage", "Explosive Barrage", "Actual", "SIDE", ["TOOL", "FIRE", "MULTI_HIT"], 2, "3 CP", 4, "MEDIUM · LONG", "3 hits", "ACTIVE · 13 dmg + DEBUFF.", "3×5 dmg; Exposed 2 hace que el próximo ATTACK reciba +15% Setup dmg."),
+      skill("sword_slash", "Sword Slash", "Actual", "ATTACK", ["WEAPON", "PHYSICAL"], 2, "—", 1, "CLOSE", "1 hit", "ACTIVE · 10 dmg + Bleed.", "10 dmg; Bleed 4 durante 2 oportunidades."),
+      skill("iaido", "Iaido", "Actual", "ATTACK", ["WEAPON", "PHYSICAL", "PRECISION"], 2, "1 CP", 3, "CLOSE", "1 hit", "ACTIVE · 12 dmg.", "12 dmg; con Cloak activo obtiene +50% Setup dmg además del auto-crit y consume Cloak al intento."),
+      skill("wire_setup", "Ninja Tool: Wire Trap", "Actual", "SUPPORT", ["TOOL", "WEAPON", "MARK"], 1, "1 CP", 4, "ANY", "sin hit", "ACTIVE · STR buff propio + Bleed inmediato.", "Wire Trap 2 sobre enemigo: próximo ATTACK +20%; al impactar aplica Bleed 5×2 y consume la Mark."),
+      skill("poison_coat", "Poison Coat", "Actual", "SUPPORT", ["TOOL", "POISON", "MARK"], 1, "1 CP", 4, "ANY", "sin hit", "ACTIVE · Poison inmediato.", "Coated 2 propio: el próximo Offensive Skill que impacte aplica Poison 5×3; consume al impacto."),
+      skill("smoke_bomb", "Smoke Bomb", "Actual", "SUPPORT", ["TOOL", "DEFENSE", "MARK"], 1, "—", 3, "ANY", "sin hit", "ACTIVE · BUFF/DEBUFF de stats.", "Smoke 2: primer Offensive enemigo −25 puntos de impacto; SIDE weight +1 en el próximo draw. No cambia Terrain."),
+      skill("flash_bomb", "Flash Bomb", "Actual", "SUPPORT", ["TOOL", "CONTROL"], 1, "—", 4, "ANY", "sin hit", "ACTIVE · DEBUFF.", "Blinded 1: enemigo −2 ACC y su intención telegráfica queda interrumpida tras resolver la acción actual."),
+      skill("analyze", "Analyze Enemy", "Actual", "SUPPORT", ["MENTAL", "DISCOVER", "MARK"], 1, "—", 5, "ANY", "sin hit", "ACTIVE · ACC buff.", "Discover 3 ATTACK que compartan al menos un tag con Main; Studied 2 hace que el elegido ignore 20% defensa."),
+      skill("brace", "Brace", "Actual", "SUPPORT", ["DEFENSE", "POSTURE"], 1, "—", 3, "ANY", "sin hit", "ACTIVE · WIL buff.", "Cambia a Defensive y concede Shield 20 hasta la siguiente respuesta enemiga."),
+      skill("cloak_invis", "Cloak of Invisibility", "Actual", "SUPPORT", ["NINJUTSU", "STEALTH", "MARK"], 1, "3 CP", 4, "ANY", "sin hit", "ACTIVE · SPD/DEX buffs; texto promete auto-crit.", "Cloaked 2: próximo ATTACK fuerza crítico y obtiene +1 DEX; se consume al intento."),
+      skill("basic_medical", "Basic Medical Jutsu", "Actual", "SUPPORT", ["MEDICAL", "SUSTAIN", "CLEANSE"], 2, "5 CP", 5, "ANY", "sin hit", "ACTIVE · Heal.", "Cura 25 HP y elimina una instancia de Poison o Bleed."),
+      skill("focused_stance", "Focused Stance", "Actual", "SUPPORT", ["POSTURE", "PRECISION"], 1, "3 CP", 5, "ANY", "sin hit", "TOGGLE · buffs de stats.", "Cambia a Balanced; Focused 2 da +20 puntos de crítico al próximo ATTACK."),
+      skill("defensive_posture", "Defensive Posture", "Actual", "SUPPORT", ["POSTURE", "DEFENSE"], 1, "3 CP", 5, "ANY", "sin hit", "TOGGLE · BUFF/DEBUFF.", "Cambia a Defensive y concede Shield 25 hasta la siguiente respuesta enemiga."),
+      skill("aggressive_stance", "Aggressive Stance", "Actual", "SUPPORT", ["POSTURE", "OFFENSE"], 1, "3 CP", 5, "ANY", "sin hit", "TOGGLE · BUFF/DEBUFF.", "Cambia a Aggressive; próximo ATTACK +20% Setup dmg, pero daño recibido +20% hasta el próximo inicio propio."),
+      skill("weapon_proficiency", "Weapon Proficiency", "Actual", "PASSIVE", ["WEAPON", "PASSIVE"], "—", "—", 0, "—", "fuera de mano", "PASSIVE · +10% daño global sin filtro.", "+10% daño únicamente a técnicas con tag WEAPON; fuera del pool jugable."),
+      skill("taijutsu_training", "Taijutsu Training", "Actual", "PASSIVE", ["TAIJUTSU", "PASSIVE"], "—", "—", 0, "—", "fuera de mano", "PASSIVE · +10% daño global sin filtro.", "+10% daño únicamente a técnicas con tag TAIJUTSU; fuera del pool jugable."),
+      skill("quick_reflexes", "Quick Reflexes", "Actual", "PASSIVE", ["PASSIVE", "SPEED"], "—", "—", 0, "—", "fuera de mano", "PASSIVE · +1 SPD.", "Conserva +1 SPD entero; fuera del pool jugable."),
+      skill("iron_body", "Iron Body", "Actual", "PASSIVE", ["PASSIVE", "DEFENSE"], "—", "—", 0, "—", "fuera de mano", "PASSIVE · +5% defensa.", "Conserva +5% defensa física; el tooltip nombra la capa exacta."),
+      skill("chakra_reserves", "Chakra Reserves", "Actual", "PASSIVE", ["PASSIVE", "CHAKRA"], "—", "—", 0, "—", "fuera de mano", "PASSIVE · +3 chakra regen.", "Conserva +3 CP de regeneración por turno; fuera del pool."),
+      skill("mental_fortitude", "Mental Fortitude", "Actual", "PASSIVE", ["PASSIVE", "MENTAL"], "—", "—", 0, "—", "fuera de mano", "PASSIVE · +2 CAL.", "Conserva +2 CAL enteros; fuera del pool."),
+      skill("precision", "Precision", "Actual", "PASSIVE", ["PASSIVE", "PRECISION"], "—", "—", 0, "—", "fuera de mano", "PASSIVE · +1 ACC.", "Conserva +1 ACC entero; fuera del pool."),
+      skill("fire_affinity", "Fire Affinity", "Actual", "PASSIVE", ["PASSIVE", "FIRE", "UCHIHA"], "—", "—", 0, "—", "fuera de mano", "PASSIVE · +15% FIRE.", "Conserva +15% daño FIRE, aplicado solo por tag/element FIRE."),
+      skill("air_palm", "Air Palm", "Actual", "SIDE", ["HYUGA", "TAIJUTSU", "WIND", "MOVEMENT"], 2, "4 CP", 2, "MEDIUM · LONG", "1 hit", "ACTIVE · 13 dmg.", "13 dmg y PUSH 1; con Byakugan ON aplica 1 Chakra Point sin gastar carga."),
+      skill("rasengan", "Rasengan", "Actual", "ATTACK", ["UZUMAKI", "NINJUTSU", "WIND", "SIGNATURE"], 3, "7 CP", 3, "CLOSE", "1 hit", "ACTIVE · 15 dmg + DEBUFF.", "18 dmg base. Shadow Clones le da weight +4; con ≥1 carga, +50% y consume 1 al intento."),
+      skill("adamantine_chains", "Adamantine Attacking Chains", "Actual", "ATTACK", ["UZUMAKI", "NINJUTSU", "PHYSICAL", "CONTROL"], 3, "6 CP", 4, "MEDIUM · LONG", "1 hit", "ACTIVE · 20 dmg + Stun/DEBUFF.", "20 dmg; PULL hasta CLOSE, Stun 1 al 70% y −1 SPD durante 2 oportunidades."),
+      skill("fireball", "Katon: Great Fireball", "Actual", "ATTACK", ["UCHIHA", "NINJUTSU", "FIRE"], 3, "6 CP", 3, "MEDIUM · LONG", "1 hit", "ACTIVE · 15 dmg + Burn.", "17 dmg + Burn 5×2. Sharingan 2T: +50% y consume 1 carga."),
+      skill("kaiten", "8 Trigrams Rotation", "Actual", "SUPPORT", ["HYUGA", "TAIJUTSU", "DEFENSE"], 2, "6 CP", 4, "ANY", "sin hit", "ACTIVE · Reflect + Shield.", "Requiere Byakugan ON y consume 1 carga: Shield 40 + reflect 50% durante la próxima respuesta enemiga."),
+      skill("byakugan", "Byakugan", "Actual", "MODE", ["HYUGA", "DOJUTSU", "MODE"], 2, "4 CP act. · 4 CP upkeep", 4, "ANY al activar", "4 cargas", "TOGGLE · ACC/CAL buffs temporales.", "Persistente. +2 ACC; Hyuga SIDE aplica Chakra Point; ATTACK Hyuga weight +1. Fin: 0 cargas, off, upkeep o reemplazo."),
+      skill("gentle_fist", "Gentle Fist", "Actual", "ATTACK", ["HYUGA", "TAIJUTSU", "PHYSICAL"], 2, "4 CP", 2, "CLOSE", "1 hit", "ACTIVE · 12 dmg + ChakraDrain.", "12 dmg; Main inicial Hyuga. Con Byakugan consume 1 carga, +40%; puede consumir hasta 2 Chakra Points al impactar, +10% y drain 4 CP cada uno."),
+      skill("sharingan_2", "Sharingan (2-Tomoe)", "Actual", "MODE", ["UCHIHA", "DOJUTSU", "MODE", "FIRE"], 2, "4 CP act. · 4 CP upkeep", 4, "ANY al activar", "3 cargas", "TOGGLE · DEX/ACC buffs temporales.", "Persistente. Revela intención completa; primer Offensive enemigo −15 puntos de impacto; KATON ATTACK weight +1 y rutas 2T consumen 1 carga."),
+      skill("water_prison", "Water Prison", "Actual", "SIDE", ["NINJUTSU", "WATER", "CONTROL"], 2, "6 CP", 5, "MEDIUM", "1 hit", "ACTIVE · 9 dmg + Stun.", "9 dmg; 70% Stun 1. Mientras Stun persiste, el usuario no puede aumentar rango voluntariamente."),
+      skill("suijinheki", "Water Wall", "Actual", "SUPPORT", ["NINJUTSU", "WATER", "DEFENSE"], 1, "6 CP", 4, "ANY", "sin hit", "ACTIVE · Shield + BUFF.", "Shield 40 y +1 elemental defense hasta la siguiente respuesta enemiga."),
+      skill("hell_viewing", "Hell Viewing Technique", "Actual", "ATTACK", ["YAMANAKA", "GENJUTSU", "MENTAL"], 2, "6 CP", 4, "ANY", "1 AUTO hit", "ACTIVE · 18 dmg + DEBUFF.", "18 mental; Main inicial Yamanaka. Fear 1 reduce 20% el daño de la próxima acción enemiga."),
+      skill("mind_destruction", "Mind Body Disturbance", "Actual", "ATTACK", ["YAMANAKA", "GENJUTSU", "MENTAL"], 3, "6 CP", 4, "ANY", "1 AUTO hit", "ACTIVE · 15 dmg + Confusion.", "15 mental + Confusion 2 al 65%; si Read Mind está activo, +50% Setup dmg sin consumir la lectura."),
+      skill("dragon_flame", "Dragon Flame Bomb", "Actual", "ATTACK", ["UCHIHA", "NINJUTSU", "FIRE"], 3, "6 CP", 3, "MEDIUM · LONG", "1 hit", "ACTIVE · 17 dmg + Burn.", "17 dmg + Burn 5×3. Sharingan 2T: +50%, consume 1 carga."),
+      skill("hidden_mist", "Hidden Mist Jutsu", "Actual", "SUPPORT", ["NINJUTSU", "WATER", "DEFENSE", "MARK"], 2, "5 CP", 5, "ANY", "sin hit", "ACTIVE · BUFF/DEBUFF.", "Mist 2: Offensive enemigo −20 puntos de impacto; SIDE weight +1 en el próximo draw. Es Mark, no Terrain."),
+      skill("water_clone", "Water Clone Jutsu", "Actual", "SIDE", ["NINJUTSU", "WATER", "DEFENSE"], 2, "6 CP", 4, "CLOSE · MEDIUM", "1 hit", "ACTIVE · 11 dmg + BUFF.", "11 dmg; si impacta concede Shield 15. No concede Shadow Clone charges."),
+      skill("lightning_ball", "Lightning Ball", "Actual", "ATTACK", ["NINJUTSU", "LIGHTNING"], 2, "5 CP", 3, "MEDIUM · LONG", "1 hit", "ACTIVE · 15 dmg + Stun.", "15 dmg + 45% Stun 1. Sharingan 3T: +40%, consume 1 carga."),
+      skill("earth_decapitation", "Inner Decapitation", "Actual", "SIDE", ["NINJUTSU", "EARTH", "CONTROL", "MOVEMENT"], 2, "5 CP", 3, "CLOSE · MEDIUM", "1 hit", "ACTIVE · 13 dmg + Stun.", "13 dmg; PULL a CLOSE y 50% Stun 1 al impactar."),
+      skill("great_breakthrough", "Great Breakthrough", "Actual", "ATTACK", ["NINJUTSU", "WIND", "MOVEMENT"], 3, "5 CP", 3, "MEDIUM · LONG", "1 hit", "ACTIVE · 16 dmg + DEBUFF.", "16 dmg + PUSH 1; +20% Setup dmg si la banda cambia realmente."),
+      skill("air_bullet", "Air Bullet", "Actual", "SIDE", ["NINJUTSU", "WIND", "MOVEMENT"], 2, "5 CP", 2, "MEDIUM · LONG", "1 hit", "ACTIVE · 13 dmg + DEBUFF.", "13 dmg; PUSH 1 y −1 ACC durante 1 oportunidad."),
+      skill("fang_over_fang", "Fang Over Fang", "Actual", "ATTACK", ["TAIJUTSU", "PHYSICAL", "MULTI_HIT"], 2, "5 CP", 3, "CLOSE", "2 hits", "ACTIVE · un hit de 13.", "2×7 dmg con rolls independientes; +15% Setup dmg si el usuario entró en CLOSE este turno."),
+      skill("mind_transfer", "Mind Transfer Jutsu", "Actual", "SUPPORT", ["YAMANAKA", "GENJUTSU", "MENTAL", "CONTROL"], 2, "7 CP", 6, "ANY", "AUTO status", "ACTIVE · 0 dmg; Stun 2 al 70%; texto promete backlash.", "70% Stun 2 contra resistencia; si falla, self-Stun 1. No hace daño ni activa on-hit artifacts."),
+      skill("shadow_possession", "Shadow Possession", "Actual", "SUPPORT", ["GENJUTSU", "MENTAL", "CONTROL", "MARK"], 2, "6 CP", 5, "ANY", "AUTO status", "ACTIVE · Stun + Reflect.", "80% Bound 1: impide movimiento y da +20% Setup dmg al próximo ATTACK contra el objetivo."),
+      skill("bug_swarm", "Parasitic Insects", "Actual", "SIDE", ["NINJUTSU", "PHYSICAL", "POISON"], 2, "6 CP", 4, "MEDIUM · LONG", "1 hit", "ACTIVE · 8 dmg + ChakraDrain/Poison.", "8 dmg; drena 6 CP y aplica Poison 3×3 al impactar."),
+      skill("expansion", "Expansion Jutsu", "Actual", "ATTACK", ["NINJUTSU", "PHYSICAL", "TAIJUTSU"], 3, "6 CP", 4, "CLOSE", "1 hit", "ACTIVE · 16 dmg + BUFF.", "16 dmg; +2 STR propio durante la siguiente respuesta enemiga."),
+      skill("64_palms", "8 Trigrams 64 Palms", "Actual", "ATTACK", ["HYUGA", "TAIJUTSU", "PHYSICAL", "MULTI_HIT"], 4, "7 CP", 5, "CLOSE", "8 hits", "ACTIVE · un hit de 25 + drain/debuffs.", "8×3 dmg. Con Byakugan y ≥2 Chakra Points consume 1 carga; +10% por Mark, cap 40%, ignora 30% defensa y consume Marks al impactar."),
+      skill("sand_burial", "Sand Burial", "Actual", "ATTACK", ["NINJUTSU", "EARTH", "PAYOFF"], 3, "6 CP", 3, "MEDIUM · LONG", "1 hit", "ACTIVE · 15 dmg.", "18 dmg; contra Coffined/Stunned +50%. Consume Coffined al impactar, no el Stun genérico."),
+      skill("curse_mark_1", "Curse Mark Stage 1", "Actual", "MODE", ["CURSE", "MODE", "PHYSICAL"], 2, "12 HP act. · 5 HP upkeep", 5, "ANY al activar", "3 cargas", "TOGGLE · STR/DEX buffs temporales.", "Persistente. +2 STR/DEX. ATTACK declarada puede consumir 1 para +40%; cada enhancement causa 5% max HP y Vulnerable 10%×2."),
+      skill("sand_shield", "Sand Shield", "Actual", "SUPPORT", ["NINJUTSU", "EARTH", "DEFENSE"], 1, "5 CP", 3, "ANY", "sin hit", "ACTIVE · Shield.", "Shield 45 hasta absorberse."),
+      skill("sharingan_predict", "Sharingan: Predict", "Actual", "SUPPORT", ["UCHIHA", "DOJUTSU", "DEFENSE"], 1, "3 CP", 3, "ANY", "sin hit", "ACTIVE · ACC buff.", "Requiere Sharingan ON. Read Window 1: próximo Offensive enemigo −30 puntos de impacto; recarga 1 carga, sin sobrecap."),
+      skill("byakugan_scan", "Tenketsu Scan", "Actual", "SUPPORT", ["HYUGA", "DOJUTSU", "PRECISION", "MARK"], 1, "3 CP", 3, "ANY", "sin hit", "ACTIVE · ACC buff; texto promete penetration.", "Requiere Byakugan ON. Tenketsu Exposed 2: próximo ATTACK HYUGA ignora 30% defensa; HYUGA ATTACK weight +2 siguiente draw."),
+      skill("summon_gamabunta", "Summoning: Gamabunta", "Actual", "ATTACK", ["SUMMON", "NINJUTSU", "WATER"], 4, "11 CP", 8, "MEDIUM · LONG", "1 hit", "ACTIVE · 25 dmg + Shield.", "25 dmg y Shield 35; payoff pesado que no consume Mode."),
+      skill("summon_manda", "Summoning: Manda", "Actual", "ATTACK", ["SUMMON", "NINJUTSU", "POISON"], 4, "8 CP · 20 HP", 7, "CLOSE · MEDIUM", "1 hit", "ACTIVE · 25 dmg + Poison.", "25 dmg + Poison 6×3; el HP se compromete antes del impacto."),
+      skill("puppet_crow", "Puppet: Crow", "Actual", "ATTACK", ["PUPPET", "WEAPON", "POISON", "PHYSICAL"], 3, "6 CP", 4, "MEDIUM · LONG", "1 hit", "ACTIVE · 22 dmg + Poison/Bleed.", "22 dmg; Poison 4×2 y Bleed 4×2 si impacta."),
+      skill("shadow_clone", "Shadow Clone Jutsu", "Actual", "MODE", ["UZUMAKI", "NINJUTSU", "MODE", "CLONE"], 2, "12 CP act. · 2 CP upkeep", 5, "ANY al activar", "3 cargas", "ACTIVE · 0 dmg + buffs.", "Persistente. Rasengan weight +4; solo técnicas con consumesModeCharges:CLONES gastan cargas. Fin en 0, off o upkeep."),
+      skill("primary_lotus", "Primary Lotus", "Actual", "ATTACK", ["LEE", "TAIJUTSU", "GATES", "MULTI_HIT", "FINISHER"], 5, "15 HP", 5, "CLOSE", "3 hits", "ACTIVE · 15 dmg + BUFF.", "Hard require un GATES Mode ON. 3×7 dmg, +15% por carga; consume todas al intento y cierra el Mode."),
+      skill("chidori", "Chidori", "Actual", "ATTACK", ["UCHIHA", "NINJUTSU", "LIGHTNING", "SIGNATURE"], 4, "7 CP", 4, "CLOSE · MEDIUM con 3T", "1 hit", "ACTIVE · 15 dmg.", "18 dmg base en CLOSE y self-Vulnerable 20%×1. Sharingan 3T con 2 cargas: +60%, añade MEDIUM, consume 2 y evita Vulnerable."),
+      skill("chidori_stream", "Chidori Stream", "Actual", "ATTACK", ["UCHIHA", "NINJUTSU", "LIGHTNING", "CONTROL"], 4, "7 CP", 4, "CLOSE", "1 hit", "ACTIVE · 18 dmg + Stun.", "18 dmg + 60% Stun 1. Sharingan 3T: +40% y consume 1 carga."),
+      skill("sand_coffin", "Sand Coffin", "Actual", "SIDE", ["NINJUTSU", "EARTH", "CONTROL", "MARK"], 2, "7 CP", 5, "MEDIUM · LONG", "1 hit", "ACTIVE · 15 dmg + Stun.", "15 dmg; 70% Stun 1 y Coffined 2 al impactar. Prepara Sand Burial."),
+      skill("water_dragon", "Water Dragon Jutsu", "Actual", "ATTACK", ["NINJUTSU", "WATER"], 3, "6 CP", 4, "MEDIUM · LONG", "1 hit", "ACTIVE · 15 dmg.", "18 dmg; +20% Setup dmg contra objetivo bajo Hidden Mist propio."),
+      skill("ice_mirrors", "Demonic Ice Mirrors", "Actual", "ATTACK", ["NINJUTSU", "WATER", "MULTI_HIT", "CONTROL"], 3, "7 CP", 4, "ANY", "4 hits", "ACTIVE · un hit de 15 + Stun.", "4×4 dmg; si ≥2 hits conectan, 40% Stun 1."),
+      skill("false_surroundings", "False Surroundings", "Actual", "SUPPORT", ["GENJUTSU", "MENTAL", "CONTROL"], 2, "8 CP", 5, "ANY", "AUTO status", "ACTIVE · 0 dmg + Confusion.", "75% Confusion 2 y Read Mind 2; MENTAL ATTACK weight +1 siguiente draw."),
+      skill("temple_nirvana", "Temple of Nirvana", "Actual", "SUPPORT", ["GENJUTSU", "MENTAL", "CONTROL"], 3, "8 CP", 6, "ANY", "AUTO status", "ACTIVE · 0 dmg + Stun.", "80% Stun 2; Elite/Boss limita el resultado a Stun 1 mediante resistencia, no inmunidad oculta."),
+      skill("hidden_lotus", "Hidden Lotus", "Actual", "ATTACK", ["LEE", "TAIJUTSU", "GATES", "MULTI_HIT", "FINISHER"], 6, "50 HP", 6, "CLOSE", "5 hits", "ACTIVE · 20 dmg.", "Hard require Gate of Limit. 5×6 dmg +15% por carga; consume todas, cierra Gate y aplica self-Vulnerable 30%×2."),
+      skill("water_vortex", "Giant Water Vortex", "Actual", "ATTACK", ["NINJUTSU", "WATER", "MOVEMENT"], 4, "8 CP", 5, "MEDIUM · LONG", "1 hit", "ACTIVE · 20 dmg + DEBUFF.", "20 dmg, PUSH hasta LONG y −2 SPD durante 2 oportunidades."),
+      skill("clone_explosion", "Clone Great Explosion", "Actual", "ATTACK", ["NINJUTSU", "FIRE", "CLONE"], 4, "7 CP · 10 HP", 5, "ANY", "1 hit", "ACTIVE · 20 dmg.", "20 dmg base. Con Shadow Clones consume 1 carga, +50% y Burn 5×2."),
+      skill("1000_years", "1000 Years of Death", "Actual", "SIDE", ["TAIJUTSU", "PHYSICAL", "CONTROL"], 2, "1 CP", 5, "CLOSE", "1 hit", "ACTIVE · 9 dmg + Stun/Confusion.", "9 dmg; 45% Stun 1 y 45% Confusion 1, tiradas separadas tras impactar."),
+      skill("gate_of_life", "Gate of Life (3rd Gate)", "Actual", "MODE", ["LEE", "TAIJUTSU", "GATES", "MODE"], 3, "15 HP act. · 8 HP upkeep", 6, "CLOSE · MEDIUM al activar", "3 cargas", "TOGGLE · buffs temporales; 25 HP actual.", "Persistente. +3 STR/SPD; GATES/Taijutsu payoff weight +1. Stage 3 de familia GATES."),
+      skill("curse_mark_2", "Curse Mark Stage 2", "Actual", "MODE", ["CURSE", "MODE", "PHYSICAL"], 3, "25 HP act. · 10 HP upkeep", 6, "ANY al activar", "4 cargas", "TOGGLE · tres buffs temporales; 30 HP actual.", "Persistente. +3 STR/DEX/SPIRIT. Enhancement +60% por 1 carga, 8% max HP y Vulnerable 15%×2. Stage 2 de CURSE."),
+      skill("curse_surge", "Curse Mark Surge", "Actual", "SUPPORT", ["CURSE", "RECHARGE", "RISK"], 1, "10 HP", 4, "ANY", "sin hit", "ACTIVE · WIL buff.", "Requiere CURSE Mode ON; recarga 2 cargas hasta cap y aplica self-Vulnerable 10%×2."),
+      skill("gate_prep", "Gate Release Prep", "Actual", "SUPPORT", ["LEE", "GATES", "DISCOVER", "RISK"], 1, "15 HP", 5, "ANY", "sin hit", "ACTIVE · WIL buff; texto promete −50% HP.", "Gate Opening 2: próximo coste de activación HP de GATES −50% y GATES MODE weight +3 en el siguiente draw; consume al activar."),
+      skill("killing_intent", "Killing Intent", "Actual", "SUPPORT", ["GENJUTSU", "MENTAL", "CONTROL"], 2, "—", 6, "ANY", "AUTO status", "ACTIVE · 0 dmg + Stun.", "80% Stun 1 y Fear 1: próxima acción enemiga −20% daño."),
+      skill("demon_slash", "Demon Slash", "Actual", "ATTACK", ["WEAPON", "PHYSICAL", "BLEED"], 3, "—", 2, "CLOSE", "1 hit", "ACTIVE · 15 dmg + Bleed.", "15 dmg + Bleed 6×3."),
+      skill("bone_drill", "Dance of Clematis", "Actual", "ATTACK", ["TAIJUTSU", "PHYSICAL", "BONE"], 3, "10 HP", 3, "CLOSE · MEDIUM", "1 hit", "ACTIVE · 15 dmg.", "18 dmg e ignora 25% defensa física."),
+      skill("poison_fog", "Ibuse Poison Fog", "Actual", "SIDE", ["NINJUTSU", "POISON", "FIRE"], 2, "5 CP", 3, "MEDIUM · LONG", "1 hit", "ACTIVE · 9 dmg + Poison.", "9 dmg + Poison 6×3; contra Mist activo, Poison dura una oportunidad adicional."),
+      skill("tsukuyomi", "Tsukuyomi", "Actual", "ATTACK", ["UCHIHA", "DOJUTSU", "GENJUTSU", "MENTAL", "FINISHER"], 5, "13 CP · 15 HP", 6, "ANY", "1 AUTO hit", "ACTIVE · 15 dmg + Stun.", "Hard require Sharingan ON; 30 mental + Stun 2, consume todas las cargas y cierra la variante."),
+      skill("reaper_death_seal", "Reaper Death Seal", "Actual", "ATTACK", ["KINJUTSU", "SEAL", "MENTAL", "FINISHER"], 6, "—", "encuentro", "ANY", "AUTO", "ACTIVE · mutual KO especial · CD 99.", "Solo contra enemigo ≤35% HP. Derrota a ambos, ignora Guts y termina el encuentro; una vez por combate."),
+      skill("edo_tensei", "Edo Tensei", "Actual", "SUPPORT", ["KINJUTSU", "SUMMON", "MENTAL", "DEFENSE"], 4, "18 CP · 30 HP", 10, "ANY", "sin hit", "ACTIVE · 0 dmg + dos BUFF.", "Reanimation 3: la primera fuente letal deja 1 HP, concede Shield 40 y consume la Mark; ATTACK weight +1 mientras está armada."),
+      skill("gate_of_limit", "Gate of Limit (5th Gate)", "Actual", "MODE", ["LEE", "TAIJUTSU", "GATES", "MODE"], 4, "35 HP act. · 12 HP upkeep", 8, "CLOSE · MEDIUM al activar", "4 cargas", "ACTIVE · 0 dmg + buffs/Bleed · CD 99.", "Persistente. +5 STR/SPD; self-Bleed 3 por oportunidad. Stage 5 directo o ascenso; habilita Hidden Lotus y Morning Peacock."),
+      skill("shukaku_arm", "Shukaku Arm", "Actual", "ATTACK", ["NINJUTSU", "EARTH", "DEFENSE"], 4, "8 CP", 6, "CLOSE · MEDIUM", "1 hit", "ACTIVE · 27 dmg + Shield.", "27 dmg y Shield 30 al resolver, incluso si falla el golpe."),
+      skill("copy_jutsu", "Sharingan: Copy", "Actual", "SUPPORT", ["UCHIHA", "DOJUTSU", "DISCOVER", "MENTAL"], 2, "6 CP", 8, "ANY", "sin hit", "ACTIVE · 15 dmg; flavor de copia no existe.", "Requiere Sharingan ON. Copia la técnica enemiga telegráfica como carta temporal de un uso; conserva sus costes/rango y no consume carga."),
+      skill("c4_karura", "C4 Karura", "Actual", "ATTACK", ["KINJUTSU", "EARTH", "DELAYED", "FINISHER"], 5, "18 CP", 6, "ANY", "delayed", "ACTIVE · 17 dmg.", "Aplica C4 1: al inicio de la próxima oportunidad enemiga causa 35 TRUE dmg; se limpia con Kai/Seal Cleanse."),
+      skill("rasenshuriken", "Rasenshuriken", "Actual", "ATTACK", ["UZUMAKI", "KINJUTSU", "WIND", "MULTI_HIT", "FINISHER"], 6, "20 CP", 5, "MEDIUM · LONG", "6 hits", "ACTIVE · 15 dmg.", "6×5 dmg e ignora 20% defensa. Con Shadow Clones consume 2 cargas para +50%."),
+      skill("amaterasu", "Amaterasu", "Actual", "ATTACK", ["UCHIHA", "KINJUTSU", "DOJUTSU", "FIRE"], 5, "13 CP · 20 HP", 5, "ANY", "1 AUTO hit", "ACTIVE · 13 dmg + Burn.", "Hard require Sharingan ON; 20 dmg + TRUE Burn 8×4; consume 2 cargas al intento."),
+      skill("kirin", "Kirin", "Actual", "ATTACK", ["UCHIHA", "KINJUTSU", "LIGHTNING", "FINISHER"], 6, "27 CP", 8, "LONG", "1 AUTO hit", "ACTIVE · 15 dmg.", "Hard require Sharingan 3T ON y Burn enemigo. 45 dmg, consume todas las cargas; consume Burn solo al impactar y cierra 3T."),
+      skill("shinra_tensei", "Shinra Tensei", "Actual", "ATTACK", ["KINJUTSU", "WIND", "MOVEMENT", "CONTROL"], 4, "13 CP", 5, "ANY", "1 AUTO hit", "ACTIVE · 23 dmg + Stun.", "23 dmg; PUSH hasta LONG y Stun 1 al 70%."),
+      skill("kamui_impact", "Kamui", "Actual", "ATTACK", ["KINJUTSU", "SPACE_TIME", "DOJUTSU"], 5, "11 CP", 4, "ANY", "1 AUTO hit", "ACTIVE · 27 dmg + DEBUFF.", "27 dmg e ignora 50% de todas las defensas; aplica Spatial Tear 2: siguiente Attack +20%."),
+      skill("tengai_shinsei", "Tengai Shinsei", "Actual", "ATTACK", ["KINJUTSU", "EARTH", "FINISHER"], 6, "27 CP", 8, "LONG", "1 AUTO hit", "ACTIVE · 27 dmg.", "35 dmg, Stun 1 y fija LONG tras resolver; no consume Mode."),
+
+      skill("tactical_rehearsal", "Tactical Scroll: Rehearsal", "Nueva", "SUPPORT", ["TOOL", "DISCOVER", "UNIVERSAL"], 1, "—", 5, "ANY", "sin hit", "No existe.", "Elegir un tag presente en el loadout; Discover 3 de ese tag. Fuente y mano actual quedan excluidas."),
+      skill("chakra_control_drill", "Chakra Control Drill", "Nueva", "SUPPORT", ["CHAKRA", "DISCOVER", "UNIVERSAL"], 1, "—", 3, "ANY", "sin hit", "No existe.", "Recupera 4 CP y da Main Attack weight +2 en el próximo draw."),
+      skill("wire_kunai_reel", "Wire Kunai: Reel In", "Nueva", "SIDE", ["TOOL", "WEAPON", "MOVEMENT", "UNIVERSAL"], 1, "—", 2, "MEDIUM · LONG", "1 hit", "No existe.", "6 dmg; PULL 1. Si mueve, Off-Balance 2 da +20% al próximo ATTACK y se consume al impactar."),
+      skill("explosive_kunai_blastback", "Explosive Kunai: Blastback", "Nueva", "SIDE", ["TOOL", "FIRE", "MOVEMENT", "UNIVERSAL"], 1, "1 CP", 3, "CLOSE · MEDIUM", "1 hit", "No existe.", "7 dmg; PUSH 1. Si mueve, Exposed 2 da +15% al próximo ranged ATTACK."),
+      skill("backstep_shuriken", "Backstep Shuriken", "Nueva", "SIDE", ["TOOL", "WEAPON", "MOVEMENT", "UNIVERSAL"], 1, "—", 2, "CLOSE · MEDIUM", "1 hit", "No existe.", "5 dmg; tras el intento, aleja al usuario una banda. No consume movimiento manual."),
+      skill("sealing_tag_chakra_lock", "Sealing Tag: Chakra Lock", "Nueva", "SUPPORT", ["TOOL", "SEAL", "ANTI_MODE", "UNIVERSAL"], 2, "4 CP", 6, "ANY", "AUTO status", "No existe.", "El Mode enemigo de mayor prioridad pierde 1 carga; si no hay Mode ON, aplica Silence 1."),
+      skill("tripwire_perimeter", "Tripwire Perimeter", "Nueva", "SUPPORT", ["TOOL", "REACTION", "MARK", "UNIVERSAL"], 1, "—", 4, "ANY", "sin hit", "No existe.", "Range Reaction Mark 2: el primer movimiento enemigo real causa 8 dmg y 60% Stun 1; luego se consume."),
+      skill("sharingan_3", "Sharingan (3-Tomoe)", "Nueva", "MODE", ["UCHIHA", "DOJUTSU", "MODE", "LIGHTNING"], 3, "6 CP act. · 6 CP upkeep", 5, "ANY al activar", "3 cargas", "No existe.", "Persistente. LIGHTNING ATTACK weight +1; Chidori gana MEDIUM. Variante lateral 2T↔3T; fin por cláusulas estándar."),
+      skill("uzumaki_barrage", "Uzumaki Barrage", "Nueva", "SIDE", ["UZUMAKI", "TAIJUTSU", "CLONE", "MULTI_HIT"], 2, "—", 3, "CLOSE", "3–5 hits", "No existe.", "3×4 dmg; si Shadow Clones tiene carga, enhancement automático consume 1 y añade 2 hits. SIDE con warning de consumo."),
+      skill("twin_lion_fists", "Gentle Step: Twin Lion Fists", "Nueva", "ATTACK", ["HYUGA", "TAIJUTSU", "PHYSICAL", "PAYOFF"], 4, "9 CP", 5, "CLOSE", "2 hits", "No existe.", "2×9 dmg. Con Byakugan y ≥2 Chakra Points consume 1 carga: +50%, 30% penetration y consume hasta 4 Marks al impactar."),
+      skill("morning_peacock", "Morning Peacock", "Nueva", "ATTACK", ["LEE", "TAIJUTSU", "GATES", "MULTI_HIT", "FINISHER"], 5, "10 HP", 7, "CLOSE · MEDIUM", "6 hits", "No existe.", "Hard require Gate of Limit. 6×4 dmg +15% por carga; consume todas al intento, Burn 4×2 y cierra el Gate."),
+      skill("mind_reading", "Mind Reading Technique", "Nueva", "SUPPORT", ["YAMANAKA", "GENJUTSU", "MENTAL", "DISCOVER"], 1, "4 CP", 4, "ANY", "sin hit", "No existe.", "Revela nombre, daño, rango y efectos de la intención enemiga; Discover 3 MENTAL inmediatamente.")
+    ];
+
+    const roleClass = {
+      SUPPORT: "SUPPORT",
+      MODE: "MODE",
+      SIDE: "SIDE",
+      ATTACK: "ATTACK",
+      PASSIVE: "PASSIVE"
+    };
+
+    const escapeHtml = (value) => String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+
+    function renderCatalog(rows) {
+      const body = document.getElementById("catalogBody");
+      body.innerHTML = rows.map((item) => {
+        const tags = item.tags.map((tag) => '<span class="tag">' + escapeHtml(tag) + '</span>').join("");
+        const originClass = item.origin === "Nueva" ? "origin-new" : "origin-current";
+        return '<tr data-skill-id="' + escapeHtml(item.id) + '">' +
+          '<td><span class="tech-name">' + escapeHtml(item.name) + '</span><span class="tech-id">' + escapeHtml(item.id) + '</span></td>' +
+          '<td><span class="' + originClass + '">' + escapeHtml(item.origin) + '</span><br><span class="role-badge" data-role="' + roleClass[item.role] + '">' + escapeHtml(item.role) + '</span></td>' +
+          '<td><div class="tag-list">' + tags + '</div></td>' +
+          '<td><strong>' + escapeHtml(item.ap) + ' AP</strong><br>' + escapeHtml(item.cost) + '<br><span class="micro">CD ' + escapeHtml(item.cd) + '</span></td>' +
+          '<td>' + escapeHtml(item.range) + '<br><span class="micro">' + escapeHtml(item.hits) + '</span></td>' +
+          '<td class="now">' + escapeHtml(item.now) + '</td>' +
+          '<td class="proposal">' + escapeHtml(item.proposal) + '</td>' +
+          '</tr>';
+      }).join("");
+      document.getElementById("catalogEmpty").style.display = rows.length ? "none" : "block";
+      document.getElementById("catalogCount").textContent = rows.length + " / " + catalog.length;
+    }
+
+    let activeRole = "ALL";
+    let newOnly = false;
+    const search = document.getElementById("catalogSearch");
+    const filterButtons = [...document.querySelectorAll(".filter-chip")];
+
+    function applyCatalogFilters() {
+      const query = search.value.trim().toLocaleLowerCase("es");
+      const rows = catalog.filter((item) => {
+        if (activeRole !== "ALL" && item.role !== activeRole) return false;
+        if (newOnly && item.origin !== "Nueva") return false;
+        if (!query) return true;
+        return [item.id, item.name, item.role, item.tags.join(" "), item.now, item.proposal]
+          .join(" ")
+          .toLocaleLowerCase("es")
+          .includes(query);
+      });
+      renderCatalog(rows);
+    }
+
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button.dataset.roleFilter) {
+          activeRole = button.dataset.roleFilter;
+          filterButtons.filter((candidate) => candidate.dataset.roleFilter)
+            .forEach((candidate) => candidate.setAttribute("aria-pressed", String(candidate === button)));
+        } else {
+          newOnly = !newOnly;
+          button.setAttribute("aria-pressed", String(newOnly));
+        }
+        applyCatalogFilters();
+      });
+    });
+    search.addEventListener("input", applyCatalogFilters);
+
+    function probabilityOfTarget(poolSize, targetWeight, otherWeight, draws) {
+      let miss = 1;
+      for (let draw = 0; draw < Math.min(draws, poolSize); draw += 1) {
+        const othersLeft = poolSize - 1 - draw;
+        if (othersLeft < 0) break;
+        miss *= (othersLeft * otherWeight) / (targetWeight + othersLeft * otherWeight);
+      }
+      return 1 - miss;
+    }
+
+    const poolSize = document.getElementById("poolSize");
+    const targetWeight = document.getElementById("targetWeight");
+    const otherWeight = document.getElementById("otherWeight");
+    function updateProbability() {
+      const pool = Number(poolSize.value);
+      const target = Number(targetWeight.value);
+      const other = Number(otherWeight.value);
+      const oneTurn = probabilityOfTarget(pool, target, other, 4);
+      const fourTurns = 1 - Math.pow(1 - oneTurn, 4);
+      document.getElementById("poolSizeOut").textContent = String(pool);
+      document.getElementById("targetWeightOut").textContent = String(target);
+      document.getElementById("otherWeightOut").textContent = String(other);
+      document.getElementById("singleTurnChance").textContent = (oneTurn * 100).toFixed(1) + "%";
+      document.getElementById("multiTurnChance").textContent =
+        "de verla en una mano · " + (fourTurns * 100).toFixed(1) + "% acumulado en cuatro turnos independientes";
+    }
+    [poolSize, targetWeight, otherWeight].forEach((input) => input.addEventListener("input", updateProbability));
+
+    const tabs = [...document.querySelectorAll(".tunnel-tab")];
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((candidate) => candidate.setAttribute("aria-selected", String(candidate === tab)));
+        document.querySelectorAll(".tunnel-panel").forEach((panel) => panel.classList.remove("is-active"));
+        document.getElementById(tab.getAttribute("aria-controls")).classList.add("is-active");
+      });
+    });
+
+    document.getElementById("printDocument").addEventListener("click", () => window.print());
+    document.getElementById("expandCatalog").addEventListener("click", () => document.getElementById("catalogo").scrollIntoView());
+
+    const progress = document.getElementById("readingProgress");
+    const updateProgress = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      progress.style.width = (max > 0 ? (window.scrollY / max) * 100 : 0) + "%";
+    };
+    document.addEventListener("scroll", updateProgress, { passive: true });
+
+    const navLinks = [...document.querySelectorAll(".toc a")];
+    const sectionObserver = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      navLinks.forEach((link) => link.setAttribute("aria-current", String(link.hash === "#" + visible.target.id)));
+    }, { rootMargin: "-18% 0px -68% 0px", threshold: [0.05, 0.25, 0.6] });
+    document.querySelectorAll("[data-section]").forEach((section) => sectionObserver.observe(section));
+
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    document.querySelectorAll(".reveal").forEach((element) => revealObserver.observe(element));
+
+    document.querySelectorAll(".section-heading h2").forEach((heading) => {
+      const button = document.createElement("button");
+      button.className = "anchor-copy";
+      button.type = "button";
+      button.textContent = "#";
+      button.title = "Copiar enlace a esta sección";
+      button.addEventListener("click", async () => {
+        const section = heading.closest("section");
+        const url = location.href.split("#")[0] + "#" + section.id;
+        try {
+          await navigator.clipboard.writeText(url);
+          button.textContent = "✓";
+          setTimeout(() => { button.textContent = "#"; }, 900);
+        } catch {
+          location.hash = section.id;
+        }
+      });
+      heading.append(button);
+    });
+
+    renderCatalog(catalog);
+    updateProbability();
+    updateProgress();
+  </script>
+</body>
+</html>

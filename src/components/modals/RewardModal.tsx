@@ -152,19 +152,23 @@ const RewardModal: React.FC<RewardModalProps> = ({
               <span className="reward-modal__level-new">{levelUp.newLevel}</span>
             </div>
 
-            <p className="reward-modal__stat-gains-label">Stats Gained</p>
-            <div className="reward-modal__stat-gains">
-              {Object.entries(levelUp.statGains)
-                .filter(([, gain]) => gain > 0)
-                .map(([stat, gain]) => (
-                  <div key={stat} className="reward-modal__stat-item">
-                    <span className="reward-modal__stat-item-name">
-                      {STAT_DISPLAY_NAMES[stat] || stat}
-                    </span>
-                    <span className="reward-modal__stat-item-gain">+{gain}</span>
-                  </div>
-                ))}
-            </div>
+            {Object.entries(levelUp.statGains).some(([, gain]) => gain > 0) && (
+              <>
+                <p className="reward-modal__stat-gains-label">Stats Gained</p>
+                <div className="reward-modal__stat-gains">
+                  {Object.entries(levelUp.statGains)
+                    .filter(([, gain]) => gain > 0)
+                    .map(([stat, gain]) => (
+                      <div key={stat} className="reward-modal__stat-item">
+                        <span className="reward-modal__stat-item-name">
+                          {STAT_DISPLAY_NAMES[stat] || stat}
+                        </span>
+                        <span className="reward-modal__stat-item-gain">+{gain}</span>
+                      </div>
+                    ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 

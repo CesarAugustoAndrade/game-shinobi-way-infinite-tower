@@ -46,7 +46,7 @@ import {
   getSeverityColor,
   isPositiveEffect,
 } from '../../game/utils/tooltipFormatters';
-import { getEnemyArt } from '../../game/constants/artRegistry';
+import { getEnemyArt, deriveEnemyCutoutPath } from '../../game/constants/artRegistry';
 import {
   ARCHETYPE_DESCRIPTIONS,
   ELEMENT_ICONS,
@@ -78,26 +78,8 @@ const hexColorToRgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-/**
- * Derive transparent cutout path from a portrait URL.
- *   /assets/enemies/enemy_foo.png  → /assets/cutouts/enemy_cut_foo.png
- *   /assets/enemies/enemy_foo.jpg  → /assets/cutouts/enemy_cut_foo.png  (cutouts are always PNG)
- *   /assets/cutouts/enemy_cut_x.*  → same path, extension normalized to .png
- *   /assets/icons/…        → undefined (no cutout rewrite)
- * Query strings are stripped. onError in CinematicViewscreen falls back to portrait.
- */
-const deriveEnemyCutout = (portraitSrc?: string): string | undefined => {
-  if (!portraitSrc) return undefined;
-  const path = portraitSrc.split('?')[0];
-  // Already a cutout asset — keep it (normalize to .png)
-  if (/^\/assets\/(cutouts\/)?enemy_cut_.+\.(png|jpe?g|webp)$/i.test(path)) {
-    return path.replace(/^\/assets\/(cutouts\/)?/, '/assets/cutouts/').replace(/\.(jpe?g|webp)$/i, '.png');
-  }
-  // Portrait plate: enemy_<id>.(png|jpg|jpeg|webp) → enemy_cut_<id>.png
-  const m = path.match(/^\/assets\/(enemies\/)?enemy_(?!cut_)(.+)\.(png|jpe?g|webp)$/i);
-  if (!m) return undefined;
-  return `/assets/cutouts/enemy_cut_${m[2]}.png`;
-};
+/** @see deriveEnemyCutoutPath — shared cutout rewrite for combat stage sprites. */
+const deriveEnemyCutout = deriveEnemyCutoutPath;
 
 export interface FloatingTextOptions {
   /** Damage channel for float color (Physical / Elemental / Mental / True). */

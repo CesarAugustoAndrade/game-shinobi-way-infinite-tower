@@ -131,6 +131,9 @@ export function useExploration(
    * Shared with returnToMapActivityComplete; manual Enter Room cancels pending chain.
    */
   const activityChainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Latest location floor for activity-chain timer (avoid re-open from stale snapshot). */
+  const locationFloorRef = useRef(locationFloor);
+  locationFloorRef.current = locationFloor;
 
   const cancelActivityChain = useCallback(() => {
     if (activityChainTimerRef.current != null) {
@@ -278,9 +281,33 @@ export function useExploration(
           setSelectedBranchingRoom(null);
           setGameState(GameState.LOCATION_EXPLORE);
           logStateChange(gameState.toString(), 'LOCATION_EXPLORE', 'returnToMap - chain activity');
+          const chainRoomId = currentRoom.id;
+          const scheduledFloor = floor;
           activityChainTimerRef.current = setTimeout(() => {
             activityChainTimerRef.current = null;
-            executeRoomActivity(currentRoom, floor, setLocationFloor, GameState.LOCATION_EXPLORE);
+            const scheduledRoom =
+              scheduledFloor.rooms.find((r) => r.id === chainRoomId) ?? null;
+            if (!scheduledRoom || !getCurrentActivity(scheduledRoom)) return;
+
+            const liveFloor = locationFloorRef.current;
+            const liveRoom = liveFloor?.rooms.find((r) => r.id === chainRoomId);
+            const scheduledEventDone =
+              !scheduledRoom.activities.event ||
+              scheduledRoom.activities.event.completed;
+            const liveEventDone =
+              !liveRoom?.activities.event || liveRoom.activities.event.completed;
+            const useLive =
+              Boolean(liveRoom && liveFloor && scheduledEventDone && liveEventDone);
+            const floorForExec = useLive ? liveFloor! : scheduledFloor;
+            const roomForExec = useLive ? liveRoom! : scheduledRoom;
+            if (!getCurrentActivity(roomForExec)) return;
+
+            executeRoomActivity(
+              roomForExec,
+              floorForExec,
+              setLocationFloor,
+              GameState.LOCATION_EXPLORE,
+            );
           }, 100);
           return;
         }
@@ -372,12 +399,35 @@ export function useExploration(
             'LOCATION_EXPLORE',
             'returnToMapActivityComplete - chain activity',
           );
-          const floorForChain = floorToCheck;
+          const chainRoomId = currentRoom.id;
+          // Post-complete floor snapshot — do not swap for a lagging ref that still
+          // has event.completed=false (that re-opened the same event after Continue).
+          const scheduledFloor = floorToCheck;
           activityChainTimerRef.current = setTimeout(() => {
             activityChainTimerRef.current = null;
+            const liveFloor = locationFloorRef.current;
+            // Prefer live only when it is at least as complete as the schedule snapshot
+            // (event already done on both). Otherwise stick to scheduledFloor.
+            const scheduledRoom =
+              scheduledFloor.rooms.find((r) => r.id === chainRoomId) ?? null;
+            if (!scheduledRoom || !getCurrentActivity(scheduledRoom)) return;
+
+            const liveRoom = liveFloor?.rooms.find((r) => r.id === chainRoomId);
+            const scheduledEventDone =
+              !scheduledRoom.activities.event ||
+              scheduledRoom.activities.event.completed;
+            const liveEventDone =
+              !liveRoom?.activities.event || liveRoom.activities.event.completed;
+
+            const useLive =
+              Boolean(liveRoom && liveFloor && scheduledEventDone && liveEventDone);
+            const floorForExec = useLive ? liveFloor! : scheduledFloor;
+            const roomForExec = useLive ? liveRoom! : scheduledRoom;
+            if (!getCurrentActivity(roomForExec)) return;
+
             executeRoomActivity(
-              currentRoom,
-              floorForChain,
+              roomForExec,
+              floorForExec,
               setLocationFloor,
               GameState.LOCATION_EXPLORE,
             );

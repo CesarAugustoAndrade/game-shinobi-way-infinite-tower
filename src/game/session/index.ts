@@ -42,3 +42,10 @@ export {
   getSceneDescriptor,
   resolveSceneState,
 } from './sceneRegistry';
+
+export {
+  eventSessionRoomIdRef,
+  bindEventSessionRoom,
+  clearEventSessionRoom,
+  getEventSessionRoomId,
+} from './eventSession';

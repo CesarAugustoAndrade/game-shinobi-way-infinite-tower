@@ -46,6 +46,8 @@ import {
 import {
   moveToRoom,
   getCurrentActivity,
+  getCurrentRoom,
+  completeActivity,
   applyFloorHeatDelta,
 } from './game/systems/LocationSystem';
 import {
@@ -95,6 +97,8 @@ import {
   resolveVisitContext,
   completeActivityOnVisit,
   visitToFloorPatch,
+  getEventSessionRoomId,
+  clearEventSessionRoom,
   type SceneEnterContext,
 } from './game/session';
 import { getDamageTypeColor, getRarityTextColorWithEffects as getRarityColor, resolveLaminaPaths } from './utils/colorHelpers';
@@ -239,6 +243,13 @@ const App: React.FC = () => {
   const [treasureHuntReward, setTreasureHuntReward] = useState<TreasureHuntRewardData | null>(null);
   const [pendingBagFullItem, setPendingBagFullItem] = useState<PendingBagFullItem | null>(null);
   const [showStatAssign, setShowStatAssign] = useState(false);
+
+  // Automatically show mandatory stat assignment modal when player has unspent stat points
+  useEffect(() => {
+    if (player && (player.unspentStatPoints ?? 0) > 0) {
+      setShowStatAssign(true);
+    }
+  }, [player?.unspentStatPoints]);
   const [combatReward, setCombatReward] = useState<{
     expGain: number;
     ryoGain: number;
@@ -932,8 +943,28 @@ const App: React.FC = () => {
       setGameStateSynced(exploreFallback);
       return;
     }
-    // Activity scenes that render nothing without their payload
+    // Activity scenes that render nothing without their payload.
+    // Blank EVENT must consume the room event when identifiable — bare map leave
+    // left event.completed=false → auto-chain / re-enter cascade + sealed children.
     if (gameState === GameState.EVENT && !activeEvent && !eventOutcome) {
+      const roomId =
+        getEventSessionRoomId() ??
+        selectedBranchingRoom?.id ??
+        (locationFloor ? getCurrentRoom(locationFloor)?.id : undefined) ??
+        null;
+      if (locationFloor && roomId) {
+        const room = locationFloor.rooms.find((r) => r.id === roomId);
+        const evt = room?.activities.event;
+        if (evt && !evt.completed) {
+          const completed = completeActivity(locationFloor, roomId, 'event');
+          setLocationFloor(completed);
+          clearEventSessionRoom();
+          // Unlock children + multi-activity chain (not bare exploreFallback)
+          returnToMapActivityComplete(completed);
+          return;
+        }
+      }
+      clearEventSessionRoom();
       setGameStateSynced(exploreFallback);
       return;
     }
@@ -1028,6 +1059,7 @@ const App: React.FC = () => {
     isProcessingLoot,
     player,
     returnToMap,
+    returnToMapActivityComplete,
     setGameStateSynced,
   ]);
 
@@ -2124,7 +2156,17 @@ const App: React.FC = () => {
               />
               {/* Victory reward fallback when resolveExploreReturnState lands on REGION_MAP
                   (no locationFloor) — same Continue path as location explore. */}
-              {combatReward && (
+              {showStatAssign && player && (
+                <StatAssignModal
+                  player={player}
+                  onConfirm={(p) => {
+                    setPlayer(p);
+                    setShowStatAssign(false);
+                    rewardCloseLockRef.current = false;
+                  }}
+                />
+              )}
+              {combatReward && !showStatAssign && (
                 <RewardModal
                   expGain={combatReward.expGain}
                   ryoGain={combatReward.ryoGain}
@@ -2136,17 +2178,6 @@ const App: React.FC = () => {
                   fogNote={combatReward.fogNote}
                   ryoNote={combatReward.ryoNote}
                   onClose={handleRewardClose}
-                />
-              )}
-              {showStatAssign && player && (
-                <StatAssignModal
-                  player={player}
-                  onConfirm={(p) => {
-                    setPlayer(p);
-                    setShowStatAssign(false);
-                    rewardCloseLockRef.current = false;
-                    handleRewardClose(p);
-                  }}
                 />
               )}
             </div>
@@ -2174,7 +2205,17 @@ const App: React.FC = () => {
                   onLeaveLocation={handleLeaveLocation}
                 />
                 {/* Combat Victory Reward Modal */}
-                {combatReward && (
+                {showStatAssign && player && (
+                  <StatAssignModal
+                    player={player}
+                    onConfirm={(p) => {
+                      setPlayer(p);
+                      setShowStatAssign(false);
+                      rewardCloseLockRef.current = false;
+                    }}
+                  />
+                )}
+                {combatReward && !showStatAssign && (
                   <RewardModal
                     expGain={combatReward.expGain}
                     ryoGain={combatReward.ryoGain}
@@ -2186,18 +2227,6 @@ const App: React.FC = () => {
                     fogNote={combatReward.fogNote}
                     ryoNote={combatReward.ryoNote}
                     onClose={handleRewardClose}
-                  />
-                )}
-                {showStatAssign && player && (
-                  <StatAssignModal
-                    player={player}
-                    onConfirm={(p) => {
-                      setPlayer(p);
-                      setShowStatAssign(false);
-                      rewardCloseLockRef.current = false;
-                      // After assign, continue reward close (loot/explore)
-                      handleRewardClose(p);
-                    }}
                   />
                 )}
 

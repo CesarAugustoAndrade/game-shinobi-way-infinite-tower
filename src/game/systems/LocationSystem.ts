@@ -104,7 +104,7 @@ import { getAvailableEventsForPlayer, selectWeightedEvent } from './EventSystem'
 import { calculateXP, calculateRyo } from './ScalingSystem';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
 import { generateHunterFromGuardian } from './FloorVisitSystem';
-import { moveToRoom as moveToRoomGraph } from './RoomGraphSystem';
+import { moveToRoom as moveToRoomGraph, isFloorComplete } from './RoomGraphSystem';
 
 // Re-export scaling functions for backward compatibility
 export { dangerToFloor, getWealthMultiplier, applyWealthToRyo } from './ScalingSystem';
@@ -578,7 +578,7 @@ function generateEliteChallengeActivity(
     enemyPool,
     preferredElement,
   );
-  eliteEnemy.name = `${eliteEnemy.name} (Artifact Guardian)`;
+  // Keep elite enemy name clean for UI (Elite Challenge poster title) — no Guardian suffix
 
   // T-108: room-type combat modifiers (elite rooms have no combat activity)
   const roomConfig = config ?? getRoomTypeConfig(room.type);
@@ -1226,9 +1226,9 @@ export function calculateExitProbability(
 
 /**
  * Pick which child index (if any) becomes the exit for this generation batch.
- * - No exit if one already exists
- * - Force after min + EXIT_FORCE_AFTER_EXTRA_ROOMS visits
- * - Else one roll from calculateExitProbability; uniform among children
+ * - Below min rooms visited: 0% chance (e.g. no boss before 3rd room for D1)
+ * - Allows boss rooms to spawn across branches according to intel probabilities
+ * - Force after min + EXIT_FORCE_AFTER_EXTRA_ROOMS visits if no exit exists yet
  *
  * @returns child index 0..childCount-1, or null if no exit this batch
  */
@@ -1237,12 +1237,17 @@ function pickExitChildIndex(
   parentRoom: BranchingRoom | undefined,
   childCount: number,
 ): number | null {
-  if (branchingFloor.exitRoomId || childCount <= 0) {
+  if (childCount <= 0 || branchingFloor.exitRoomId != null || isFloorComplete(branchingFloor)) {
     return null;
   }
 
-  const minRooms = branchingFloor.minRoomsBeforeExit;
+  const minRooms = getMinRoomsBeforeExit(branchingFloor.dangerLevel);
+  if (branchingFloor.roomsVisited < minRooms) {
+    return null;
+  }
+
   const force =
+    !branchingFloor.exitRoomId &&
     branchingFloor.roomsVisited >= minRooms + EXIT_FORCE_AFTER_EXTRA_ROOMS;
 
   if (!force) {
@@ -1427,7 +1432,7 @@ export function generateChildrenForRoom(
         )
       : childRoom;
 
-    if (isExit) {
+    if (isExit && !updatedFloor.exitRoomId) {
       updatedFloor = { ...updatedFloor, exitRoomId: finalRoom.id };
     }
 

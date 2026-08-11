@@ -600,7 +600,7 @@ export function useCombatVictory(
   ) => {
     if (!player || !playerStats) return;
 
-    addLog(`Auto-combat started against elite guardian: ${eliteEnemy.name}...`, 'danger');
+    addLog(`Auto-combat started against elite: ${eliteEnemy.name}...`, 'danger');
 
     const eliteLocMods = getLocationTerrainMods(currentLocation?.terrainEffects);
     const result = simulateGameCombat(
@@ -625,7 +625,7 @@ export function useCombatVictory(
     });
 
     if (result.won) {
-      addLog(`Victory! Defeated elite guardian ${eliteEnemy.name} in ${result.turnsElapsed} turns.`, 'gain');
+      addLog(`Victory! Defeated elite ${eliteEnemy.name} in ${result.turnsElapsed} turns.`, 'gain');
       addLog(`Obtained artifact: ${artifact.name}!`, 'loot');
 
       setFloor(floor);
@@ -633,7 +633,7 @@ export function useCombatVictory(
       handleCombatVictory(eliteEnemy, null);
     } else {
       encounterChainRef.current = createEmptyEncounterChain();
-      addLog(`Defeated by elite guardian ${eliteEnemy.name} after ${result.turnsElapsed} turns...`, 'danger');
+      addLog(`Defeated by elite ${eliteEnemy.name} after ${result.turnsElapsed} turns...`, 'danger');
       setGameState(GameState.GAME_OVER);
     }
   }, [player, playerStats, addLog, handleCombatVictory, setGameState, setPlayer, setPendingArtifact, currentLocation]);

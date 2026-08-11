@@ -519,6 +519,58 @@ export function resolveEnemyImageSrc(opts: {
 }
 
 /**
+ * Derive transparent cutout path from a portrait URL (Combat + Elite poster).
+ *   /assets/enemies/enemy_foo.png  → /assets/cutouts/enemy_cut_foo.png
+ *   /assets/enemies/enemy_foo.jpg  → /assets/cutouts/enemy_cut_foo.png
+ *   /assets/cutouts/enemy_cut_x.*  → same path, extension normalized to .png
+ *   other paths → undefined
+ * Query strings are stripped. Callers may fall back to the green-key portrait if cutout 404s.
+ */
+export function deriveEnemyCutoutPath(portraitSrc?: string): string | undefined {
+  if (!portraitSrc) return undefined;
+  const path = portraitSrc.split('?')[0];
+  if (/^\/assets\/(cutouts\/)?enemy_cut_.+\.(png|jpe?g|webp)$/i.test(path)) {
+    return path
+      .replace(/^\/assets\/(cutouts\/)?/, '/assets/cutouts/')
+      .replace(/\.(jpe?g|webp)$/i, '.png');
+  }
+  const m = path.match(/^\/assets\/(enemies\/)?enemy_(?!cut_)(.+)\.(png|jpe?g|webp)$/i);
+  if (!m) return undefined;
+  return `/assets/cutouts/enemy_cut_${m[2]}.png`;
+}
+
+/**
+ * Prefer true-alpha cutout for UI posters (Elite Challenge, etc.).
+ * Falls back to registry portrait when no cutout path can be derived.
+ */
+export function resolveEnemyDisplayArt(opts: {
+  name?: string;
+  archetype?: string;
+  poolId?: string;
+  isBoss?: boolean;
+  /** Live combat sprite path (Enemy.image) when already assigned. */
+  image?: string | null;
+  label?: string;
+}): ArtEntry {
+  const base = getEnemyArt({
+    name: opts.name,
+    archetype: opts.archetype,
+    poolId: opts.poolId,
+    isBoss: opts.isBoss,
+  });
+  const portraitSrc = opts.image || base.src;
+  const cutoutSrc = deriveEnemyCutoutPath(portraitSrc);
+  const label = opts.label ?? opts.name ?? base.label ?? 'Enemy';
+  if (cutoutSrc) {
+    return { ...base, src: cutoutSrc, label };
+  }
+  if (portraitSrc) {
+    return { ...base, src: portraitSrc, label };
+  }
+  return { ...base, label };
+}
+
+/**
  * Event illustration cascade (T-021):
  * dedicated event:<id> → event:cat_<category> → emoji
  */
