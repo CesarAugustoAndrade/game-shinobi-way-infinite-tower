@@ -97,6 +97,10 @@ const getStatCategory = (stat: PrimaryStat): 'body' | 'mind' | 'technique' => {
   }
 };
 
+/** Risk is already communicated by the card styling and meter. */
+const getChoiceDescription = (description: string): string =>
+  description.replace(/^(?:SAFE|LOW RISK|MEDIUM RISK|HIGH RISK|EXTREME RISK)\s*[-–—:]?\s*/i, '');
+
 const getPlayerStatValue = (player: Player, stat: PrimaryStat): number => {
   const statKey = stat.toLowerCase() as keyof typeof player.primaryStats;
   return player.primaryStats[statKey] || 0;
@@ -318,7 +322,7 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
       </div>
 
       <div className="choice-card__body">
-        <p className="choice-card__description">{choice.description}</p>
+        <p className="choice-card__description">{getChoiceDescription(choice.description)}</p>
 
         {choice.hintText && <p className="choice-card__hint">"{choice.hintText}"</p>}
 
