@@ -408,35 +408,56 @@ describe('generateBranchingFloorFromConfig — dangerLevel plumbing (no double-c
    * Regression: location danger 1 with baseDifficulty often yields effectiveFloor ≈ 12–14.
    * Old code used floorToDangerLevel(floor) on combat/elite/guardian → D5 enemies on D1 maps.
    * Config dangerLevel must drive enemy.dangerLevel, not ceil(effectiveFloor/3).
+   *
+   * Floor generation still uses Math.random for room mix; pin RNG so combat rooms always appear.
    */
   it('floor=14 dangerLevel=1 must NOT spawn enemies as D5', () => {
-    const floor = generateBranchingFloorFromConfig({
-      floor: 14, // typical effectiveFloor for danger 1 + mid baseDifficulty
-      arc: 'WAVES_ARC',
-      biome: 'Mist Covered Bridge',
-      dangerLevel: 1,
-      wealthLevel: 2,
-      roomGenerationMode: 'dynamic',
-      targetRoomCount: 10,
-      difficulty: 40,
-      enemyPool: ['beach_bandit'],
-      player,
-    });
+    const originalRandom = Math.random;
+    // Deterministic stream: enough low rolls to still produce combat activities.
+    let i = 0;
+    const sequence = [
+      0.11, 0.22, 0.33, 0.44, 0.55, 0.66, 0.77, 0.88, 0.19, 0.28,
+      0.37, 0.46, 0.54, 0.63, 0.72, 0.81, 0.09, 0.18, 0.27, 0.36,
+      0.45, 0.53, 0.62, 0.71, 0.8, 0.12, 0.23, 0.34, 0.41, 0.52,
+      0.61, 0.7, 0.79, 0.15, 0.25, 0.35, 0.48, 0.58, 0.68, 0.78,
+    ];
+    Math.random = () => {
+      const v = sequence[i % sequence.length];
+      i += 1;
+      return v;
+    };
 
-    expect(floor.dangerLevel).toBe(1);
-    // minRoomsBeforeExit = 2 + dangerLevel → D1 → 3 (not 2+14=16)
-    expect(floor.minRoomsBeforeExit).toBe(3);
-    expect(floor.wealthLevel).toBe(2);
+    try {
+      const floor = generateBranchingFloorFromConfig({
+        floor: 14, // typical effectiveFloor for danger 1 + mid baseDifficulty
+        arc: 'WAVES_ARC',
+        biome: 'Mist Covered Bridge',
+        dangerLevel: 1,
+        wealthLevel: 2,
+        roomGenerationMode: 'dynamic',
+        targetRoomCount: 10,
+        difficulty: 40,
+        enemyPool: ['beach_bandit'],
+        player,
+      });
 
-    const combatEnemies = floor.rooms
-      .map((r) => r.activities.combat?.enemy)
-      .filter((e): e is NonNullable<typeof e> => e != null);
+      expect(floor.dangerLevel).toBe(1);
+      // minRoomsBeforeExit = 2 + dangerLevel → D1 → 3 (not 2+14=16)
+      expect(floor.minRoomsBeforeExit).toBe(3);
+      expect(floor.wealthLevel).toBe(2);
 
-    expect(combatEnemies.length).toBeGreaterThan(0);
-    for (const enemy of combatEnemies) {
-      // Must be D1, never ceil(14/3)=5
-      expect(enemy.dangerLevel).toBe(1);
-      expect(enemy.dangerLevel).not.toBe(5);
+      const combatEnemies = floor.rooms
+        .map((r) => r.activities.combat?.enemy)
+        .filter((e): e is NonNullable<typeof e> => e != null);
+
+      expect(combatEnemies.length).toBeGreaterThan(0);
+      for (const enemy of combatEnemies) {
+        // Must be D1, never ceil(14/3)=5
+        expect(enemy.dangerLevel).toBe(1);
+        expect(enemy.dangerLevel).not.toBe(5);
+      }
+    } finally {
+      Math.random = originalRandom;
     }
   });
 

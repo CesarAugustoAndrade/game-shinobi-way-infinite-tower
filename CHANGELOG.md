@@ -5,6 +5,9 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 ## [Unreleased]
 
 ### Added
+- **Integration readiness baseline:** Node 22 pin (`.nvmrc`, `engines`, `packageManager`); scripts `typecheck`, `lint`, `verify`, `audit:prod`, `budget:dist`; GitHub Actions CI (`.github/workflows/ci.yml`); dist size budget gate (`scripts/check-dist-budget.mjs`); unreferenced-asset heuristic (`scripts/list-unreferenced-assets.mjs`); docs `docs/integration-readiness-plan.md`, `docs/git-history-migration.md`, `docs/hosting-security-headers.md`.
+- **Scene code-splitting:** `React.lazy` wrappers in `src/scenes/lazyScenes.tsx` for Combat, Loot, Event, Merchant, Training, Guide, CharacterSelect, and related reward scenes.
+- **RNG injection (partial):** optional `rng` on floor generation critical path (`LocationSystem` / `roomTypes`); sim `installSeededRandom` also drives `setGlobalRng` for shared stream.
 - **Sprint A session foundation:** pure `GameSession` store (`src/game/session` + `useGameSession`), unified `VisitContext` / `completeActivityOnVisit` for dual-floor completion, minimal `SCENE_REGISTRY` + `GameState.SCENE_REGISTRY_PROBE`, App dual-writes core session fields; merchant/training/victory paths migrate to VisitContext.
 - **Combat SEN signals (init / miss / crit):** persistent `CombatSenStrip` (先 YOU · THEM) shows who won opening initiative and whose turn it is; open banner always reports `SEN · You/Enemy open`. Hit floats use ink stamps for **CRIT (必)**, **MISS (空)**, **EVADE (見)**; brief stage edge flash on crit/miss. Stores `combatState.openingInitHolder` from the real `determineTurnOrder` roll.
 - **Tactical Intel Bonus to Approaches:** Higher location Intel (0–100%) adds up to +15% success odds (`+0.15%` per 1% Intel) to pre-combat approaches (`Stealth Ambush`, `Genjutsu Setup`, `Environmental Trap`, `Iron Guard`, `Shadow Bypass`), previewed in `ApproachSelector` and applied during engagement.
@@ -13,6 +16,10 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - **Sealed Vault Exit Option:** Added exit button and choice option in `TreasureChoice.tsx` & `useTreasureHandlers.ts` to allow leaving the sealed vault room without spending chakra.
 
 ### Changed
+- **Security:** removed client GenAI (`useGenAI`, `generateEnemyImage`, `@google/genai`), Vite API-key `define`, and AI Studio importmap. No browser delivery of Gemini keys.
+- **Deploy size:** purged unreferenced `public/assets/skills/old_square_skills` (~209 MB), `public/assets/skills/_qa` (~61 MB), duplicate `public/enemies` (~91 MB), QA `enemies/buenos|malos` (~52 MB), flat artifact/component icons superseded by cutouts (~35 MB).
+- **Deps:** removed `@google/genai`; bumped `vite` ^6.4.3, `vitest` ^4.1.10 + overrides — `npm audit` clean (0 vulns).
+- **Tooling:** `tsconfig` scopes to `src` + config (excludes `dist`/`scratch`); Vite `manualChunks` for react/icons/dnd; Tailwind CDN replaced with local utility CSS for App shell; README rewritten for the real project (React 19).
 - **Elite Challenge → Event-style split:** `EliteChallenge` mirrors the Event poster layout — left tall key-art of the **elite enemy** (not a tiny icon / “Artifact Guardian” chrome), right path bar + Fight/Escape choice cards + secondary prize. Title is cleaned `enemy.name`; plate **Elite Challenge**; fight-first hierarchy; solid escape-chance badge; no Guardian name suffix on spawn.
 - **Elite poster uses cutouts:** Elite Challenge shows `enemy_cut_*` true-alpha sprites (`resolveEnemyDisplayArt` / `deriveEnemyCutoutPath`), not green chroma portrait plates under `/assets/enemies/`.
 
@@ -41,6 +48,8 @@ All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in thi
 - **Level Up Event-Style Poster Scene:** Created dedicated 3:4 key-art poster (`public/assets/posters/level_up_poster.jpg`) and refactored `StatAssignModal` into a full Event-style split-panel layout (`stat-assign__split`). Features 3 attribute categories (The Body, The Mind, The Technique), numerical hotkey badges (`1-9`), `-`/`+` pixel buttons with value previews, and full keyboard navigation.
 
 ### Fixed
+- **Stylelint:** merged duplicate `.approach-card__icon` / `--available` selectors in `ApproachSelector.css`.
+- **Flaky LocationSystem test:** pin `Math.random` sequence for dangerLevel plumbing case so combat rooms always spawn.
 - **Event complete-on-choice (cascade P0):** terminal event choices now run `completeActivity('event')` immediately on the working floor (before outcome modal), not only on Continue. Close path grants intel + leave if already sealed; hard-complete fallback if not. Prevents incomplete event re-open loops and sealed children after “resolving” an event. Intermediate `chainTo` still leaves incomplete until the final link.
 - **Multi-activity chain re-opens completed event (P1)** (`useExploration.ts`): chain timer could execute from a lagging `locationFloorRef` (event still incomplete) or a stale `returnToMap` schedule while live already completed the event. `resolveActivityChainExec` prefers the post-complete scheduled/`updatedFloor` snapshot, uses live only when strictly ahead on event completion, never chain-opens event after expected complete (`logSyncWarning`), so scroll/training after event still fires.
 - **EventResultModal soft-lock / mount race:** `EventResultModal` mounts globally (like intel/rest result) whenever `eventOutcome` is set, not only under `LOCATION_EXPLORE` — Continue always runs. Soft-lock: `EVENT && !activeEvent && eventOutcome` forces `LOCATION_EXPLORE`; blank EVENT still force-completes the pending room event. Map Enter Room click now respects blocking modals (`queryBlockingModal` + App `isBlockingExploreChrome` gate) so enter cannot race under an open outcome.

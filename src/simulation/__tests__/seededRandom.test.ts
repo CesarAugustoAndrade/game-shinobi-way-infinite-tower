@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mulberry32, installSeededRandom, DEFAULT_SEED } from '../seededRandom';
+import { mulberry32, installSeededRandom, uninstallSeededRandom, DEFAULT_SEED } from '../seededRandom';
+import { getGlobalRng, random } from '../../game/utils/rng';
 
 describe('mulberry32', () => {
   it('produces identical sequences for the same seed', () => {
@@ -38,9 +39,8 @@ describe('mulberry32', () => {
 });
 
 describe('installSeededRandom', () => {
-  const original = Math.random;
   afterEach(() => {
-    Math.random = original;
+    uninstallSeededRandom();
   });
 
   it('makes Math.random deterministic and reproducible across re-installs', () => {
@@ -54,5 +54,15 @@ describe('installSeededRandom', () => {
   it('returns the generator now backing Math.random', () => {
     const rng = installSeededRandom(42);
     expect(Math.random).toBe(rng);
+  });
+
+  it('installs the same stream on getGlobalRng() / random()', () => {
+    installSeededRandom(DEFAULT_SEED);
+    // Alternating Math.random and project RNG must advance one shared sequence
+    const viaMath = Math.random();
+    const viaGlobal = random();
+    installSeededRandom(DEFAULT_SEED);
+    expect(Math.random()).toBe(viaMath);
+    expect(getGlobalRng().random()).toBe(viaGlobal);
   });
 });

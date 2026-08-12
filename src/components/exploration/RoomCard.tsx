@@ -24,7 +24,6 @@ import {
   Skull,
 } from 'lucide-react';
 import { getCurrentActivity } from '../../game/systems/LocationSystem';
-import { getBranchingRoomColors } from '../../game/constants/roomTypeMapping';
 import { ACTIVITY_LABELS } from '../../game/constants/activityLabels';
 import { TERRAIN_DEFINITIONS } from '../../game/constants/terrain';
 import { COMBAT_MODIFIER_EFFECTS } from '../../game/constants/roomTypes';
@@ -56,6 +55,20 @@ const BRANCHING_ROOM_ICONS: Record<BranchingRoomType, React.ReactNode> = {
   [BranchingRoomType.BATTLEFIELD]: <Sword className="room-card__icon" />,
 };
 
+const BRANCHING_ROOM_CLASSES: Record<BranchingRoomType, string> = {
+  [BranchingRoomType.START]: 'room-card--type-start',
+  [BranchingRoomType.VILLAGE]: 'room-card--type-village',
+  [BranchingRoomType.OUTPOST]: 'room-card--type-outpost',
+  [BranchingRoomType.SHRINE]: 'room-card--type-shrine',
+  [BranchingRoomType.CAMP]: 'room-card--type-camp',
+  [BranchingRoomType.RUINS]: 'room-card--type-ruins',
+  [BranchingRoomType.BRIDGE]: 'room-card--type-bridge',
+  [BranchingRoomType.BOSS_GATE]: 'room-card--type-boss-gate',
+  [BranchingRoomType.FOREST]: 'room-card--type-forest',
+  [BranchingRoomType.CAVE]: 'room-card--type-cave',
+  [BranchingRoomType.BATTLEFIELD]: 'room-card--type-battlefield',
+};
+
 const RoomCard: React.FC<RoomCardProps> = ({
   room,
   isSelected,
@@ -65,9 +78,6 @@ const RoomCard: React.FC<RoomCardProps> = ({
   const getRoomIcon = (): React.ReactNode => {
     return BRANCHING_ROOM_ICONS[room.type] || <Home className="room-card__icon" />;
   };
-
-  // Get colors from shared utility (returns Tailwind classes)
-  const colors = getBranchingRoomColors(room.type, room.isCleared);
 
   // Get activity icons for the room
   const getActivityIcons = (): React.ReactNode[] => {
@@ -79,31 +89,31 @@ const RoomCard: React.FC<RoomCardProps> = ({
     );
 
     if (room.activities.combat && !room.activities.combat.completed) {
-      icons.push(wrap('combat', 'Combat', <Sword className="room-card__activity text-orange-400" />));
+      icons.push(wrap('combat', 'Combat', <Sword className="room-card__activity room-card__activity--combat" />));
     }
     if (room.activities.merchant && !room.activities.merchant.completed) {
-      icons.push(wrap('merchant', 'Merchant', <ShoppingBag className="room-card__activity text-yellow-400" />));
+      icons.push(wrap('merchant', 'Merchant', <ShoppingBag className="room-card__activity room-card__activity--merchant" />));
     }
     if (room.activities.event && !room.activities.event.completed) {
-      icons.push(wrap('event', 'Event', <Scroll className="room-card__activity text-blue-400" />));
+      icons.push(wrap('event', 'Event', <Scroll className="room-card__activity room-card__activity--event" />));
     }
     if (room.activities.scrollDiscovery && !room.activities.scrollDiscovery.completed) {
-      icons.push(wrap('scrollDiscovery', 'Scroll Discovery', <BookOpen className="room-card__activity text-purple-400" />));
+      icons.push(wrap('scrollDiscovery', 'Scroll Discovery', <BookOpen className="room-card__activity room-card__activity--scroll" />));
     }
     if (room.activities.rest && !room.activities.rest.completed) {
-      icons.push(wrap('rest', 'Rest', <Heart className="room-card__activity text-green-400" />));
+      icons.push(wrap('rest', 'Rest', <Heart className="room-card__activity room-card__activity--rest" />));
     }
     if (room.activities.training && !room.activities.training.completed) {
-      icons.push(wrap('training', 'Training', <Dumbbell className="room-card__activity text-teal-400" />));
+      icons.push(wrap('training', 'Training', <Dumbbell className="room-card__activity room-card__activity--training" />));
     }
     if (room.activities.treasure && !room.activities.treasure.collected) {
-      icons.push(wrap('treasure', 'Treasure', <Gift className="room-card__activity text-amber-400" />));
+      icons.push(wrap('treasure', 'Treasure', <Gift className="room-card__activity room-card__activity--treasure" />));
     }
     if (room.activities.eliteChallenge && !room.activities.eliteChallenge.completed) {
-      icons.push(wrap('eliteChallenge', 'Elite Challenge', <Skull className="room-card__activity text-red-400" />));
+      icons.push(wrap('eliteChallenge', 'Elite Challenge', <Skull className="room-card__activity room-card__activity--elite" />));
     }
     if (room.activities.infoGathering && !room.activities.infoGathering.completed) {
-      icons.push(wrap('infoGathering', 'Info Gathering', <Radio className="room-card__activity text-teal-400" />));
+      icons.push(wrap('infoGathering', 'Info Gathering', <Radio className="room-card__activity room-card__activity--info" />));
     }
 
     return icons;
@@ -156,11 +166,10 @@ const RoomCard: React.FC<RoomCardProps> = ({
   const isLocked = !room.isAccessible && !room.isCleared;
   const canClick = room.isAccessible || room.isCurrent;
 
-  // Build class list - combine BEM structure with Tailwind dynamic colors
+  // Build class list with stable BEM modifiers; dynamic Tailwind classes are not emitted.
   const cardClasses = [
     'room-card',
-    colors.bg,
-    colors.border,
+    BRANCHING_ROOM_CLASSES[room.type],
     canClick && !room.isCurrent ? 'room-card--accessible' : '',
     room.isCurrent ? 'room-card--current' : '',
     isSelected ? 'room-card--selected' : '',
@@ -197,13 +206,13 @@ const RoomCard: React.FC<RoomCardProps> = ({
       {/* Content */}
       <div className="room-card__content">
         {/* Icon container */}
-        <div className={`room-card__icon-container ${colors.iconBg} ${colors.text}`}>
+        <div className="room-card__icon-container">
           {getRoomIcon()}
         </div>
 
         {/* Room name */}
         <div className="room-card__name-container">
-          <h3 className={`room-card__name ${colors.text}`}>
+          <h3 className="room-card__name">
             {room.name}
           </h3>
         </div>

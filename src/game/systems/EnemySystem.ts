@@ -559,31 +559,4 @@ export const generateEnemy = (
   };
 };
 
-export const generateEnemyImage = async (enemy: Enemy, genImageSize: '1K' | '2K' | '4K'): Promise<string | null> => {
-  if (!enemy) return null;
 
-  try {
-    const { GoogleGenAI } = await import("@google/genai");
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const prompt = `A dark fantasy, gritty anime style character portrait of a Naruto-inspired ninja enemy named "${enemy.name}". Rank: ${enemy.tier}. Chakra Element: ${enemy.element}. The character looks dangerous and powerful. High contrast, detailed, atmospheric lighting. Close-up or waist-up shot.`;
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
-      contents: { parts: [{ text: prompt }] },
-      config: { imageConfig: { imageSize: genImageSize, aspectRatio: '1:1' } }
-    });
-
-    let imageUrl = null;
-    if (response.candidates && response.candidates[0].content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if ((part as any).inlineData) {
-          imageUrl = `data:image/png;base64,${(part as any).inlineData.data}`;
-          break;
-        }
-      }
-    }
-    return imageUrl;
-  } catch (error) {
-    console.error("Image Gen Error", error);
-    throw error;
-  }
-};

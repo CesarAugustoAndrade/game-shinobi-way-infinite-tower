@@ -36,9 +36,6 @@ export const FeatureFlags = {
   /** Enable story arc events */
   ENABLE_STORY_EVENTS: true,
 
-  /** Enable AI-generated enemy images (requires GEMINI_API_KEY) */
-  ENABLE_AI_IMAGES: false,
-
   /** Enable training rooms in exploration */
   ENABLE_TRAINING: true,
 

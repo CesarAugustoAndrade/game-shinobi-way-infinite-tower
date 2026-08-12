@@ -312,10 +312,13 @@
   justify-content: center;
   flex-shrink: 0;
   transition: all var(--sw-transition-base);
+  overflow: hidden;
+  padding: 0;
 }
 
+/* Image-backed approach icons use a dark plate; SVG-only fallback keeps elevated chrome. */
 .approach-card__icon--available {
-  background: linear-gradient(135deg, var(--sw-bg-elevated), var(--sw-bg-surface));
+  background: #0a0a0f;
   border: 2px solid var(--sw-frame-soft);
   color: var(--sw-text-primary);
 }
@@ -344,15 +347,6 @@
   border-radius: inherit;
   display: block;
   pointer-events: none;
-}
-
-.approach-card__icon {
-  overflow: hidden;
-  padding: 0;
-}
-
-.approach-card__icon--available {
-  background: #0a0a0f;
 }
 
 .confirm-modal__preview-icon .approach-card__icon-img,
