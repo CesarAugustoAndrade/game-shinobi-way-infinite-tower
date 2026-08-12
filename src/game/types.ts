@@ -446,6 +446,16 @@ export interface ModeDefinition {
   endClauses: ModeEndClause[];
 }
 
+/** Live Mode instance on the encounter board (T-002). Empty until Mode runtime (later T-XXX). */
+export interface ActiveModeRuntime {
+  id: string;
+  family: string;
+  charges: number;
+  /** Authored Mode CD; used when upkeep fails and the Mode ends. */
+  cooldown?: number;
+  readyOnTurn?: number;
+}
+
 export interface Mark {
   id: string;
   sourceSkillId: string;
@@ -744,6 +754,12 @@ export interface Skill {
   // Cooldown
   cooldown: number;
   currentCooldown: number;
+  /**
+   * Absolute player-turn index when this skill becomes playable (T-002).
+   * Used on turn T with authored N → readyOnTurn = T + N + 1.
+   * Omit or 0 = ready. Normative readiness is `isSkillReadyOnTurn`; do not infer from DPS.
+   */
+  readyOnTurn?: number;
 
   // Damage Calculation (F1): raw = baseDamage + scalingPerPoint × effectivePrimary[scalingStat]
   baseDamage: number;

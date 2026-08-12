@@ -12,7 +12,7 @@
  * =============================================================================
  */
 
-import { Buff, CombatRange, Player, Posture, Skill, TerrainDefinition } from '../types';
+import { ActiveModeRuntime, Buff, CombatRange, Mark, Player, Posture, Skill, TerrainDefinition } from '../types';
 import type { LocationTerrainMods } from './LocationTerrainSystem';
 
 // ============================================================================
@@ -94,6 +94,14 @@ export interface CombatState {
   enemyCurrentAp: number;
   /** Enemy AP budget for the phase (same formula + terrain as player maxAp) */
   enemyMaxAp: number;
+
+  /**
+   * T-002 encounter frontier (optional so existing fixtures compile).
+   * `createCombatState` seeds turnIndex=1 and empty Modes/Marks.
+   */
+  turnIndex?: number;
+  activeModes?: ActiveModeRuntime[];
+  marks?: Mark[];
 }
 
 // ============================================================================

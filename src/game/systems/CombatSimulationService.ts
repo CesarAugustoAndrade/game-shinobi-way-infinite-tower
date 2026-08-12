@@ -22,6 +22,7 @@ import {
   CombatRange,
 } from '../types';
 import { skillAllowedAt, resolveInitialRange } from './RangeSystem';
+import { resetCombatFrontier } from './TurnClockSystem';
 import {
   calculateDamage,
   resistStatus,
@@ -642,16 +643,27 @@ export function simulateGameCombat(
   const playerFullStats = getPlayerFullStats(player);
   const enemyFullStats = getEnemyFullStats(enemy);
 
-  // Clone player and enemy for mutable simulation state
+  // Clone player and enemy for mutable simulation state.
+  // T-002: encounter frontier resets CDs / readyOnTurn (no Heat persistence).
+  const playerFrontier = resetCombatFrontier({
+    skills: player.skills,
+    modes: [],
+    marks: [],
+  });
+  const enemyFrontier = resetCombatFrontier({
+    skills: enemy.skills,
+    modes: [],
+    marks: [],
+  });
   let clonedPlayer = {
     ...player,
-    skills: player.skills.map(s => ({ ...s, currentCooldown: 0 })),
+    skills: playerFrontier.skills,
     activeBuffs: [...player.activeBuffs]
   };
 
   const clonedEnemy = {
     ...enemy,
-    skills: enemy.skills.map(s => ({ ...s, currentCooldown: 0 })),
+    skills: enemyFrontier.skills,
     activeBuffs: [...enemy.activeBuffs]
   };
 

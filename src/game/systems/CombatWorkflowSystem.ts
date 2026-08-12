@@ -164,6 +164,10 @@ export function createCombatState(
     enemyMoveUsedThisTurn: false,
     enemyCurrentAp: 0,
     enemyMaxAp: 0,
+    // T-002 encounter frontier — empty Modes/Marks; skills reset via resetCombatFrontier
+    turnIndex: 1,
+    activeModes: [],
+    marks: [],
   };
 }
 
