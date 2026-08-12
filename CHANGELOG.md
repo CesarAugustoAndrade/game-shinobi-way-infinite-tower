@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- chore: scaffold loop-engineering (tasks/, 8 agents, task-* commands, ring map in CLAUDE.md)
 
 ### Added
 - **Integration readiness baseline:** Node 22 pin (`.nvmrc`, `engines`, `packageManager`); scripts `typecheck`, `lint`, `verify`, `audit:prod`, `budget:dist`; GitHub Actions CI (`.github/workflows/ci.yml`); dist size budget gate (`scripts/check-dist-budget.mjs`); unreferenced-asset heuristic (`scripts/list-unreferenced-assets.mjs`); docs `docs/integration-readiness-plan.md`, `docs/git-history-migration.md`, `docs/hosting-security-headers.md`.

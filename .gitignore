@@ -41,3 +41,6 @@ nul
 _stage_gen/
 scripts/__pycache__/
 
+# Loop-engineering task worktrees (never commit)
+.worktrees/
+
