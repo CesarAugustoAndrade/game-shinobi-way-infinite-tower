@@ -83,16 +83,11 @@ def cutout_ok(path: Path) -> tuple[bool, str]:
 
 def main() -> int:
     flat = sorted(ENEMIES.glob("enemy_*.png"))
-    buenos = sorted((ENEMIES / "buenos").glob("enemy_*.png"))
-    malos = sorted((ENEMIES / "malos").glob("enemy_*.png"))
     cutouts = sorted(CUTOUTS.glob("enemy_cut_*.png"))
     errors: list[str] = []
+    # Runtime ships flat portraits only (QA buenos/malos trees purged for dist size).
     if len(flat) != 44:
         errors.append(f"flat portraits expected 44 got {len(flat)}")
-    if len(buenos) != 33:
-        errors.append(f"buenos expected 33 got {len(buenos)}")
-    if len(malos) != 11:
-        errors.append(f"malos expected 11 got {len(malos)}")
     if len(cutouts) != 44:
         errors.append(f"cutouts expected 44 got {len(cutouts)}")
 

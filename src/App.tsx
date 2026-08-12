@@ -104,10 +104,23 @@ import {
 import { getDamageTypeColor, getRarityTextColorWithEffects as getRarityColor, resolveLaminaPaths } from './utils/colorHelpers';
 import { GameProvider, GameContextValue } from './contexts/GameContext';
 import { LIMITS, MERCHANT } from './game/config';
-import { MainMenu, CharacterSelect, GameOver, GameGuide, Interlude, Victory } from './scenes/menu';
-import { Combat, EliteChallenge } from './scenes/combat';
-import { Loot, TreasureChoice, TreasureHuntReward as TreasureHuntRewardScene, ScrollDiscovery } from './scenes/rewards';
-import { Merchant, Training, Event } from './scenes/activities';
+// Critical-path / light full-screen scenes stay eager for instant boot + end states
+import { MainMenu, GameOver, Interlude, Victory } from './scenes/menu';
+// Heavy non-boot scenes: React.lazy code-split (see lazyScenes.tsx)
+import {
+  LazyScene,
+  CharacterSelect,
+  GameGuide,
+  Combat,
+  EliteChallenge,
+  Loot,
+  TreasureChoice,
+  TreasureHuntReward as TreasureHuntRewardScene,
+  ScrollDiscovery,
+  Merchant,
+  Training,
+  Event,
+} from './scenes/lazyScenes';
 import { simulateGameCombat, CombatSimulationResult } from './game/systems/CombatSimulationService';
 // Shared components
 import ErrorBoundary from './components/shared/ErrorBoundary';
@@ -1732,20 +1745,26 @@ const App: React.FC = () => {
   }
 
   if (gameState === GameState.GUIDE) {
-    return <GameGuide onBack={() => setGameState(GameState.MENU)} />;
+    return (
+      <LazyScene>
+        <GameGuide onBack={() => setGameState(GameState.MENU)} />
+      </LazyScene>
+    );
   }
 
   if (gameState === GameState.CHAR_SELECT) {
     return (
-      <CharacterSelect
-        onSelectClan={startGame}
-        runMode={pendingRunMode}
-        onBack={() => {
-          // Esc / Mission Brief: drop pending Infinite so Gate does not keep a silent mode
-          setPendingRunMode('campaign');
-          setGameState(GameState.MENU);
-        }}
-      />
+      <LazyScene>
+        <CharacterSelect
+          onSelectClan={startGame}
+          runMode={pendingRunMode}
+          onBack={() => {
+            // Esc / Mission Brief: drop pending Infinite so Gate does not keep a silent mode
+            setPendingRunMode('campaign');
+            setGameState(GameState.MENU);
+          }}
+        />
+      </LazyScene>
     );
   }
 
@@ -1951,6 +1970,8 @@ const App: React.FC = () => {
           );
         })()}
         <div className={centerStageClass}>
+          {/* Lazy-loaded activity/combat scenes share one Suspense boundary */}
+          <LazyScene>
           {gameState === GameState.COMBAT && player && enemy && playerStats && enemyStats && (
             <ErrorBoundary sceneName="Combat">
               <Combat
@@ -2154,6 +2175,7 @@ const App: React.FC = () => {
               />
             </ErrorBoundary>
           )}
+          </LazyScene>
 
           {/* Region Map - Card-based location selection */}
           {gameState === GameState.REGION_MAP && region && player && playerStats && (

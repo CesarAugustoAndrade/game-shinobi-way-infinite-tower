@@ -589,27 +589,40 @@ export const ROOM_TERRAIN_MAP: Record<BranchingRoomType, TerrainType[]> = {
 
 /**
  * Get a random room name for the given type and arc
+ * @param rng - Optional [0,1) source; defaults to Math.random (sim seeds override both)
  */
-export function getRandomRoomName(type: BranchingRoomType, arc: string): string {
+export function getRandomRoomName(
+  type: BranchingRoomType,
+  arc: string,
+  rng: () => number = Math.random,
+): string {
   const namesForType = ROOM_NAMES[type];
   const arcNames = namesForType[arc] || namesForType['default'] || ['Unknown Room'];
-  return arcNames[Math.floor(Math.random() * arcNames.length)];
+  return arcNames[Math.floor(rng() * arcNames.length)];
 }
 
 /**
  * Get a random description for the room type
+ * @param rng - Optional [0,1) source; defaults to Math.random
  */
-export function getRandomRoomDescription(type: BranchingRoomType): string {
+export function getRandomRoomDescription(
+  type: BranchingRoomType,
+  rng: () => number = Math.random,
+): string {
   const descriptions = ROOM_DESCRIPTIONS[type] || ['A mysterious place.'];
-  return descriptions[Math.floor(Math.random() * descriptions.length)];
+  return descriptions[Math.floor(rng() * descriptions.length)];
 }
 
 /**
  * Get a random terrain for the room type
+ * @param rng - Optional [0,1) source; defaults to Math.random
  */
-export function getRandomTerrain(type: BranchingRoomType): TerrainType {
+export function getRandomTerrain(
+  type: BranchingRoomType,
+  rng: () => number = Math.random,
+): TerrainType {
   const terrains = ROOM_TERRAIN_MAP[type] || [TerrainType.OPEN_GROUND];
-  return terrains[Math.floor(Math.random() * terrains.length)];
+  return terrains[Math.floor(rng() * terrains.length)];
 }
 
 /**
@@ -621,8 +634,13 @@ export function getRoomTypeConfig(type: BranchingRoomType): RoomTypeConfig {
 
 /**
  * Select a random room type based on tier weights
+ * @param rng - Optional [0,1) source; defaults to Math.random
  */
-export function selectRandomRoomType(tier: 0 | 1 | 2, excludeTypes: BranchingRoomType[] = []): BranchingRoomType {
+export function selectRandomRoomType(
+  tier: 0 | 1 | 2,
+  excludeTypes: BranchingRoomType[] = [],
+  rng: () => number = Math.random,
+): BranchingRoomType {
   const weightKey = `tier${tier}Weight` as 'tier0Weight' | 'tier1Weight' | 'tier2Weight';
 
   const eligibleTypes = Object.values(ROOM_TYPE_CONFIGS).filter(
@@ -635,7 +653,7 @@ export function selectRandomRoomType(tier: 0 | 1 | 2, excludeTypes: BranchingRoo
   }
 
   const totalWeight = eligibleTypes.reduce((sum, config) => sum + config[weightKey], 0);
-  let random = Math.random() * totalWeight;
+  let random = rng() * totalWeight;
 
   for (const config of eligibleTypes) {
     random -= config[weightKey];

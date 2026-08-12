@@ -1,0 +1,3612 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta
+    name="description"
+    content="Hoja de ruta operativa para migrar Shinobi Way: The Infinite Tower desde React y TypeScript a Unity 6.3 LTS con paridad funcional."
+  >
+  <title>Shinobi Way — Hoja de ruta de migración a Unity</title>
+  <style>
+    :root {
+      --void: #080a09;
+      --ink: #101410;
+      --ink-raised: #171c17;
+      --ink-soft: #20271f;
+      --paper: #f1e7cf;
+      --paper-bright: #fff7e7;
+      --paper-muted: #c8bda5;
+      --paper-faint: #8e887a;
+      --vermilion: #e65a3e;
+      --vermilion-dark: #8d2d21;
+      --gold: #d4ad62;
+      --jade: #7fa68c;
+      --cyan: #75aeb2;
+      --danger: #df7062;
+      --line: rgba(241, 231, 207, 0.13);
+      --line-strong: rgba(241, 231, 207, 0.27);
+      --shadow: 0 32px 100px rgba(0, 0, 0, 0.42);
+      --rail: 20rem;
+      --display: "Bahnschrift Condensed", "Franklin Gothic Medium", "Arial Narrow", sans-serif;
+      --body: Baskerville, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+      --mono: "Cascadia Code", "IBM Plex Mono", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 1.25rem;
+    }
+
+    body {
+      margin: 0;
+      min-width: 20rem;
+      color: var(--paper);
+      background:
+        radial-gradient(circle at 82% 7%, rgba(230, 90, 62, 0.14), transparent 29rem),
+        radial-gradient(circle at 14% 75%, rgba(127, 166, 140, 0.09), transparent 36rem),
+        repeating-linear-gradient(118deg, transparent 0 76px, rgba(255, 255, 255, 0.011) 77px 78px),
+        var(--void);
+      font: 17px/1.62 var(--body);
+      text-rendering: optimizeLegibility;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      content: "";
+      opacity: 0.48;
+      background-image:
+        radial-gradient(circle at 25% 30%, rgba(255, 255, 255, 0.035) 0 1px, transparent 1.3px),
+        radial-gradient(circle at 74% 66%, rgba(0, 0, 0, 0.32) 0 1px, transparent 1.4px);
+      background-size: 14px 18px, 21px 25px;
+      mix-blend-mode: soft-light;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    ::selection {
+      color: var(--void);
+      background: var(--gold);
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 0.75rem;
+      left: 0.75rem;
+      z-index: 200;
+      padding: 0.65rem 0.9rem;
+      color: var(--void);
+      background: var(--paper-bright);
+      transform: translateY(-180%);
+      transition: transform 160ms ease;
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .reading-progress {
+      position: fixed;
+      inset: 0 auto auto 0;
+      z-index: 150;
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--vermilion), var(--gold));
+      box-shadow: 0 0 20px rgba(230, 90, 62, 0.8);
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: var(--rail) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .rail {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 1.35rem 1.15rem 1.75rem;
+      border-right: 1px solid var(--line);
+      background: rgba(12, 15, 12, 0.95);
+      backdrop-filter: blur(20px);
+      scrollbar-width: thin;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .brand__seal {
+      display: grid;
+      flex: 0 0 auto;
+      width: 3.25rem;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      color: var(--paper-bright);
+      background: var(--vermilion-dark);
+      box-shadow:
+        inset 0 0 0 4px rgba(0, 0, 0, 0.16),
+        0 10px 30px rgba(0, 0, 0, 0.35);
+      font: 700 1.2rem/1 var(--display);
+      transform: rotate(-7deg);
+    }
+
+    .brand__eyebrow,
+    .brand__name {
+      margin: 0;
+    }
+
+    .brand__eyebrow {
+      color: var(--vermilion);
+      font: 700 0.64rem/1 var(--mono);
+      letter-spacing: 0.17em;
+      text-transform: uppercase;
+    }
+
+    .brand__name {
+      margin-top: 0.35rem;
+      font: 700 1.08rem/1.05 var(--display);
+      letter-spacing: 0.045em;
+    }
+
+    .rail__meta {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.28rem 0.7rem;
+      margin: 0;
+      padding: 0.85rem 0;
+      border-block: 1px solid var(--line);
+      font: 0.65rem/1.5 var(--mono);
+    }
+
+    .rail__meta dt {
+      color: var(--paper-faint);
+      text-transform: uppercase;
+    }
+
+    .rail__meta dd {
+      margin: 0;
+      text-align: right;
+    }
+
+    .mission-progress {
+      margin: 1rem 0 1.15rem;
+      padding: 1rem;
+      border: 1px solid rgba(212, 173, 98, 0.33);
+      background:
+        linear-gradient(135deg, rgba(212, 173, 98, 0.09), transparent 65%),
+        rgba(255, 255, 255, 0.016);
+    }
+
+    .mission-progress__top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .mission-progress__label {
+      color: var(--paper-muted);
+      font: 700 0.62rem/1 var(--mono);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .mission-progress__value {
+      color: var(--gold);
+      font: 700 1.65rem/1 var(--display);
+    }
+
+    .meter {
+      display: block;
+      height: 0.42rem;
+      margin-top: 0.7rem;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.38);
+    }
+
+    .meter__fill {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--vermilion), var(--gold));
+      box-shadow: 0 0 12px rgba(230, 90, 62, 0.42);
+      transition: width 260ms ease;
+    }
+
+    .mission-progress__count {
+      margin: 0.55rem 0 0;
+      color: var(--paper-faint);
+      font: 0.64rem/1.4 var(--mono);
+    }
+
+    .rail__title {
+      margin: 1rem 0 0.52rem;
+      color: var(--paper-faint);
+      font: 700 0.61rem/1 var(--mono);
+      letter-spacing: 0.17em;
+      text-transform: uppercase;
+    }
+
+    .toc {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .toc a {
+      display: grid;
+      grid-template-columns: 1.8rem 1fr;
+      gap: 0.5rem;
+      padding: 0.42rem 0.5rem;
+      border-left: 2px solid transparent;
+      color: var(--paper-muted);
+      font: 700 0.7rem/1.3 var(--mono);
+      text-decoration: none;
+      transition: 150ms ease;
+    }
+
+    .toc a span {
+      color: var(--paper-faint);
+    }
+
+    .toc a:hover,
+    .toc a[aria-current="true"] {
+      border-left-color: var(--vermilion);
+      color: var(--paper-bright);
+      background: rgba(230, 90, 62, 0.08);
+    }
+
+    .rail__actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .utility-button {
+      min-height: 2.45rem;
+      padding: 0.65rem 0.7rem;
+      border: 1px solid var(--line-strong);
+      color: var(--paper-muted);
+      background: transparent;
+      cursor: pointer;
+      font: 700 0.63rem/1.2 var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: 150ms ease;
+    }
+
+    .utility-button:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(212, 173, 98, 0.07);
+    }
+
+    .utility-button--danger:hover {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: rgba(223, 112, 98, 0.07);
+    }
+
+    .storage-status {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin: 0.9rem 0 0;
+      color: var(--paper-faint);
+      font: 0.61rem/1.5 var(--mono);
+    }
+
+    .storage-status::before {
+      flex: 0 0 auto;
+      width: 0.45rem;
+      aspect-ratio: 1;
+      margin-top: 0.28rem;
+      border-radius: 50%;
+      background: var(--jade);
+      box-shadow: 0 0 8px rgba(127, 166, 140, 0.6);
+      content: "";
+    }
+
+    .storage-status[data-storage="memory"]::before {
+      background: var(--danger);
+      box-shadow: 0 0 8px rgba(223, 112, 98, 0.6);
+    }
+
+    .main {
+      min-width: 0;
+      overflow: clip;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 44rem;
+      display: grid;
+      align-items: end;
+      padding: clamp(3rem, 7vw, 7rem) clamp(1.35rem, 6vw, 6rem);
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero::before {
+      position: absolute;
+      top: -10rem;
+      right: -0.5rem;
+      color: rgba(241, 231, 207, 0.027);
+      content: "塔";
+      font: 700 min(47vw, 34rem)/1 var(--display);
+      transform: rotate(5deg);
+    }
+
+    .hero::after {
+      position: absolute;
+      inset: auto 0 0;
+      height: 58%;
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, transparent, rgba(8, 10, 9, 0.78)),
+        repeating-linear-gradient(90deg, transparent 0 10%, rgba(241, 231, 207, 0.025) 10.1% 10.2%);
+      content: "";
+    }
+
+    .hero__tower {
+      position: absolute;
+      top: 4rem;
+      right: clamp(1.5rem, 8vw, 9rem);
+      width: clamp(11rem, 24vw, 20rem);
+      height: 34rem;
+      opacity: 0.6;
+      filter: drop-shadow(0 0 32px rgba(230, 90, 62, 0.12));
+      animation: tower-enter 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .hero__tower-line {
+      stroke-dasharray: 900;
+      stroke-dashoffset: 900;
+      animation: draw-line 2.2s 450ms ease forwards;
+    }
+
+    .hero__content {
+      position: relative;
+      z-index: 2;
+      max-width: 67rem;
+    }
+
+    .hero__kicker {
+      margin: 0 0 1rem;
+      color: var(--vermilion);
+      font: 700 0.75rem/1 var(--mono);
+      letter-spacing: 0.19em;
+      text-transform: uppercase;
+      animation: rise-in 560ms 120ms ease both;
+    }
+
+    .hero h1 {
+      max-width: 12ch;
+      margin: 0;
+      color: var(--paper-bright);
+      font: 700 clamp(3.8rem, 9.2vw, 8.8rem)/0.82 var(--display);
+      letter-spacing: -0.045em;
+      text-wrap: balance;
+      text-transform: uppercase;
+      animation: rise-in 680ms 210ms ease both;
+    }
+
+    .hero h1 em {
+      display: block;
+      color: transparent;
+      -webkit-text-stroke: 1px var(--vermilion);
+      font-style: normal;
+    }
+
+    .hero__lead {
+      max-width: 49rem;
+      margin: 1.7rem 0 0;
+      color: var(--paper-muted);
+      font-size: clamp(1.08rem, 2vw, 1.35rem);
+      animation: rise-in 650ms 330ms ease both;
+    }
+
+    .hero__brief {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-top: 1.7rem;
+      animation: rise-in 650ms 430ms ease both;
+    }
+
+    .brief-chip {
+      padding: 0.55rem 0.72rem;
+      border: 1px solid var(--line-strong);
+      color: var(--paper-muted);
+      background: rgba(8, 10, 9, 0.62);
+      font: 700 0.65rem/1 var(--mono);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .brief-chip strong {
+      color: var(--gold);
+    }
+
+    .content {
+      width: min(100%, 92rem);
+      margin: 0 auto;
+      padding: 0 clamp(1.25rem, 5vw, 5rem) 7rem;
+    }
+
+    .section {
+      position: relative;
+      padding: clamp(4.5rem, 9vw, 8rem) 0 0;
+      scroll-margin-top: 1rem;
+    }
+
+    .section__head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(14rem, 31rem);
+      gap: 2rem;
+      align-items: end;
+      margin-bottom: 2rem;
+    }
+
+    .section__kicker {
+      margin: 0 0 0.65rem;
+      color: var(--vermilion);
+      font: 700 0.68rem/1 var(--mono);
+      letter-spacing: 0.17em;
+      text-transform: uppercase;
+    }
+
+    .section h2 {
+      margin: 0;
+      color: var(--paper-bright);
+      font: 700 clamp(2.35rem, 5vw, 4.8rem)/0.94 var(--display);
+      letter-spacing: -0.025em;
+      text-wrap: balance;
+      text-transform: uppercase;
+    }
+
+    .section__lead {
+      margin: 0;
+      color: var(--paper-muted);
+      font-size: 1.06rem;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px);
+      transition:
+        opacity 520ms ease,
+        transform 520ms ease;
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    .decision-grid,
+    .metric-grid,
+    .architecture-grid,
+    .risk-grid {
+      display: grid;
+      gap: 1px;
+      padding: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .decision-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .decision {
+      min-width: 0;
+      padding: 1.2rem;
+      background:
+        linear-gradient(150deg, rgba(255, 255, 255, 0.022), transparent 65%),
+        var(--ink);
+    }
+
+    .decision__number {
+      display: block;
+      margin-bottom: 1.6rem;
+      color: var(--vermilion);
+      font: 700 0.65rem/1 var(--mono);
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .decision strong {
+      display: block;
+      color: var(--paper-bright);
+      font: 700 1.35rem/1.05 var(--display);
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .decision p {
+      margin: 0.65rem 0 0;
+      color: var(--paper-muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .callout {
+      position: relative;
+      margin-top: 1rem;
+      padding: 1.2rem 1.35rem 1.2rem 4.2rem;
+      border: 1px solid rgba(117, 174, 178, 0.27);
+      background: rgba(117, 174, 178, 0.06);
+    }
+
+    .callout::before {
+      position: absolute;
+      top: 1.2rem;
+      left: 1.25rem;
+      color: var(--cyan);
+      content: "情";
+      font: 700 1.55rem/1 var(--display);
+    }
+
+    .callout strong {
+      color: var(--cyan);
+      font: 700 0.69rem/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .callout p {
+      margin: 0.35rem 0 0;
+      color: var(--paper-muted);
+    }
+
+    .metric-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .metric {
+      min-height: 10.5rem;
+      padding: 1.1rem;
+      background: var(--ink);
+    }
+
+    .metric__value {
+      display: block;
+      color: var(--gold);
+      font: 700 clamp(2.2rem, 4vw, 3.8rem)/1 var(--display);
+    }
+
+    .metric__label {
+      display: block;
+      margin-top: 0.35rem;
+      color: var(--paper-bright);
+      font: 700 0.68rem/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .metric p {
+      margin: 0.8rem 0 0;
+      color: var(--paper-faint);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .baseline {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.6fr);
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      background: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .panel__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--paper-faint);
+      font: 700 0.64rem/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .panel__body {
+      padding: 1rem;
+    }
+
+    .health-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .health-list li {
+      display: grid;
+      grid-template-columns: 6rem 1fr auto;
+      gap: 0.85rem;
+      align-items: baseline;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.91rem;
+    }
+
+    .health-list li:last-child {
+      border-bottom: 0;
+    }
+
+    .health-list code,
+    code {
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 0.78em;
+    }
+
+    .status {
+      padding: 0.3rem 0.48rem;
+      border: 1px solid currentColor;
+      font: 700 0.58rem/1 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status--pass {
+      color: var(--jade);
+    }
+
+    .status--warn {
+      color: var(--gold);
+    }
+
+    .status--fail {
+      color: var(--danger);
+    }
+
+    .debt-card {
+      height: 100%;
+      padding: 1.25rem;
+      border: 1px solid rgba(223, 112, 98, 0.32);
+      background:
+        linear-gradient(150deg, rgba(223, 112, 98, 0.1), transparent 62%),
+        var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .debt-card__label {
+      color: var(--danger);
+      font: 700 0.65rem/1 var(--mono);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .debt-card h3 {
+      margin: 0.9rem 0 0;
+      color: var(--paper-bright);
+      font: 700 1.75rem/1.05 var(--display);
+      text-transform: uppercase;
+    }
+
+    .debt-card p {
+      color: var(--paper-muted);
+    }
+
+    .debt-card ul {
+      margin: 1rem 0 0;
+      padding-left: 1.2rem;
+      color: var(--paper-muted);
+    }
+
+    .debt-card li + li {
+      margin-top: 0.45rem;
+    }
+
+    .architecture-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .architecture-layer {
+      position: relative;
+      min-height: 17rem;
+      padding: 1.2rem;
+      overflow: hidden;
+      background: var(--ink);
+    }
+
+    .architecture-layer::after {
+      position: absolute;
+      right: -0.25rem;
+      bottom: -1.4rem;
+      color: rgba(241, 231, 207, 0.035);
+      content: attr(data-mark);
+      font: 700 7rem/1 var(--display);
+    }
+
+    .architecture-layer__tag {
+      position: relative;
+      z-index: 1;
+      color: var(--vermilion);
+      font: 700 0.62rem/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .architecture-layer h3 {
+      position: relative;
+      z-index: 1;
+      margin: 1.5rem 0 0;
+      color: var(--paper-bright);
+      font: 700 1.5rem/1 var(--display);
+      text-transform: uppercase;
+    }
+
+    .architecture-layer p {
+      position: relative;
+      z-index: 1;
+      margin: 0.7rem 0 0;
+      color: var(--paper-muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .flow-rule {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1rem 0 0;
+      padding: 0.85rem 1rem;
+      border: 1px solid var(--line);
+      color: var(--paper-muted);
+      background: rgba(255, 255, 255, 0.014);
+      font: 0.7rem/1.5 var(--mono);
+    }
+
+    .flow-rule strong {
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    .flow-arrow {
+      color: var(--vermilion);
+      font-size: 1.25rem;
+    }
+
+    .mapping-table,
+    .risk-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      background: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .mapping-wrap--spaced {
+      margin-top: 1rem;
+    }
+
+    .mapping-table th,
+    .mapping-table td,
+    .risk-table th,
+    .risk-table td {
+      padding: 0.95rem 1rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .mapping-table th,
+    .risk-table th {
+      color: var(--paper-faint);
+      background: rgba(255, 255, 255, 0.02);
+      font: 700 0.61rem/1.3 var(--mono);
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .mapping-table td,
+    .risk-table td {
+      color: var(--paper-muted);
+      font-size: 0.91rem;
+    }
+
+    .mapping-table td:first-child {
+      color: var(--paper-bright);
+      font-weight: 700;
+    }
+
+    .mapping-table tr:last-child td,
+    .risk-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .mapping-table tbody tr:hover,
+    .risk-table tbody tr:hover {
+      background: rgba(212, 173, 98, 0.035);
+    }
+
+    .code-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .code-card {
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: #0b0e0c;
+      box-shadow: var(--shadow);
+    }
+
+    .code-card__label {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.7rem 0.85rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--paper-faint);
+      font: 700 0.6rem/1 var(--mono);
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    pre {
+      margin: 0;
+      padding: 1rem;
+      overflow-x: auto;
+      color: #cfd9cd;
+      font: 0.73rem/1.62 var(--mono);
+      tab-size: 2;
+    }
+
+    .code-keyword {
+      color: var(--vermilion);
+    }
+
+    .code-type {
+      color: var(--cyan);
+    }
+
+    .code-comment {
+      color: #778276;
+    }
+
+    .roadmap-toolbar {
+      position: sticky;
+      top: 0.8rem;
+      z-index: 12;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      margin: 1.8rem 0 1.2rem;
+      padding: 0.78rem;
+      border: 1px solid var(--line-strong);
+      background: rgba(15, 19, 15, 0.92);
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(18px);
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.42rem;
+    }
+
+    .filter-button {
+      padding: 0.58rem 0.68rem;
+      border: 1px solid var(--line);
+      color: var(--paper-faint);
+      background: transparent;
+      cursor: pointer;
+      font: 700 0.61rem/1 var(--mono);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .filter-button:hover,
+    .filter-button[aria-pressed="true"] {
+      border-color: var(--vermilion);
+      color: var(--paper-bright);
+      background: rgba(230, 90, 62, 0.1);
+    }
+
+    .filter-summary {
+      margin: 0;
+      color: var(--paper-faint);
+      font: 0.64rem/1.4 var(--mono);
+    }
+
+    .tower-roadmap {
+      position: relative;
+      padding-left: 4.1rem;
+    }
+
+    .tower-roadmap::before {
+      position: absolute;
+      top: 1.8rem;
+      bottom: 1.8rem;
+      left: 1.42rem;
+      width: 2px;
+      background:
+        linear-gradient(var(--vermilion), var(--gold) 48%, var(--jade));
+      box-shadow: 0 0 18px rgba(230, 90, 62, 0.24);
+      content: "";
+    }
+
+    .phase {
+      position: relative;
+      margin-bottom: 1.2rem;
+      scroll-margin-top: 6rem;
+    }
+
+    .phase::before {
+      position: absolute;
+      top: 2.2rem;
+      left: -3.27rem;
+      z-index: 2;
+      display: grid;
+      width: 2.45rem;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 2px solid var(--vermilion);
+      border-radius: 50%;
+      color: var(--paper-bright);
+      background: var(--void);
+      box-shadow: 0 0 0 7px var(--void), 0 0 22px rgba(230, 90, 62, 0.25);
+      content: attr(data-floor);
+      font: 700 0.72rem/1 var(--mono);
+    }
+
+    .phase[data-complete="true"]::before {
+      border-color: var(--jade);
+      color: var(--void);
+      background: var(--jade);
+      content: "✓";
+    }
+
+    .phase[hidden] {
+      display: none;
+    }
+
+    .phase-card {
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.02), transparent 43%),
+        var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .phase-card > summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(10rem, 18rem) auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 1.35rem;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .phase-card > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .phase-card > summary::after {
+      display: grid;
+      width: 2rem;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      color: var(--gold);
+      content: "+";
+      font: 700 1rem/1 var(--mono);
+      transition: transform 180ms ease;
+    }
+
+    .phase-card[open] > summary::after {
+      content: "−";
+      transform: rotate(180deg);
+    }
+
+    .phase-card > summary:hover {
+      background: rgba(212, 173, 98, 0.035);
+    }
+
+    .phase__eyebrow {
+      display: block;
+      margin: 0 0 0.35rem;
+      color: var(--vermilion);
+      font: 700 0.61rem/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .phase__title {
+      display: block;
+      margin: 0;
+      color: var(--paper-bright);
+      font: 700 clamp(1.55rem, 3vw, 2.35rem)/1 var(--display);
+      text-transform: uppercase;
+    }
+
+    .phase__meter-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.7rem;
+      color: var(--paper-faint);
+      font: 0.59rem/1 var(--mono);
+      text-transform: uppercase;
+    }
+
+    .phase__body {
+      padding: 0 1.35rem 1.4rem;
+      border-top: 1px solid var(--line);
+    }
+
+    .phase__intent {
+      display: grid;
+      grid-template-columns: 8rem 1fr;
+      gap: 1rem;
+      margin: 0;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--paper-muted);
+    }
+
+    .phase__intent strong {
+      color: var(--gold);
+      font: 700 0.62rem/1.5 var(--mono);
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .task-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .task {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 0.8rem;
+      align-items: start;
+      padding: 0.9rem 0;
+      border-bottom: 1px solid var(--line);
+      transition:
+        opacity 160ms ease,
+        background 160ms ease;
+    }
+
+    .task:last-child {
+      border-bottom: 0;
+    }
+
+    .task:hover {
+      background: rgba(255, 255, 255, 0.014);
+    }
+
+    .task[hidden] {
+      display: none;
+    }
+
+    .task input {
+      width: 1.15rem;
+      height: 1.15rem;
+      margin: 0.18rem 0 0;
+      border-radius: 0;
+      accent-color: var(--vermilion);
+      cursor: pointer;
+    }
+
+    .task label {
+      min-width: 0;
+      color: var(--paper);
+      cursor: pointer;
+    }
+
+    .task label strong {
+      display: block;
+      color: var(--paper-bright);
+      font: 700 0.9rem/1.35 var(--mono);
+    }
+
+    .task label span {
+      display: block;
+      margin-top: 0.25rem;
+      color: var(--paper-faint);
+      font-size: 0.86rem;
+      line-height: 1.48;
+    }
+
+    .task input:checked + label strong {
+      color: var(--paper-faint);
+      text-decoration: line-through;
+      text-decoration-thickness: 1px;
+    }
+
+    .task input:checked + label span {
+      opacity: 0.62;
+    }
+
+    .task__id,
+    .critical-badge {
+      white-space: nowrap;
+      font: 700 0.56rem/1 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .task__id {
+      padding-top: 0.28rem;
+      color: var(--paper-faint);
+    }
+
+    .critical-badge {
+      display: inline-block;
+      margin-top: 0.45rem;
+      padding: 0.28rem 0.38rem;
+      border: 1px solid rgba(223, 112, 98, 0.45);
+      color: var(--danger);
+    }
+
+    .phase__exit {
+      display: grid;
+      grid-template-columns: 8rem 1fr;
+      gap: 1rem;
+      margin-top: 0.6rem;
+      padding: 1rem;
+      border: 1px solid rgba(127, 166, 140, 0.28);
+      background: rgba(127, 166, 140, 0.055);
+      color: var(--paper-muted);
+      font-size: 0.9rem;
+    }
+
+    .phase__exit strong {
+      color: var(--jade);
+      font: 700 0.62rem/1.5 var(--mono);
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .empty-filter {
+      display: none;
+      margin: 0.85rem 0 0;
+      padding: 0.75rem;
+      border: 1px dashed var(--line-strong);
+      color: var(--paper-faint);
+      font: 0.67rem/1.4 var(--mono);
+      text-align: center;
+    }
+
+    .phase[data-filter-empty="true"] .empty-filter {
+      display: block;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0;
+      border: 1px solid var(--line);
+      background: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .pipeline__step {
+      position: relative;
+      min-height: 13rem;
+      padding: 1.15rem;
+      border-right: 1px solid var(--line);
+    }
+
+    .pipeline__step:last-child {
+      border-right: 0;
+    }
+
+    .pipeline__step:not(:last-child)::after {
+      position: absolute;
+      top: 2.1rem;
+      right: -0.65rem;
+      z-index: 2;
+      display: grid;
+      width: 1.25rem;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid var(--line-strong);
+      border-radius: 50%;
+      color: var(--vermilion);
+      background: var(--void);
+      content: "›";
+      font: 700 0.9rem/1 var(--mono);
+    }
+
+    .pipeline__step b {
+      display: block;
+      color: var(--vermilion);
+      font: 700 0.59rem/1 var(--mono);
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .pipeline__step strong {
+      display: block;
+      margin-top: 1.25rem;
+      color: var(--paper-bright);
+      font: 700 1.22rem/1 var(--display);
+      text-transform: uppercase;
+    }
+
+    .pipeline__step p {
+      margin: 0.6rem 0 0;
+      color: var(--paper-faint);
+      font-size: 0.83rem;
+      line-height: 1.45;
+    }
+
+    .risk-level {
+      display: inline-block;
+      min-width: 4.2rem;
+      padding: 0.32rem 0.45rem;
+      border: 1px solid currentColor;
+      font: 700 0.58rem/1 var(--mono);
+      letter-spacing: 0.08em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .risk-level--high {
+      color: var(--danger);
+    }
+
+    .risk-level--medium {
+      color: var(--gold);
+    }
+
+    .risk-level--low {
+      color: var(--jade);
+    }
+
+    .acceptance-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .acceptance-card {
+      padding: 1.2rem;
+      border: 1px solid var(--line);
+      background: var(--ink);
+      box-shadow: var(--shadow);
+    }
+
+    .acceptance-card__index {
+      color: var(--vermilion);
+      font: 700 0.62rem/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .acceptance-card h3 {
+      margin: 1rem 0 0;
+      color: var(--paper-bright);
+      font: 700 1.55rem/1 var(--display);
+      text-transform: uppercase;
+    }
+
+    .acceptance-card ul {
+      margin: 0.8rem 0 0;
+      padding-left: 1.15rem;
+      color: var(--paper-muted);
+      font-size: 0.91rem;
+    }
+
+    .acceptance-card li + li {
+      margin-top: 0.5rem;
+    }
+
+    .source-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.65rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .source-list a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 4.2rem;
+      padding: 0.85rem 1rem;
+      border: 1px solid var(--line);
+      color: var(--paper-muted);
+      background: var(--ink);
+      font: 0.72rem/1.35 var(--mono);
+      text-decoration: none;
+      transition: 150ms ease;
+    }
+
+    .source-list a::after {
+      color: var(--vermilion);
+      content: "↗";
+    }
+
+    .source-list a:hover {
+      border-color: var(--gold);
+      color: var(--paper-bright);
+      transform: translateY(-2px);
+    }
+
+    .scope-strip {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      margin-top: 1rem;
+      padding: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .scope-column {
+      padding: 1.1rem;
+      background: var(--ink);
+    }
+
+    .scope-column h3 {
+      margin: 0;
+      font: 700 1.3rem/1 var(--display);
+      text-transform: uppercase;
+    }
+
+    .scope-column--in h3 {
+      color: var(--jade);
+    }
+
+    .scope-column--out h3 {
+      color: var(--danger);
+    }
+
+    .scope-column ul {
+      margin: 0.85rem 0 0;
+      padding-left: 1.2rem;
+      color: var(--paper-muted);
+      font-size: 0.91rem;
+    }
+
+    .scope-column li + li {
+      margin-top: 0.42rem;
+    }
+
+    .footer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: end;
+      margin-top: 7rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--line);
+      color: var(--paper-faint);
+    }
+
+    .footer__mark {
+      color: var(--paper-bright);
+      font: 700 1.8rem/1 var(--display);
+      text-transform: uppercase;
+    }
+
+    .footer p {
+      max-width: 46rem;
+      margin: 0.55rem 0 0;
+      font-size: 0.85rem;
+    }
+
+    .footer__stamp {
+      padding: 0.8rem 1rem;
+      border: 2px solid var(--vermilion-dark);
+      color: var(--vermilion);
+      font: 700 0.68rem/1.4 var(--mono);
+      letter-spacing: 0.12em;
+      text-align: center;
+      text-transform: uppercase;
+      transform: rotate(-3deg);
+    }
+
+    dialog {
+      width: min(calc(100% - 2rem), 31rem);
+      padding: 0;
+      border: 1px solid var(--line-strong);
+      color: var(--paper);
+      background: var(--ink-raised);
+      box-shadow: 0 32px 120px rgba(0, 0, 0, 0.72);
+    }
+
+    dialog::backdrop {
+      background: rgba(3, 4, 3, 0.8);
+      backdrop-filter: blur(8px);
+    }
+
+    .dialog__body {
+      padding: 1.4rem;
+    }
+
+    .dialog__kicker {
+      margin: 0;
+      color: var(--danger);
+      font: 700 0.64rem/1 var(--mono);
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    dialog h2 {
+      margin: 0.8rem 0 0;
+      color: var(--paper-bright);
+      font: 700 2rem/1 var(--display);
+      text-transform: uppercase;
+    }
+
+    dialog p {
+      color: var(--paper-muted);
+    }
+
+    .dialog__actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.6rem;
+      padding: 1rem 1.4rem;
+      border-top: 1px solid var(--line);
+    }
+
+    @keyframes rise-in {
+      from {
+        opacity: 0;
+        transform: translateY(22px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @keyframes tower-enter {
+      from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.96);
+      }
+    }
+
+    @keyframes draw-line {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    @media (max-width: 76rem) {
+      :root {
+        --rail: 17.5rem;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .architecture-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .architecture-layer:last-child {
+        grid-column: span 2;
+        min-height: 12rem;
+      }
+
+      .pipeline {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pipeline__step {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .pipeline__step:nth-child(2n) {
+        border-right: 0;
+      }
+
+      .pipeline__step:last-child {
+        grid-column: span 2;
+        min-height: 10rem;
+        border-bottom: 0;
+      }
+    }
+
+    @media (max-width: 62rem) {
+      .shell {
+        display: block;
+      }
+
+      .rail {
+        position: relative;
+        height: auto;
+        padding: 1rem;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand {
+        margin: 0;
+      }
+
+      .rail__meta,
+      .mission-progress,
+      .rail__title,
+      .toc,
+      .storage-status {
+        display: none;
+      }
+
+      .rail__actions {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        grid-template-columns: repeat(3, auto);
+        margin: 0;
+      }
+
+      .hero {
+        min-height: 39rem;
+      }
+
+      .hero__tower {
+        right: -1rem;
+        opacity: 0.36;
+      }
+
+      .section__head {
+        grid-template-columns: 1fr;
+      }
+
+      .decision-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .baseline {
+        grid-template-columns: 1fr;
+      }
+
+      .acceptance-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 44rem) {
+      body {
+        font-size: 16px;
+      }
+
+      .rail__actions {
+        position: static;
+        grid-template-columns: repeat(3, 1fr);
+        margin-top: 0.85rem;
+      }
+
+      .brand {
+        padding-right: 0;
+      }
+
+      .hero {
+        min-height: 35rem;
+      }
+
+      .hero h1 {
+        font-size: clamp(3.25rem, 18vw, 5rem);
+      }
+
+      .hero__tower {
+        top: 2rem;
+        width: 11rem;
+        height: 28rem;
+      }
+
+      .decision-grid,
+      .metric-grid,
+      .architecture-grid,
+      .code-grid,
+      .source-list,
+      .scope-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .architecture-layer:last-child {
+        grid-column: auto;
+      }
+
+      .health-list li {
+        grid-template-columns: 1fr auto;
+      }
+
+      .health-list li span:nth-child(2) {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+
+      .mapping-wrap,
+      .risk-wrap {
+        overflow-x: auto;
+      }
+
+      .mapping-table,
+      .risk-table {
+        min-width: 46rem;
+      }
+
+      .roadmap-toolbar {
+        position: relative;
+        top: auto;
+      }
+
+      .tower-roadmap {
+        padding-left: 2.2rem;
+      }
+
+      .tower-roadmap::before {
+        left: 0.35rem;
+      }
+
+      .phase::before {
+        left: -2.25rem;
+        width: 1.85rem;
+        box-shadow: 0 0 0 4px var(--void);
+      }
+
+      .phase-card > summary {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      .phase__meter-wrap {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+
+      .phase__intent,
+      .phase__exit {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+      }
+
+      .task {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .task__meta {
+        grid-column: 2;
+      }
+
+      .pipeline {
+        grid-template-columns: 1fr;
+      }
+
+      .pipeline__step,
+      .pipeline__step:nth-child(2n) {
+        border-right: 0;
+      }
+
+      .pipeline__step:last-child {
+        grid-column: auto;
+      }
+
+      .pipeline__step:not(:last-child)::after {
+        top: auto;
+        right: 1rem;
+        bottom: -0.65rem;
+        content: "⌄";
+      }
+
+      .footer {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+
+      .hero__tower-line {
+        stroke-dashoffset: 0;
+      }
+
+      .reveal {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @page {
+      size: A4;
+      margin: 14mm;
+    }
+
+    @media print {
+      :root {
+        --void: #fff;
+        --ink: #fff;
+        --ink-raised: #fff;
+        --paper: #171713;
+        --paper-bright: #080808;
+        --paper-muted: #33332e;
+        --paper-faint: #5f5d55;
+        --line: rgba(0, 0, 0, 0.2);
+        --line-strong: rgba(0, 0, 0, 0.38);
+        --shadow: none;
+      }
+
+      body {
+        min-width: 0;
+        background: #fff;
+        font-size: 10pt;
+      }
+
+      body::before,
+      .reading-progress,
+      .rail,
+      .roadmap-toolbar,
+      .skip-link,
+      dialog {
+        display: none !important;
+      }
+
+      .shell {
+        display: block;
+      }
+
+      .hero {
+        min-height: 0;
+        padding: 15mm 0 12mm;
+      }
+
+      .hero::before,
+      .hero::after,
+      .hero__tower {
+        display: none;
+      }
+
+      .hero h1 {
+        max-width: none;
+        font-size: 44pt;
+      }
+
+      .hero h1 em {
+        color: var(--vermilion);
+        -webkit-text-stroke: 0;
+      }
+
+      .content {
+        width: 100%;
+        padding: 0;
+      }
+
+      .section {
+        padding-top: 12mm;
+      }
+
+      .section__head {
+        grid-template-columns: 1fr;
+        margin-bottom: 6mm;
+      }
+
+      .section h2 {
+        font-size: 26pt;
+      }
+
+      .reveal {
+        opacity: 1;
+        transform: none;
+      }
+
+      .decision-grid,
+      .metric-grid,
+      .architecture-grid,
+      .acceptance-grid {
+        box-shadow: none;
+      }
+
+      .decision,
+      .metric,
+      .architecture-layer,
+      .panel,
+      .debt-card,
+      .acceptance-card,
+      .source-list a,
+      .scope-column {
+        background: #fff;
+      }
+
+      .decision-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .architecture-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .architecture-layer:last-child {
+        grid-column: span 2;
+      }
+
+      .tower-roadmap {
+        padding-left: 0;
+      }
+
+      .tower-roadmap::before,
+      .phase::before {
+        display: none;
+      }
+
+      .phase {
+        break-inside: avoid;
+        margin-bottom: 5mm;
+      }
+
+      .phase-card {
+        box-shadow: none;
+        background: #fff;
+      }
+
+      .phase-card > summary {
+        padding: 4mm;
+      }
+
+      .phase-card > summary::after {
+        display: none;
+      }
+
+      .phase__body {
+        padding: 0 4mm 4mm;
+      }
+
+      .task {
+        padding: 2.5mm 0;
+      }
+
+      .task[hidden] {
+        display: grid;
+      }
+
+      .pipeline {
+        grid-template-columns: repeat(5, 1fr);
+        box-shadow: none;
+        background: #fff;
+      }
+
+      .pipeline__step {
+        min-height: 0;
+        background: #fff;
+      }
+
+      .pipeline__step:last-child {
+        grid-column: auto;
+      }
+
+      .mapping-table,
+      .risk-table,
+      .code-card {
+        box-shadow: none;
+      }
+
+      .code-card,
+      pre {
+        color: #151515;
+        background: #fff;
+      }
+
+      a {
+        text-decoration: none;
+      }
+
+      .footer {
+        margin-top: 12mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  <div class="reading-progress" aria-hidden="true"></div>
+
+  <div class="shell">
+    <aside class="rail" aria-label="Navegación y controles del dossier">
+      <div class="brand">
+        <div class="brand__seal" aria-hidden="true">忍道</div>
+        <div>
+          <p class="brand__eyebrow">Expediente SW-U6</p>
+          <p class="brand__name">Operación Reforja</p>
+        </div>
+      </div>
+
+      <dl class="rail__meta">
+        <dt>Destino</dt><dd>Unity 6.3 LTS</dd>
+        <dt>Plataforma</dt><dd>PC · Windows</dd>
+        <dt>Estrategia</dt><dd>Paridad primero</dd>
+        <dt>Snapshot</dt><dd>12 · 08 · 2026</dd>
+        <dt>Oráculo</dt><dd>9b5a551e892d</dd>
+      </dl>
+
+      <div class="mission-progress" role="group" aria-label="Progreso total de la migración">
+        <div class="mission-progress__top">
+          <span class="mission-progress__label">Ascenso total</span>
+          <strong class="mission-progress__value" data-global-percent>0%</strong>
+        </div>
+        <div class="meter" aria-hidden="true">
+          <div class="meter__fill" data-global-meter></div>
+        </div>
+        <p class="mission-progress__count" data-global-count>0 de 0 tareas selladas</p>
+      </div>
+
+      <p class="rail__title">Mapa del expediente</p>
+      <nav aria-label="Secciones del documento">
+        <ol class="toc">
+          <li><a href="#mandato"><span>00</span> Mandato</a></li>
+          <li><a href="#snapshot"><span>01</span> Snapshot</a></li>
+          <li><a href="#arquitectura"><span>02</span> Arquitectura</a></li>
+          <li><a href="#interfaces"><span>03</span> Contratos</a></li>
+          <li><a href="#roadmap"><span>04</span> Ascenso</a></li>
+          <li><a href="#contenido-assets"><span>05</span> Contenido</a></li>
+          <li><a href="#riesgos"><span>06</span> Riesgos</a></li>
+          <li><a href="#aceptacion"><span>07</span> Aceptación</a></li>
+          <li><a href="#fuentes"><span>08</span> Fuentes</a></li>
+        </ol>
+      </nav>
+
+      <div class="rail__actions">
+        <button class="utility-button" type="button" data-expand>Expandir</button>
+        <button class="utility-button" type="button" data-print>Imprimir</button>
+        <button class="utility-button utility-button--danger" type="button" data-reset>Reiniciar</button>
+      </div>
+
+      <p class="storage-status" data-storage-status data-storage="local">
+        Progreso guardado en este navegador.
+      </p>
+    </aside>
+
+    <main class="main" id="contenido">
+      <header class="hero">
+        <svg class="hero__tower" viewBox="0 0 300 540" aria-hidden="true">
+          <defs>
+            <linearGradient id="tower-glow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#e65a3e"/>
+              <stop offset="0.55" stop-color="#d4ad62"/>
+              <stop offset="1" stop-color="#7fa68c"/>
+            </linearGradient>
+          </defs>
+          <g fill="none" stroke="url(#tower-glow)" stroke-width="1.4" opacity="0.85">
+            <path class="hero__tower-line" d="M150 18 108 70h84L150 18Zm-31 52-28 52h118l-28-52m-78 52-21 56h136l-21-56m-101 56-18 65h144l-18-65m-114 65-15 74h150l-15-74m-120 74-12 83h144l-12-83m-120 83-20 112h160l-20-112M58 493h184"/>
+            <path class="hero__tower-line" d="M108 70h84M91 122h118M82 178h136M78 243h144M75 317h150M78 400h144"/>
+          </g>
+          <g fill="#f1e7cf">
+            <circle cx="150" cy="18" r="4"/>
+            <circle cx="150" cy="96" r="3" opacity="0.8"/>
+            <circle cx="150" cy="150" r="3" opacity="0.7"/>
+            <circle cx="150" cy="211" r="3" opacity="0.6"/>
+            <circle cx="150" cy="280" r="3" opacity="0.5"/>
+            <circle cx="150" cy="357" r="3" opacity="0.4"/>
+            <circle cx="150" cy="447" r="3" opacity="0.3"/>
+          </g>
+        </svg>
+
+        <div class="hero__content">
+          <p class="hero__kicker">Documento de ejecución · Migración de motor</p>
+          <h1>La torre cambia <em>de cimiento.</em></h1>
+          <p class="hero__lead">
+            Una ruta verificable para trasladar Shinobi Way de React y TypeScript a Unity
+            sin perder combate, balance, contenido ni identidad visual.
+          </p>
+          <div class="hero__brief" role="group" aria-label="Decisiones principales">
+            <span class="brief-chip"><strong>6.3 LTS</strong> motor fijado</span>
+            <span class="brief-chip"><strong>PC</strong> primer objetivo</span>
+            <span class="brief-chip"><strong>unity/</strong> mismo repositorio</span>
+            <span class="brief-chip"><strong>0</strong> rediseños en v1</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="section reveal" id="mandato" aria-labelledby="mandato-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">00 · Decisiones canónicas</p>
+              <h2 id="mandato-title">Primero conservar. Después transformar.</h2>
+            </div>
+            <p class="section__lead">
+              La migración no es una reescritura creativa. Es una operación de paridad
+              con puertas de salida medibles y una sola fuente de verdad durante cada etapa.
+            </p>
+          </div>
+
+          <div class="decision-grid">
+            <article class="decision">
+              <span class="decision__number">Decisión 01</span>
+              <strong>Unity 6.3 LTS</strong>
+              <p>Versión fijada para producción; no se persigue cada Update durante el port.</p>
+            </article>
+            <article class="decision">
+              <span class="decision__number">Decisión 02</span>
+              <strong>Paridad funcional</strong>
+              <p>Fórmulas, contenido, probabilidades y flujo preceden cualquier mejora de UX.</p>
+            </article>
+            <article class="decision">
+              <span class="decision__number">Decisión 03</span>
+              <strong>Monorepo temporal</strong>
+              <p>El proyecto nace en <code>unity/</code>; la versión web sigue siendo el oráculo ejecutable.</p>
+            </article>
+            <article class="decision">
+              <span class="decision__number">Decisión 04</span>
+              <strong>Gemini fuera del runtime</strong>
+              <p>La IA queda como herramienta de autoría; el build solo consume assets aprobados.</p>
+            </article>
+          </div>
+
+          <aside class="callout" aria-label="Regla de corte de las fases">
+            <strong>Regla de corte</strong>
+            <p>
+              Una fase no termina cuando “se ve bien”, sino cuando su salida reproduce el mismo
+              resultado con los mismos datos y una semilla conocida. Las diferencias intencionales
+              requieren un registro de decisión antes de entrar en Unity.
+            </p>
+          </aside>
+
+          <div class="scope-strip">
+            <div class="scope-column scope-column--in">
+              <h3>Dentro de v1</h3>
+              <ul>
+                <li>Campaña completa y torre infinita.</li>
+                <li>Combate manual, IA enemiga, simulación y balance.</li>
+                <li>Exploración Region → Location → 10 Room.</li>
+                <li>Todos los jutsus, eventos, enemigos, objetos y assets aprobados.</li>
+                <li>Teclado y ratón en Windows.</li>
+              </ul>
+            </div>
+            <div class="scope-column scope-column--out">
+              <h3>Fuera de v1</h3>
+              <ul>
+                <li>Móvil, WebGL, consolas y soporte completo de gamepad.</li>
+                <li>Nuevas mecánicas, regiones o rediseño de progresión.</li>
+                <li>Multijugador, telemetría remota y servicios live.</li>
+                <li>Generación de imágenes o secretos de API dentro del cliente.</li>
+                <li>Guardado de run como nueva feature; solo paridad de metaprogreso.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="section reveal" id="snapshot" aria-labelledby="snapshot-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">01 · Línea de base medida</p>
+              <h2 id="snapshot-title">El sistema que realmente existe.</h2>
+            </div>
+            <p class="section__lead">
+              Snapshot extraído del commit <code>9b5a551e892d</code> el 12 de agosto de 2026.
+              Estas cifras son el punto de partida del manifiesto de paridad, no estimaciones comerciales.
+            </p>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric">
+              <strong class="metric__value">38</strong>
+              <span class="metric__label">Sistemas</span>
+              <p>Archivos de lógica principales en <code>src/game/systems/</code>.</p>
+            </article>
+            <article class="metric">
+              <strong class="metric__value">116</strong>
+              <span class="metric__label">Jutsus</span>
+              <p>Entradas autoradas y 116 referencias en el manifiesto visual.</p>
+            </article>
+            <article class="metric">
+              <strong class="metric__value">43</strong>
+              <span class="metric__label">Eventos</span>
+              <p>Eventos encadenables, elecciones, costes, resultados y flags.</p>
+            </article>
+            <article class="metric">
+              <strong class="metric__value">4</strong>
+              <span class="metric__label">Regiones</span>
+              <p>Campaña completa desde Land of Waves hasta Great Ninja War.</p>
+            </article>
+            <article class="metric">
+              <strong class="metric__value">955</strong>
+              <span class="metric__label">Assets públicos</span>
+              <p>785 PNG, 169 JPG y un documento dentro de <code>public/</code>.</p>
+            </article>
+            <article class="metric">
+              <strong class="metric__value">467</strong>
+              <span class="metric__label">Pruebas verdes</span>
+              <p>26 archivos Vitest ejecutados correctamente en el snapshot.</p>
+            </article>
+          </div>
+
+          <div class="baseline">
+            <article class="panel">
+              <div class="panel__head">
+                <span>Baseline verificable</span>
+                <span>12 · 08 · 2026</span>
+              </div>
+              <div class="panel__body">
+                <ul class="health-list">
+                  <li>
+                    <code>npx tsc --noEmit</code>
+                    <span>Tipos del proyecto web</span>
+                    <b class="status status--pass">Pasa</b>
+                  </li>
+                  <li>
+                    <code>npm test</code>
+                    <span>26 suites · 467 pruebas</span>
+                    <b class="status status--pass">Pasa</b>
+                  </li>
+                  <li>
+                    <code>npm run build</code>
+                    <span>Build Vite; aviso de chunk JS de 1,125.80 kB</span>
+                    <b class="status status--warn">Pasa con aviso</b>
+                  </li>
+                  <li>
+                    <code>npm run lint:css</code>
+                    <span>Dos selectores duplicados preexistentes</span>
+                    <b class="status status--fail">Falla</b>
+                  </li>
+                </ul>
+              </div>
+            </article>
+
+            <aside class="debt-card" aria-label="Deuda conocida del baseline">
+              <span class="debt-card__label">Deuda conocida · no atribuible al port</span>
+              <h3>Baseline no significa cero deuda.</h3>
+              <p>
+                El manifiesto debe congelar tanto lo correcto como los defectos conocidos para
+                evitar que Unity absorba regresiones silenciosas.
+              </p>
+              <ul>
+                <li><code>ApproachSelector.css:349</code> selector duplicado.</li>
+                <li><code>ApproachSelector.css:354</code> variante duplicada.</li>
+                <li><code>App.tsx</code> aún concentra estado y coordinación de escenas.</li>
+                <li>No existe persistencia completa de una run.</li>
+              </ul>
+            </aside>
+          </div>
+        </section>
+
+        <section class="section reveal" id="arquitectura" aria-labelledby="arquitectura-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">02 · Arquitectura destino</p>
+              <h2 id="arquitectura-title">Unity en el borde. El juego en el centro.</h2>
+            </div>
+            <p class="section__lead">
+              La lógica portada conserva la separación actual: matemáticas y reglas puras,
+              orquestación explícita, contenido inyectado y presentación reemplazable.
+            </p>
+          </div>
+
+          <div class="architecture-grid">
+            <article class="architecture-layer" data-mark="型">
+              <span class="architecture-layer__tag">Assembly 01</span>
+              <h3>ShinobiWay.Domain</h3>
+              <p>
+                Enums, DTOs, value objects y contratos. Cero referencias a
+                <code>UnityEngine</code>, UI, archivos o reloj del sistema.
+              </p>
+            </article>
+            <article class="architecture-layer" data-mark="術">
+              <span class="architecture-layer__tag">Assembly 02</span>
+              <h3>ShinobiWay.Gameplay</h3>
+              <p>
+                Fórmulas, combate, IA, deck, loot, eventos, exploración y progresión.
+                Funciones deterministas sobre Domain.
+              </p>
+            </article>
+            <article class="architecture-layer" data-mark="流">
+              <span class="architecture-layer__tag">Assembly 03</span>
+              <h3>ShinobiWay.Application</h3>
+              <p>
+                Máquina de estados, comandos de jugador, sesión, casos de uso y adaptadores
+                para contenido, guardado, RNG y logging.
+              </p>
+            </article>
+            <article class="architecture-layer" data-mark="画">
+              <span class="architecture-layer__tag">Assembly 04</span>
+              <h3>ShinobiWay.Presentation</h3>
+              <p>
+                UI Toolkit, presenters, Input System, cámara 2D, audio, VFX y carga de escenas.
+                Nunca contiene fórmulas de balance.
+              </p>
+            </article>
+            <article class="architecture-layer" data-mark="書">
+              <span class="architecture-layer__tag">Assembly 05</span>
+              <h3>ShinobiWay.Content.Editor</h3>
+              <p>
+                Importadores, validadores, generación de catálogos, Addressables y utilidades
+                de autoría. No entra en el player.
+              </p>
+            </article>
+          </div>
+
+          <p class="flow-rule">
+            <strong>Dirección permitida</strong>
+            <span>Presentation</span><span class="flow-arrow">→</span>
+            <span>Application</span><span class="flow-arrow">→</span>
+            <span>Gameplay</span><span class="flow-arrow">→</span>
+            <span>Domain</span>
+          </p>
+
+          <div class="mapping-wrap mapping-wrap--spaced">
+            <table class="mapping-table">
+              <thead>
+                <tr>
+                  <th>Origen web</th>
+                  <th>Destino Unity</th>
+                  <th>Regla de migración</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>src/game/types.ts</code></td>
+                  <td>Domain · enums y DTOs C#</td>
+                  <td>Conservar nombres, valores serializados e IDs; documentar cualquier valor legacy.</td>
+                </tr>
+                <tr>
+                  <td><code>src/game/systems/</code></td>
+                  <td>Gameplay · servicios puros</td>
+                  <td>Portar por dependencia, sin MonoBehaviour, coroutines, Time ni acceso a assets.</td>
+                </tr>
+                <tr>
+                  <td><code>App.tsx</code> + hooks</td>
+                  <td>Application · comandos y controladores</td>
+                  <td>Extraer coordinación; ninguna traducción uno-a-uno de hooks a componentes Unity.</td>
+                </tr>
+                <tr>
+                  <td><code>GameState</code> + scene registry</td>
+                  <td><code>GameFlowState</code> + router</td>
+                  <td>Una transición pasa por guardas tipadas y declara su payload requerido.</td>
+                </tr>
+                <tr>
+                  <td>React + CSS</td>
+                  <td>UXML + USS + presenters</td>
+                  <td>UI Toolkit para HUD, menús y overlays; sprites 2D para el escenario de combate.</td>
+                </tr>
+                <tr>
+                  <td>Constantes TypeScript</td>
+                  <td>JSON intermedio + ScriptableObjects</td>
+                  <td>Generación repetible, IDs estables y validación; nunca doble autoría manual.</td>
+                </tr>
+                <tr>
+                  <td><code>localStorage</code></td>
+                  <td><code>ISaveRepository</code> + JSON local</td>
+                  <td>En v1 persiste metaprogreso equivalente; no añade reanudación completa de run.</td>
+                </tr>
+                <tr>
+                  <td>Logs de UI y consola</td>
+                  <td>ShinobiWay.Diagnostics</td>
+                  <td>Sinks aislados; Domain y Gameplay emiten datos, no llaman a Debug.Log.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section reveal" id="interfaces" aria-labelledby="interfaces-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">03 · Superficie pública mínima</p>
+              <h2 id="interfaces-title">Contratos antes que componentes.</h2>
+            </div>
+            <p class="section__lead">
+              Estos contratos estabilizan el port. Las implementaciones Unity se conectan detrás
+              de ellos; las reglas pueden ejecutarse sin escena, frame loop ni AssetDatabase.
+            </p>
+          </div>
+
+          <div class="code-grid">
+            <article class="code-card">
+              <div class="code-card__label"><span>RNG determinista</span><span>Domain</span></div>
+              <pre><span class="code-keyword">public interface</span> <span class="code-type">IRandomSource</span>
+{
+    <span class="code-keyword">float</span> Next01();
+    <span class="code-keyword">int</span> RangeInclusive(<span class="code-keyword">int</span> min, <span class="code-keyword">int</span> max);
+}
+
+<span class="code-comment">// El adaptador de paridad replica mulberry32.</span>
+<span class="code-comment">// Toda tirada recibe o resuelve este contrato.</span></pre>
+            </article>
+
+            <article class="code-card">
+              <div class="code-card__label"><span>Contenido tipado</span><span>Application</span></div>
+              <pre><span class="code-keyword">public interface</span> <span class="code-type">IGameContentRepository</span>
+{
+    <span class="code-type">SkillDefinition</span> GetSkill(<span class="code-keyword">string</span> id);
+    <span class="code-type">EventDefinition</span> GetEvent(<span class="code-keyword">string</span> id);
+    <span class="code-type">RegionDefinition</span> GetRegion(<span class="code-keyword">string</span> id);
+    <span class="code-keyword">void</span> ValidateAll();
+}</pre>
+            </article>
+
+            <article class="code-card">
+              <div class="code-card__label"><span>Persistencia de paridad</span><span>Application</span></div>
+              <pre><span class="code-keyword">public interface</span> <span class="code-type">ISaveRepository</span>
+{
+    <span class="code-type">MetaSaveData</span> LoadMeta();
+    <span class="code-keyword">void</span> SaveMeta(<span class="code-type">MetaSaveData</span> data);
+    <span class="code-keyword">void</span> DeleteMeta();
+}
+
+[Serializable]
+<span class="code-keyword">public sealed class</span> <span class="code-type">MetaSaveData</span>
+{
+    <span class="code-keyword">public int</span> version = 1;
+    <span class="code-keyword">public bool</span> infiniteTowerUnlocked;
+}</pre>
+            </article>
+
+            <article class="code-card">
+              <div class="code-card__label"><span>Sesión y flujo</span><span>Application</span></div>
+              <pre>[Serializable]
+<span class="code-keyword">public sealed class</span> <span class="code-type">GameSessionData</span>
+{
+    <span class="code-keyword">public int</span> version = 1;
+    <span class="code-keyword">public</span> <span class="code-type">GameFlowState</span> state;
+    <span class="code-keyword">public</span> <span class="code-type">PlayerData</span> player;
+    <span class="code-keyword">public</span> <span class="code-type">RegionRunData</span> region;
+    <span class="code-keyword">public</span> <span class="code-type">FloorRunData</span> locationFloor;
+}
+
+<span class="code-comment">// Runtime versionado; no se guarda a disco en v1.</span></pre>
+            </article>
+          </div>
+
+          <aside class="callout" aria-label="Reglas de semántica numérica">
+            <strong>Semántica numérica obligatoria</strong>
+            <p>
+              C# debe reproducir los bordes de TypeScript: enteros inclusivos, orden de redondeo,
+              <code>floor</code>, clamps, comparación de probabilidades y overflow de 32 bits del RNG.
+              No se sustituye <code>float</code> por <code>int</code> ni se “limpia” una fórmula durante el port.
+            </p>
+          </aside>
+        </section>
+
+        <section class="section reveal" id="roadmap" aria-labelledby="roadmap-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">04 · Siete puertas de salida</p>
+              <h2 id="roadmap-title">El ascenso operativo.</h2>
+            </div>
+            <p class="section__lead">
+              Marca tareas conforme queden verificadas. El progreso se guarda únicamente en este
+              navegador y no modifica archivos del repositorio.
+            </p>
+          </div>
+
+          <div class="roadmap-toolbar" role="group" aria-label="Filtros del checklist">
+            <div class="filters" role="group" aria-label="Filtrar tareas">
+              <button class="filter-button" type="button" data-filter="all" aria-pressed="true">Todas</button>
+              <button class="filter-button" type="button" data-filter="pending" aria-pressed="false">Pendientes</button>
+              <button class="filter-button" type="button" data-filter="completed" aria-pressed="false">Completadas</button>
+              <button class="filter-button" type="button" data-filter="critical" aria-pressed="false">Críticas</button>
+            </div>
+            <p class="filter-summary" data-filter-summary aria-live="polite">Mostrando todas las tareas.</p>
+          </div>
+
+          <div class="tower-roadmap">
+            <section class="phase" id="phase-0" aria-labelledby="phase-0-title" data-floor="00" data-phase data-observe>
+              <details class="phase-card" open>
+                <summary>
+                  <span class="phase__heading">
+                    <span class="phase__eyebrow">Fase 0 · El juramento</span>
+                    <span class="phase__title" id="phase-0-title">Congelar el oráculo web</span>
+                  </span>
+                  <span class="phase__meter-wrap">
+                    <span class="phase__meter-label">
+                      <span>Progreso</span><span data-phase-count>0 / 0</span>
+                    </span>
+                    <span class="meter" aria-hidden="true"><span class="meter__fill" data-phase-meter></span></span>
+                  </span>
+                </summary>
+                <div class="phase__body">
+                  <p class="phase__intent">
+                    <strong>Intención</strong>
+                    <span>Convertir el comportamiento actual en una referencia reproducible antes de escribir C#.</span>
+                  </p>
+                  <ul class="task-list">
+                    <li class="task" data-critical="true">
+                      <input id="task-p0-01" type="checkbox" data-task-id="P0-01">
+                      <label for="task-p0-01">
+                        <strong>Crear el manifiesto de paridad versionado.</strong>
+                        <span>Registrar commit web, Unity 6.3 LTS, plataforma, comandos baseline, catálogo y decisiones canónicas.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P0-01</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p0-02" type="checkbox" data-task-id="P0-02">
+                      <label for="task-p0-02">
+                        <strong>Congelar fixtures deterministas de reglas.</strong>
+                        <span>Exportar entradas y resultados para stats, daño, estados, IA, deck, loot, eventos y generación de rooms usando semillas conocidas.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P0-02</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p0-03" type="checkbox" data-task-id="P0-03">
+                      <label for="task-p0-03">
+                        <strong>Inventariar IDs públicos y referencias cruzadas.</strong>
+                        <span>Skills, eventos, enemigos, regiones, rooms, items, arte y flags deben conservar identificadores estables.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P0-03</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p0-04" type="checkbox" data-task-id="P0-04">
+                      <label for="task-p0-04">
+                        <strong>Clasificar los 38 sistemas por orden de dependencia.</strong>
+                        <span>Domain/math primero; workflow, contenido y coordinación después; Presentation al final.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P0-04</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p0-05" type="checkbox" data-task-id="P0-05">
+                      <label for="task-p0-05">
+                        <strong>Registrar deuda y divergencias conocidas.</strong>
+                        <span>Incluir lint CSS, estado parcial de GameSession, aliases legacy y cualquier bug aceptado en el oráculo.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P0-05</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p0-06" type="checkbox" data-task-id="P0-06">
+                      <label for="task-p0-06">
+                        <strong>Separar secretos y generación Gemini del build.</strong>
+                        <span>Documentar el proceso de autoría offline y asegurar que ninguna clave o SDK web entra en Unity.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P0-06</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p0-07" type="checkbox" data-task-id="P0-07">
+                      <label for="task-p0-07">
+                        <strong>Definir el protocolo de comparación.</strong>
+                        <span>Mismo JSON de entrada + misma semilla → mismo estado final; tolerancia cero en enteros y tolerancia explícita en floats.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P0-07</span></span>
+                    </li>
+                  </ul>
+                  <p class="empty-filter">No hay tareas de esta fase para el filtro activo.</p>
+                  <p class="phase__exit">
+                    <strong>Puerta de salida</strong>
+                    <span>El baseline se reproduce desde un commit fijado y cada sistema crítico tiene al menos un fixture dorado.</span>
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            <section class="phase" id="phase-1" aria-labelledby="phase-1-title" data-floor="01" data-phase data-observe>
+              <details class="phase-card" open>
+                <summary>
+                  <span class="phase__heading">
+                    <span class="phase__eyebrow">Fase 1 · Los cimientos</span>
+                    <span class="phase__title" id="phase-1-title">Levantar el esqueleto Unity</span>
+                  </span>
+                  <span class="phase__meter-wrap">
+                    <span class="phase__meter-label">
+                      <span>Progreso</span><span data-phase-count>0 / 0</span>
+                    </span>
+                    <span class="meter" aria-hidden="true"><span class="meter__fill" data-phase-meter></span></span>
+                  </span>
+                </summary>
+                <div class="phase__body">
+                  <p class="phase__intent">
+                    <strong>Intención</strong>
+                    <span>Crear una base compilable, aislada y automatizable sin comenzar todavía el port de contenido.</span>
+                  </p>
+                  <ul class="task-list">
+                    <li class="task" data-critical="true">
+                      <input id="task-p1-01" type="checkbox" data-task-id="P1-01">
+                      <label for="task-p1-01">
+                        <strong>Crear <code>unity/</code> con Unity 6.3 LTS.</strong>
+                        <span>Plantilla 2D, build target Windows x86-64, proyecto fijado y sin paquetes preview.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P1-01</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p1-02" type="checkbox" data-task-id="P1-02">
+                      <label for="task-p1-02">
+                        <strong>Configurar Git para coexistencia.</strong>
+                        <span>Ignorar Library, Temp, Logs y builds; usar Git LFS para binarios grandes, conservando meta files visibles.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P1-02</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p1-03" type="checkbox" data-task-id="P1-03">
+                      <label for="task-p1-03">
+                        <strong>Crear los cinco assembly definitions.</strong>
+                        <span>Domain, Gameplay, Application, Presentation y Content.Editor con referencias unidireccionales.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P1-03</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p1-04" type="checkbox" data-task-id="P1-04">
+                      <label for="task-p1-04">
+                        <strong>Instalar solo paquetes aprobados.</strong>
+                        <span>Input System y Addressables; UI Toolkit integrado. Fijar versiones en <code>Packages/manifest.json</code>.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P1-04</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p1-05" type="checkbox" data-task-id="P1-05">
+                      <label for="task-p1-05">
+                        <strong>Crear Boot y Composition Root.</strong>
+                        <span>Una escena mínima registra repositorios, RNG, logger, flujo y presenta un diagnóstico sin singleton de dominio.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P1-05</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p1-06" type="checkbox" data-task-id="P1-06">
+                      <label for="task-p1-06">
+                        <strong>Aislar logging en ShinobiWay.Diagnostics.</strong>
+                        <span>Crear sinks para consola y archivo; Gameplay solo devuelve eventos o usa un contrato inyectado.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P1-06</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p1-07" type="checkbox" data-task-id="P1-07">
+                      <label for="task-p1-07">
+                        <strong>Automatizar compilación headless y build smoke.</strong>
+                        <span>El pipeline abre el proyecto en batchmode, compila assemblies y produce un player Windows vacío.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P1-07</span></span>
+                    </li>
+                  </ul>
+                  <p class="empty-filter">No hay tareas de esta fase para el filtro activo.</p>
+                  <p class="phase__exit">
+                    <strong>Puerta de salida</strong>
+                    <span>Unity compila en batchmode, genera un ejecutable Windows y bloquea referencias inválidas entre capas.</span>
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            <section class="phase" id="phase-2" aria-labelledby="phase-2-title" data-floor="02" data-phase data-observe>
+              <details class="phase-card" open>
+                <summary>
+                  <span class="phase__heading">
+                    <span class="phase__eyebrow">Fase 2 · El núcleo</span>
+                    <span class="phase__title" id="phase-2-title">Portar dominio determinista</span>
+                  </span>
+                  <span class="phase__meter-wrap">
+                    <span class="phase__meter-label">
+                      <span>Progreso</span><span data-phase-count>0 / 0</span>
+                    </span>
+                    <span class="meter" aria-hidden="true"><span class="meter__fill" data-phase-meter></span></span>
+                  </span>
+                </summary>
+                <div class="phase__body">
+                  <p class="phase__intent">
+                    <strong>Intención</strong>
+                    <span>Trasladar tipos, fórmulas y reglas puras con resultados comparables antes de crear la interfaz jugable.</span>
+                  </p>
+                  <ul class="task-list">
+                    <li class="task" data-critical="true">
+                      <input id="task-p2-01" type="checkbox" data-task-id="P2-01">
+                      <label for="task-p2-01">
+                        <strong>Portar enums y DTOs canónicos.</strong>
+                        <span>GameState, PrimaryStat, Clan, daño, elementos, rangos, posturas, items, eventos, región y rooms sin string literals.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P2-01</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p2-02" type="checkbox" data-task-id="P2-02">
+                      <label for="task-p2-02">
+                        <strong>Implementar <code>IRandomSource</code> y mulberry32 compatible.</strong>
+                        <span>Replicar overflow de 32 bits y secuencia [0,1); prohibir Random.Range dentro de Gameplay.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P2-02</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p2-03" type="checkbox" data-task-id="P2-03">
+                      <label for="task-p2-03">
+                        <strong>Portar StatSystem y fórmulas base.</strong>
+                        <span>Nueve stats, recursos derivados, defensa, impacto, crítico, AP, resistencias, gear y Constante César.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P2-03</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p2-04" type="checkbox" data-task-id="P2-04">
+                      <label for="task-p2-04">
+                        <strong>Portar CombatCalculationSystem sin UnityEngine.</strong>
+                        <span>Conservar orden de impacto, defensa, propiedades, efectos elementales, daño final y mutual KO.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P2-04</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p2-05" type="checkbox" data-task-id="P2-05">
+                      <label for="task-p2-05">
+                        <strong>Portar sistemas puros por grafo de dependencia.</strong>
+                        <span>Range, posture, heat, deck, skills, AI, turns, loot, inventory, events, location, campaign e infinite tower.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P2-05</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p2-06" type="checkbox" data-task-id="P2-06">
+                      <label for="task-p2-06">
+                        <strong>Crear GameSessionData y reducer/comandos inmutables.</strong>
+                        <span>Estado runtime versionado; cada comando devuelve un nuevo snapshot o un resultado explícito.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P2-06</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p2-07" type="checkbox" data-task-id="P2-07">
+                      <label for="task-p2-07">
+                        <strong>Ejecutar fixtures dorados TypeScript ↔ C#.</strong>
+                        <span>Comparar campos, orden de logs, tiradas y transiciones; toda divergencia queda explicada o corregida.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P2-07</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                  </ul>
+                  <p class="empty-filter">No hay tareas de esta fase para el filtro activo.</p>
+                  <p class="phase__exit">
+                    <strong>Puerta de salida</strong>
+                    <span>Los fixtures críticos producen estados finales equivalentes y Domain/Gameplay compilan sin UnityEngine.</span>
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            <section class="phase" id="phase-3" aria-labelledby="phase-3-title" data-floor="03" data-phase data-observe>
+              <details class="phase-card" open>
+                <summary>
+                  <span class="phase__heading">
+                    <span class="phase__eyebrow">Fase 3 · La primera batalla</span>
+                    <span class="phase__title" id="phase-3-title">Vertical slice de combate</span>
+                  </span>
+                  <span class="phase__meter-wrap">
+                    <span class="phase__meter-label">
+                      <span>Progreso</span><span data-phase-count>0 / 0</span>
+                    </span>
+                    <span class="meter" aria-hidden="true"><span class="meter__fill" data-phase-meter></span></span>
+                  </span>
+                </summary>
+                <div class="phase__body">
+                  <p class="phase__intent">
+                    <strong>Intención</strong>
+                    <span>Demostrar el ciclo más profundo del juego con una batalla completa antes de multiplicar escenas.</span>
+                  </p>
+                  <ul class="task-list">
+                    <li class="task" data-critical="true">
+                      <input id="task-p3-01" type="checkbox" data-task-id="P3-01">
+                      <label for="task-p3-01">
+                        <strong>Implementar el caso de referencia Uchiha vs Balanced.</strong>
+                        <span>Loadout inicial real, enemigo Land of Waves, semilla fijada y resolución manual de victoria/derrota.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P3-01</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p3-02" type="checkbox" data-task-id="P3-02">
+                      <label for="task-p3-02">
+                        <strong>Construir el escenario 2D de combate.</strong>
+                        <span>Fondos, cutouts, capas, cámara, floating text y CRT opcional sin mezclar cálculo y render.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P3-02</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p3-03" type="checkbox" data-task-id="P3-03">
+                      <label for="task-p3-03">
+                        <strong>Recrear HUD y mano con UI Toolkit.</strong>
+                        <span>Stats, AP, chakra, postura, distancia, telegraph enemigo, log, tooltips y cartas con UXML/USS.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P3-03</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p3-04" type="checkbox" data-task-id="P3-04">
+                      <label for="task-p3-04">
+                        <strong>Conectar Input System para teclado y ratón.</strong>
+                        <span>Acciones MoveRange, SelectCard1–4, Confirm, Cancel, Pass, ToggleBag y ToggleCharacter con bloqueo contextual.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P3-04</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p3-05" type="checkbox" data-task-id="P3-05">
+                      <label for="task-p3-05">
+                        <strong>Portar CombatWorkflowSystem y turnos completos.</strong>
+                        <span>Costes, mano, cooldowns, buffs, DoT, escudos, reacciones, enemy turn, upkeep y victoria.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P3-05</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p3-06" type="checkbox" data-task-id="P3-06">
+                      <label for="task-p3-06">
+                        <strong>Implementar approach y entrada a combate.</strong>
+                        <span>Probabilidad, costes, HEAT, postura/rango inicial y feedback de éxito o fallo.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P3-06</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p3-07" type="checkbox" data-task-id="P3-07">
+                      <label for="task-p3-07">
+                        <strong>Validar accesibilidad y doble activación.</strong>
+                        <span>Foco, contraste, navegación sin ratón y locks de comandos para impedir dobles clics o doble confirmación.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P3-07</span></span>
+                    </li>
+                  </ul>
+                  <p class="empty-filter">No hay tareas de esta fase para el filtro activo.</p>
+                  <p class="phase__exit">
+                    <strong>Puerta de salida</strong>
+                    <span>La batalla de referencia completa el mismo flujo y estado final que la versión web con la misma semilla.</span>
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            <section class="phase" id="phase-4" aria-labelledby="phase-4-title" data-floor="04" data-phase data-observe>
+              <details class="phase-card" open>
+                <summary>
+                  <span class="phase__heading">
+                    <span class="phase__eyebrow">Fase 4 · El camino</span>
+                    <span class="phase__title" id="phase-4-title">Exploración y campaña</span>
+                  </span>
+                  <span class="phase__meter-wrap">
+                    <span class="phase__meter-label">
+                      <span>Progreso</span><span data-phase-count>0 / 0</span>
+                    </span>
+                    <span class="meter" aria-hidden="true"><span class="meter__fill" data-phase-meter></span></span>
+                  </span>
+                </summary>
+                <div class="phase__body">
+                  <p class="phase__intent">
+                    <strong>Intención</strong>
+                    <span>Conectar la batalla con la macroestructura roguelike y todas las transiciones que sostienen una run.</span>
+                  </p>
+                  <ul class="task-list">
+                    <li class="task" data-critical="true">
+                      <input id="task-p4-01" type="checkbox" data-task-id="P4-01">
+                      <label for="task-p4-01">
+                        <strong>Implementar GameFlowState y router con guardas.</strong>
+                        <span>Mapear todos los GameState productivos, payloads requeridos y fallbacks sin condicionales dispersos.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P4-01</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p4-02" type="checkbox" data-task-id="P4-02">
+                      <label for="task-p4-02">
+                        <strong>Recrear Region → Location → Room.</strong>
+                        <span>Mapas, cartas de localización, diamante de 10 rooms, fog/intel, peligro, riqueza y rutas.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P4-02</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p4-03" type="checkbox" data-task-id="P4-03">
+                      <label for="task-p4-03">
+                        <strong>Conectar todas las actividades.</strong>
+                        <span>Combat, elite, event, merchant, training, rest, intel, scroll, treasure, loot y reward.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P4-03</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p4-04" type="checkbox" data-task-id="P4-04">
+                      <label for="task-p4-04">
+                        <strong>Portar inventario, equipo y síntesis.</strong>
+                        <span>Bag de 12 slots, drag/drop, equip, venta, upgrade, disassemble y pasivas sin mutación accidental.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P4-04</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p4-05" type="checkbox" data-task-id="P4-05">
+                      <label for="task-p4-05">
+                        <strong>Completar las cuatro regiones de campaña.</strong>
+                        <span>Bosses, interludes, boons, avance de dificultad y Victory con contenido equivalente.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P4-05</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p4-06" type="checkbox" data-task-id="P4-06">
+                      <label for="task-p4-06">
+                        <strong>Portar Infinite Tower y metaprogreso.</strong>
+                        <span>Desbloqueo, escalado, puntuación y <code>MetaSaveData</code> JSON con versión y escritura atómica.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P4-06</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p4-07" type="checkbox" data-task-id="P4-07">
+                      <label for="task-p4-07">
+                        <strong>Validar una run completa end-to-end.</strong>
+                        <span>Character select → campaña → cuatro regiones → Victory y desbloqueo infinito sin soft-lock.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P4-07</span></span>
+                    </li>
+                  </ul>
+                  <p class="empty-filter">No hay tareas de esta fase para el filtro activo.</p>
+                  <p class="phase__exit">
+                    <strong>Puerta de salida</strong>
+                    <span>Una campaña completa y una entrada a Infinite Tower funcionan sin saltos manuales ni estados huérfanos.</span>
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            <section class="phase" id="phase-5" aria-labelledby="phase-5-title" data-floor="05" data-phase data-observe>
+              <details class="phase-card" open>
+                <summary>
+                  <span class="phase__heading">
+                    <span class="phase__eyebrow">Fase 5 · El archivo vivo</span>
+                    <span class="phase__title" id="phase-5-title">Contenido y presentación</span>
+                  </span>
+                  <span class="phase__meter-wrap">
+                    <span class="phase__meter-label">
+                      <span>Progreso</span><span data-phase-count>0 / 0</span>
+                    </span>
+                    <span class="meter" aria-hidden="true"><span class="meter__fill" data-phase-meter></span></span>
+                  </span>
+                </summary>
+                <div class="phase__body">
+                  <p class="phase__intent">
+                    <strong>Intención</strong>
+                    <span>Migrar el catálogo completo y su identidad visual mediante una cadena repetible, validada y sin doble autoría.</span>
+                  </p>
+                  <ul class="task-list">
+                    <li class="task" data-critical="true">
+                      <input id="task-p5-01" type="checkbox" data-task-id="P5-01">
+                      <label for="task-p5-01">
+                        <strong>Crear exportador TypeScript → JSON normalizado.</strong>
+                        <span>Emitir catálogos por ID, enums canónicos y referencias; fallar ante funciones o datos no serializables.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P5-01</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p5-02" type="checkbox" data-task-id="P5-02">
+                      <label for="task-p5-02">
+                        <strong>Crear importador idempotente de ScriptableObjects.</strong>
+                        <span>Mismo JSON produce los mismos assets y GUIDs; actualizar no duplica ni rompe referencias.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P5-02</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p5-03" type="checkbox" data-task-id="P5-03">
+                      <label for="task-p5-03">
+                        <strong>Migrar 116 jutsus y 43 eventos.</strong>
+                        <span>Validar requisitos, efectos, cadenas, flags, arte, texto, tooltips y referencias inexistentes.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P5-03</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p5-04" type="checkbox" data-task-id="P5-04">
+                      <label for="task-p5-04">
+                        <strong>Migrar regiones, enemigos, items y configuraciones.</strong>
+                        <span>Conservar pools, bosses, loot themes, room types, danger scaling y feature flags productivos.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P5-04</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p5-05" type="checkbox" data-task-id="P5-05">
+                      <label for="task-p5-05">
+                        <strong>Importar 785 PNG y 169 JPG con presets.</strong>
+                        <span>Alpha verdadero para cutouts, sRGB, mipmaps según uso, compresión PC, pivots y pixels-per-unit documentados.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P5-05</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p5-06" type="checkbox" data-task-id="P5-06">
+                      <label for="task-p5-06">
+                        <strong>Organizar Addressables y atlas.</strong>
+                        <span>Grupos por región/escena, labels por categoría, dependencias auditadas y carga sin Resources.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P5-06</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p5-07" type="checkbox" data-task-id="P5-07">
+                      <label for="task-p5-07">
+                        <strong>Reproducir dirección visual y audio de feedback.</strong>
+                        <span>Pixel-arcade chrome, seinen sublime, estados hover/focus, transiciones, impactos y jerarquía sin depender del DOM.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P5-07</span></span>
+                    </li>
+                  </ul>
+                  <p class="empty-filter">No hay tareas de esta fase para el filtro activo.</p>
+                  <p class="phase__exit">
+                    <strong>Puerta de salida</strong>
+                    <span>Los catálogos pasan validación sin IDs rotos y cada escena carga únicamente sus grupos de assets.</span>
+                  </p>
+                </div>
+              </details>
+            </section>
+
+            <section class="phase" id="phase-6" aria-labelledby="phase-6-title" data-floor="06" data-phase data-observe>
+              <details class="phase-card" open>
+                <summary>
+                  <span class="phase__heading">
+                    <span class="phase__eyebrow">Fase 6 · El corte</span>
+                    <span class="phase__title" id="phase-6-title">Hardening y relevo final</span>
+                  </span>
+                  <span class="phase__meter-wrap">
+                    <span class="phase__meter-label">
+                      <span>Progreso</span><span data-phase-count>0 / 0</span>
+                    </span>
+                    <span class="meter" aria-hidden="true"><span class="meter__fill" data-phase-meter></span></span>
+                  </span>
+                </summary>
+                <div class="phase__body">
+                  <p class="phase__intent">
+                    <strong>Intención</strong>
+                    <span>Demostrar que Unity reemplaza al oráculo sin degradar reglas, estabilidad, rendimiento o operabilidad.</span>
+                  </p>
+                  <ul class="task-list">
+                    <li class="task" data-critical="true">
+                      <input id="task-p6-01" type="checkbox" data-task-id="P6-01">
+                      <label for="task-p6-01">
+                        <strong>Ejecutar matriz completa de paridad.</strong>
+                        <span>Fixtures, 26 suites equivalentes, casos de escenas y comparación de catálogos sin diferencias inexplicadas.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P6-01</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p6-02" type="checkbox" data-task-id="P6-02">
+                      <label for="task-p6-02">
+                        <strong>Portar simuladores y comparar distribución.</strong>
+                        <span>Win rate, TTK, damage/chakra efficiency y progresión dentro de las ventanas de VISION y del baseline.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P6-02</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p6-03" type="checkbox" data-task-id="P6-03">
+                      <label for="task-p6-03">
+                        <strong>Realizar soak y perfilado en hardware objetivo.</strong>
+                        <span>Runs largas, torre infinita, memoria estable, cero excepciones y 60 FPS a 1080p en el perfil acordado.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P6-03</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p6-04" type="checkbox" data-task-id="P6-04">
+                      <label for="task-p6-04">
+                        <strong>Validar persistencia y recuperación.</strong>
+                        <span>Guardado meta atómico, archivo corrupto aislado, migración por versión y reset accesible.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P6-04</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p6-05" type="checkbox" data-task-id="P6-05">
+                      <label for="task-p6-05">
+                        <strong>Completar QA de interfaz y accesibilidad.</strong>
+                        <span>1920×1080, 2560×1440 y 1280×720; escalado, foco, teclado, textos largos, contraste y reduced motion.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P6-05</span></span>
+                    </li>
+                    <li class="task">
+                      <input id="task-p6-06" type="checkbox" data-task-id="P6-06">
+                      <label for="task-p6-06">
+                        <strong>Generar release candidate reproducible.</strong>
+                        <span>Build Windows limpio desde CI, versionado, notas, licencias, hashes y smoke test en una máquina sin Editor.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P6-06</span></span>
+                    </li>
+                    <li class="task" data-critical="true">
+                      <input id="task-p6-07" type="checkbox" data-task-id="P6-07">
+                      <label for="task-p6-07">
+                        <strong>Ejecutar el protocolo de cutover.</strong>
+                        <span>Congelar contenido web, promover JSON como fuente canónica, archivar scripts de puente y documentar rollback.</span>
+                      </label>
+                      <span class="task__meta"><span class="task__id">P6-07</span><span class="critical-badge">Crítica</span></span>
+                    </li>
+                  </ul>
+                  <p class="empty-filter">No hay tareas de esta fase para el filtro activo.</p>
+                  <p class="phase__exit">
+                    <strong>Puerta de salida</strong>
+                    <span>El release candidate cumple paridad, rendimiento y estabilidad; el equipo ya no necesita ejecutar la web para producir contenido.</span>
+                  </p>
+                </div>
+              </details>
+            </section>
+          </div>
+        </section>
+
+        <section class="section reveal" id="contenido-assets" aria-labelledby="contenido-assets-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">05 · Cadena de contenido</p>
+              <h2 id="contenido-assets-title">Una sola verdad. Cinco estaciones.</h2>
+            </div>
+            <p class="section__lead">
+              Durante la coexistencia, TypeScript sigue siendo canónico. Unity nunca se autoriza
+              a mano en paralelo: recibe una exportación verificable hasta el corte final.
+            </p>
+          </div>
+
+          <div class="pipeline" role="group" aria-label="Pipeline de migración de contenido">
+            <article class="pipeline__step">
+              <b>01 · Autoría</b>
+              <strong>TypeScript</strong>
+              <p>Constantes actuales, IDs estables y manifests son la verdad mientras la web sea el oráculo.</p>
+            </article>
+            <article class="pipeline__step">
+              <b>02 · Normalización</b>
+              <strong>JSON generado</strong>
+              <p>Un script Node materializa datos puros, enumera referencias y rechaza contenido no serializable.</p>
+            </article>
+            <article class="pipeline__step">
+              <b>03 · Validación</b>
+              <strong>Schema + enlaces</strong>
+              <p>Se verifican duplicados, IDs ausentes, ciclos inválidos, rutas de arte y campos fuera de rango.</p>
+            </article>
+            <article class="pipeline__step">
+              <b>04 · Importación</b>
+              <strong>ScriptableObjects</strong>
+              <p>El importador actualiza assets idempotentes y conserva GUIDs para no romper escenas ni Addressables.</p>
+            </article>
+            <article class="pipeline__step">
+              <b>05 · Runtime</b>
+              <strong>Repositorio</strong>
+              <p><code>IGameContentRepository</code> sirve definiciones inmutables sin conocer AssetDatabase.</p>
+            </article>
+          </div>
+
+          <aside class="callout" aria-label="Cambio de autoridad del contenido">
+            <strong>Cambio de autoridad en el cutover</strong>
+            <p>
+              Cuando Unity apruebe la matriz completa, el JSON normalizado pasa a ser fuente canónica.
+              Las constantes web quedan congeladas; el exportador de transición se archiva después de
+              una release estable, no antes.
+            </p>
+          </aside>
+        </section>
+
+        <section class="section reveal" id="riesgos" aria-labelledby="riesgos-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">06 · Registro de amenaza</p>
+              <h2 id="riesgos-title">Lo que puede romper la paridad.</h2>
+            </div>
+            <p class="section__lead">
+              Los riesgos de mayor impacto se neutralizan con orden de trabajo y evidencia, no con
+              más abstracciones o una migración big bang.
+            </p>
+          </div>
+
+          <div class="risk-wrap">
+            <table class="risk-table">
+              <thead>
+                <tr>
+                  <th>Nivel</th>
+                  <th>Riesgo</th>
+                  <th>Señal temprana</th>
+                  <th>Mitigación obligatoria</th>
+                  <th>Propietario</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="risk-level risk-level--high">Alto</span></td>
+                  <td>Deriva numérica o RNG</td>
+                  <td>Misma semilla, distinto daño, hand o room graph.</td>
+                  <td>Mulberry32 compatible, fixtures dorados y comparación campo a campo desde Fase 2.</td>
+                  <td>Gameplay</td>
+                </tr>
+                <tr>
+                  <td><span class="risk-level risk-level--high">Alto</span></td>
+                  <td>Estado implícito de React</td>
+                  <td>Dobles recompensas, transición huérfana o payload nulo.</td>
+                  <td>Comandos atómicos, GameSession única, router con guardas y locks de intención.</td>
+                  <td>Application</td>
+                </tr>
+                <tr>
+                  <td><span class="risk-level risk-level--high">Alto</span></td>
+                  <td>Doble autoría de contenido</td>
+                  <td>Una skill difiere entre TS y ScriptableObject.</td>
+                  <td>Exportación unidireccional, importador idempotente y checksum de catálogos.</td>
+                  <td>Content</td>
+                </tr>
+                <tr>
+                  <td><span class="risk-level risk-level--high">Alto</span></td>
+                  <td>Port visual antes del dominio</td>
+                  <td>Escenas pulidas sobre reglas todavía cambiantes.</td>
+                  <td>Respetar puertas: dominio → combate vertical → macroflujo → catálogo completo.</td>
+                  <td>Lead</td>
+                </tr>
+                <tr>
+                  <td><span class="risk-level risk-level--medium">Medio</span></td>
+                  <td>Explosión de memoria de arte</td>
+                  <td>Todos los 955 assets cargados al boot o picos al cambiar región.</td>
+                  <td>Addressables, atlas por uso, presets de importación y profiling por escena.</td>
+                  <td>Presentation</td>
+                </tr>
+                <tr>
+                  <td><span class="risk-level risk-level--medium">Medio</span></td>
+                  <td>Referencias rotas por reimportación</td>
+                  <td>GUIDs cambiantes, assets duplicados o labels perdidas.</td>
+                  <td>IDs como claves, mapas ID→GUID persistentes e importación con dry-run.</td>
+                  <td>Content</td>
+                </tr>
+                <tr>
+                  <td><span class="risk-level risk-level--medium">Medio</span></td>
+                  <td>Sobrealcance de plataforma</td>
+                  <td>Trabajo en touch/gamepad/WebGL bloquea la vertical slice.</td>
+                  <td>Perfil PC explícito; acciones abstractas sin certificar targets fuera de v1.</td>
+                  <td>Product</td>
+                </tr>
+                <tr>
+                  <td><span class="risk-level risk-level--low">Bajo</span></td>
+                  <td>Gemini expuesto en cliente</td>
+                  <td>SDK o API key aparecen en assemblies runtime.</td>
+                  <td>Pipeline offline separado y regla CI que rechaza secretos/SDK en el player.</td>
+                  <td>Tooling</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section reveal" id="aceptacion" aria-labelledby="aceptacion-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">07 · Definición de final</p>
+              <h2 id="aceptacion-title">Cómo se demuestra el relevo.</h2>
+            </div>
+            <p class="section__lead">
+              El corte solo es válido cuando reglas, contenido, recorrido y build se sostienen
+              juntos. Ninguna captura bonita sustituye estas evidencias.
+            </p>
+          </div>
+
+          <div class="acceptance-grid">
+            <article class="acceptance-card">
+              <span class="acceptance-card__index">Evidencia A</span>
+              <h3>Paridad de reglas</h3>
+              <ul>
+                <li>Fixtures críticos equivalentes con semillas fijadas.</li>
+                <li>Sin diferencias no registradas en fórmulas o probabilidades.</li>
+                <li>Simulación dentro de win rate 45–65% y TTK 4–12 cuando aplique.</li>
+                <li>Cero llamadas Unity desde Domain o Gameplay.</li>
+              </ul>
+            </article>
+            <article class="acceptance-card">
+              <span class="acceptance-card__index">Evidencia B</span>
+              <h3>Paridad de producto</h3>
+              <ul>
+                <li>116 jutsus, 43 eventos y 4 regiones validados.</li>
+                <li>Campaña y Infinite Tower completables.</li>
+                <li>Todas las actividades y estados alcanzables sin soft-lock.</li>
+                <li>Feedback visual conserva legibilidad y dirección artística.</li>
+              </ul>
+            </article>
+            <article class="acceptance-card">
+              <span class="acceptance-card__index">Evidencia C</span>
+              <h3>Preparación de release</h3>
+              <ul>
+                <li>Build Windows reproducible desde una máquina limpia.</li>
+                <li>60 FPS a 1080p y memoria estable en hardware objetivo.</li>
+                <li>Sin excepciones en soak de campaña y torre.</li>
+                <li>Rollback, licencias, versión y fuente canónica documentados.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="section reveal" id="fuentes" aria-labelledby="fuentes-title" data-observe>
+          <div class="section__head">
+            <div>
+              <p class="section__kicker">08 · Fuentes del expediente</p>
+              <h2 id="fuentes-title">Repo primero. Manual oficial después.</h2>
+            </div>
+            <p class="section__lead">
+              Las fuentes locales describen el juego vivo. La documentación oficial respalda
+              únicamente las decisiones de motor, UI, input, assemblies y contenido.
+            </p>
+          </div>
+
+          <ul class="source-list">
+            <li><a href="../src/game/types.ts">Tipos y estados canónicos del juego</a></li>
+            <li><a href="../src/game/systems/">Sistemas puros de gameplay</a></li>
+            <li><a href="FORMULAS.md">Fórmulas vigentes de stats y combate</a></li>
+            <li><a href="../loop/VISION.md">Pilares de producto y ventanas de balance</a></li>
+            <li><a href="https://unity.com/releases/unity-6/support" rel="noreferrer">Unity 6 releases &amp; support</a></li>
+            <li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/UIElements.html" rel="noreferrer">Manual oficial de UI Toolkit</a></li>
+            <li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/com.unity.inputsystem.html" rel="noreferrer">Manual oficial de Input System</a></li>
+            <li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/assembly-definition-files.html" rel="noreferrer">Assembly Definition Files</a></li>
+          </ul>
+        </section>
+
+        <footer class="footer">
+          <div>
+            <div class="footer__mark">Shinobi Way · Operación Reforja</div>
+            <p>
+              Documento operativo v1. El checklist es local al navegador. Una tarea marcada
+              representa evidencia revisada, no una estimación de esfuerzo.
+            </p>
+          </div>
+          <div class="footer__stamp">Paridad<br>antes del corte</div>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <dialog data-reset-dialog aria-labelledby="reset-title">
+    <div class="dialog__body">
+      <p class="dialog__kicker">Acción irreversible en este navegador</p>
+      <h2 id="reset-title">¿Reiniciar el ascenso?</h2>
+      <p>
+        Se desmarcarán todas las tareas guardadas en este navegador. El archivo HTML y el
+        repositorio no se modificarán.
+      </p>
+    </div>
+    <div class="dialog__actions">
+      <button class="utility-button" type="button" data-reset-cancel>Cancelar</button>
+      <button class="utility-button utility-button--danger" type="button" data-reset-confirm>Reiniciar</button>
+    </div>
+  </dialog>
+
+  <div class="skip-link" role="status" aria-live="polite" aria-atomic="true" data-live-status></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var STORAGE_KEY = "shinobi-way.unity-roadmap.v1";
+      var STORAGE_VERSION = 1;
+      var taskInputs = Array.prototype.slice.call(document.querySelectorAll("[data-task-id]"));
+      var phases = Array.prototype.slice.call(document.querySelectorAll("[data-phase]"));
+      var filterButtons = Array.prototype.slice.call(document.querySelectorAll("[data-filter]"));
+      var filterSummary = document.querySelector("[data-filter-summary]");
+      var liveStatus = document.querySelector("[data-live-status]");
+      var storageStatus = document.querySelector("[data-storage-status]");
+      var currentFilter = "all";
+      var memoryState = createEmptyState();
+      var hasLocalStorage = storageIsAvailable();
+      var printOpenState = [];
+
+      function createEmptyState() {
+        return {
+          version: STORAGE_VERSION,
+          completedTaskIds: [],
+          updatedAt: null
+        };
+      }
+
+      function storageIsAvailable() {
+        try {
+          var probe = "__sw_unity_roadmap_probe__";
+          window.localStorage.setItem(probe, "1");
+          window.localStorage.removeItem(probe);
+          return true;
+        } catch (error) {
+          return false;
+        }
+      }
+
+      function sanitizeState(candidate) {
+        if (!candidate || candidate.version !== STORAGE_VERSION || !Array.isArray(candidate.completedTaskIds)) {
+          return createEmptyState();
+        }
+
+        var validIds = taskInputs.map(function (input) {
+          return input.getAttribute("data-task-id");
+        });
+        var unique = [];
+
+        candidate.completedTaskIds.forEach(function (id) {
+          if (typeof id === "string" && validIds.indexOf(id) !== -1 && unique.indexOf(id) === -1) {
+            unique.push(id);
+          }
+        });
+
+        return {
+          version: STORAGE_VERSION,
+          completedTaskIds: unique,
+          updatedAt: typeof candidate.updatedAt === "string" ? candidate.updatedAt : null
+        };
+      }
+
+      function loadState() {
+        if (!hasLocalStorage) {
+          storageStatus.setAttribute("data-storage", "memory");
+          storageStatus.textContent = "Almacenamiento bloqueado: progreso temporal en memoria.";
+          return memoryState;
+        }
+
+        try {
+          var raw = window.localStorage.getItem(STORAGE_KEY);
+          if (!raw) {
+            return createEmptyState();
+          }
+          return sanitizeState(JSON.parse(raw));
+        } catch (error) {
+          storageStatus.setAttribute("data-storage", "memory");
+          storageStatus.textContent = "Datos previos inválidos: se cargó un progreso limpio.";
+          return createEmptyState();
+        }
+      }
+
+      function saveState() {
+        var completed = taskInputs.filter(function (input) {
+          return input.checked;
+        }).map(function (input) {
+          return input.getAttribute("data-task-id");
+        });
+
+        var state = {
+          version: STORAGE_VERSION,
+          completedTaskIds: completed,
+          updatedAt: new Date().toISOString()
+        };
+
+        memoryState = state;
+        if (hasLocalStorage) {
+          try {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            storageStatus.setAttribute("data-storage", "local");
+            storageStatus.textContent = "Progreso guardado en este navegador.";
+          } catch (error) {
+            hasLocalStorage = false;
+            storageStatus.setAttribute("data-storage", "memory");
+            storageStatus.textContent = "No se pudo guardar: progreso temporal en memoria.";
+          }
+        }
+      }
+
+      function applyState(state) {
+        taskInputs.forEach(function (input) {
+          input.checked = state.completedTaskIds.indexOf(input.getAttribute("data-task-id")) !== -1;
+        });
+        updateProgress();
+        applyFilter();
+      }
+
+      function percentage(done, total) {
+        return total === 0 ? 0 : Math.round((done / total) * 100);
+      }
+
+      function updateProgress() {
+        var completed = taskInputs.filter(function (input) {
+          return input.checked;
+        }).length;
+        var total = taskInputs.length;
+        var globalPercent = percentage(completed, total);
+
+        document.querySelector("[data-global-percent]").textContent = globalPercent + "%";
+        document.querySelector("[data-global-meter]").style.width = globalPercent + "%";
+        document.querySelector("[data-global-count]").textContent =
+          completed + " de " + total + " tareas selladas";
+
+        phases.forEach(function (phase) {
+          var inputs = Array.prototype.slice.call(phase.querySelectorAll("[data-task-id]"));
+          var done = inputs.filter(function (input) { return input.checked; }).length;
+          var phasePercent = percentage(done, inputs.length);
+          phase.querySelector("[data-phase-count]").textContent = done + " / " + inputs.length;
+          phase.querySelector("[data-phase-meter]").style.width = phasePercent + "%";
+          phase.setAttribute("data-complete", done === inputs.length && inputs.length > 0 ? "true" : "false");
+        });
+      }
+
+      function taskMatchesFilter(task) {
+        var input = task.querySelector("[data-task-id]");
+        if (currentFilter === "pending") {
+          return !input.checked;
+        }
+        if (currentFilter === "completed") {
+          return input.checked;
+        }
+        if (currentFilter === "critical") {
+          return task.getAttribute("data-critical") === "true";
+        }
+        return true;
+      }
+
+      function applyFilter() {
+        var visibleCount = 0;
+
+        phases.forEach(function (phase) {
+          var tasks = Array.prototype.slice.call(phase.querySelectorAll(".task"));
+          var phaseVisible = 0;
+
+          tasks.forEach(function (task) {
+            var visible = taskMatchesFilter(task);
+            task.hidden = !visible;
+            if (visible) {
+              visibleCount += 1;
+              phaseVisible += 1;
+            }
+          });
+
+          phase.setAttribute("data-filter-empty", phaseVisible === 0 ? "true" : "false");
+        });
+
+        var labels = {
+          all: "todas",
+          pending: "pendientes",
+          completed: "completadas",
+          critical: "críticas"
+        };
+        filterSummary.textContent =
+          "Mostrando " + visibleCount + " tareas " + labels[currentFilter] + ".";
+      }
+
+      taskInputs.forEach(function (input) {
+        input.addEventListener("change", function () {
+          saveState();
+          updateProgress();
+          applyFilter();
+          liveStatus.textContent =
+            (input.checked ? "Tarea completada: " : "Tarea reabierta: ") +
+            input.getAttribute("data-task-id");
+        });
+      });
+
+      filterButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          currentFilter = button.getAttribute("data-filter");
+          filterButtons.forEach(function (candidate) {
+            candidate.setAttribute(
+              "aria-pressed",
+              candidate === button ? "true" : "false"
+            );
+          });
+          applyFilter();
+        });
+      });
+
+      var expandButton = document.querySelector("[data-expand]");
+      expandButton.addEventListener("click", function () {
+        var details = Array.prototype.slice.call(document.querySelectorAll(".phase-card"));
+        var shouldOpen = details.some(function (item) { return !item.open; });
+        details.forEach(function (item) { item.open = shouldOpen; });
+        expandButton.textContent = shouldOpen ? "Contraer" : "Expandir";
+        expandButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      });
+
+      document.querySelector("[data-print]").addEventListener("click", function () {
+        window.print();
+      });
+
+      var resetDialog = document.querySelector("[data-reset-dialog]");
+      document.querySelector("[data-reset]").addEventListener("click", function () {
+        if (typeof resetDialog.showModal === "function") {
+          resetDialog.showModal();
+        } else if (window.confirm("¿Reiniciar todo el progreso guardado?")) {
+          resetProgress();
+        }
+      });
+
+      document.querySelector("[data-reset-cancel]").addEventListener("click", function () {
+        resetDialog.close();
+      });
+
+      document.querySelector("[data-reset-confirm]").addEventListener("click", function () {
+        resetProgress();
+        resetDialog.close();
+      });
+
+      function resetProgress() {
+        taskInputs.forEach(function (input) {
+          input.checked = false;
+        });
+        memoryState = createEmptyState();
+        if (hasLocalStorage) {
+          try {
+            window.localStorage.removeItem(STORAGE_KEY);
+          } catch (error) {
+            hasLocalStorage = false;
+          }
+        }
+        updateProgress();
+        applyFilter();
+        liveStatus.textContent = "Progreso reiniciado.";
+      }
+
+      var readingProgress = document.querySelector(".reading-progress");
+      function updateReadingProgress() {
+        var scrollTop = window.scrollY || document.documentElement.scrollTop;
+        var scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        var value = scrollable > 0 ? Math.min(100, Math.max(0, (scrollTop / scrollable) * 100)) : 0;
+        readingProgress.style.width = value + "%";
+      }
+      window.addEventListener("scroll", updateReadingProgress, { passive: true });
+      updateReadingProgress();
+
+      var observedSections = Array.prototype.slice.call(document.querySelectorAll("[data-observe]"));
+      var tocLinks = Array.prototype.slice.call(document.querySelectorAll(".toc a"));
+      if ("IntersectionObserver" in window) {
+        var revealObserver = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("is-visible");
+            }
+          });
+        }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+
+        observedSections.forEach(function (section) {
+          revealObserver.observe(section);
+        });
+
+        var navTargets = Array.prototype.slice.call(document.querySelectorAll(
+          "#mandato, #snapshot, #arquitectura, #interfaces, #roadmap, #contenido-assets, #riesgos, #aceptacion, #fuentes"
+        ));
+        var navObserver = new IntersectionObserver(function (entries) {
+          var visible = entries.filter(function (entry) { return entry.isIntersecting; });
+          if (visible.length === 0) {
+            return;
+          }
+          visible.sort(function (a, b) {
+            return b.intersectionRatio - a.intersectionRatio;
+          });
+          var activeId = visible[0].target.id;
+          tocLinks.forEach(function (link) {
+            link.setAttribute(
+              "aria-current",
+              link.getAttribute("href") === "#" + activeId ? "true" : "false"
+            );
+          });
+        }, { rootMargin: "-15% 0px -65% 0px", threshold: [0, 0.1, 0.35] });
+
+        navTargets.forEach(function (section) {
+          navObserver.observe(section);
+        });
+      } else {
+        observedSections.forEach(function (section) {
+          section.classList.add("is-visible");
+        });
+      }
+
+      window.addEventListener("beforeprint", function () {
+        var details = Array.prototype.slice.call(document.querySelectorAll(".phase-card"));
+        printOpenState = details.map(function (item) { return item.open; });
+        details.forEach(function (item) { item.open = true; });
+      });
+
+      window.addEventListener("afterprint", function () {
+        var details = Array.prototype.slice.call(document.querySelectorAll(".phase-card"));
+        details.forEach(function (item, index) {
+          item.open = printOpenState[index] !== false;
+        });
+      });
+
+      applyState(loadState());
+    }());
+  </script>
+</body>
+</html>

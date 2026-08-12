@@ -1,6 +1,15 @@
 /**
  * Random Number Generator Utility
  * Centralizes all randomness for deterministic testing support
+ *
+ * ## Migration direction (P2 determinism)
+ * Prefer this module over bare `Math.random`:
+ * - Pure systems: accept optional `rng?: RandomGenerator` (or `() => number`) and
+ *   default to `getGlobalRng()` so callers/tests can inject a seed.
+ * - Simulation CLI already installs a seed via `setGlobalRng` + Math.random override
+ *   (`src/simulation/seededRandom.ts`); new code should read `getGlobalRng()` /
+ *   `random()` / `pick()` rather than adding more Math.random call sites.
+ * - Do not big-bang rewrite every Math.random site; migrate critical paths as touched.
  */
 
 /**

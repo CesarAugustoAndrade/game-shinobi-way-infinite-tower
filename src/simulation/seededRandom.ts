@@ -11,14 +11,31 @@
  * With a fixed seed two runs produce byte-identical metrics, while the N
  * battles within a single run still vary as the generator advances - exactly
  * what reliable balance tuning needs.
+ *
+ * ## Dual install (backward compat + project RNG)
+ * `installSeededRandom` still overrides `Math.random` for legacy call sites, and
+ * also calls `setGlobalRng(createSeededRng(seed))` so systems that use
+ * `getGlobalRng()` / `random()` / `pick()` from `src/game/utils/rng` share the
+ * **same** seeded stream. Prefer migrating new code to the project RNG module;
+ * keep Math.random only until a call site is touched.
  */
+
+import {
+  createSeededRng,
+  resetGlobalRng,
+  setGlobalRng,
+} from '../game/utils/rng';
 
 /** Default seed so simulation runs are reproducible unless `--seed` overrides it. */
 export const DEFAULT_SEED = 12345;
 
+/** Native Math.random captured at module load (before any install). */
+const nativeMathRandom: () => number = Math.random.bind(Math);
+
 /**
  * mulberry32: a tiny, fast, well-distributed 32-bit PRNG.
  * Returns a generator producing floats in [0, 1), deterministic per seed.
+ * Kept for direct tests / callers that want a standalone stream without installing globals.
  */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -32,14 +49,29 @@ export function mulberry32(seed: number): () => number {
 }
 
 /**
- * Replace the global `Math.random` with a seeded generator for this process.
+ * Replace the global `Math.random` with a seeded generator for this process,
+ * and install the same stream as the project global RNG (`setGlobalRng`).
+ *
  * Every subsequent `Math.random` call - including those inside the frozen game
- * math imported by the simulator - becomes deterministic.
+ * math imported by the simulator - becomes deterministic. Code that uses
+ * `getGlobalRng()` advances the same sequence (not a second independent seed).
  *
  * Returns the generator now backing `Math.random` (useful for tests).
  */
 export function installSeededRandom(seed: number): () => number {
-  const rng = mulberry32(seed);
+  // Single stream shared by Math.random and getGlobalRng() (mulberry32 via createSeededRng).
+  const seeded = createSeededRng(seed);
+  const rng = (): number => seeded.random();
   Math.random = rng;
+  setGlobalRng(seeded);
   return rng;
+}
+
+/**
+ * Restore native `Math.random` and reset the project global RNG to `defaultRng`.
+ * Use in tests / after a simulation batch that called `installSeededRandom`.
+ */
+export function uninstallSeededRandom(): void {
+  Math.random = nativeMathRandom;
+  resetGlobalRng();
 }

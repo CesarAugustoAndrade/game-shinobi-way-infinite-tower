@@ -105,6 +105,7 @@ import { calculateXP, calculateRyo } from './ScalingSystem';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
 import { generateHunterFromGuardian } from './FloorVisitSystem';
 import { moveToRoom as moveToRoomGraph, isFloorComplete } from './RoomGraphSystem';
+import { getGlobalRng } from '../utils/rng';
 
 // Re-export scaling functions for backward compatibility
 export { dangerToFloor, getWealthMultiplier, applyWealthToRyo } from './ScalingSystem';
@@ -113,12 +114,16 @@ export { dangerToFloor, getWealthMultiplier, applyWealthToRyo } from './ScalingS
 export { getRequiredMapPieces, initializeTreasureHunt, addMapPiece, getTreasureHuntReward } from './TreasureHuntSystem';
 export { applyFloorHeatDelta, armHunterOnFloor, generateHunterFromGuardian } from './FloorVisitSystem';
 
+/** Default floor-gen stream: project global RNG (seeded by sim / tests via setGlobalRng). */
+const defaultFloorRng = (): number => getGlobalRng().random();
+
 // ============================================================================
 // ID GENERATION
 // ============================================================================
 
-const generateId = (): string => {
-  return `room-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+/** Room id entropy; pass `rng` for deterministic floor generation / tests. */
+const generateId = (rng: () => number = defaultFloorRng): string => {
+  return `room-${Date.now()}-${rng().toString(36).substring(2, 9)}`;
 };
 
 // ============================================================================
@@ -129,8 +134,11 @@ const generateId = (): string => {
  * Maybe upgrade treasure quality with 50% chance.
  * BROKEN → COMMON → RARE (caps at RARE).
  */
-function maybeUpgradeQuality(baseQuality: TreasureQuality): TreasureQuality {
-  if (Math.random() >= 0.5) return baseQuality;
+function maybeUpgradeQuality(
+  baseQuality: TreasureQuality,
+  rng: () => number = defaultFloorRng,
+): TreasureQuality {
+  if (rng() >= 0.5) return baseQuality;
   if (baseQuality === TreasureQuality.BROKEN) return TreasureQuality.COMMON;
   if (baseQuality === TreasureQuality.COMMON) return TreasureQuality.RARE;
   return baseQuality; // Already RARE, no upgrade
@@ -143,14 +151,19 @@ function maybeUpgradeQuality(baseQuality: TreasureQuality): TreasureQuality {
 /**
  * Select activity count (1, 2, or 3) based on weighted probabilities.
  * Returns 0 for START rooms (no activities).
+ * @param rng - Optional [0,1) source for deterministic generation
  */
-function selectActivityCount(weights: ActivityCountWeights, isStartRoom: boolean): number {
+function selectActivityCount(
+  weights: ActivityCountWeights,
+  isStartRoom: boolean,
+  rng: () => number = defaultFloorRng,
+): number {
   if (isStartRoom) return 0;
 
   const totalWeight = weights.one + weights.two + weights.three;
   if (totalWeight === 0) return 1; // Fallback to 1 activity
 
-  const roll = Math.random() * totalWeight;
+  const roll = rng() * totalWeight;
 
   if (roll < weights.one) return 1;
   if (roll < weights.one + weights.two) return 2;
@@ -173,16 +186,18 @@ function buildActivityPool(
  * Select an activity from weighted pool using weighted random selection.
  * Each activity's weight represents relative probability.
  * Returns null if pool is empty.
+ * @param rng - Optional [0,1) source for deterministic generation
  */
 function selectWeightedActivity(
-  pool: { activity: keyof RoomActivities; weight: number }[]
+  pool: { activity: keyof RoomActivities; weight: number }[],
+  rng: () => number = defaultFloorRng,
 ): keyof RoomActivities | null {
   if (pool.length === 0) return null;
 
   const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
   if (totalWeight === 0) return null;
 
-  let roll = Math.random() * totalWeight;
+  let roll = rng() * totalWeight;
 
   for (const item of pool) {
     roll -= item.weight;
@@ -278,6 +293,7 @@ function getStoryArc(floor: number): { name: string; label: string; biome: strin
 
 /**
  * Create a single branching room with activities based on type
+ * @param rng - Optional [0,1) source threaded from floor generation for determinism
  */
 function createRoom(
   tier: RoomTier,
@@ -302,19 +318,20 @@ function createRoom(
   wealthLevel: number = 4,
   treasureHunt?: import('../types').TreasureHunt | null,
   clanRiteUsed?: boolean,
+  rng: () => number = defaultFloorRng,
 ): BranchingRoom {
   // Select room type
-  const type = forceType ?? selectRandomRoomType(tier);
+  const type = forceType ?? selectRandomRoomType(tier, [], rng);
   const config = getRoomTypeConfig(type);
 
   // Generate room name and description
-  const name = getRandomRoomName(type, arc);
-  const description = getRandomRoomDescription(type);
-  const terrain = getRandomTerrain(type);
+  const name = getRandomRoomName(type, arc, rng);
+  const description = getRandomRoomDescription(type, rng);
+  const terrain = getRandomTerrain(type, rng);
 
   // Create the room
   const room: BranchingRoom = {
-    id: generateId(),
+    id: generateId(rng),
     tier,
     position,
     parentId,
@@ -345,7 +362,7 @@ function createRoom(
     room, config, floor, difficulty, arc, player, wealthLevel,
     treasureHunt ?? null,
     preferredEventIds, enemyPool, lootTable, ambushChanceBonus, preferredElement, lootTheme,
-    dangerLevel, clanRiteUsed,
+    dangerLevel, clanRiteUsed, rng,
   );
 
   return room;
@@ -394,13 +411,14 @@ function generateCombatActivity(
   preferredElement?: import('../types').ElementType,
   /** Explicit location danger (1-7). Do NOT derive via floorToDangerLevel(floor). */
   dangerLevel: number = 4,
+  rng: () => number = defaultFloorRng,
 ): RoomActivities['combat'] {
   // Base elite chance 30% on tier-2; location ambush_chance (T-064) stacks, capped
   const eliteChance = Math.min(0.7, 0.3 + Math.max(0, ambushChanceBonus));
-  const isElite = room.tier === 2 && Math.random() < eliteChance;
+  const isElite = room.tier === 2 && rng() < eliteChance;
   // High ambush: small chance of AMBUSH archetype-style enemy type on non-elite
   const forceAmbush =
-    !isElite && ambushChanceBonus > 0 && Math.random() < Math.min(0.25, ambushChanceBonus);
+    !isElite && ambushChanceBonus > 0 && rng() < Math.min(0.25, ambushChanceBonus);
   const enemyType = isElite ? 'ELITE' : forceAmbush ? 'AMBUSH' : 'NORMAL';
   // Use config dangerLevel directly — floor is effectiveFloor for loot/training only.
   // floorToDangerLevel(effectiveFloor) double-counts danger (e.g. D1→floor 14→D5).
@@ -416,7 +434,7 @@ function generateCombatActivity(
   );
 
   const modifiers: CombatModifierType[] = config.combatModifiers
-    ? [config.combatModifiers[Math.floor(Math.random() * config.combatModifiers.length)]]
+    ? [config.combatModifiers[Math.floor(rng() * config.combatModifiers.length)]]
     : [CombatModifierType.NONE];
 
   return { enemy, modifiers, completed: false };
@@ -481,11 +499,12 @@ function generateEventActivity(
   arc: string,
   player?: Player,
   preferredEventIds?: string[],
+  rng: () => number = defaultFloorRng,
 ): RoomActivities['event'] | undefined {
   // Check feature flag first
   if (!FeatureFlags.ENABLE_STORY_EVENTS) return undefined;
 
-  const event = pickEventForLocation(arc, player, preferredEventIds);
+  const event = pickEventForLocation(arc, player, preferredEventIds, rng);
   if (!event) return undefined;
 
   return { definition: event, completed: false };
@@ -857,12 +876,13 @@ function generateActivityData(
   lootTheme?: import('../types').RegionLootTheme,
   dangerLevel: number = 4,
   clanRiteUsed?: boolean,
+  rng: () => number = defaultFloorRng,
 ): RoomActivities[keyof RoomActivities] | undefined {
   switch (activityKey) {
     case 'combat':
       return generateCombatActivity(
         room, config, floor, difficulty, arc, player, enemyPool, ambushChanceBonus,
-        preferredElement, dangerLevel,
+        preferredElement, dangerLevel, rng,
       );
     case 'eliteChallenge':
       return generateEliteChallengeActivity(
@@ -871,7 +891,7 @@ function generateActivityData(
     case 'merchant':
       return generateMerchantActivity(floor, difficulty, player, lootTable, lootTheme);
     case 'event':
-      return generateEventActivity(arc, player, preferredEventIds);
+      return generateEventActivity(arc, player, preferredEventIds, rng);
     case 'scrollDiscovery':
       return generateScrollDiscoveryActivity(floor, lootTheme, player, clanRiteUsed);
     case 'rest':
@@ -918,13 +938,14 @@ function generateActivities(
   lootTheme?: import('../types').RegionLootTheme,
   dangerLevel: number = 4,
   clanRiteUsed?: boolean,
+  rng: () => number = defaultFloorRng,
 ): RoomActivities {
   const roomType = room.type;
   const activityConfig = ROOM_TYPE_ACTIVITY_CONFIGS[roomType];
 
   // Step 1: Determine how many activities this room will have
   const isStartRoom = roomType === BranchingRoomType.START;
-  const targetCount = selectActivityCount(activityConfig.activityCountWeights, isStartRoom);
+  const targetCount = selectActivityCount(activityConfig.activityCountWeights, isStartRoom, rng);
 
   if (targetCount === 0) {
     return {}; // START room - no activities
@@ -947,7 +968,7 @@ function generateActivities(
     if (availablePool.length === 0) break;
 
     // Weighted random selection
-    const selected = selectWeightedActivity(availablePool);
+    const selected = selectWeightedActivity(availablePool, rng);
     if (!selected) break;
 
     selectedActivities.push(selected);
@@ -988,6 +1009,7 @@ function generateActivities(
       lootTheme,
       dangerLevel,
       clanRiteUsed,
+      rng,
     );
     if (activityData) {
       (activities as Record<keyof RoomActivities, unknown>)[activityKey] = activityData;
@@ -1261,12 +1283,12 @@ function pickExitChildIndex(
       branchingFloor.currentIntel,
       branchingFloor.hunterArmed ?? false,
     );
-    if (Math.random() >= probability) {
+    if (defaultFloorRng() >= probability) {
       return null;
     }
   }
 
-  return Math.floor(Math.random() * childCount);
+  return Math.floor(defaultFloorRng() * childCount);
 }
 
 // ============================================================================
@@ -1506,6 +1528,12 @@ export interface FloorGenerationConfig {
   preferredElement?: import('../types').ElementType;
   /** T-070: region lootTheme for merchant component bias */
   lootTheme?: import('../types').RegionLootTheme;
+  /**
+   * Optional [0,1) source for room/activity rolls (ids, weighted picks, combat elite).
+   * Defaults to getGlobalRng() (sim installs seed there + Math.random override).
+   * Pass an explicit fn for deterministic unit tests without monkey-patching.
+   */
+  rng?: () => number;
 }
 
 /**
@@ -1530,6 +1558,7 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     terrainEffects,
     preferredElement,
     lootTheme,
+    rng = defaultFloorRng,
   } = config;
 
   const ambushChanceBonus = getLocationTerrainMods(terrainEffects).ambushChance;
@@ -1557,6 +1586,9 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     lootTheme,
     dangerLevel,
     wealthLevel,
+    undefined,
+    undefined,
+    rng,
   );
   entryHub.hasGeneratedChildren = true;
   entryHub.isVisible = false;
@@ -1567,11 +1599,13 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     1, 'LEFT', entryHub.id, floor, difficulty, arc, undefined, 1,
     player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
     terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+    undefined, undefined, rng,
   );
   const tier1Right = createRoom(
     1, 'RIGHT', entryHub.id, floor, difficulty, arc, undefined, 1,
     player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
     terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+    undefined, undefined, rng,
   );
 
   tier1Left.isAccessible = true;
@@ -1595,6 +1629,7 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
         2, leftPositions[i], tier1Left.id, floor, difficulty, arc, undefined, 2,
         player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
         terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+        undefined, undefined, rng,
       ),
     );
   }
@@ -1610,6 +1645,7 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
         2, rightPositions[i], tier1Right.id, floor, difficulty, arc, undefined, 2,
         player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
         terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+        undefined, undefined, rng,
       ),
     );
   }

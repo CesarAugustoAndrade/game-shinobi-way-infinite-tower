@@ -10,13 +10,13 @@
 - Ensure state immutability (`{ ...old, updated: value }`).
 
 ## Architecture
-- **Stack:** React 18, TypeScript, Vite, Vitest.
+- **Stack:** React 19, TypeScript, Vite, Vitest. Node 22 (`engines` / `.nvmrc`).
 - **Hierarchy:** Region → Location → Room (10 rooms/location, diamond branching).
 - **Core state:** `GameState` enum in `src/game/types.ts` (`EXPLORE`, `COMBAT`, `LOOT`, `MERCHANT`, `EVENT`, `TRAINING`, …).
 - **Systems (`src/game/systems/`):** `StatSystem`, `CombatCalculationSystem` (pure math), `CombatWorkflowSystem` (state/turns/status), `LootSystem` (TFT synthesis), `Region`/`LocationSystem` (danger 1-7, floor scaling). Stat & combat formulas: `docs/FORMULAS.md`.
 
 ## Commands
-- See `package.json` scripts: `npm run dev` / `build` / `test`, and `npm run simulate[:quick|:progression]` (balance sims). Type check: `npx tsc --noEmit`.
+- See `package.json` scripts: `npm run dev` / `build` / `test` / `verify` (typecheck + lint + test + build + budget), and `npm run simulate[:quick|:progression]` (balance sims).
 
 ## Git Workflow
 - Branches: `main` (prod), `develop` (dev).
