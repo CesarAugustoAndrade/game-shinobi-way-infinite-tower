@@ -374,6 +374,14 @@ export enum MarkConsumeTiming {
   NONE = 'NONE',
 }
 
+/** SOUL §9 v1 families. Marks sit beside Buffs; they never rewrite Room Terrain. */
+export enum MarkFamily {
+  DOT = 'DOT',
+  SHIELD = 'SHIELD',
+  STAT = 'STAT',
+  HARD_CONTROL = 'HARD_CONTROL',
+}
+
 /** Stub trigger names for Mark / Mode contracts. Runtime wiring is later T-XXX. */
 export enum CombatTrigger {
   ON_PLAY = 'ON_PLAY',
@@ -463,6 +471,7 @@ export interface Mark {
   target: CombatActor;
   duration: number;
   stacks: number;
+  family?: MarkFamily;
   trigger?: CombatTrigger;
   consume?: MarkConsumeTiming;
 }

@@ -12,6 +12,7 @@ import {
   Skill,
   TypedCost,
 } from '../types';
+import { clearMarks, tickMarkDurations } from './MarkSystem';
 
 export enum TurnPhase {
   MODE_UPKEEP = 'MODE_UPKEEP',
@@ -69,7 +70,7 @@ export function resetCombatFrontier(frontier: CombatFrontier): CombatFrontier {
       readyOnTurn: 0,
     })),
     modes: [],
-    marks: [],
+    marks: clearMarks(frontier.marks),
   };
 }
 
@@ -182,9 +183,7 @@ export function decrementSupportAndMarkDurations(
   supports: readonly SupportDuration[] = [],
 ): { marks: Mark[]; supports: SupportDuration[] } {
   return {
-    marks: marks
-      .map((mark) => ({ ...mark, duration: mark.duration - 1 }))
-      .filter((mark) => mark.duration > 0),
+    marks: tickMarkDurations(marks),
     supports: supports
       .map((support) => ({ ...support, duration: support.duration - 1 }))
       .filter((support) => support.duration > 0),
