@@ -454,7 +454,15 @@ export interface ModeDefinition {
   endClauses: ModeEndClause[];
 }
 
-/** Live Mode instance on the encounter board (T-002). Empty until Mode runtime (later T-XXX). */
+/** Mode machine states (T-005). OFF/READY are implicit when the instance is absent. */
+export enum ModeRuntimeState {
+  ACTIVATION = 'ACTIVATION',
+  ON = 'ON',
+  FIN = 'FIN',
+  COOLDOWN = 'COOLDOWN',
+}
+
+/** Live Mode instance on the encounter board (T-002 / T-005). */
 export interface ActiveModeRuntime {
   id: string;
   family: string;
@@ -462,6 +470,8 @@ export interface ActiveModeRuntime {
   /** Authored Mode CD; used when upkeep fails and the Mode ends. */
   cooldown?: number;
   readyOnTurn?: number;
+  state?: ModeRuntimeState;
+  stage?: number;
 }
 
 export interface Mark {
