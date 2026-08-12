@@ -311,6 +311,162 @@ export enum ActionType {
 }
 
 // ============================================================================
+// CARD ROLE / MODE / MARK CONTRACTS (T-001 — SOUL §5 + §13)
+// ============================================================================
+// First-class taxonomy for hand-playable techniques. `cardRole` is the
+// normative role source once authored. Missing `cardRole` is incomplete
+// authoring — never infer SUPPORT/MODE/SIDE/ATTACK from expected damage.
+
+/** Hand-playable technique role. UI label for SIDE_ATTACK is “SIDE”. */
+export enum CardRole {
+  SUPPORT = 'SUPPORT',
+  MODE = 'MODE',
+  SIDE_ATTACK = 'SIDE_ATTACK',
+  ATTACK = 'ATTACK',
+}
+
+/** Target scope for Mode enhancements / Main-attack contracts (SOUL §13). */
+export enum TargetScope {
+  MAIN_ATTACK = 'MAIN_ATTACK',
+  ATTACK = 'ATTACK',
+  SIDE_ATTACK = 'SIDE_ATTACK',
+  OFFENSIVE_SKILL = 'OFFENSIVE_SKILL',
+}
+
+/**
+ * Combinable skill tags — not a fifth role. TOOL is a tag, never a CardRole.
+ * Elemental / clan members mirror existing ElementType / Clan; no new mechanics.
+ */
+export enum SkillTag {
+  TOOL = 'TOOL',
+  WEAPON = 'WEAPON',
+  TAIJUTSU = 'TAIJUTSU',
+  NINJUTSU = 'NINJUTSU',
+  GENJUTSU = 'GENJUTSU',
+  MODE = 'MODE',
+  MARK = 'MARK',
+  DISCOVER = 'DISCOVER',
+  MULTI_HIT = 'MULTI_HIT',
+  PASSIVE = 'PASSIVE',
+  SIGNATURE = 'SIGNATURE',
+  FIRE = 'FIRE',
+  WIND = 'WIND',
+  LIGHTNING = 'LIGHTNING',
+  EARTH = 'EARTH',
+  WATER = 'WATER',
+  PHYSICAL = 'PHYSICAL',
+  MENTAL = 'MENTAL',
+  UZUMAKI = 'UZUMAKI',
+  UCHIHA = 'UCHIHA',
+  HYUGA = 'HYUGA',
+  LEE = 'LEE',
+  YAMANAKA = 'YAMANAKA',
+}
+
+export enum CombatActor {
+  PLAYER = 'PLAYER',
+  ENEMY = 'ENEMY',
+}
+
+export enum MarkConsumeTiming {
+  ATTEMPT = 'ATTEMPT',
+  IMPACT = 'IMPACT',
+  NONE = 'NONE',
+}
+
+/** Stub trigger names for Mark / Mode contracts. Runtime wiring is later T-XXX. */
+export enum CombatTrigger {
+  ON_PLAY = 'ON_PLAY',
+  ON_HIT = 'ON_HIT',
+  ON_MOVE = 'ON_MOVE',
+}
+
+export enum ModeEndKind {
+  PAYOFF = 'PAYOFF',
+  MANUAL_OFF = 'MANUAL_OFF',
+  ZERO_CHARGES = 'ZERO_CHARGES',
+  UPKEEP_FAIL = 'UPKEEP_FAIL',
+  FAMILY_REPLACE = 'FAMILY_REPLACE',
+  FINISHER = 'FINISHER',
+}
+
+export interface TypedCost {
+  ap?: number;
+  chakra?: number;
+  hp?: number;
+}
+
+export interface WeightModifier {
+  skillId?: string;
+  tag?: SkillTag;
+  role?: CardRole;
+  delta: number;
+}
+
+export interface EnhancementRule {
+  targetScope: TargetScope;
+  note: string;
+}
+
+export interface ModeEndClause {
+  kind: ModeEndKind;
+}
+
+export interface DiscoverSpec {
+  count: number;
+  tag?: SkillTag;
+  element?: ElementType;
+}
+
+export interface MarkSpec {
+  id: string;
+  duration: number;
+  stacks?: number;
+  consume?: MarkConsumeTiming;
+  trigger?: CombatTrigger;
+}
+
+export interface ModeInteraction {
+  modeId?: string;
+  family?: string;
+  consumeCharges?: number;
+  requireOn?: boolean;
+}
+
+export interface ModeDefinition {
+  id: string;
+  family: string;
+  stage?: number;
+  maxCharges: number;
+  activationCost: TypedCost;
+  upkeep: TypedCost;
+  cooldown: number;
+  weightModifiers: WeightModifier[];
+  enhancements: EnhancementRule[];
+  endClauses: ModeEndClause[];
+}
+
+export interface Mark {
+  id: string;
+  sourceSkillId: string;
+  owner: CombatActor;
+  target: CombatActor;
+  duration: number;
+  stacks: number;
+  trigger?: CombatTrigger;
+  consume?: MarkConsumeTiming;
+}
+
+/**
+ * Out-of-combat Skill Config (not CombatSetup).
+ * `mainAttackId` is a designated ATTACK skill id, or null until resolved.
+ */
+export interface SkillConfig {
+  mainAttackId: string | null;
+  modeUpkeepPriority: string[];
+}
+
+// ============================================================================
 // POSTURE SYSTEM (T-004 — deckbuilder / Action Point combat refactor)
 // ============================================================================
 // The combatant's active stance. Posture biases the weighted card draw and
@@ -559,6 +715,20 @@ export interface Skill {
 
   // ACTION TYPE - ACTIVE (playable) / TOGGLE / PASSIVE
   actionType: ActionType;
+
+  /**
+   * SOUL authoring (T-001). Optional this slice so the catalog still compiles.
+   * Missing `cardRole` is incomplete authoring — never guess from DPS / baseDamage.
+   */
+  cardRole?: CardRole;
+  tags?: SkillTag[];
+  /** v1 default is 2 via `defaultBaseWeight()` when omitted. Not CARD_BASE_WEIGHT (1.0). */
+  baseWeight?: number;
+  hitCount?: number;
+  discover?: DiscoverSpec;
+  markEffects?: MarkSpec[];
+  modeInteraction?: ModeInteraction;
+  perHitEffects?: EffectDefinition[];
 
   // DECKBUILDER / AP ECONOMY (T-004)
   // Prefer explicit apCost on every playable skill; fallback in combatCards.ts.

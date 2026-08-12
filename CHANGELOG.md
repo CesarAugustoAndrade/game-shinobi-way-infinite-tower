@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-001 CardRole contracts:** first-class `CardRole` / `TargetScope` / `ModeDefinition` / `Mark` / `SkillConfig` types plus pure `CardContractSystem` helpers. Role is authored (`cardRole`); never inferred from damage.
 - chore: scaffold loop-engineering (tasks/, 8 agents, task-* commands, ring map in CLAUDE.md)
 
 ### Added
