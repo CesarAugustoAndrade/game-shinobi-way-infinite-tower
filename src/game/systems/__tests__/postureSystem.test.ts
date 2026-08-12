@@ -21,30 +21,30 @@ import { ApproachType, Posture } from '../../types';
 import { createMockSkill } from './testFixtures';
 
 describe('postureDamageMod', () => {
-  it('boosts outgoing damage in AGGRESSIVE (+15%)', () => {
-    expect(postureDamageMod(Posture.AGGRESSIVE)).toBe(1.15);
+  it('boosts outgoing damage in AGGRESSIVE (+20%)', () => {
+    expect(postureDamageMod(Posture.AGGRESSIVE)).toBe(1.2);
   });
 
   it('is neutral in BALANCED (×1.0)', () => {
     expect(postureDamageMod(Posture.BALANCED)).toBe(1.0);
   });
 
-  it('softens outgoing damage in DEFENSIVE (-15%)', () => {
-    expect(postureDamageMod(Posture.DEFENSIVE)).toBe(0.85);
+  it('softens outgoing damage in DEFENSIVE (-20%)', () => {
+    expect(postureDamageMod(Posture.DEFENSIVE)).toBe(0.8);
   });
 });
 
 describe('postureDefenseMod', () => {
-  it('exposes the player in AGGRESSIVE (takes +15%)', () => {
-    expect(postureDefenseMod(Posture.AGGRESSIVE)).toBe(1.15);
+  it('exposes the player in AGGRESSIVE (takes +20%)', () => {
+    expect(postureDefenseMod(Posture.AGGRESSIVE)).toBe(1.2);
   });
 
   it('is neutral in BALANCED (×1.0)', () => {
     expect(postureDefenseMod(Posture.BALANCED)).toBe(1.0);
   });
 
-  it('absorbs damage in DEFENSIVE (takes -15%)', () => {
-    expect(postureDefenseMod(Posture.DEFENSIVE)).toBe(0.85);
+  it('absorbs damage in DEFENSIVE (takes -20%)', () => {
+    expect(postureDefenseMod(Posture.DEFENSIVE)).toBe(0.8);
   });
 });
 

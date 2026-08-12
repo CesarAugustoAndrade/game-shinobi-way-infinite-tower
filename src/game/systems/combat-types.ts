@@ -31,7 +31,7 @@ export interface CombatState {
   xpMultiplier: number;
   terrain: TerrainDefinition | null;
   approachApplied: boolean;
-  /** From FREE_FIRST_SKILL artifact passive - first skill costs no resources */
+  /** From FREE_FIRST_SKILL artifact passive — first skill's chakra is free (not AP/HP/CD) */
   skipFirstSkillCost: boolean;
   /** Tracks if artifact GUTS passive has been used this combat (one-time) */
   artifactGutsUsed: boolean;

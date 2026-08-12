@@ -16,9 +16,9 @@
  *
  * The two modifiers are reciprocal and symmetric, so each posture is a genuine
  * trade-off (none is strictly dominant):
- *   - AGGRESSIVE: deal ×1.15, take ×1.15  (glass cannon)
+ *   - AGGRESSIVE: deal ×1.20, take ×1.20  (glass cannon, SOUL §10)
  *   - BALANCED:   deal ×1.0,  take ×1.0   (neutral baseline)
- *   - DEFENSIVE:  deal ×0.85, take ×0.85  (tanky)
+ *   - DEFENSIVE:  deal ×0.80, take ×0.80  (tanky)
  *
  * Values are intentionally small ("bono leve") so the base damage math stays
  * dominant. They live here, alongside the system that consumes them, as the
@@ -35,16 +35,16 @@ import { ApproachType, Posture, Skill } from '../types';
 
 /** Outgoing damage you deal, per posture. Aggressive hits harder, Defensive softer. */
 const POSTURE_DAMAGE_MOD: Record<Posture, number> = {
-  [Posture.AGGRESSIVE]: 1.15, // +15% damage dealt
+  [Posture.AGGRESSIVE]: 1.2, // +20% damage dealt
   [Posture.BALANCED]: 1.0, //   neutral
-  [Posture.DEFENSIVE]: 0.85, // -15% damage dealt
+  [Posture.DEFENSIVE]: 0.8, // -20% damage dealt
 };
 
 /** Incoming damage you take, per posture. Defensive absorbs, Aggressive exposes. */
 const POSTURE_DEFENSE_MOD: Record<Posture, number> = {
-  [Posture.AGGRESSIVE]: 1.15, // +15% damage taken
+  [Posture.AGGRESSIVE]: 1.2, // +20% damage taken
   [Posture.BALANCED]: 1.0, //   neutral
-  [Posture.DEFENSIVE]: 0.85, // -15% damage taken
+  [Posture.DEFENSIVE]: 0.8, // -20% damage taken
 };
 
 /** Short label/identity for each posture (UI). */

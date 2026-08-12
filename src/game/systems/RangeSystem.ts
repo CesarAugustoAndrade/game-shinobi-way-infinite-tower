@@ -239,16 +239,56 @@ export function applyForcedMove(
 }
 
 /**
- * Empty reaction registry this delivery — always returns [].
- * Call after voluntary/forced move when `moved` is true and not safeMovement.
+ * Reactions after a real band change. Empty when `moved` is false (PUSH@LONG / PULL@CLOSE)
+ * or safeMovement. Optional `sources` is the registry (Marks / authored reactions).
  */
 export function collectRangeReactions(
-  _trigger: RangeMoveTrigger,
-  _moved: boolean,
-  _safeMovement?: boolean
+  trigger: RangeMoveTrigger,
+  moved: boolean,
+  safeMovement?: boolean,
+  sources: readonly RangeReactionDef[] = [],
 ): RangeReactionDef[] {
-  if (!_moved || _safeMovement) return [];
-  return [];
+  if (!moved || safeMovement) return [];
+  return sources.filter(
+    (entry) => entry.trigger === trigger || entry.trigger === RangeMoveTrigger.OTHER,
+  );
+}
+
+/** Mode activation range: omitted / empty allowedRanges = any band. */
+export function canActivateModeAt(
+  allowedRanges: readonly CombatRange[] | undefined,
+  range: CombatRange,
+): boolean {
+  if (!allowedRanges || allowedRanges.length === 0) return true;
+  return allowedRanges.includes(range);
+}
+
+export function canPlayNonModeSkillAt(skill: Skill, range: CombatRange): boolean {
+  return skillAllowedAt(skill, range);
+}
+
+/**
+ * Forced PUSH/PULL: never consumes the voluntary-move flag.
+ * Reactions only if the band actually changed.
+ */
+export function resolveForcedMove(
+  current: CombatRange,
+  kind: 'PUSH' | 'PULL',
+  voluntaryUsed: boolean,
+  sources: readonly RangeReactionDef[] = [],
+): {
+  range: CombatRange;
+  moved: boolean;
+  playerMoveUsedThisTurn: boolean;
+  reactions: RangeReactionDef[];
+} {
+  const forced = applyForcedMove(current, kind);
+  return {
+    range: forced.range,
+    moved: forced.moved,
+    playerMoveUsedThisTurn: voluntaryUsed,
+    reactions: collectRangeReactions(forced.trigger, forced.moved, false, sources),
+  };
 }
 
 /**

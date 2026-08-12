@@ -23,7 +23,7 @@
  * - SHIELD_ON_START: Grant shield equal to % of max chakra
  * - INVULNERABLE_FIRST_TURN: 1 turn of complete immunity
  * - REFLECT: Return % of damage to attacker
- * - FREE_FIRST_SKILL: First skill costs no resources
+ * - FREE_FIRST_SKILL: First skill's chakra cost is waived (not AP/HP/CD)
  *
  * ### On Hit Effects
  * - BLEED: Apply physical DoT (piercing damage)
@@ -186,7 +186,7 @@ export function processPassivesOnCombatStart(
 
       case PassiveEffectType.FREE_FIRST_SKILL: {
         result.skipFirstSkillCost = true;
-        result.logs.push(`${item.name}: First skill is free!`);
+        result.logs.push(`${item.name}: First skill's chakra is free!`);
         break;
       }
     }
