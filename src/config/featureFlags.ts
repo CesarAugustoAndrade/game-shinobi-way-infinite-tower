@@ -156,19 +156,6 @@ export const LaunchProperties = {
 
   /** AP cost of manually switching posture (skills that shift posture do so for free) */
   POSTURE_SWITCH_AP_COST: 1,
-
-  /**
-   * Draw-weight multipliers per card category, keyed by posture.
-   * The weighted hand draw multiplies a card's base weight by the multiplier
-   * matching its category (offensive/utility/defensive). Keys mirror the
-   * Posture enum string values (kept as string literals to avoid a circular
-   * import between featureFlags and game/types).
-   */
-  POSTURE_DRAW_WEIGHTS: {
-    Aggressive: { offensive: 2.0, utility: 1.0, defensive: 0.5 },
-    Balanced:   { offensive: 1.0, utility: 1.0, defensive: 1.0 },
-    Defensive:  { offensive: 0.5, utility: 1.4, defensive: 2.0 },
-  },
 } as const;
 
 // Type exports for type-safe access

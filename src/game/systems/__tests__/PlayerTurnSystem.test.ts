@@ -48,8 +48,7 @@ const baseCombatState = (overrides: Partial<CombatState> = {}): CombatState => (
   maxAp: 10,
   posture: Posture.BALANCED,
   hand: [],
-  deck: [],
-  discard: [],
+  playablePool: [],
   // CLOSE so default MELEE mock skills are legal (F2 range gate)
   currentRange: CombatRange.CLOSE,
   playerMoveUsedThisTurn: false,
@@ -549,9 +548,8 @@ describe('processUpkeep', () => {
     const combatState = baseCombatState({
       currentAp: 0,
       maxAp: 3,
-      deck: [skillA, skillB],
+      playablePool: [skillA, skillB],
       hand: [],
-      discard: [],
       posture: Posture.BALANCED,
     });
 
@@ -571,9 +569,8 @@ describe('processUpkeep', () => {
     const combatState = baseCombatState({
       currentAp: 0,
       maxAp: baseAp,
-      deck: [skillA],
+      playablePool: [skillA],
       hand: [],
-      discard: [],
       locationTerrainMods: {
         waterDamageBonus: 0,
         fireDamagePenalty: 0,
@@ -623,7 +620,7 @@ describe('processUpkeep', () => {
       ],
     });
     const playerStats = makeStats();
-    const combatState = baseCombatState({ deck: [], hand: [], discard: [] });
+    const combatState = baseCombatState({ playablePool: [], hand: [] });
 
     const result = processUpkeep(player, playerStats, combatState);
 

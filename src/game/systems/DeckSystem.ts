@@ -1,146 +1,209 @@
 /**
- * =============================================================================
- * DECK SYSTEM - Weighted card draw for the AP combat economy (T-004)
- * =============================================================================
+ * DeckSystem — full-pool weighted hand (T-003 / SOUL §6).
  *
- * Pure functions that turn a player's skills into a draw pile and deal a
- * per-turn hand biased by the active posture. The only impurity is
- * `Math.random` inside the weighted draw (documented below); inputs are never
- * mutated — every function returns fresh arrays.
+ * Each turn samples without replacement from the entire playable loadout.
+ * There is no combat deck pile, discard, or reshuffle. Virtual discard =
+ * drop the hand; next draw uses the full pool again.
  *
- * ## Model
- *
- * - **deck**: the remaining draw pile (skills not currently in hand/discard).
- * - **hand**: the cards the player can play this turn.
- * - **discard**: cards spent or set aside, reshuffled back when the deck can no
- *   longer fill a full hand.
- *
- * PASSIVE skills are always active and never become cards (see `buildDeck`).
- * The per-category draw weight comes from `combatCards.weightFor`, which folds
- * in the posture multipliers from `LaunchProperties.POSTURE_DRAW_WEIGHTS`.
- *
- * =============================================================================
+ * Weights use authored `cardRole` (T-001). Never infer role from damage.
+ * Injected `rng` — live callers pass Math.random.
  */
 
-import { ActionType, Posture, Skill } from '../types';
-import { weightFor } from '../constants/combatCards';
+import { ActionType, CardRole, ElementType, Posture, Skill, SkillTag } from '../types';
 import { LaunchProperties } from '../../config/featureFlags';
+import { defaultBaseWeight, resolveCardRole, type RoleAuthoringMap } from './CardContractSystem';
+import { isSkillReadyOnTurn } from './TurnClockSystem';
 
-/**
- * Count skills that enter the combat deck (non-PASSIVE).
- */
+export type Rng = () => number;
+
+export interface WeightContext {
+  posture: Posture;
+  turnIndex?: number;
+  mainAttackId?: string | null;
+  activeModeIds?: readonly string[];
+  modeBonuses?: Readonly<Record<string, number>>;
+  supportBonuses?: Readonly<Record<string, number>>;
+  authoringMap?: RoleAuthoringMap;
+}
+
+export interface HandSnapshot {
+  skill: Skill;
+  disabled: boolean;
+  reasons: string[];
+}
+
+export interface DiscoverFilter {
+  tag?: SkillTag;
+  element?: ElementType;
+  predicate?: (skill: Skill) => boolean;
+}
+
 export function getPlayableDeckSize(skills: Skill[]): number {
   return skills.filter((skill) => skill.actionType !== ActionType.PASSIVE).length;
 }
 
-/**
- * Whether the player can add another playable skill without forgetting one.
- */
 export function canAddPlayableSkill(skills: Skill[]): boolean {
   return getPlayableDeckSize(skills) < LaunchProperties.MAX_DECK_SIZE;
 }
 
-/**
- * Build the draw pile from a player's skills: every non-PASSIVE skill becomes a
- * card. PASSIVE skills stay always-on and are excluded from the deck.
- *
- * @param skills - The player's full skill list.
- * @returns A new array of the deck-eligible cards (order preserved).
- */
-export function buildDeck(skills: Skill[]): Skill[] {
-  return skills.filter((skill) => skill.actionType !== ActionType.PASSIVE);
+/** Unique non-PASSIVE techniques (max loadout cap). Alias: buildDeck. */
+export function playablePool(skills: readonly Skill[]): Skill[] {
+  const seen = new Set<string>();
+  const pool: Skill[] = [];
+  for (const skill of skills) {
+    if (skill.actionType === ActionType.PASSIVE) continue;
+    if (seen.has(skill.id)) continue;
+    seen.add(skill.id);
+    pool.push(skill);
+    if (pool.length >= LaunchProperties.MAX_DECK_SIZE) break;
+  }
+  return pool;
+}
+
+/** @deprecated name — playable pool, not a shrinking draw pile. */
+export const buildDeck = playablePool;
+
+function postureBonusForRole(role: CardRole | undefined, posture: Posture): number {
+  if (role === undefined) return 0;
+  if (posture === Posture.AGGRESSIVE && role === CardRole.ATTACK) return 1;
+  if (posture === Posture.BALANCED && (role === CardRole.MODE || role === CardRole.SIDE_ATTACK)) {
+    return 1;
+  }
+  if (posture === Posture.DEFENSIVE && role === CardRole.SUPPORT) return 1;
+  return 0;
+}
+
+function isOnCooldown(skill: Skill, ctx: WeightContext): boolean {
+  if (ctx.turnIndex !== undefined && skill.readyOnTurn !== undefined) {
+    return !isSkillReadyOnTurn(skill.readyOnTurn, ctx.turnIndex);
+  }
+  return (skill.currentCooldown ?? 0) > 0;
 }
 
 /**
- * Weighted, without-replacement draw of up to `handSize` distinct cards from
- * `deck`, biased by the active posture. Cards with a higher posture weight are
- * proportionally more likely to be drawn, but every card keeps a positive
- * weight so none is ever excluded outright.
- *
- * Impurity: uses `Math.random` for the weighted selection. Does NOT mutate the
- * input `deck`.
- *
- * @param deck - The draw pile to deal from.
- * @param posture - The active combat posture (drives the weighting).
- * @param handSize - Maximum number of cards to draw.
- * @returns The drawn `hand` and the `deck` remaining after removal.
+ * SOUL v1: max(1, baseWeight + postureBonus + modeBonus + supportBonus − activeSelf − cooldown).
+ * Main Attack has no extra inherent weight. No cap. Never uses getCardCategory / baseDamage.
+ */
+export function effectiveWeight(skill: Skill, ctx: WeightContext): number {
+  const resolved = resolveCardRole(skill, ctx.authoringMap);
+  const role = resolved.ok ? resolved.role : undefined;
+  const base = skill.baseWeight ?? defaultBaseWeight();
+  const postureBonus = postureBonusForRole(role, ctx.posture);
+  const modeBonus = ctx.modeBonuses?.[skill.id] ?? 0;
+  const supportBonus = ctx.supportBonuses?.[skill.id] ?? 0;
+  const activeSelf =
+    role === CardRole.MODE && (ctx.activeModeIds ?? []).includes(skill.id) ? 1 : 0;
+  const cooldownPenalty = isOnCooldown(skill, ctx) ? 1 : 0;
+  return Math.max(1, base + postureBonus + modeBonus + supportBonus - activeSelf - cooldownPenalty);
+}
+
+export function snapshotSkill(skill: Skill, ctx: WeightContext): HandSnapshot {
+  const reasons: string[] = [];
+  if (isOnCooldown(skill, ctx)) {
+    reasons.push('cooldown');
+  }
+  return { skill, disabled: reasons.length > 0, reasons };
+}
+
+export function isDeadHand(snapshots: readonly HandSnapshot[]): boolean {
+  return snapshots.length > 0 && snapshots.every((card) => card.disabled);
+}
+
+function pickWeightedIndex(weights: readonly number[], rng: Rng): number {
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  if (total <= 0 || weights.length === 0) {
+    return Math.max(0, weights.length - 1);
+  }
+  const raw = rng();
+  let roll = Number.isFinite(raw) ? Math.min(Math.max(raw, 0), 0.999999999) * total : 0;
+  for (let i = 0; i < weights.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return i;
+  }
+  return weights.length - 1;
+}
+
+/**
+ * Weighted sample without replacement from the **full** playable pool.
+ * Does not shrink a residual deck. Does not auto-redraw a dead hand.
  */
 export function drawHand(
-  deck: Skill[],
-  posture: Posture,
-  handSize: number
-): { hand: Skill[]; deck: Skill[] } {
-  const pool = [...deck];
-  const hand: Skill[] = [];
-  const drawCount = Math.min(Math.max(0, handSize), pool.length);
+  pool: readonly Skill[],
+  ctx: WeightContext,
+  size: number,
+  rng: Rng,
+): { snapshots: HandSnapshot[]; hand: Skill[] } {
+  const remaining = playablePool(pool);
+  const snapshots: HandSnapshot[] = [];
+  const drawCount = Math.min(Math.max(0, size), remaining.length);
 
   for (let i = 0; i < drawCount; i++) {
-    const totalWeight = pool.reduce((sum, card) => sum + weightFor(card, posture), 0);
-
-    // Guard against a degenerate (non-positive) total — should not happen since
-    // weights are always positive, but keep the draw robust.
-    let pickIndex = pool.length - 1;
-    if (totalWeight > 0) {
-      let roll = Math.random() * totalWeight;
-      for (let j = 0; j < pool.length; j++) {
-        roll -= weightFor(pool[j], posture);
-        if (roll <= 0) {
-          pickIndex = j;
-          break;
-        }
-      }
-    }
-
-    hand.push(pool[pickIndex]);
-    pool.splice(pickIndex, 1);
+    const weights = remaining.map((skill) => effectiveWeight(skill, ctx));
+    const pick = pickWeightedIndex(weights, rng);
+    const skill = remaining.splice(pick, 1)[0];
+    if (!skill) break;
+    snapshots.push(snapshotSkill(skill, ctx));
   }
 
-  return { hand, deck: pool };
+  return { snapshots, hand: snapshots.map((entry) => entry.skill) };
 }
 
 /**
- * Merge the leftover deck with the discard pile into a single fresh draw pile.
- *
- * @param deck - The remaining draw pile.
- * @param discard - The discard pile to fold back in.
- * @returns A new combined draw pile.
- */
-export function reshuffle(deck: Skill[], discard: Skill[]): Skill[] {
-  return [...deck, ...discard];
-}
-
-/**
- * Deal a fresh hand for a new turn:
- *   1. The previous hand (played and unplayed) joins the discard pile.
- *   2. If the remaining deck cannot fill a full hand, reshuffle the discard in.
- *   3. Weighted-draw `handSize` cards under the active posture.
- *
- * Cards spent during the previous turn should already live in `discard`; only
- * the still-in-hand remainder is passed via `previousHand` so nothing is
- * double-counted.
- *
- * @param deck - The current draw pile.
- * @param discard - The current discard pile (already-spent cards).
- * @param previousHand - Cards still in hand from last turn (returned to discard).
- * @param posture - The active combat posture.
- * @param handSize - Number of cards to draw for the new turn.
- * @returns The new `hand`, the remaining `deck`, and the updated `discard`.
+ * Virtual discard + new full-pool hand. Previous hand is ignored as a pile
+ * (those skills remain in `pool`).
  */
 export function drawNewTurnHand(
-  deck: Skill[],
-  discard: Skill[],
-  previousHand: Skill[],
-  posture: Posture,
-  handSize: number
-): { hand: Skill[]; deck: Skill[]; discard: Skill[] } {
-  let pile = [...deck];
-  let newDiscard = [...discard, ...previousHand];
+  pool: readonly Skill[],
+  ctx: WeightContext,
+  size: number,
+  rng: Rng,
+): { snapshots: HandSnapshot[]; hand: Skill[] } {
+  return drawHand(pool, ctx, size, rng);
+}
 
-  if (pile.length < handSize) {
-    pile = reshuffle(pile, newDiscard);
-    newDiscard = [];
+function matchesDiscoverFilter(skill: Skill, filter?: DiscoverFilter): boolean {
+  if (!filter) return true;
+  if (filter.predicate && !filter.predicate(skill)) return false;
+  if (filter.tag !== undefined && !(skill.tags ?? []).includes(filter.tag)) return false;
+  if (filter.element !== undefined && skill.element !== filter.element) return false;
+  return true;
+}
+
+/**
+ * Discover 3: up to 3 weighted candidates from pool (exclude source + current hand).
+ * CD skills may appear; the chosen snapshot is disabled if on cooldown.
+ */
+export function discoverThree(args: {
+  pool: readonly Skill[];
+  hand: readonly Skill[];
+  sourceId: string;
+  filter?: DiscoverFilter;
+  ctx: WeightContext;
+  rng: Rng;
+}): { candidates: HandSnapshot[]; chosen: HandSnapshot | null } {
+  const handIds = new Set(args.hand.map((skill) => skill.id));
+  const eligible = playablePool(args.pool).filter(
+    (skill) => skill.id !== args.sourceId && !handIds.has(skill.id) && matchesDiscoverFilter(skill, args.filter),
+  );
+
+  const bag = [...eligible];
+  const candidates: HandSnapshot[] = [];
+  const offer = Math.min(3, bag.length);
+  for (let i = 0; i < offer; i++) {
+    const weights = bag.map((skill) => effectiveWeight(skill, args.ctx));
+    const pick = pickWeightedIndex(weights, args.rng);
+    const skill = bag.splice(pick, 1)[0];
+    if (!skill) break;
+    candidates.push(snapshotSkill(skill, args.ctx));
   }
 
-  const { hand, deck: remaining } = drawHand(pile, posture, handSize);
-  return { hand, deck: remaining, discard: newDiscard };
+  if (candidates.length === 0) {
+    return { candidates, chosen: null };
+  }
+
+  const chosenIndex = pickWeightedIndex(
+    candidates.map((entry) => effectiveWeight(entry.skill, args.ctx)),
+    args.rng,
+  );
+  return { candidates, chosen: candidates[chosenIndex] ?? null };
 }

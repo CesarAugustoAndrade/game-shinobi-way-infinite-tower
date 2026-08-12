@@ -101,7 +101,7 @@ export { useSkill, processUpkeep, applyApproachEffects } from './PlayerTurnSyste
 export { processEnemyTurn } from './EnemyTurnSystem';
 
 // Re-export the deckbuilder/posture economy (T-004)
-export { buildDeck, drawHand, drawNewTurnHand, reshuffle } from './DeckSystem';
+export { buildDeck, playablePool, drawHand, drawNewTurnHand, discoverThree } from './DeckSystem';
 export {
   postureDamageMod,
   postureDefenseMod,
@@ -156,8 +156,7 @@ export function createCombatState(
     maxAp: 0,
     posture: Posture.BALANCED,
     hand: [],
-    deck: [],
-    discard: [],
+    playablePool: [],
     // F2 distance — seeded by startCombat via resolveInitialRange
     currentRange: CombatRange.MEDIUM,
     playerMoveUsedThisTurn: false,

@@ -243,9 +243,8 @@ export interface BattleContext {
   // T-004 AP economy (player only): the deckbuilder state mirrored from the real
   // game (DeckSystem/PostureSystem). The enemy keeps its 1-action-per-turn AI.
   posture: Posture;            // Active player posture (BALANCED = neutral default)
-  deck: Skill[];               // Draw pile (non-PASSIVE cards not in hand/discard)
+  playablePool: Skill[];       // Full non-PASSIVE loadout (T-003: no shrinking deck)
   hand: Skill[];               // Cards available to play this turn
-  discard: Skill[];            // Spent/recycled cards, reshuffled when the deck runs low
   currentAp: number;           // Action Points remaining this turn
   maxAp: number;               // Action Points granted each turn (speed-derived)
   /** F2 engagement band (seeded via resolveInitialRange; enemy may shift once/turn) */
@@ -313,15 +312,12 @@ function executePlayerTurn(ctx: BattleContext): boolean {
   // ── Upkeep: refresh AP and draw a new posture-weighted hand ──
   ctx.currentAp = ctx.maxAp;
   const draw = drawNewTurnHand(
-    ctx.deck,
-    ctx.discard,
-    ctx.hand,
-    ctx.posture,
-    LaunchProperties.HAND_SIZE
+    ctx.playablePool,
+    { posture: ctx.posture },
+    LaunchProperties.HAND_SIZE,
+    Math.random,
   );
   ctx.hand = draw.hand;
-  ctx.deck = draw.deck;
-  ctx.discard = draw.discard;
 
   // Stun check (after the draw, matching the upkeep → action order).
   if (player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN)) {
@@ -374,7 +370,7 @@ function executePlayerTurn(ctx: BattleContext): boolean {
     if (handIndex >= 0) {
       ctx.hand = [...ctx.hand.slice(0, handIndex), ...ctx.hand.slice(handIndex + 1)];
     }
-    ctx.discard = [...ctx.discard, card];
+    // Virtual discard: card leaves the hand; stays in the full pool for next turn.
 
     executeSkill(ctx, card, true);
     actedAtLeastOnce = true;
@@ -957,7 +953,7 @@ export function resolveBattle(
 
   // T-004: build the player's draw pile (non-PASSIVE cards) and open in the
   // neutral BALANCED posture, mirroring the real game's combat opening.
-  const deck = buildDeck(player.skills);
+  const playablePool = buildDeck(player.skills);
 
   // Resolve approach effects from shared APPROACH_DEFINITIONS (parity with live game)
   const approachDef = approach ? APPROACH_DEFINITIONS[approach] : null;
@@ -1030,9 +1026,8 @@ export function resolveBattle(
     approachSucceeded,
     // AP/card/posture economy (player). Hand is dealt on the first player turn.
     posture: openingPosture,
-    deck,
+    playablePool,
     hand: [],
-    discard: [],
     currentAp: 0,
     maxAp: playerStats.derived.actionPointsPerTurn,
     currentRange,

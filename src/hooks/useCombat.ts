@@ -240,12 +240,10 @@ export function useCombat({
         setCombatState((prev) => {
           if (!prev) return prev;
           const newHand = prev.hand.filter((c) => c.id !== skill.id);
-          const playedFromHand = newHand.length !== prev.hand.length;
           return {
             ...prev,
             currentAp: prev.currentAp - apCost,
             hand: newHand,
-            discard: playedFromHand ? [...prev.discard, skill] : prev.discard,
             posture: shiftedPosture ?? prev.posture,
           };
         });
@@ -623,10 +621,10 @@ export function useCombat({
       // T-082: room movementCost (footing) then T-067 location movement_penalty
       maxAp = applyRoomMovementCostToMaxAp(maxAp, terrain ?? null);
       maxAp = applyMovementPenaltyToMaxAp(maxAp, locationTerrainMods ?? null);
-      const deck = buildDeck(preparedPlayer.skills);
+      const playablePool = buildDeck(preparedPlayer.skills);
       newCombatState.maxAp = maxAp;
       newCombatState.posture = openingPosture;
-      newCombatState.discard = [];
+      newCombatState.playablePool = playablePool;
 
       // F2/F3: seed engagement band from approach + enemy preferred + heat bias
       const initialRange = resolveInitialRange({
@@ -661,9 +659,13 @@ export function useCombat({
 
       if (whoFirst === 'player') {
         // Player opens: draw hand now and skip the first upkeep redraw.
-        const opening = drawHand(deck, openingPosture, LaunchProperties.HAND_SIZE);
+        const opening = drawHand(
+          playablePool,
+          { posture: openingPosture, turnIndex: newCombatState.turnIndex },
+          LaunchProperties.HAND_SIZE,
+          Math.random,
+        );
         newCombatState.currentAp = maxAp;
-        newCombatState.deck = opening.deck;
         newCombatState.hand = opening.hand;
         setUpkeepProcessedThisTurn(true);
         setTurnState('PLAYER');
@@ -679,7 +681,6 @@ export function useCombat({
       } else {
         // Enemy opens: player draws on their first turn via processUpkeep.
         newCombatState.currentAp = 0;
-        newCombatState.deck = deck;
         newCombatState.hand = [];
         setUpkeepProcessedThisTurn(false);
         setTurnState('ENEMY_TURN');
@@ -1002,8 +1003,6 @@ export function useCombat({
           currentAp: upkeepResult.currentAp,
           maxAp: upkeepResult.maxAp,
           hand: upkeepResult.hand,
-          deck: upkeepResult.deck,
-          discard: upkeepResult.discard,
           playerMoveUsedThisTurn: false,
           enemyMoveUsedThisTurn: false,
           enemyMaxAp: eMax,

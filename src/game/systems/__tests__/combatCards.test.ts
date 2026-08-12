@@ -11,11 +11,9 @@ import {
   getCardCategory,
   getDefaultApCost,
   getApCost,
-  weightFor,
-  CARD_BASE_WEIGHT,
 } from '../../constants/combatCards';
 import { SKILLS } from '../../constants';
-import { ActionType, EffectType, Posture, PrimaryStat } from '../../types';
+import { ActionType, EffectType, PrimaryStat } from '../../types';
 import { createMockSkill } from './testFixtures';
 
 describe('getCardCategory', () => {
@@ -83,40 +81,4 @@ describe('getApCost', () => {
   });
 });
 
-describe('weightFor', () => {
-  const offensive = createMockSkill({ baseDamage: 12, scalingPerPoint: 4 });
-  const defensive = createMockSkill({
-    baseDamage: 0, scalingPerPoint: 0,
-    effects: [{ type: EffectType.SHIELD, value: 40, duration: 2, chance: 1.0 }],
-  });
-
-  it('never returns a non-positive weight for any posture/category', () => {
-    for (const posture of [Posture.AGGRESSIVE, Posture.BALANCED, Posture.DEFENSIVE]) {
-      expect(weightFor(offensive, posture)).toBeGreaterThan(0);
-      expect(weightFor(defensive, posture)).toBeGreaterThan(0);
-    }
-  });
-
-  it('biases offensive cards up under the aggressive posture', () => {
-    // Aggressive: offensive ×2.0, defensive ×0.5 (relative to CARD_BASE_WEIGHT).
-    expect(weightFor(offensive, Posture.AGGRESSIVE)).toBe(CARD_BASE_WEIGHT * 2.0);
-    expect(weightFor(defensive, Posture.AGGRESSIVE)).toBe(CARD_BASE_WEIGHT * 0.5);
-    expect(weightFor(offensive, Posture.AGGRESSIVE)).toBeGreaterThan(
-      weightFor(defensive, Posture.AGGRESSIVE)
-    );
-  });
-
-  it('biases defensive cards up under the defensive posture', () => {
-    // Defensive: offensive ×0.5, defensive ×2.0.
-    expect(weightFor(defensive, Posture.DEFENSIVE)).toBe(CARD_BASE_WEIGHT * 2.0);
-    expect(weightFor(offensive, Posture.DEFENSIVE)).toBe(CARD_BASE_WEIGHT * 0.5);
-    expect(weightFor(defensive, Posture.DEFENSIVE)).toBeGreaterThan(
-      weightFor(offensive, Posture.DEFENSIVE)
-    );
-  });
-
-  it('keeps every category neutral under the balanced posture', () => {
-    expect(weightFor(offensive, Posture.BALANCED)).toBe(CARD_BASE_WEIGHT);
-    expect(weightFor(defensive, Posture.BALANCED)).toBe(CARD_BASE_WEIGHT);
-  });
-});
+// T-003: draw weights moved to DeckSystem.effectiveWeight (cardRole, not getCardCategory).

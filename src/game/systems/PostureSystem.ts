@@ -5,7 +5,7 @@
  *
  * Pure helpers describing the three combat postures. A posture does three
  * things in the deckbuilder model:
- *   1. Biases the weighted card draw (see DeckSystem / combatCards.weightFor).
+ *   1. Biases the weighted card draw (see DeckSystem.effectiveWeight).
  *   2. Applies a LIGHT outgoing-damage modifier (`postureDamageMod`, wired into
  *      PlayerTurnSystem.useSkill in F2).
  *   3. Applies a LIGHT incoming-damage modifier (`postureDefenseMod`, wired into

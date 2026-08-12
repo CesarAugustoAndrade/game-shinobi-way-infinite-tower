@@ -91,7 +91,7 @@ import {
   stanceBonusDamageMult,
   stanceShiftFromSkill,
 } from './PostureSystem';
-import { drawNewTurnHand } from './DeckSystem';
+import { buildDeck, drawNewTurnHand } from './DeckSystem';
 import { checkLethalDamage } from './SurvivalSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
 
@@ -261,12 +261,15 @@ export function processUpkeep(
     combatState.terrain,
   );
   maxAp = applyMovementPenaltyToMaxAp(maxAp, combatState.locationTerrainMods);
-  const { hand, deck, discard } = drawNewTurnHand(
-    combatState.deck,
-    combatState.discard,
-    combatState.hand,
-    combatState.posture,
-    LaunchProperties.HAND_SIZE
+  const pool =
+    combatState.playablePool.length > 0
+      ? combatState.playablePool
+      : buildDeck(updatedPlayer.skills);
+  const { hand } = drawNewTurnHand(
+    pool,
+    { posture: combatState.posture, turnIndex: combatState.turnIndex },
+    LaunchProperties.HAND_SIZE,
+    Math.random,
   );
 
   return {
@@ -276,8 +279,6 @@ export function processUpkeep(
     currentAp: maxAp,
     maxAp,
     hand,
-    deck,
-    discard,
   };
 }
 

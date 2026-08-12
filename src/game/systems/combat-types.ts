@@ -76,10 +76,8 @@ export interface CombatState {
   posture: Posture;
   /** Cards drawn for the player to play this turn */
   hand: Skill[];
-  /** Remaining draw pile */
-  deck: Skill[];
-  /** Played/discarded cards awaiting reshuffle */
-  discard: Skill[];
+  /** Full playable loadout (non-PASSIVE). Every turn draws from this pool. */
+  playablePool: Skill[];
 
   // ──────────────────────────────────────────────────────────────────────────
   // COMBAT DISTANCE (F2)
@@ -159,10 +157,6 @@ export interface UpkeepResult {
   maxAp: number;
   /** Freshly drawn hand for the new turn. */
   hand: Skill[];
-  /** Remaining draw pile after the new-turn draw. */
-  deck: Skill[];
-  /** Discard pile after folding in the previous hand (and any reshuffle). */
-  discard: Skill[];
 }
 
 /**

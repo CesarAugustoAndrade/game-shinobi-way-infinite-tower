@@ -17,8 +17,7 @@
  * =============================================================================
  */
 
-import { ActionType, EffectType, Posture, PrimaryStat, Skill } from '../types';
-import { LaunchProperties } from '../../config/featureFlags';
+import { ActionType, EffectType, PrimaryStat, Skill } from '../types';
 
 // ============================================================================
 // CARD CATEGORY
@@ -38,7 +37,7 @@ export type CardCategory = 'offensive' | 'utility' | 'defensive';
  */
 export const CARD_OFFENSIVE_DAMAGE_THRESHOLD = 6;
 
-/** Flat starting weight for every card before posture multipliers apply. */
+/** @deprecated T-003 draw uses skill.baseWeight default 2 via DeckSystem.effectiveWeight. */
 export const CARD_BASE_WEIGHT = 1.0;
 
 /** Effect types that directly prevent or recover damage → defensive. */
@@ -133,34 +132,4 @@ export function getApCost(skill: Skill): number {
   return skill.apCost ?? getDefaultApCost(skill);
 }
 
-// ============================================================================
-// POSTURE DRAW WEIGHTS
-// ============================================================================
 
-/**
- * Posture → per-category draw multipliers, mapped from `LaunchProperties` onto
- * the `Posture` enum for type-safe lookup. (LaunchProperties keys are plain
- * strings to avoid a circular import with `game/types`.)
- */
-const POSTURE_WEIGHTS: Record<Posture, Record<CardCategory, number>> = {
-  [Posture.AGGRESSIVE]: LaunchProperties.POSTURE_DRAW_WEIGHTS.Aggressive,
-  [Posture.BALANCED]: LaunchProperties.POSTURE_DRAW_WEIGHTS.Balanced,
-  [Posture.DEFENSIVE]: LaunchProperties.POSTURE_DRAW_WEIGHTS.Defensive,
-};
-
-/**
- * Compute a card's draw weight under a given posture:
- * `CARD_BASE_WEIGHT × postureMultiplier(category)`.
- *
- * Higher weight ⇒ more likely to be drawn into the hand. The result is always
- * positive so no card is ever fully excluded from a draw.
- *
- * @param skill - The card to weight.
- * @param posture - The active combat posture.
- * @returns The (non-negative) draw weight.
- */
-export function weightFor(skill: Skill, posture: Posture): number {
-  const category = getCardCategory(skill);
-  const multiplier = POSTURE_WEIGHTS[posture][category];
-  return CARD_BASE_WEIGHT * multiplier;
-}

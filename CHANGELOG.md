@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-003 full-pool hand:** weighted draw from the entire playable loadout each turn (`effectiveWeight` by `cardRole`); virtual discard; Discover 3; combat `deck`/`discard`/`reshuffle` removed.
 - **T-002 turn clock:** pure `TurnClockSystem` — SOUL phase order, `readyOnTurn = T+N+1`, Mode upkeep-before-regen hook, encounter `resetCombatFrontier`. Live toggle/AP upkeep unchanged.
 - **T-001 CardRole contracts:** first-class `CardRole` / `TargetScope` / `ModeDefinition` / `Mark` / `SkillConfig` types plus pure `CardContractSystem` helpers. Role is authored (`cardRole`); never inferred from damage.
 - chore: scaffold loop-engineering (tasks/, 8 agents, task-* commands, ring map in CLAUDE.md)
