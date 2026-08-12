@@ -20,6 +20,24 @@ const POSTURE_ICON: Record<Posture, React.ReactNode> = {
   [Posture.DEFENSIVE]: <Shield />,
 };
 
+const POSTURE_HOTKEY: Record<Posture, string> = {
+  [Posture.AGGRESSIVE]: 'D',
+  [Posture.BALANCED]: 'F',
+  [Posture.DEFENSIVE]: 'G',
+};
+
+const POSTURE_ART: Record<Posture, string> = {
+  [Posture.AGGRESSIVE]: '/assets/actions/stance_aggressive.jpg',
+  [Posture.BALANCED]: '/assets/actions/stance_balanced.jpg',
+  [Posture.DEFENSIVE]: '/assets/actions/stance_defensive.jpg',
+};
+
+const POSTURE_CLASS: Record<Posture, string> = {
+  [Posture.AGGRESSIVE]: 'posture-indicator__btn--aggressive',
+  [Posture.BALANCED]: 'posture-indicator__btn--balanced',
+  [Posture.DEFENSIVE]: 'posture-indicator__btn--defensive',
+};
+
 interface PostureIndicatorProps {
   /** The active combat posture. */
   posture: Posture;
@@ -55,6 +73,8 @@ export const PostureIndicator: React.FC<PostureIndicatorProps> = ({
           const profile = describePosture(p);
           const isActive = p === posture;
           const disabled = !isPlayerTurn || (!isActive && !affordable);
+          const hotkey = POSTURE_HOTKEY[p];
+          const postureClass = POSTURE_CLASS[p];
 
           return (
             <Tooltip
@@ -62,7 +82,7 @@ export const PostureIndicator: React.FC<PostureIndicatorProps> = ({
               position="top"
               content={
                 <div className="combat-tooltip">
-                  <div className="combat-tooltip__title">{profile.label} Stance</div>
+                  <div className="combat-tooltip__title">{profile.label} Stance [{hotkey}]</div>
                   <div className="combat-tooltip__description">{profile.drawBias}.</div>
                   <div className="combat-tooltip__mechanics">
                     <div>- Damage dealt: {Math.round(profile.damageMod * 100)}%</div>
@@ -76,13 +96,19 @@ export const PostureIndicator: React.FC<PostureIndicatorProps> = ({
             >
               <button
                 type="button"
-                className={`posture-indicator__btn ${isActive ? 'posture-indicator__btn--active' : ''}`}
+                className={`posture-indicator__btn ${postureClass} ${isActive ? 'posture-indicator__btn--active' : ''}`}
                 onClick={() => { if (!isActive) onChangePosture(p); }}
                 disabled={disabled}
                 aria-pressed={isActive}
               >
+                <div className="posture-indicator__btn-bg" aria-hidden>
+                  <img src={POSTURE_ART[p]} alt="" draggable={false} />
+                </div>
+                <div className="posture-indicator__btn-overlay" aria-hidden />
+
                 <span className="posture-indicator__icon">{POSTURE_ICON[p]}</span>
                 <span className="posture-indicator__label">{profile.label}</span>
+                <span className="posture-indicator__keycap">{hotkey}</span>
               </button>
             </Tooltip>
           );

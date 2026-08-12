@@ -26,6 +26,12 @@ interface CharacterSheetOverlayProps {
    * T-101: region lootTheme for Affinity/Focus/Ryo + Focus stat marks on primary panel.
    */
   lootTheme?: RegionLootTheme | null;
+  /** Dock side — sheet defaults left so bag can use right. */
+  side?: 'left' | 'right';
+  /** Dimmed full-screen hit target; false when the other panel owns the dim. */
+  showBackdrop?: boolean;
+  /** Focus trap only when this is the sole open panel. */
+  trapFocus?: boolean;
 }
 
 const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
@@ -33,11 +39,14 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
   playerStats,
   onClose,
   lootTheme = null,
+  side = 'left',
+  showBackdrop = true,
+  trapFocus = true,
 }) => {
   const flagMods = getEventFlagRunModifiers(player);
   const runFlagLabels = flagMods.activeLabels;
   const rootRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(rootRef);
+  useFocusTrap(rootRef, trapFocus);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -46,25 +55,34 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
       e.stopPropagation();
       onClose();
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    // Bubble (not capture) so bag Esc can fire first when both open
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
   return (
     <div
       ref={rootRef}
-      className="explore-overlay"
+      className={[
+        'explore-overlay',
+        side === 'left' ? 'explore-overlay--start' : 'explore-overlay--end',
+        !showBackdrop ? 'explore-overlay--no-backdrop' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="dialog"
-      aria-modal="true"
+      aria-modal={trapFocus ? true : undefined}
       aria-label="Character sheet"
     >
-      <button
-        type="button"
-        className="explore-overlay__backdrop"
-        aria-label="Close character sheet"
-        onClick={onClose}
-        tabIndex={-1}
-      />
+      {showBackdrop && (
+        <button
+          type="button"
+          className="explore-overlay__backdrop"
+          aria-label="Close character sheet"
+          onClick={onClose}
+          tabIndex={-1}
+        />
+      )}
       <div className="explore-overlay__panel explore-overlay__panel--sheet">
         <header className="explore-overlay__header">
           <h2 className="explore-overlay__title">
@@ -73,7 +91,13 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
           <span className="explore-overlay__hint">
             <kbd>C</kbd> toggle · <kbd>Esc</kbd> close
           </span>
-          <button type="button" className="explore-overlay__close" onClick={onClose} aria-label="Close" autoFocus>
+          <button
+            type="button"
+            className="explore-overlay__close"
+            onClick={onClose}
+            aria-label="Close"
+            autoFocus={trapFocus}
+          >
             <X size={18} />
           </button>
         </header>
@@ -88,14 +112,7 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
                     Affinity {lootTheme.primaryElement}
                   </span>
                 )}
-                {lootTheme.equipmentFocus?.length > 0 && (
-                  <span className="explore-overlay__region-chip explore-overlay__region-chip--focus">
-                    Focus{' '}
-                    {lootTheme.equipmentFocus
-                      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                      .join(' · ')}
-                  </span>
-                )}
+
                 {lootTheme.goldMultiplier !== 1 && (
                   <span className="explore-overlay__region-chip explore-overlay__region-chip--gold">
                     Ryo ×{lootTheme.goldMultiplier}

@@ -77,19 +77,20 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
           <div className="player-hud__info">
             <span className="player-hud__name">{player.clan}</span>
             <span className="player-hud__level">Lv.{player.level}</span>
-            {/* XP Bar inline */}
-            <div className="player-hud__xp">
-              <TrendingUp className="player-hud__xp-icon" />
-              <div className="player-hud__xp-track">
-                <div
-                  className="player-hud__xp-fill"
-                  style={{ width: `${xpPercent}%` }}
-                />
-              </div>
-              <span className="player-hud__xp-value">
-                {player.exp}/{player.maxExp}
-              </span>
+          </div>
+
+          {/* XP Bar under name */}
+          <div className="player-hud__xp">
+            <TrendingUp className="player-hud__xp-icon" />
+            <div className="player-hud__xp-track">
+              <div
+                className="player-hud__xp-fill"
+                style={{ width: `${xpPercent}%` }}
+              />
             </div>
+            <span className="player-hud__xp-value">
+              {player.exp}/{player.maxExp} XP
+            </span>
           </div>
 
           {/* HP & Chakra Bars */}

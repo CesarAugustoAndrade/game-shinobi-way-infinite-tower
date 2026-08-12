@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Swift Sandals — lightweight shinobi footwear with chakra-grip soles. Pair of traditional Japanese ninja waraji / open-toed sandals with dark cloth wraps, thin straps, and subtle pale-blue chakra lines etched on the sole. Fast agile silhouette, not modern sneakers.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered pair of sandals fills most of the square frame, slight 3/4 angle, floating, no feet, no legs, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern running shoes, brand logos, black background, pure black matte, transparent checkerboard, gradient background, watermark.

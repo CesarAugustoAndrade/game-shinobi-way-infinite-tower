@@ -21,6 +21,11 @@ import {
 import { formatStatName } from '../../game/utils/tooltipFormatters';
 import { MERCHANT } from '../../game/config';
 import { calculateMerchantRerollCost } from '../../game/systems/ScalingSystem';
+import {
+  getSellPrice,
+  getMerchantBuyPrice,
+  getMerchantBasePrice,
+} from '../../game/systems/LootSystem';
 import { resolveItemArt, getActivityArt } from '../../game/constants/artRegistry';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import ArtIcon from '../../components/shared/ArtIcon';
@@ -39,6 +44,8 @@ interface MerchantProps {
   baseDifficulty: number;
   /** T-055: return paid price on success, null on fail */
   onBuyItem: (item: Item) => number | null | void;
+  /** Fence bag items for ryo (sell only available here) */
+  onSellFromBag?: (item: Item) => number | null | void;
   onLeave: () => void;
   onReroll: () => void;
   onBuySlot: () => void;
@@ -260,9 +267,13 @@ const ItemCard: React.FC<ItemCardProps> = ({
     }
   }, [canBuy, onBuy]);
 
+  const topStats = Object.entries(statComparisons)
+    .filter(([, data]) => data.value !== 0 || data.delta !== 0)
+    .slice(0, 3);
+
   return (
     <div
-      className={`item-card item-tile item-card--${rarityClass} ${
+      className={`item-card item-card--row item-tile item-card--${rarityClass} ${
         isSelected ? 'item-card--selected' : ''
       } ${isDimmed ? 'item-card--dimmed' : ''} ${
         !affordable || bagFull ? 'item-card--unaffordable' : ''
@@ -270,8 +281,6 @@ const ItemCard: React.FC<ItemCardProps> = ({
       onClick={handleClick}
       role="button"
       tabIndex={isDimmed ? -1 : 0}
-      onMouseEnter={(e) => alignItemTileTooltip(e.currentTarget)}
-      onFocus={(e) => alignItemTileTooltip(e.currentTarget)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -279,87 +288,20 @@ const ItemCard: React.FC<ItemCardProps> = ({
         }
       }}
     >
-      {/* Detail tooltip — hover / keyboard focus. Hidden while the card is
-          selected (the PreviewPanel already shows the full details). */}
-      <div className="item-tile__tooltip" role="tooltip">
-        <div className={`item-tooltip__name item-card__name--${rarityClass}`}>{item.name}</div>
-        <div className="item-tooltip__type">{item.rarity} {item.type}</div>
-        {item.description && (
-          <div className="item-tooltip__desc">{item.description}</div>
-        )}
-        <div className="item-tooltip__section">
-          {Object.entries(statComparisons)
-            .filter(([, data]) => data.value !== 0 || data.delta !== 0)
-            .map(([key, data]) => (
-              <div
-                key={key}
-                className={`item-tooltip__row ${isFocusStat(key, equipmentFocus) ? 'item-tooltip__row--focus' : ''}`}
-              >
-                <span className="item-tooltip__label">
-                  {formatStatName(key)}
-                  {isFocusStat(key, equipmentFocus) && (
-                    <span className="item-tooltip__focus-mark"> ★</span>
-                  )}
-                </span>
-                <div className="item-tooltip__values">
-                  <span className="item-tooltip__value">+{data.value}</span>
-                  {data.delta !== 0 && !data.isNew && (
-                    <span className={data.delta > 0 ? 'item-tooltip__delta--positive' : 'item-tooltip__delta--negative'}>
-                      {data.delta > 0 ? '▲' : '▼'}{Math.abs(data.delta)}
-                    </span>
-                  )}
-                  {data.isNew && <span className="item-tooltip__delta--new">NEW</span>}
-                </div>
-              </div>
-            ))}
-        </div>
-        <div className="item-tooltip__section">
-          <div className="item-tooltip__row">
-            <span className="item-tooltip__label">Price</span>
-            <span className={affordable && !bagFull ? 'item-tooltip__value' : 'item-tooltip__delta--negative'}>
-              {price} Ryo
-            </span>
-          </div>
-          {!affordable && shortfall > 0 && (
-            <div className="item-tooltip__row">
-              <span className="item-tooltip__label">Purse</span>
-              <span className="item-tooltip__delta--negative">short {shortfall}</span>
-            </div>
-          )}
-          {bagFull && (
-            <div className="item-tooltip__row">
-              <span className="item-tooltip__label">Bag</span>
-              <span className="item-tooltip__delta--negative">full — free a pocket</span>
-            </div>
-          )}
-          {canBuy && afterBuy !== null && (
-            <div className="item-tooltip__row">
-              <span className="item-tooltip__label">After</span>
-              <span className="item-tooltip__value">{afterBuy} Ryo</span>
-            </div>
-          )}
-          {leanEconomy && (
-            <div className="item-tooltip__synth">Wave Country · lean ryo economy</div>
-          )}
-        </div>
+      <div className="item-card__thumb" aria-hidden="true">
+        <ArtIcon art={resolveItemArt(item)} size="fill" title={item.name} />
       </div>
 
-      {/* Frame overlay */}
-      <div className="item-card__frame" />
-
-      {/* Corner ornaments */}
-      <div className="item-card__corner item-card__corner--tl" />
-      <div className="item-card__corner item-card__corner--tr" />
-      <div className="item-card__corner item-card__corner--bl" />
-      <div className="item-card__corner item-card__corner--br" />
-
-      {/* Content */}
-      <div className="item-card__content">
-        {/* Header */}
+      <div className="item-card__body">
         <div className="item-card__header">
-          <span className={`item-card__rarity-tag item-card__rarity-tag--${rarityClass}`}>
-            {rarityLabel}
-          </span>
+          <div className="item-card__header-left">
+            <span className={`item-card__rarity-tag item-card__rarity-tag--${rarityClass}`}>
+              {rarityLabel}
+            </span>
+            <h3 className={`item-card__name item-card__name--${rarityClass}`}>
+              {item.name}
+            </h3>
+          </div>
           <span className="item-card__header-right">
             {isFocusItem && (
               <span className="item-card__focus-badge" title="Matches region Focus stats">
@@ -373,28 +315,31 @@ const ItemCard: React.FC<ItemCardProps> = ({
                   : 'item-card__afford-indicator--risk'
               }`}
             >
-              {canBuy ? (
-                <CheckCircle size={14} />
-              ) : (
-                <AlertTriangle size={14} />
-              )}
+              {canBuy ? <CheckCircle size={14} /> : <AlertTriangle size={14} />}
             </span>
           </span>
         </div>
 
-        {/* The item IS the asset */}
-        <div className="item-tile__visual" aria-hidden="true">
-          <ArtIcon art={resolveItemArt(item)} size="fill" title={item.name} />
-        </div>
+        {topStats.length > 0 && (
+          <div className="item-card__statline" aria-label="Key stats">
+            {topStats.map(([key, data]) => (
+              <span
+                key={key}
+                className={`item-card__stat-chip ${
+                  isFocusStat(key, equipmentFocus) ? 'item-card__stat-chip--focus' : ''
+                }`}
+              >
+                {formatStatName(key)} +{data.value}
+                {data.delta !== 0 && !data.isNew && (
+                  <em className={data.delta > 0 ? 'up' : 'down'}>
+                    {data.delta > 0 ? '▲' : '▼'}{Math.abs(data.delta)}
+                  </em>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
 
-        {/* Item Info */}
-        <div className="item-card__info">
-          <h3 className={`item-card__name item-card__name--${rarityClass}`}>
-            {item.name}
-          </h3>
-        </div>
-
-        {/* Footer — price + risk readable for Waves poverty */}
         <div className="item-card__footer">
           <div className="item-card__price">
             <span
@@ -408,23 +353,14 @@ const ItemCard: React.FC<ItemCardProps> = ({
             </span>
             {discountPercent > 0 && (
               <span className="item-card__price-original">
-                {Math.floor(item.value * MERCHANT.ITEM_PRICE_MULTIPLIER)}
+                {getMerchantBasePrice(item)}
               </span>
             )}
             {bagFull && (
-              <div className="item-card__price-shortfall" title="Bag has no free slots">
-                Bag full
-              </div>
+              <span className="item-card__price-shortfall">Bag full</span>
             )}
             {!bagFull && !affordable && shortfall > 0 && (
-              <div className="item-card__price-shortfall" title="Ryo shortfall">
-                Purse short {shortfall}
-              </div>
-            )}
-            {canBuy && afterBuy !== null && afterBuy < price && leanEconomy && (
-              <div className="item-card__price-after" title="Ryo remaining after purchase">
-                → {afterBuy} left
-              </div>
+              <span className="item-card__price-shortfall">short {shortfall}</span>
             )}
           </div>
           <button
@@ -576,7 +512,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
         {discountPercent > 0 && (
           <>
             <span className="preview-panel__price-original">
-              {Math.floor(item.value * MERCHANT.ITEM_PRICE_MULTIPLIER)}
+              {getMerchantBasePrice(item)}
             </span>
             <div className="preview-panel__price-discount">
               {discountPercent}% OFF!
@@ -639,6 +575,7 @@ const Merchant: React.FC<MerchantProps> = ({
   dangerLevel,
   baseDifficulty,
   onBuyItem,
+  onSellFromBag,
   onLeave,
   onReroll,
   onBuySlot,
@@ -659,10 +596,7 @@ const Merchant: React.FC<MerchantProps> = ({
   );
 
   const getPrice = useCallback(
-    (item: Item) => {
-      const basePrice = item.value * MERCHANT.ITEM_PRICE_MULTIPLIER;
-      return Math.floor(basePrice * (1 - discountPercent / 100));
-    },
+    (item: Item) => getMerchantBuyPrice(item, discountPercent),
     [discountPercent]
   );
 
@@ -795,12 +729,32 @@ const Merchant: React.FC<MerchantProps> = ({
 
   const leanEconomy = Boolean(lootTheme && lootTheme.goldMultiplier < 1);
   const merchantArt = getActivityArt('merchant');
+  const shopPosterArt = {
+    src: '/assets/posters/merchant_shop_poster.jpg',
+    emoji: merchantArt.emoji || '🛒',
+    label: 'Traveling Merchant',
+  };
   const bagFull = !player.bag.some((s) => s === null);
+  const bagItems = player.bag.filter((s): s is Item => s != null);
+
+  const handleFence = useCallback(
+    (item: Item) => {
+      if (!onSellFromBag || isProcessing) return;
+      onSellFromBag(item);
+    },
+    [onSellFromBag, isProcessing],
+  );
+  const shopQuote = leanEconomy
+    ? 'Coin is thin here. Spend carefully — or walk hungry.'
+    : 'Finest wares from the far corners of the shinobi world.';
 
   return (
-    <SceneBackdrop background={background}>
-    <div className={`merchant ${leanEconomy ? 'merchant--lean' : ''}`}>
-      {/* Mobile bottom-sheet backdrop */}
+    <SceneBackdrop background={background} dim={0.22}>
+    <div
+      className={`merchant ${leanEconomy ? 'merchant--lean' : ''}`}
+      role="region"
+      aria-label="Traveling Merchant"
+    >
       {selectedItem && (
         <div
           className="merchant__sheet-backdrop"
@@ -809,158 +763,84 @@ const Merchant: React.FC<MerchantProps> = ({
         />
       )}
 
-      {/* Top HUD: NPC left · identity center · purse right — no ornate bar */}
-      <header className="merchant__top">
-        <div className="merchant__npc">
-          <div className="merchant__npc-frame">
-            <ArtIcon
-              art={merchantArt}
-              size="fill"
-              title="Traveling Merchant"
-              className="merchant__npc-art"
-            />
-          </div>
-          <div className="merchant__npc-meta">
-            <div className="merchant__npc-nameplate">
-              <span className="merchant__npc-role">Traveling Merchant</span>
+      <div className="merchant__split">
+        {/* ── LEFT: shop poster (event-style) ── */}
+        <aside className="merchant__poster">
+          <div className="merchant__poster-frame">
+            <div className="merchant__poster-art">
+              <ArtIcon art={shopPosterArt} size="fill" title="Traveling Merchant" />
+            </div>
+            <div className="merchant__poster-scrim" aria-hidden="true" />
+            <div className="merchant__poster-copy">
+              <span className="merchant__plate-tag">Traveling Market</span>
+              <h1 className="merchant__title">Traveling Merchant</h1>
               {discountPercent > 0 && (
                 <span className="merchant__discount-badge">{discountPercent}% OFF</span>
               )}
+              <p className="merchant__description">{shopQuote}</p>
             </div>
-            <p className="merchant__npc-quote">
-              {leanEconomy
-                ? 'Coin is thin here. Spend carefully — or walk hungry.'
-                : 'Finest wares from the far corners of the shinobi world.'}
-            </p>
-            {lootTheme && (
-              <div className="merchant__theme" aria-label="Region shop bias">
-                {lootTheme.primaryElement && (
-                  <span className="merchant__theme-chip merchant__theme-chip--affinity">
-                    Affinity {lootTheme.primaryElement}
-                  </span>
-                )}
-                {lootTheme.equipmentFocus?.length > 0 && (
-                  <span className="merchant__theme-chip merchant__theme-chip--focus">
-                    Focus{' '}
-                    {lootTheme.equipmentFocus
-                      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                      .join(' · ')}
-                  </span>
-                )}
-                {lootTheme.goldMultiplier !== 1 && (
-                  <span
-                    className={`merchant__theme-chip merchant__theme-chip--gold ${
-                      leanEconomy ? 'merchant__theme-chip--lean' : ''
-                    }`}
-                  >
-                    Ryo ×{lootTheme.goldMultiplier}
-                    {leanEconomy ? ' · Lean' : ''}
-                  </span>
-                )}
-              </div>
-            )}
-            {leanEconomy && (
-              <p className="merchant__lean-note" role="note">
-                Lean economy — check shortfall before you buy.
+          </div>
+        </aside>
+
+        {/* ── RIGHT: purse + stock options (event-style choices) ── */}
+        <div className="merchant__decision">
+          <div className="merchant__path-bar">
+            <span className="merchant__divider">Shop · Stock</span>
+            <div className="merchant__hud">
+              <RyoDisplay current={player.ryo} previewCost={selectedPrice} />
+              <MerchantStatus
+                quality={player.treasureQuality}
+                slots={player.merchantSlots}
+                maxSlots={MAX_MERCHANT_SLOTS}
+              />
+            </div>
+          </div>
+
+          {merchantItems.length === 0 ? (
+            <div className="merchant__empty" role="status">
+              <p className="merchant__empty-title">The cart is bare</p>
+              <p className="merchant__empty-body">
+                Dust settles where wares once waited. Reroll the stock — or walk on into the mist.
               </p>
-            )}
-          </div>
-        </div>
-
-        <div className="merchant__hud">
-          <RyoDisplay current={player.ryo} previewCost={selectedPrice} />
-          <MerchantStatus
-            quality={player.treasureQuality}
-            slots={player.merchantSlots}
-            maxSlots={MAX_MERCHANT_SLOTS}
-          />
-        </div>
-      </header>
-
-      {/* Services + leave on one tool strip */}
-      <div className="merchant__toolbar">
-        <div className="merchant__services">
-          <ServiceButton
-            variant="reroll"
-            cost={rerollCost}
-            label="Reroll"
-            onClick={onReroll}
-            disabled={isProcessing || player.ryo < rerollCost}
-          />
-          {player.merchantSlots < MAX_MERCHANT_SLOTS && (
-            <ServiceButton
-              variant="slot"
-              cost={slotCost}
-              label="+1 Slot"
-              onClick={onBuySlot}
-              disabled={isProcessing || player.ryo < slotCost}
-            />
+            </div>
+          ) : (
+            <div className="merchant__wares" role="list" aria-label="Merchant stock">
+              {merchantItems.map((item, index) => {
+                const price = getPrice(item);
+                const affordable = canAfford(item);
+                const shortfall = affordable ? 0 : Math.max(0, price - player.ryo);
+                return (
+                  <div
+                    key={item.id}
+                    className="merchant__ware"
+                    role="listitem"
+                    style={{ ['--ware-stagger' as string]: String(index) }}
+                  >
+                    <span className="merchant__ware-index" aria-hidden="true">
+                      {index + 1}
+                    </span>
+                    <ItemCard
+                      item={item}
+                      price={price}
+                      affordable={affordable}
+                      shortfall={shortfall}
+                      bagFull={bagFull}
+                      playerRyo={player.ryo}
+                      statComparisons={getStatComparisons(item)}
+                      isSelected={selectedItemId === item.id}
+                      isDimmed={selectedItemId !== null && selectedItemId !== item.id}
+                      discountPercent={discountPercent}
+                      onSelect={() => handleSelect(item.id)}
+                      onBuy={() => tryBuy(item)}
+                      isProcessing={isProcessing}
+                      equipmentFocus={lootTheme?.equipmentFocus}
+                      leanEconomy={leanEconomy}
+                    />
+                  </div>
+                );
+              })}
+            </div>
           )}
-          {player.treasureQuality !== TreasureQuality.RARE && (
-            <ServiceButton
-              variant="quality"
-              cost={qualityCost}
-              label="Quality ↑"
-              onClick={onUpgradeQuality}
-              disabled={isProcessing || player.ryo < qualityCost}
-            />
-          )}
-        </div>
-        <button
-          type="button"
-          className="merchant__leave-button"
-          onClick={onLeave}
-        >
-          Leave shop
-          <span className="sw-shortcut">Esc</span>
-        </button>
-      </div>
-
-      {/* Wares — primary stage */}
-      {merchantItems.length === 0 ? (
-        <div className="merchant__empty" role="status">
-          <p className="merchant__empty-title">The cart is bare</p>
-          <p className="merchant__empty-body">
-            Dust settles where wares once waited. Reroll the stock — or walk on into the mist.
-          </p>
-        </div>
-      ) : (
-        <div
-          className={`merchant__content ${
-            selectedItem ? 'merchant__content--with-preview' : ''
-          }`}
-        >
-          <div
-            className={`item-grid ${
-              selectedItem ? 'item-grid--with-selection' : ''
-            }`}
-          >
-            {merchantItems.map((item) => {
-              const price = getPrice(item);
-              const affordable = canAfford(item);
-              const shortfall = affordable ? 0 : Math.max(0, price - player.ryo);
-              return (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  price={price}
-                  affordable={affordable}
-                  shortfall={shortfall}
-                  bagFull={bagFull}
-                  playerRyo={player.ryo}
-                  statComparisons={getStatComparisons(item)}
-                  isSelected={selectedItemId === item.id}
-                  isDimmed={selectedItemId !== null && selectedItemId !== item.id}
-                  discountPercent={discountPercent}
-                  onSelect={() => handleSelect(item.id)}
-                  onBuy={() => tryBuy(item)}
-                  isProcessing={isProcessing}
-                  equipmentFocus={lootTheme?.equipmentFocus}
-                  leanEconomy={leanEconomy}
-                />
-              );
-            })}
-          </div>
 
           {selectedItem && (
             <PreviewPanel
@@ -980,10 +860,77 @@ const Merchant: React.FC<MerchantProps> = ({
               leanEconomy={leanEconomy}
             />
           )}
-        </div>
-      )}
 
-      {/* T-055: purchase success toast */}
+          {/* Fence bag — only place to sell inventory */}
+          {onSellFromBag && (
+            <div className="merchant__fence" aria-label="Sell bag items">
+              <div className="merchant__fence-header">
+                <span className="merchant__fence-title">Fence bag</span>
+                <span className="merchant__fence-note">Sell only here</span>
+              </div>
+              {bagItems.length === 0 ? (
+                <p className="merchant__fence-empty">Bag is empty — nothing to fence.</p>
+              ) : (
+                <ul className="merchant__fence-list">
+                  {bagItems.map((item) => {
+                    const sellValue = getSellPrice(item);
+                    return (
+                      <li key={item.id} className="merchant__fence-row">
+                        <span className="merchant__fence-art" aria-hidden>
+                          <ArtIcon art={resolveItemArt(item)} size="sm" title={item.name} />
+                        </span>
+                        <span className="merchant__fence-name">{item.name}</span>
+                        <button
+                          type="button"
+                          className="merchant__fence-sell"
+                          disabled={isProcessing}
+                          onClick={() => handleFence(item)}
+                        >
+                          Sell +{sellValue}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <div className="merchant__services" aria-label="Shop services">
+            <ServiceButton
+              variant="reroll"
+              cost={rerollCost}
+              label="Reroll stock"
+              onClick={onReroll}
+              disabled={isProcessing || player.ryo < rerollCost}
+            />
+            {player.merchantSlots < MAX_MERCHANT_SLOTS && (
+              <ServiceButton
+                variant="slot"
+                cost={slotCost}
+                label="+1 Slot"
+                onClick={onBuySlot}
+                disabled={isProcessing || player.ryo < slotCost}
+              />
+            )}
+            {player.treasureQuality !== TreasureQuality.RARE && (
+              <ServiceButton
+                variant="quality"
+                cost={qualityCost}
+                label="Quality ↑"
+                onClick={onUpgradeQuality}
+                disabled={isProcessing || player.ryo < qualityCost}
+              />
+            )}
+          </div>
+
+          <button type="button" className="merchant__leave-button" onClick={onLeave}>
+            Leave shop
+            <span className="sw-shortcut">Esc</span>
+          </button>
+        </div>
+      </div>
+
       {purchaseToast && (
         <div
           className="merchant-toast"

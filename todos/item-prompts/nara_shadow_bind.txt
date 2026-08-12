@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Nara Shadow Bind — stylized shadow-binding technique prop. Dark purple-black shadow tendrils forming a binding spiral or hand-shadow shape with soft violet edge glow, Nara deer clan aesthetic. Shadow energy prop only, floating, no person.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered shadow form fills most of the square frame, floating, no character body, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, full character, black background, pure black matte, transparent checkerboard, gradient background, watermark, gore, violence.

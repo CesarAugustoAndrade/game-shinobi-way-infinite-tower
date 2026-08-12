@@ -1,9 +1,9 @@
 import React from 'react';
 import { Player, PrimaryAttributes } from '../../game/types';
+import { CLAN_PRIMARY_STATS } from '../../game/constants';
 import {
   Swords, Brain, Flame, Droplet, Target, Wind, Sparkles, User, Heart, Eye
 } from 'lucide-react';
-import { isFocusStat } from '../../game/utils/itemFocusMatch';
 import Tooltip from '../shared/Tooltip';
 import './character.css';
 
@@ -11,7 +11,7 @@ interface PrimaryStatsPanelProps {
   player: Player;
   effectivePrimary: PrimaryAttributes;
   /**
-   * T-101: region equipmentFocus — mark matching primary stats with ★.
+   * T-101: region equipmentFocus (optional).
    */
   equipmentFocus?: string[] | null;
 }
@@ -19,8 +19,11 @@ interface PrimaryStatsPanelProps {
 const PrimaryStatsPanel: React.FC<PrimaryStatsPanelProps> = ({
   player,
   effectivePrimary,
-  equipmentFocus = null,
+  equipmentFocus: _equipmentFocus = null,
 }) => {
+  void _equipmentFocus;
+  const clanPrimaryStats = CLAN_PRIMARY_STATS[player.clan] ?? [];
+
   const renderPrimaryStat = (
     icon: React.ReactNode,
     label: string,
@@ -32,7 +35,7 @@ const PrimaryStatsPanel: React.FC<PrimaryStatsPanelProps> = ({
     const base = player.primaryStats[key];
     const effective = effectivePrimary[key];
     const diff = effective - base;
-    const isFocus = isFocusStat(String(key), equipmentFocus) || isFocusStat(label, equipmentFocus);
+    const isClanPrimary = clanPrimaryStats.includes(key);
 
     const tooltipContent = (
       <div className="primary-stats__tooltip">
@@ -59,13 +62,13 @@ const PrimaryStatsPanel: React.FC<PrimaryStatsPanelProps> = ({
 
     return (
       <Tooltip content={tooltipContent} position="right">
-        <div className={`primary-stats__stat ${isFocus ? 'primary-stats__stat--focus' : ''}`}>
+        <div className={`primary-stats__stat ${isClanPrimary ? 'primary-stats__stat--focus' : ''}`}>
           <div className="primary-stats__stat-left">
             <span className={`primary-stats__stat-icon ${iconClass}`}>{icon}</span>
             <div className="primary-stats__stat-label">
               {label}
-              {isFocus && (
-                <span className="primary-stats__focus-mark" title="Region Focus stat"> ★</span>
+              {isClanPrimary && (
+                <span className="primary-stats__focus-mark" title="Clan Primary stat"> ★</span>
               )}
             </div>
           </div>

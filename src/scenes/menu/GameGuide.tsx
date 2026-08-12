@@ -1,15 +1,171 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HELP_TEXT } from '../../game/constants/helpText';
-import { ArrowLeft, Flame, Wind, Zap, Mountain, Droplet, Sword, Brain, Sparkles, Shield, Map, MapPin, Box, Hammer, Target, TreePine } from 'lucide-react';
+import { ArrowLeft, Flame, Wind, Zap, Mountain, Droplet, Sword, Brain, Sparkles, Shield, Map, MapPin, Box, Hammer, Target, TreePine, Workflow, Swords, Compass, Coins, ScrollText, Crown, ChartNoAxesCombined, type LucideIcon } from 'lucide-react';
 import './GameGuide.css';
 
 interface GameGuideProps {
   onBack: () => void;
 }
 
-type Tab = 'STATS' | 'ELEMENTS' | 'EFFECTS' | 'COMBAT' | 'CLANS' | 'PROGRESSION' | 'EQUIPMENT' | 'EXPLORATION' | 'CRAFTING';
+type Tab = 'STATS' | 'ELEMENTS' | 'EFFECTS' | 'COMBAT' | 'CLANS' | 'PROGRESSION' | 'EQUIPMENT' | 'EXPLORATION' | 'CRAFTING' | 'SYSTEMS';
 
-const TABS: Tab[] = ['STATS', 'ELEMENTS', 'EFFECTS', 'COMBAT', 'CLANS', 'PROGRESSION', 'EQUIPMENT', 'EXPLORATION', 'CRAFTING'];
+const TABS: Tab[] = ['STATS', 'ELEMENTS', 'EFFECTS', 'COMBAT', 'CLANS', 'PROGRESSION', 'EQUIPMENT', 'EXPLORATION', 'CRAFTING', 'SYSTEMS'];
+
+type SystemArea = 'CORE' | 'EXPLORATION' | 'COMBAT' | 'PROGRESSION' | 'ECONOMY';
+
+interface SystemCatalogEntry {
+  name: string;
+  area: SystemArea;
+  title: string;
+  summary: string;
+  responsibilities: string[];
+  icon: LucideIcon;
+  mode: 'PURE' | 'FLOW' | 'SERVICE';
+}
+
+const SYSTEM_FILTERS: Array<SystemArea | 'ALL'> = ['ALL', 'CORE', 'EXPLORATION', 'COMBAT', 'PROGRESSION', 'ECONOMY'];
+
+/** The atlas mirrors the real modules in src/game/systems/. Keep names in sync when adding a system. */
+const SYSTEM_CATALOG: SystemCatalogEntry[] = [
+  {
+    name: 'StatSystem', area: 'CORE', icon: ChartNoAxesCombined, mode: 'PURE',
+    title: 'Triad of the shinobi',
+    summary: 'Converts Body, Mind and Technique attributes into the derived combat sheet.',
+    responsibilities: ['Primary → derived stats', 'Skill requirements', 'Equipment-aware totals'],
+  },
+  {
+    name: 'LevelSystem', area: 'PROGRESSION', icon: Crown, mode: 'PURE',
+    title: 'Growth by experience',
+    summary: 'Applies level-ups, rewards and the stat choices that shape a run.',
+    responsibilities: ['XP thresholds', 'Level-up application', 'Progression rewards'],
+  },
+  {
+    name: 'ScalingSystem', area: 'PROGRESSION', icon: ChartNoAxesCombined, mode: 'PURE',
+    title: 'Pressure curve',
+    summary: 'Keeps danger, floors, merchant prices and the campaign difficulty readable.',
+    responsibilities: ['Danger → floor scaling', 'Merchant discounts', 'Ryo adjustments'],
+  },
+  {
+    name: 'CampaignSystem', area: 'PROGRESSION', icon: ScrollText, mode: 'FLOW',
+    title: 'Between-region cadence',
+    summary: 'Resolves the interlude after a regional boss and carries the campaign forward.',
+    responsibilities: ['Full heal', 'Boons', 'Region hand-off'],
+  },
+  {
+    name: 'InfiniteTowerSystem', area: 'PROGRESSION', icon: Crown, mode: 'FLOW',
+    title: 'Endless ascent',
+    summary: 'Unlocks post-campaign tower runs and turns floor height into a score.',
+    responsibilities: ['Unlock state', 'Procedural region config', 'Height calculation'],
+  },
+  {
+    name: 'RegionSystem', area: 'EXPLORATION', icon: Compass, mode: 'FLOW',
+    title: 'The world map',
+    summary: 'Builds regions, location cards and the intel layer that reveals the next route.',
+    responsibilities: ['Region generation', 'Location deck', 'Intel reveal'],
+  },
+  {
+    name: 'LocationSystem', area: 'EXPLORATION', icon: Map, mode: 'FLOW',
+    title: 'Room-by-room traversal',
+    summary: 'Controls the diamond branch, activities, completion state and treasure pieces.',
+    responsibilities: ['Room movement', 'Activity completion', 'Location payoff'],
+  },
+  {
+    name: 'LocationTerrainSystem', area: 'EXPLORATION', icon: TreePine, mode: 'PURE',
+    title: 'Terrain has teeth',
+    summary: 'Translates location and room terrain into stealth, initiative and elemental modifiers.',
+    responsibilities: ['Terrain effects', 'Stealth bonus', 'Combat modifier lines'],
+  },
+  {
+    name: 'RoomCombatModifierSystem', area: 'COMBAT', icon: Target, mode: 'PURE',
+    title: 'Room conditions',
+    summary: 'Applies the local rule twists that make one room play differently from the next.',
+    responsibilities: ['Modifier selection', 'Condition descriptions', 'Room combat hooks'],
+  },
+  {
+    name: 'ApproachSystem', area: 'COMBAT', icon: Compass, mode: 'PURE',
+    title: 'Choose the opening',
+    summary: 'Resolves the pre-fight approach before cards and turns take over.',
+    responsibilities: ['Approach checks', 'Entry costs', 'Opening HP pressure'],
+  },
+  {
+    name: 'CombatWorkflowSystem', area: 'COMBAT', icon: Workflow, mode: 'FLOW',
+    title: 'Battle state machine',
+    summary: 'Owns the turn order, combat state and the transitions that make a fight finish cleanly.',
+    responsibilities: ['Turn state', 'Status lifecycle', 'Victory / defeat flow'],
+  },
+  {
+    name: 'CombatCalculationSystem', area: 'COMBAT', icon: Swords, mode: 'PURE',
+    title: 'Damage engine',
+    summary: 'Calculates hit chance, damage, defense, elements, crits and true damage.',
+    responsibilities: ['Damage formula', 'Defense properties', 'Element cycle'],
+  },
+  {
+    name: 'PlayerTurnSystem', area: 'COMBAT', icon: Swords, mode: 'PURE',
+    title: 'Player action window',
+    summary: 'Validates AP, chakra, cards and the player-facing action economy.',
+    responsibilities: ['Action costs', 'Skill validation', 'End-turn resolution'],
+  },
+  {
+    name: 'EnemyTurnSystem', area: 'COMBAT', icon: Swords, mode: 'PURE',
+    title: 'Enemy response',
+    summary: 'Executes the enemy intent after the player commits to a turn.',
+    responsibilities: ['Intent execution', 'Counter windows', 'Enemy status effects'],
+  },
+  {
+    name: 'EnemyAISystem', area: 'COMBAT', icon: Brain, mode: 'PURE',
+    title: 'Readable opposition',
+    summary: 'Chooses enemy actions from archetype behavior and current battle context.',
+    responsibilities: ['Intent choice', 'Archetype logic', 'Telegraph data'],
+  },
+  {
+    name: 'EnemySystem', area: 'COMBAT', icon: Target, mode: 'PURE',
+    title: 'Enemy identity',
+    summary: 'Generates enemies with scaled stats, kits, art identity and loot hooks.',
+    responsibilities: ['Archetype generation', 'Floor scaling', 'Enemy loadout'],
+  },
+  {
+    name: 'PostureSystem', area: 'COMBAT', icon: Shield, mode: 'PURE',
+    title: 'Stance is a resource',
+    summary: 'Resolves posture changes, card bias and the damage trade-offs of each stance.',
+    responsibilities: ['Posture changes', 'Damage bias', 'Draw synergy'],
+  },
+  {
+    name: 'DeckSystem', area: 'COMBAT', icon: ScrollText, mode: 'PURE',
+    title: 'The hand you built',
+    summary: 'Maintains playable skill decks, card limits and the combat hand economy.',
+    responsibilities: ['Deck validation', 'Hand size', 'Playable skill count'],
+  },
+  {
+    name: 'EliteChallengeSystem', area: 'COMBAT', icon: Crown, mode: 'FLOW',
+    title: 'Risk for relics',
+    summary: 'Stages the elite choice: take the fight for an artifact or walk away.',
+    responsibilities: ['Elite preview', 'Fight / escape branch', 'Artifact reward'],
+  },
+  {
+    name: 'EventSystem', area: 'EXPLORATION', icon: ScrollText, mode: 'FLOW',
+    title: 'Choice with consequence',
+    summary: 'Rolls event outcomes, applies changes and chains narrative beats.',
+    responsibilities: ['Choice resolution', 'Seeded RNG', 'Outcome changes'],
+  },
+  {
+    name: 'LootSystem', area: 'ECONOMY', icon: Sparkles, mode: 'PURE',
+    title: 'Rewards that make a build',
+    summary: 'Generates drops, synthesizes components and turns combat wins into decisions.',
+    responsibilities: ['Drop generation', 'TFT synthesis', 'Loot themes'],
+  },
+  {
+    name: 'EquipmentPassiveSystem', area: 'ECONOMY', icon: Sparkles, mode: 'PURE',
+    title: 'Build identity',
+    summary: 'Aggregates artifact passives and applies them to live combat calculations.',
+    responsibilities: ['Passive triggers', 'Bonus damage', 'Defense / regen effects'],
+  },
+  {
+    name: 'CombatSimulationService', area: 'CORE', icon: ChartNoAxesCombined, mode: 'SERVICE',
+    title: 'Balance laboratory',
+    summary: 'Runs deterministic combat scenarios so balance changes can be checked outside the UI.',
+    responsibilities: ['Battle simulation', 'Regression data', 'Balance feedback'],
+  },
+];
 
 // Get rank color class
 const getRankColorClass = (color: string): { card: string; label: string } => {
@@ -20,6 +176,8 @@ const getRankColorClass = (color: string): { card: string; label: string } => {
       return { card: 'game-guide__rank-card--yellow', label: 'game-guide__rank-label--yellow' };
     case 'orange-500':
       return { card: 'game-guide__rank-card--orange', label: 'game-guide__rank-label--orange' };
+    case 'red-500':
+      return { card: 'game-guide__rank-card--red-light', label: 'game-guide__rank-label--red-light' };
     case 'red-600':
       return { card: 'game-guide__rank-card--red', label: 'game-guide__rank-label--red' };
     default:
@@ -111,9 +269,9 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
       return;
     }
 
-    // Number keys 1-9 for tabs (ignore non-digit keys; parseInt alone is too loose)
-    if (e.key >= '1' && e.key <= '9') {
-      const num = parseInt(e.key, 10);
+    // Number keys 1-9 plus 0 for the tenth tab (ignore other digits).
+    if ((e.key >= '1' && e.key <= '9') || e.key === '0') {
+      const num = e.key === '0' ? 10 : parseInt(e.key, 10);
       const next = TABS[num - 1];
       e.preventDefault();
       setActiveTab(next);
@@ -148,7 +306,7 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
         {/* Keyboard Hints */}
         <div className="game-guide__hints">
           <span className="game-guide__hint">
-            <span className="sw-shortcut">1-9</span> Switch Tabs
+            <span className="sw-shortcut">1-9 / 0</span> Switch Tabs
           </span>
           <span className="game-guide__hint">
             <span className="sw-shortcut">←→</span> Cycle
@@ -336,7 +494,7 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
                   <Shield size={18} /> Combat Posture
                 </h3>
                 <p className="game-guide__approaches-intro">
-                  Switch posture during your turn (costs 1 AP). Some skills shift posture for free. Posture biases card draws and lightly scales damage dealt/taken.
+                  Switch posture during your turn (costs 1 AP). Some skills shift posture for free on play; others deal bonus damage when posture matches. Posture also biases card draws and lightly scales damage dealt/taken.
                 </p>
                 <div className="game-guide__approaches-grid">
                   {HELP_TEXT.COMBAT_MECHANICS.POSTURES.map((posture, idx) => {
@@ -506,6 +664,9 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
               </section>
             </div>
           )}
+
+          {/* --- SYSTEMS TAB --- */}
+          {activeTab === 'SYSTEMS' && <SystemsAtlas />}
 
           {/* --- EQUIPMENT TAB --- */}
           {activeTab === 'EQUIPMENT' && (
@@ -777,6 +938,137 @@ const GameGuide: React.FC<GameGuideProps> = ({ onBack }) => {
 
         </div>
       </div>
+    </div>
+  );
+};
+
+const SystemsAtlas: React.FC = () => {
+  const [activeFilter, setActiveFilter] = useState<SystemArea | 'ALL'>('ALL');
+  const [query, setQuery] = useState('');
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const visibleSystems = SYSTEM_CATALOG.filter((system) => {
+    const matchesArea = activeFilter === 'ALL' || system.area === activeFilter;
+    const searchable = [system.name, system.title, system.summary, ...system.responsibilities]
+      .join(' ')
+      .toLowerCase();
+    return matchesArea && (!normalizedQuery || searchable.includes(normalizedQuery));
+  });
+
+  return (
+    <div className="game-guide__systems-section">
+      <section className="game-guide__systems-hero">
+        <div className="game-guide__systems-hero-copy">
+          <div className="game-guide__systems-kicker"><Workflow size={14} /> Runtime architecture</div>
+          <h3>Every system. One climb.</h3>
+          <p>
+            This atlas is the HTML surface for the real game modules. Pure rules calculate the world;
+            flow systems move the run through it; services keep the numbers honest.
+          </p>
+        </div>
+        <div className="game-guide__systems-metrics" aria-label="System totals">
+          <div className="game-guide__systems-metric">
+            <strong>{SYSTEM_CATALOG.length}</strong>
+            <span>game systems</span>
+          </div>
+          <div className="game-guide__systems-metric">
+            <strong>5</strong>
+            <span>subsystems</span>
+          </div>
+          <div className="game-guide__systems-metric">
+            <strong>1</strong>
+            <span>infinite loop</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="game-guide__systems-flow" aria-label="Game system flow">
+        <div className="game-guide__systems-flow-node game-guide__systems-flow-node--exploration">
+          <Compass size={18} />
+          <span>Explore</span>
+          <small>Region → Location → Room</small>
+        </div>
+        <span className="game-guide__systems-flow-arrow">→</span>
+        <div className="game-guide__systems-flow-node game-guide__systems-flow-node--combat">
+          <Swords size={18} />
+          <span>Resolve</span>
+          <small>Approach → Cards → Turn</small>
+        </div>
+        <span className="game-guide__systems-flow-arrow">→</span>
+        <div className="game-guide__systems-flow-node game-guide__systems-flow-node--economy">
+          <Coins size={18} />
+          <span>Rebuild</span>
+          <small>Loot → Equip → Synthesize</small>
+        </div>
+        <span className="game-guide__systems-flow-arrow">↺</span>
+        <div className="game-guide__systems-flow-node game-guide__systems-flow-node--progression">
+          <Crown size={18} />
+          <span>Ascend</span>
+          <small>Level → Region → Tower</small>
+        </div>
+      </section>
+
+      <section className="game-guide__systems-browser" aria-label="Browse game systems">
+        <div className="game-guide__systems-toolbar">
+          <label className="game-guide__systems-search">
+            <span>Find a module</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="e.g. loot, posture, region..."
+            />
+          </label>
+          <div className="game-guide__systems-filters" role="group" aria-label="Filter system area">
+            {SYSTEM_FILTERS.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                className={`game-guide__systems-filter ${activeFilter === filter ? 'game-guide__systems-filter--active' : ''}`}
+                onClick={() => setActiveFilter(filter)}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="game-guide__systems-result-line">
+          <span>{visibleSystems.length} modules visible</span>
+          <span className="game-guide__systems-result-line--hint">Pure rules stay React/DOM-free.</span>
+        </div>
+
+        {visibleSystems.length > 0 ? (
+          <div className="game-guide__systems-grid">
+            {visibleSystems.map((system) => {
+              const Icon = system.icon;
+              return (
+                <article key={system.name} className={`game-guide__system-card game-guide__system-card--${system.area.toLowerCase()}`}>
+                  <div className="game-guide__system-card-header">
+                    <div className="game-guide__system-icon"><Icon size={18} /></div>
+                    <span className="game-guide__system-area">{system.area}</span>
+                    <span className={`game-guide__system-mode game-guide__system-mode--${system.mode.toLowerCase()}`}>{system.mode}</span>
+                  </div>
+                  <div className="game-guide__system-name">{system.name}</div>
+                  <h4>{system.title}</h4>
+                  <p>{system.summary}</p>
+                  <ul>
+                    {system.responsibilities.map((responsibility) => (
+                      <li key={responsibility}>{responsibility}</li>
+                    ))}
+                  </ul>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="game-guide__systems-empty">
+            <Workflow size={22} />
+            <strong>No module matches that signal.</strong>
+            <span>Try a system name, responsibility or another area.</span>
+          </div>
+        )}
+      </section>
     </div>
   );
 };

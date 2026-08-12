@@ -10,41 +10,41 @@ import { PrimaryAttributes, Buff, EffectType, EffectDefinition, PrimaryStat } fr
 
 /** Baseline stats (all 10) for predictable calculations */
 export const BASE_STATS: PrimaryAttributes = {
-  willpower: 10,
-  chakra: 10,
-  strength: 10,
-  spirit: 10,
-  intelligence: 10,
-  calmness: 10,
-  speed: 10,
-  accuracy: 10,
-  dexterity: 10,
+  willpower: 3,
+  chakra: 3,
+  strength: 3,
+  spirit: 3,
+  intelligence: 3,
+  calmness: 3,
+  speed: 3,
+  accuracy: 3,
+  dexterity: 3,
 };
 
 /** High stats to test soft caps */
 export const HIGH_STATS: PrimaryAttributes = {
-  willpower: 50,
-  chakra: 50,
-  strength: 50,
-  spirit: 50,
-  intelligence: 50,
-  calmness: 50,
-  speed: 50,
-  accuracy: 50,
-  dexterity: 50,
+  willpower: 12,
+  chakra: 12,
+  strength: 12,
+  spirit: 12,
+  intelligence: 12,
+  calmness: 12,
+  speed: 12,
+  accuracy: 12,
+  dexterity: 12,
 };
 
 /** Zero stats for edge case testing */
 export const ZERO_STATS: PrimaryAttributes = {
-  willpower: 0,
-  chakra: 0,
-  strength: 0,
-  spirit: 0,
-  intelligence: 0,
-  calmness: 0,
-  speed: 0,
-  accuracy: 0,
-  dexterity: 0,
+  willpower: 1,
+  chakra: 1,
+  strength: 1,
+  spirit: 1,
+  intelligence: 1,
+  calmness: 1,
+  speed: 1,
+  accuracy: 1,
+  dexterity: 1,
 };
 
 // ============================================================================
@@ -188,6 +188,7 @@ import {
   TreasureQuality,
   DEFAULT_MERCHANT_SLOTS,
   MAX_BAG_SLOTS,
+  ApproachType,
 } from '../../types';
 
 // ============================================================================
@@ -218,6 +219,9 @@ export const createMockPlayer = (overrides: Partial<Player> = {}): Player => ({
   merchantSlots: DEFAULT_MERCHANT_SLOTS,
   locationsCleared: 0,
   eventFlags: {},
+  unspentStatPoints: 0,
+    preferredApproach: ApproachType.FRONTAL_ASSAULT,
+    clanLevel: 0,
   ...overrides,
 });
 
@@ -248,12 +252,12 @@ export const createMockSkill = (overrides: Partial<Skill> = {}): Skill => ({
   name: 'Test Skill',
   tier: SkillTier.BASIC,
   description: 'A test skill',
-  actionType: ActionType.MAIN,
+  actionType: ActionType.ACTIVE,
   chakraCost: 10,
   hpCost: 0,
   cooldown: 0,
   currentCooldown: 0,
-  damageMult: 2.0,
+  baseDamage: 12, scalingPerPoint: 4,
   scalingStat: PrimaryStat.STRENGTH,
   damageType: DamageType.PHYSICAL,
   damageProperty: DamageProperty.NORMAL,
@@ -269,7 +273,7 @@ export const createMockSkill = (overrides: Partial<Skill> = {}): Skill => ({
 /** Creates a mock component item */
 export const createMockComponent = (
   componentId: ComponentId = ComponentId.NINJA_STEEL,
-  stats: ItemStatBonus = { strength: 10 }
+  stats: ItemStatBonus = { strength: 3 }
 ): Item => ({
   id: `component-${Math.random().toString(36).substring(2, 9)}`,
   name: 'Test Component',

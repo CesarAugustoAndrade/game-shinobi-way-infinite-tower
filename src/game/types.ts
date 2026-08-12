@@ -3,8 +3,6 @@
 // New Stat System: The Shinobi Triad (Body, Mind, Technique)
 // ============================================================================
 
-import { LaunchProperties } from '../config/featureFlags';
-
 export enum GameState {
   MENU,
   CHAR_SELECT,
@@ -20,13 +18,15 @@ export enum GameState {
   GUIDE,
   // Region exploration system states
   REGION_MAP,       // Region overview showing all locations
-  LOCATION_EXPLORE, // Inside a location (10-room diamond exploration)
+  LOCATION_EXPLORE, // Inside a location (binary room branching exploration)
   // Treasure system states
   TREASURE,              // Treasure choice screen (locked chests OR treasure hunter)
   TREASURE_HUNT_REWARD,  // Map completion reward screen
   // Campaign macro (T-023)
   INTERLUDE,             // Post-boss: narrative + heal + boon 1-of-3 → next region
   VICTORY,               // Campaign clear (provisional after region 1 until T-024..026)
+  /** Sprint A: registry smoke state; no production UI yet. */
+  SCENE_REGISTRY_PROBE = 'SCENE_REGISTRY_PROBE',
 }
 
 export enum ElementType {
@@ -87,6 +87,81 @@ export enum AttackMethod {
 }
 
 // ============================================================================
+// COMBAT DISTANCE (F2)
+// ============================================================================
+
+/** Engagement band between combatants. Distance only gates skills (no global dmg mods). */
+export enum CombatRange {
+  CLOSE = 'CLOSE',
+  MEDIUM = 'MEDIUM',
+  LONG = 'LONG',
+}
+
+// ============================================================================
+// HEAT (F3) — visit alert / greed meter
+// ============================================================================
+
+/** Visible HEAT tiers (plan §3). */
+export enum HeatTier {
+  QUIET = 'QUIET',             // 0–24
+  SUSPICIOUS = 'SUSPICIOUS',   // 25–49
+  ALERT = 'ALERT',             // 50–74
+  HUNTED = 'HUNTED',           // 75–100
+}
+
+/**
+ * Authored heat delta presets (only content may change heat).
+ * Mandatory paths normally use 0; optional rewards raise heat.
+ */
+export enum HeatPreset {
+  NONE = 0,
+  SMALL = 5,
+  VALUABLE = 10,
+  GRAND = 20,
+  JACKPOT = 30,
+  COOL_SMALL = -5,
+  COOL_VALUABLE = -10,
+  COOL_GRAND = -20,
+}
+
+/** Voluntary / forced move direction relative to engagement. */
+export enum RangeMoveDirection {
+  APPROACH = 'APPROACH', // toward CLOSE
+  RETREAT = 'RETREAT',   // toward LONG
+}
+
+export enum RangeMoveSubject {
+  SELF = 'SELF',
+  FOE = 'FOE',
+  BOTH = 'BOTH',
+}
+
+export enum RangeMoveTrigger {
+  VOLUNTARY = 'VOLUNTARY',
+  PUSH = 'PUSH',
+  PULL = 'PULL',
+  OTHER = 'OTHER',
+}
+
+/**
+ * Future range-reaction definition (infra only this delivery — empty registry).
+ * Skills/items are not yet adapted.
+ */
+export interface RangeReactionDef {
+  id: string;
+  trigger: RangeMoveTrigger;
+  subject: RangeMoveSubject;
+  /** Extra AP cost when reaction fires (optional). */
+  apSurcharge?: number;
+  /** Optional damage payload using F1 damage contract. */
+  baseDamage?: number;
+  scalingPerPoint?: number;
+  scalingStat?: PrimaryStat;
+  damageType?: DamageType;
+  safeMovement?: boolean;
+}
+
+// ============================================================================
 // PRIMARY ATTRIBUTES INTERFACE
 // ============================================================================
 export interface PrimaryAttributes {
@@ -134,12 +209,13 @@ export interface DerivedStats {
   statusResistance: number;   // % chance to resist debuffs
   gutsChance: number;         // % chance to survive lethal blow at 1 HP
   
-  // Offensive - Hit Rates (base %, modified by target's evasion)
-  meleeHitRate: number;       // Base hit chance for melee
-  rangedHitRate: number;      // Base hit chance for ranged
+  // Offensive - attacker-side impact contribution (display / legacy).
+  // Live hit uses single impact vs defender SPEED in StatSystem.calculateDamage.
+  meleeHitRate: number;       // ~90 + 6×SPEED (no defender)
+  rangedHitRate: number;      // ~90 + 6×ACCURACY (no defender)
 
-  // Evasion
-  evasion: number;            // % chance to dodge attacks
+  /** @deprecated Dual evasion removed — always 0. Kept for UI compatibility. */
+  evasion: number;
 
   // Critical Strikes
   critChance: number;         // % chance to crit
@@ -149,8 +225,7 @@ export interface DerivedStats {
   // Initiative (turn order in combat)
   initiative: number;
 
-  // Action economy (T-004 deckbuilder/AP system)
-  // AP regenerated at the start of each player turn: AP_BASE + floor(speed / AP_PER_SPEED_DIV)
+  // Action economy: min(9, 3 + floor((SPEED − 1) / 2))
   actionPointsPerTurn: number;
 }
 
@@ -224,15 +299,14 @@ export enum SkillTier {
 }
 
 // ============================================================================
-// ACTION TYPE SYSTEM - Card category for the AP economy (T-004)
+// ACTION TYPE SYSTEM - Card category for the AP economy (T-004 / card-combat plan)
 // ============================================================================
-// Action types no longer gate "ends turn" / "free action" rules. Combat spends
-// Action Points (AP) per card; the turn ends when AP is exhausted (or the player
-// ends turn). Defaults: MAIN/TOGGLE ≈ 2 AP, SIDE ≈ 1 AP (see combatCards.ts).
+// Combat spends Action Points (AP) per card; the turn ends when AP is exhausted
+// (or the player ends turn). MAIN/SIDE collapsed into ACTIVE — AP is authored
+// per skill via Skill.apCost (fallback defaults in combatCards.ts).
 export enum ActionType {
-  MAIN = 'Main',       // Heavy techniques / primary attacks (default 2 AP)
+  ACTIVE = 'Active',   // Playable combat cards (attacks, utility, setup)
   TOGGLE = 'Toggle',   // Stance skills: pay AP to activate, upkeep each turn
-  SIDE = 'Side',       // Light support / setup cards (default 1 AP)
   PASSIVE = 'Passive'  // Always active, never played as a card (0 AP)
 }
 
@@ -346,14 +420,15 @@ export interface PassiveEffect {
   triggerCondition?: 'on_hit' | 'on_kill' | 'on_crit' | 'combat_start' | 'turn_start' | 'below_half_hp';
 }
 
-// Synthesis system constants - controlled by LaunchProperties
-export const MAX_BAG_SLOTS = LaunchProperties.MAX_BAG_SIZE;
-export const DISASSEMBLE_RETURN_RATE = 0.5; // 50% value return when breaking artifacts
-
-// Merchant slot system constants
-export const DEFAULT_MERCHANT_SLOTS = 1;
-export const MAX_MERCHANT_SLOTS = 4;
-export const DEFAULT_TREASURE_QUALITY = TreasureQuality.BROKEN;
+// Re-export runtime knobs from config (Sprint C — types stay schema-only eventually)
+export {
+  MAX_BAG_SLOTS,
+  DISASSEMBLE_RETURN_RATE,
+  DEFAULT_MERCHANT_SLOTS,
+  MAX_MERCHANT_SLOTS,
+  DEFAULT_TREASURE_QUALITY,
+  STAT_FORMULAS,
+} from './config';
 
 // ============================================================================
 // EFFECTS & BUFFS
@@ -403,9 +478,29 @@ export interface Buff {
 // SKILLS / JUTSU
 // ============================================================================
 export interface SkillRequirements {
-  intelligence?: number;  // Minimum INT to learn
+  /** Preferred: any primary-stat floors (INT still the most common for ninjutsu). */
+  stats?: Partial<Record<PrimaryStat, number>>;
+  /** @deprecated Prefer stats[PrimaryStat.INTELLIGENCE]. Still checked for catalog migration. */
+  intelligence?: number;
   level?: number;         // Minimum player level
-  clan?: Clan;            // Clan restriction
+  /** Hard gate only (bloodline/hiden). Omit for open-learn shared techniques. */
+  clan?: Clan;
+}
+
+/**
+ * Optional bonus when the player's combat posture matches `posture`.
+ * MVP wires damageMultBonus; other fields are reserved infra.
+ */
+export interface StanceBonus {
+  posture: Posture;
+  /** Multiplicative: effective damageMult *= (1 + damageMultBonus). */
+  damageMultBonus?: number;
+  /** Reserved: reduce AP cost when matched (min 1). */
+  apDiscount?: number;
+  /** Reserved: add to effect apply chance. */
+  effectChanceBonus?: number;
+  /** Reserved: extra effects on match. */
+  extraEffects?: EffectDefinition[];
 }
 
 // Passive skill effect for PASSIVE action type skills
@@ -445,34 +540,57 @@ export interface PassiveBonuses {
   chakraRegen: number;
 }
 
+/**
+ * Typed HP cost (optional advanced form). Flat `number` on Skill is the common case.
+ * - flat: pay value HP
+ * - percentMax: pay floor(maxHp × fraction) where value is 0–1 or 0–100
+ * - all: pay remaining HP (pair with mutualKo for Reaper)
+ */
+export type HpCostSpec =
+  | { kind: 'flat'; value: number }
+  | { kind: 'percentMax'; value: number }
+  | { kind: 'all' };
+
 export interface Skill {
   id: string;
   name: string;
   tier: SkillTier;
   description: string;
 
-  // ACTION TYPE - Determines when/how skill can be used
-  actionType: ActionType;        // MAIN/TOGGLE/SIDE/PASSIVE (required)
+  // ACTION TYPE - ACTIVE (playable) / TOGGLE / PASSIVE
+  actionType: ActionType;
 
-  // DECKBUILDER / AP ECONOMY (T-004) - optional during migration.
-  // When omitted, callers derive a default cost from ActionType (see combatCards.ts).
+  // DECKBUILDER / AP ECONOMY (T-004)
+  // Prefer explicit apCost on every playable skill; fallback in combatCards.ts.
   apCost?: number;               // Action Point cost to play this card
-  stanceShift?: Posture;         // If set, landing this card shifts the player's posture (free)
+  stanceShift?: Posture;         // If set, playing this card shifts posture (free)
+  stanceBonus?: StanceBonus;     // Optional reward when posture matches
 
   // Costs
   chakraCost: number;
+  /** Flat HP toll. Use mutualKo for sacrifice-all techniques (Reaper). */
   hpCost: number;
 
   // Cooldown
   cooldown: number;
   currentCooldown: number;
 
-  // Damage Calculation
-  damageMult: number;
+  // Damage Calculation (F1): raw = baseDamage + scalingPerPoint × effectivePrimary[scalingStat]
+  baseDamage: number;
+  scalingPerPoint: number;
   scalingStat: PrimaryStat;     // Which stat scales the damage
   damageType: DamageType;       // Physical/Elemental/Mental/True
   damageProperty: DamageProperty; // Normal/Piercing/ArmorBreak
   attackMethod: AttackMethod;   // Melee/Ranged/Auto
+
+  /** Explicit mutual KO (Reaper Death Seal). Both actors defeated without damage pipeline. */
+  mutualKo?: boolean;
+
+  /**
+   * Optional override of range bands where this skill can be used.
+   * When omitted, defaults from AttackMethod (MELEE CLOSE; RANGED MEDIUM+LONG; AUTO all).
+   */
+  allowedRanges?: CombatRange[];
 
   // Element (for elemental interactions)
   element: ElementType;
@@ -560,6 +678,12 @@ export interface Player {
 
   // Stats
   primaryStats: PrimaryAttributes;
+  /**
+   * Unspent level-up points. Each level grants exactly 1.
+   * Must reach 0 via mandatory assign modal before continuing play;
+   * full HP/Chakra refill only after all points are spent.
+   */
+  unspentStatPoints: number;
 
   // Resources (tracked separately from derived for current values)
   currentHp: number;
@@ -581,11 +705,23 @@ export interface Player {
   treasureQuality: TreasureQuality;  // What tier items drop from treasure (upgradeable)
   merchantSlots: number;              // How many items shown at merchant (1-4)
   locationsCleared: number;           // Global count of locations cleared (enemy scaling)
+  /**
+   * Clan bloodline track (0–5). Raised by Clan Rite scroll rooms (once per location).
+   * Each level offers clan skill choices.
+   */
+  clanLevel: number;
 
   // Event Engine 2.0 (T-008): persistent narrative flags for the current run.
   // Set by event outcomes (effects.setFlags), read by event/choice gating
   // (requiresFlags/excludesFlags). Values are counters (0 = unset/absent).
   eventFlags: Record<string, number>;
+
+  /**
+   * Preferred pre-combat approach (HUD). Applied automatically to every
+   * encounter until changed. Falls back to FRONTAL_ASSAULT when unavailable
+   * for a given room (terrain, elite/boss, missing stats).
+   */
+  preferredApproach: ApproachType;
 }
 
 export interface Enemy {
@@ -604,14 +740,23 @@ export interface Enemy {
 
   // Flags
   isBoss?: boolean;
+  /** F3: EXIT Hunter (armed heat 100 upgrade of Guardian). */
+  isHunter?: boolean;
   image?: string;
   dropRateBonus?: number;
+  /** F3: XP/Ryo multiplier for special foes (Hunter = 2). */
+  rewardMultiplier?: number;
 
   // Presentation (T-014)
   /** Archetype key: 'TANK' | 'ASSASSIN' | 'BALANCED' | 'CASTER' | 'GENJUTSU' */
   archetype?: string;
   /** Danger level (1-7) at which this enemy was generated — used for Lv. N badge. */
   dangerLevel?: number;
+  /**
+   * Preferred engagement band (F2). When omitted, derived from archetype.
+   * Bosses/specials may override.
+   */
+  preferredRange?: CombatRange;
 
   // Telegraph (A-003) — next skill intent for UI / combat log
   /** Skill id the enemy intends to use on its next action. */
@@ -714,6 +859,12 @@ export interface EventOutcome {
     // Remove one random item from the player's bag (uses the game PRNG).
     removeRandomItem?: boolean;
 
+    /**
+     * F3: authored visit heat delta for this outcome (presets 0/±5/±10/±20/+30).
+     * Omitted = 0 (mandatory/neutral path).
+     */
+    heatDelta?: number;
+
     // Logging
     logMessage: string;
     logType: 'gain' | 'danger' | 'info' | 'loot';
@@ -766,61 +917,7 @@ export interface GameEvent {
   choices: EventChoice[];
 }
 
-// ============================================================================
-// STAT CALCULATION FORMULAS (Constants for the calculator)
-// ============================================================================
-export const STAT_FORMULAS = {
-  // Resource Pools
-  // T-006 B.2: compressed the willpower→HP spread (was 12/50). A smaller
-  // per-point slope pulls tank builds down toward squishy builds so clear-rates
-  // converge instead of fanning out 5x by willpower alone. HP_BASE is kept
-  // modest so low-danger enemies (whose HP is dominated by the flat base) do
-  // not become disproportionately tanky and over-lengthen early fights.
-  HP_PER_WILLPOWER: 9,
-  HP_BASE: 80,
-  CHAKRA_PER_CHAKRA: 8,
-  CHAKRA_BASE: 30,
-
-  // Regeneration
-  HP_REGEN_PERCENT: 0.02,        // 2% of max HP per turn based on willpower
-  // T-006 B.2: 0.2→0.5. Caster/mental builds (Uchiha, Glass, Yamanaka, Mind)
-  // were running out of chakra mid-location, falling back to a weak basic attack
-  // and dragging fights into lethal attrition — while free-skill physical
-  // bruisers (Hyuga/Lee) never starved. Higher INT-scaled regen restores their
-  // nuke cadence so they kill on pace and converge upward, with negligible
-  // benefit to the low-INT bruisers who don't lean on chakra.
-  CHAKRA_REGEN_PER_INT: 0.5,    // Chakra regen per INT point
-
-  // Defense Scaling (Diminishing Returns Formula)
-  // Formula: stat / (stat + SOFT_CAP) = % reduction
-  PHYSICAL_DEF_SOFT_CAP: 200,    // BUFFED: Was 120 - harder to cap
-  ELEMENTAL_DEF_SOFT_CAP: 200,   // BUFFED: Was 120
-  MENTAL_DEF_SOFT_CAP: 150,      // BUFFED: Was 100
-
-  // Flat Defense - HALVED for better damage scaling
-  FLAT_PHYS_DEF_PER_STR: 0.3,    // NERFED: Was 0.6 - HALVED
-  FLAT_ELEM_DEF_PER_SPIRIT: 0.3, // NERFED: Was 0.6 - HALVED
-  FLAT_MENTAL_DEF_PER_CALM: 0.25,// NERFED: Was 0.5 - HALVED
-
-  // Evasion & Hit - More reliable attacks
-  EVASION_SOFT_CAP: 250,         // BUFFED: Was 150 - harder to dodge
-  BASE_HIT_CHANCE: 92,           // BUFFED: Was 85 - more reliable
-  HIT_PER_STAT_DIFF: 1.5,        // Per point of SPD/ACC vs target SPD
-
-  // Critical - Slight buff to reward precision
-  BASE_CRIT_CHANCE: 8,           // BUFFED: Was 5
-  CRIT_PER_DEX: 0.5,             // BUFFED: Was 0.4
-  BASE_CRIT_MULT: 1.75,          // BUFFED: Was 1.5
-  RANGED_CRIT_BONUS_PER_ACC: 0.008, // Extra crit multiplier for ranged
-
-  // Survival
-  GUTS_SOFT_CAP: 200,           // Willpower / (Willpower + 200) = guts chance
-  STATUS_RESIST_SOFT_CAP: 80,   // Calmness / (Calmness + 80) = resist chance
-
-  // Initiative
-  INIT_BASE: 10,
-  INIT_PER_SPEED: 1,
-} as const;
+// STAT_FORMULAS lives in ./statFormulas (re-exported via ./config above)
 
 // ============================================================================
 // TERRAIN & EXPLORATION
@@ -860,7 +957,7 @@ export enum TerrainType {
 
 export enum ApproachType {
   FRONTAL_ASSAULT = 'FRONTAL_ASSAULT',   // Direct combat, no modifiers
-  STEALTH_AMBUSH = 'STEALTH_AMBUSH',     // Sneak attack, first hit 2.0x + initiative
+  STEALTH_AMBUSH = 'STEALTH_AMBUSH',     // Sneak attack, first hit 1.5x + initiative (DEX path)
   GENJUTSU_SETUP = 'GENJUTSU_SETUP',     // Mental trap, enemy confused
   ENVIRONMENTAL_TRAP = 'ENVIRONMENTAL',   // Use terrain, enemy loses HP
   IRON_GUARD = 'IRON_GUARD',             // Willpower fortify — shield + defensive open
@@ -907,7 +1004,10 @@ export interface TerrainDefinition {
 // ============================================================================
 
 export interface ApproachRequirements {
+  /** Primary gate (legacy single-stat). Prefer minStats for multi-gates. */
   minStat?: { stat: PrimaryStat; value: number };
+  /** All listed stats must meet thresholds (e.g. Silent Strike: DEX + Speed). */
+  minStats?: Array<{ stat: PrimaryStat; value: number }>;
   requiredSkill?: string;         // Skill ID required
   allowedTerrains?: TerrainType[]; // Only available on these terrains
 }
@@ -942,6 +1042,12 @@ export interface ApproachEffects {
 
   // XP modifier
   xpMultiplier: number;           // 1.0 = 100%, 1.15 = 115%
+
+  /**
+   * F3: heat applied when this effect block is used.
+   * Success paths use 0; fail paths use approach fail deltas.
+   */
+  heatDelta?: number;
 }
 
 export interface ApproachOption {
@@ -1126,27 +1232,24 @@ export interface RestActivity {
   completed: boolean;
 }
 
-export type TrainingIntensity = 'light' | 'medium' | 'intense';
+/** Resource paid for one training offer (each session has one offer per type). */
+export type TrainingCostType = 'hp' | 'chakra' | 'ryo';
 
-export interface TrainingIntensityData {
-  cost: { hp: number; chakra: number };
-  gain: number;
-}
-
-export interface TrainingStatOption {
+/** One of three regimens offered at a training ground. */
+export interface TrainingOffer {
   stat: PrimaryStat;
-  intensities: {
-    light: TrainingIntensityData;
-    medium: TrainingIntensityData;
-    intense: TrainingIntensityData;
-  };
+  costType: TrainingCostType;
+  cost: number;
+  gain: number;
+  /** F3: heat for claiming this optional training (jackpot typically +5..+10). */
+  heatDelta?: number;
 }
 
 export interface TrainingActivity {
-  options: TrainingStatOption[];  // Multiple stats to choose from
+  options: TrainingOffer[]; // length 3 — pick one
   completed: boolean;
-  selectedStat?: PrimaryStat;     // Track what was chosen
-  selectedIntensity?: TrainingIntensity;
+  selectedStat?: PrimaryStat;
+  selectedCostType?: TrainingCostType;
 }
 
 // ============================================================================
@@ -1154,8 +1257,8 @@ export interface TrainingActivity {
 // ============================================================================
 
 export enum TreasureType {
-  LOCKED_CHEST = 'LockedChest',      // Pick blind or reveal with chakra
-  TREASURE_HUNTER = 'TreasureHunter' // Combat/dice roll for map pieces
+  LOCKED_CHEST = 'LockedChest',      // Vault path (open with chakra → pick 1 of 3)
+  TREASURE_HUNTER = 'TreasureHunter' // Same vault + optional free map-piece path
 }
 
 export interface TreasureChoice {
@@ -1163,31 +1266,52 @@ export interface TreasureChoice {
   isArtifact: boolean;
 }
 
+/** One face in the vault offer (mixed reward pool). */
+export type VaultRewardKind = 'item' | 'hp' | 'ryo' | 'scroll';
+
+export interface VaultRewardOption {
+  kind: VaultRewardKind;
+  /** Sealed until player pays reveal cost (or open bulk). */
+  revealed: boolean;
+  item?: Item;
+  isArtifact?: boolean;
+  /** Flat HP restore */
+  hpAmount?: number;
+  /** Flat ryo grant */
+  ryoAmount?: number;
+  /** Scroll / skill grant */
+  skill?: Skill;
+}
+
+/** UI phase for Event-style treasure room */
+export type TreasurePhase = 'entry' | 'vault';
+
 export interface TreasureActivity {
   type: TreasureType;
-  choices: TreasureChoice[];       // 2-3 item choices
-  ryoBonus: number;                // Ryo gained alongside item
-  revealCost: number;              // Chakra cost to reveal (locked chest)
-  isRevealed: boolean;             // Has player revealed choices?
-  selectedIndex: number | null;    // Track selection
+  /** Legacy item list (kept for bag-full / compat); vaultOptions is primary. */
+  choices: TreasureChoice[];
+  /** Exactly 3 mixed rewards after open vault */
+  vaultOptions: VaultRewardOption[];
+  ryoBonus: number;                // Extra ryo when claiming an item (legacy side loot)
+  /** Chakra to open the vault (enter pick phase) */
+  openCost: number;
+  /** Chakra to reveal one sealed face */
+  revealCost: number;
+  /** True after vault opened (phase vault) */
+  isRevealed: boolean;
+  phase: TreasurePhase;
+  selectedIndex: number | null;
   collected: boolean;
-  // Treasure hunter specific
-  isHuntRoom: boolean;             // Is this a treasure hunt room?
-  mapPieceAvailable: boolean;      // Can player get a map piece here?
+  /** Free map-piece alternative (no combat) */
+  mapPieceAvailable: boolean;
+  /** F3: heat when claiming optional treasure (default valuable +10). */
+  heatDelta?: number;
 }
 
 export interface TreasureHunt {
   isActive: boolean;
   requiredPieces: number;          // 2-4 based on danger level
   collectedPieces: number;
-  mapId: string;                   // Unique per location
-}
-
-export interface DiceRollResult {
-  type: 'trap' | 'nothing' | 'piece';
-  damage?: number;           // Only for trap
-  piecesCollected?: number;  // Only for piece
-  piecesRequired?: number;   // Only for piece
 }
 
 export interface InfoGatheringActivity {
@@ -1196,9 +1320,23 @@ export interface InfoGatheringActivity {
   completed: boolean;
 }
 
+/** Scroll room mode: traveling vendor vs clan bloodline rite */
+export type ScrollDiscoveryMode = 'vendor' | 'clan';
+
 export interface ScrollDiscoveryActivity {
+  mode: ScrollDiscoveryMode;
+  /** Vendor stock (also used empty for clan mode) */
   availableScrolls: Skill[];
+  /** skillId → ryo price (vendor) */
+  prices: Record<string, number>;
+  /** Flat ryo to forget a skill at the vendor */
+  forgetCostRyo: number;
+  /** Legacy / optional chakra toll (unused for pure ryo buy) */
   cost?: { ryo?: number; chakra?: number };
+  /** Clan rite: level after ascending */
+  clanLevelAfter?: number;
+  /** Clan rite: 2–3 skills to pick */
+  clanSkillChoices?: Skill[];
   completed: boolean;
 }
 
@@ -1361,8 +1499,8 @@ export interface BranchingFloor {
 
   // Treasure hunt system
   treasureHunt: TreasureHunt | null;
-  treasureProbabilityBoost: number;  // Extra chance for treasure rooms during hunt (0-1)
-  huntDeclined: boolean;  // If true, all treasures become locked chests
+  /** Clan Rite already used this location (scroll mode clan at most once) */
+  clanRiteUsed?: boolean;
 
   /**
    * T-033: story event ids preferred when generating room events
@@ -1411,6 +1549,18 @@ export interface BranchingFloor {
    * T-070: full region lootTheme for merchant stock bias.
    */
   lootTheme?: RegionLootTheme;
+
+  /**
+   * F3 visit HEAT (0–100). Runtime only — never on persistent Location.
+   * Resets when leaving / revisiting (new BranchingFloor).
+   */
+  heat: number;
+
+  /**
+   * F3: latched when heat first hits 100 this visit.
+   * Stays true even if heat later drops; drives Hunter EXIT + elite-chain off at 100.
+   */
+  hunterArmed: boolean;
 }
 
 // Room type configuration for generation
@@ -1488,7 +1638,7 @@ export interface UnlockCondition {
 // ============================================================================
 // LOCATION
 // ============================================================================
-// Each location contains 10 rooms in a diamond pattern (1→2→4→2→1)
+// Each location uses binary branching (always 2 children); map foresight reads 2→4
 // Player visits 5 rooms per location before reaching Room 10 (elite/boss fight)
 
 export interface LocationFlags {
@@ -1536,7 +1686,7 @@ export interface Location {
   biome: string;
   backgroundImage?: string;
 
-  // Room structure (10 rooms, diamond pattern)
+  // Room structure (binary 2-child branching + dynamic exit)
   rooms: BranchingRoom[];
   currentRoomId: string | null;
   roomsCleared: number;

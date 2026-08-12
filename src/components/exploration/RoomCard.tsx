@@ -18,7 +18,6 @@ import {
   Mountain,
   Flame,
   Landmark,
-  CheckCircle,
   Lock,
   Sparkles,
   Radio,
@@ -245,13 +244,6 @@ const RoomCard: React.FC<RoomCardProps> = ({
       {/* Exit badge */}
       {room.isExit && !room.isCleared && (
         <div className="room-card__exit-badge">EXIT</div>
-      )}
-
-      {/* Cleared overlay */}
-      {room.isCleared && (
-        <div className="room-card__overlay room-card__overlay--cleared">
-          <CheckCircle className="room-card__overlay-icon room-card__overlay-icon--cleared" />
-        </div>
       )}
 
       {/* Locked overlay */}

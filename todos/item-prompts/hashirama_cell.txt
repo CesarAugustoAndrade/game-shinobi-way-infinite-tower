@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Hashirama Cell — living cells of the First Hokage. A sealed glass vial / specimen ampule containing organic green-wood bio matter: mossy plant-cell clusters, tiny root fibers, and luminous sap, with a cork or metal cap and forbidden-jutsu paper seal. Forbidden power sample, not a chemistry lab flask full of random liquid.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered vial fills most of the square frame, slight 3/4 angle, floating, no hands, no floor, no environment.
+
+Background: flat solid pure magenta hot-pink background #FF00FF, chroma key magenta, uniform, no gradient, no texture, no vignette. (Subject is green-heavy — do NOT use green screen.)
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, green screen background, black background, pure black matte, transparent checkerboard, gradient background, modern hospital IV bag, watermark.

@@ -41,7 +41,7 @@ const EXAM_GATES: LocationConfig = {
   terrain: LocationTerrainType.NEUTRAL,
   terrainEffects: [],
   biome: 'Exam Gates',
-  enemyPool: ['proctor_guard', 'nervous_genin', 'exam_thug'],
+  enemyPool: ['elite_guard', 'hired_muscle', 'village_thug', 'corrupt_guard', 'desperate_traveler', 'ronin'],
   lootTable: 'exams_settlement',
   atmosphereEvents: ['scroll_rules', 'team_introductions', 'last_meal'],
   tiedStoryEvents: ['forest_death_trap'],
@@ -84,7 +84,7 @@ const FOREST_EDGE: LocationConfig = {
     { type: 'ambush_chance', value: 0.15 },
   ],
   biome: 'Forest of Death Edge',
-  enemyPool: ['leaf_bandit', 'trap_genin', 'wild_boar'],
+  enemyPool: ['forest_bandit', 'wild_boar', 'trap_master', 'missing_nin', 'camp_raider', 'river_bandit'],
   lootTable: 'exams_wilderness',
   atmosphereEvents: ['wire_trap', 'screams_deeper', 'dropped_scroll'],
   forwardPaths: [
@@ -128,7 +128,7 @@ const THICKET_PATHS: LocationConfig = {
     { type: 'ambush_chance', value: 0.25 },
   ],
   biome: 'Dense Canopy',
-  enemyPool: ['grass_genin', 'sound_scout', 'trap_master'],
+  enemyPool: ['forest_bandit', 'trap_master', 'missing_nin', 'camp_raider', 'mist_ninja', 'hired_assassin'],
   lootTable: 'exams_wilderness',
   atmosphereEvents: ['false_scroll', 'team_shadows', 'insect_buzz'],
   tiedStoryEvents: ['rival_team_encounter'],
@@ -180,7 +180,7 @@ const MUDDY_FORD: LocationConfig = {
     { type: 'movement_penalty', value: 0.1 },
   ],
   biome: 'Forest River',
-  enemyPool: ['river_genin', 'sand_scout', 'water_clone_user'],
+  enemyPool: ['river_bandit', 'water_spirit', 'drowned_sailor', 'missing_nin', 'trap_master', 'sea_spirit'],
   lootTable: 'exams_wilderness',
   atmosphereEvents: ['body_downstream', 'hidden_crossing', 'fishing_wire'],
   forwardPaths: [
@@ -219,7 +219,7 @@ const SCROLL_CACHE: LocationConfig = {
   terrain: LocationTerrainType.FOREST,
   terrainEffects: [{ type: 'ambush_chance', value: 0.3 }],
   biome: 'Scroll Clearing',
-  enemyPool: ['scroll_thief', 'sound_genin', 'rain_genin'],
+  enemyPool: ['missing_nin', 'trap_master', 'hired_assassin', 'camp_raider', 'forest_bandit', 'bandit_captain'],
   lootTable: 'exams_landmark',
   atmosphereEvents: ['heaven_earth_swap', 'proctor_spy', 'false_victory'],
   tiedStoryEvents: ['scroll_merchant'],
@@ -271,7 +271,7 @@ const RIVAL_CHECKPOINT: LocationConfig = {
     { type: 'ambush_chance', value: 0.2 },
   ],
   biome: 'Fortified Camp',
-  enemyPool: ['rival_leader', 'rival_tank', 'rival_scout'],
+  enemyPool: ['elite_mercenary', 'bandit_captain', 'hired_muscle', 'ronin', 'war_dog', 'elite_guard'],
   lootTable: 'exams_stronghold',
   atmosphereEvents: ['hostage_deal', 'scroll_trade', 'triple_threat'],
   forwardPaths: [
@@ -313,7 +313,7 @@ const SOUND_HIDEOUT: LocationConfig = {
     { type: 'mental_damage_bonus', value: 0.15 },
   ],
   biome: 'Sound Nest',
-  enemyPool: ['dosu_adept', 'zaku_adept', 'kin_adept', 'sound_captain'],
+  enemyPool: ['mist_ninja', 'hired_assassin', 'assassin', 'hidden_guard', 'elite_mercenary', 'cursed_servant'],
   lootTable: 'exams_stronghold',
   atmosphereEvents: ['resonance_trap', 'sound_four_mark', 'orochimaru_whisper'],
   forwardPaths: [
@@ -361,7 +361,7 @@ const TOWER_APPROACH: LocationConfig = {
   terrain: LocationTerrainType.FOREST,
   terrainEffects: [{ type: 'ambush_chance', value: 0.2 }],
   biome: 'Tower Clearing',
-  enemyPool: ['desperate_genin', 'elite_proctor', 'sand_elite'],
+  enemyPool: ['elite_guard', 'elite_mercenary', 'ronin', 'hired_assassin', 'missing_nin', 'bandit_captain'],
   lootTable: 'exams_landmark',
   atmosphereEvents: ['last_mile', 'scroll_theft', 'alliance_break'],
   forwardPaths: [
@@ -403,7 +403,7 @@ const SERPENT_THICKET: LocationConfig = {
     { type: 'poison_hazard', value: 0.1 },
   ],
   biome: 'Serpent Grove',
-  enemyPool: ['giant_serpent', 'snake_summoner', 'cursed_genin'],
+  enemyPool: ['shrine_demon', 'cursed_servant', 'eldritch_guardian', 'vengeful_ghost', 'wild_boar', 'forest_bandit'],
   lootTable: 'exams_wilderness',
   atmosphereEvents: ['skin_shed', 'hypnotic_gaze', 'curse_mark_flash'],
   tiedStoryEvents: ['giant_serpent_nest'],
@@ -440,7 +440,7 @@ const OROCHIMARU_ARENA: LocationConfig = {
     { type: 'enemy_attack_bonus', value: 0.15 },
   ],
   biome: 'Hidden Arena',
-  enemyPool: ['orochimaru_guard', 'sound_elite', 'cursed_vessel', 'orochimaru'],
+  enemyPool: ['elite_guard', 'cursed_servant', 'shrine_demon', 'assassin', 'elite_mercenary', 'eldritch_guardian'],
   lootTable: 'exams_boss',
   atmosphereEvents: ['sannin_smile', 'curse_mark_offer', 'exam_ends'],
   tiedStoryEvents: ['giant_serpent_nest'],
@@ -467,7 +467,7 @@ const HIDDEN_HEAVEN_SCROLL: LocationConfig = {
   terrain: LocationTerrainType.FOREST,
   terrainEffects: [{ type: 'stealth_bonus', value: 0.15 }],
   biome: 'Root Hollow',
-  enemyPool: ['scroll_guardian', 'mimic_genin'],
+  enemyPool: ['treasure_guardian', 'trap_master', 'forest_bandit', 'missing_nin', 'camp_raider', 'hired_assassin'],
   lootTable: 'exams_secret',
   atmosphereEvents: ['true_scroll', 'curse_tag', 'sudden_proctor'],
   forwardPaths: [
@@ -503,7 +503,7 @@ const INSECT_COLONY: LocationConfig = {
     { type: 'poison_hazard', value: 0.1 },
   ],
   biome: 'Hive Roots',
-  enemyPool: ['insect_swarm', 'aburame_rival', 'parasite_host'],
+  enemyPool: ['wild_boar', 'forest_bandit', 'trap_master', 'cursed_servant', 'missing_nin', 'camp_raider'],
   lootTable: 'exams_secret',
   atmosphereEvents: ['hive_mind', 'intel_trade', 'swarm_alarm'],
   forwardPaths: [
@@ -540,7 +540,7 @@ const SNAKE_DEN: LocationConfig = {
     { type: 'mental_damage_bonus', value: 0.2 },
   ],
   biome: 'Venom Nest',
-  enemyPool: ['summoned_snake', 'sound_four_adept', 'experiment_subject'],
+  enemyPool: ['cursed_servant', 'shrine_demon', 'eldritch_guardian', 'vengeful_ghost', 'missing_nin', 'assassin'],
   lootTable: 'exams_secret',
   atmosphereEvents: ['curse_mark_lab', 'shed_identity', 'sannin_echo'],
   forwardPaths: [
@@ -598,7 +598,7 @@ export const CHUNIN_EXAMS_CONFIG: RegionConfig = {
 
   lootTheme: {
     primaryElement: ElementType.WIND,
-    equipmentFocus: ['speed', 'intelligence', 'dexterity'],
+    equipmentFocus: [],
     goldMultiplier: 1.0,
   },
 

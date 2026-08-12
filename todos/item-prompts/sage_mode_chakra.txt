@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Sage Mode Chakra — concentrated natural energy orb of sage mode. Glowing yellow-green and orange natural energy sphere with frog-sage spiral marks, soft leaf accents, mystical nature chakra (subject is green-heavy). Orb only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered energy orb fills most of the square frame, floating, no character, no floor, no environment.
+
+Background: flat solid pure magenta hot-pink background #FF00FF, chroma key magenta, uniform, no gradient, no texture, no vignette. (Do NOT use green screen — subject is green-heavy.)
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, green screen background, black background, pure black matte, transparent checkerboard, gradient background, watermark.

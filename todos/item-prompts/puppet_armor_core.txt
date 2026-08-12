@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Puppet Armor Core — mechanical chakra core from a shinobi battle puppet. Wooden and brass mechanism sphere with scroll seals, tiny chakra tubes, joint gears, warm amber core glow. Puppet engineering prop only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered mechanical core fills most of the square frame, floating, no full puppet body, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern robot, black background, pure black matte, transparent checkerboard, gradient background, watermark.

@@ -245,7 +245,7 @@ describe('chain B — the abandoned laboratory resolves and branches on flags', 
     // Harvest needs 22 Intelligence — give the mock a stat bump so the gate passes.
     const smart = createMockPlayer({
       eventFlags: {},
-      primaryStats: { ...BASE_STATS, intelligence: 30 },
+      primaryStats: { ...BASE_STATS, intelligence: 3 },
     });
     const entry = findEvent('orochimaru_experiment');
     const result = resolveEventChoice(smart, choiceByLabel(entry, 'Harvest the Specimen'), playerStats);

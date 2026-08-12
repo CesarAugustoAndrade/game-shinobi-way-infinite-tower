@@ -108,7 +108,10 @@ export const LaunchProperties = {
   /** Maximum bag capacity */
   MAX_BAG_SIZE: 12,
 
-  /** Maximum equipped skills */
+  /**
+   * Legacy alias used by LIMITS.MAX_SKILLS — NOT the combat deck size.
+   * Hand size is HAND_SIZE; deck cap is MAX_DECK_SIZE.
+   */
   MAX_EQUIPPED_SKILLS: 4,
 
   /** Combat log max entries */
@@ -126,12 +129,6 @@ export const LaunchProperties = {
     RICH: { choiceCount: 3, artifactChance: 0.10, ryoMultiplier: 2.0 },  // Wealth 7
   },
 
-  /** Dice roll probabilities for treasure hunter (trap%, nothing%, piece%) */
-  TREASURE_DICE_ODDS: { trap: 30, nothing: 40, piece: 30 },
-
-  /** Trap damage formula: BASE + (dangerLevel * PER_DANGER) as % of max HP */
-  TREASURE_TRAP_DAMAGE: { base: 0.05, perDanger: 0.03 },
-
   /** Map pieces required by danger level */
   TREASURE_MAP_PIECES: { lowDanger: 2, midDanger: 3, highDanger: 4 },
 
@@ -147,6 +144,18 @@ export const LaunchProperties = {
 
   /** Number of cards drawn into the player's hand each turn */
   HAND_SIZE: 4,
+
+  /** Target non-PASSIVE cards at character creation (academy kits). */
+  START_DECK_TARGET: 8,
+
+  /** Max non-PASSIVE skills a player may know (combat deck cap). */
+  MAX_DECK_SIZE: 20,
+
+  /**
+   * Loot/scroll weight multiplier when a skill is on the player's
+   * CLAN_FAVORITE_SKILLS list (bias only — not a hard gate).
+   */
+  CLAN_FAVORITE_SKILL_WEIGHT: 2.0,
 
   /** AP cost of manually switching posture (skills that shift posture do so for free) */
   POSTURE_SWITCH_AP_COST: 1,

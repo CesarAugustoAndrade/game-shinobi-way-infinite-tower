@@ -42,14 +42,14 @@ describe('checkRequirements', () => {
 
   it('returns true when stat requirement met', () => {
     const requirements = {
-      minStat: { stat: PrimaryStat.STRENGTH, value: 5 },
+      minStat: { stat: PrimaryStat.STRENGTH, value: 2 },
     };
     expect(checkRequirements(player, requirements, playerStats)).toBe(true);
   });
 
   it('returns false when stat requirement not met', () => {
     const requirements = {
-      minStat: { stat: PrimaryStat.STRENGTH, value: 50 },
+      minStat: { stat: PrimaryStat.STRENGTH, value: 9 },
     };
     expect(checkRequirements(player, requirements, playerStats)).toBe(false);
   });

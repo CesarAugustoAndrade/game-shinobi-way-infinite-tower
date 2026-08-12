@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Byakugan Awakening — pale white-lavender Byakugan eye lens artifact. Nearly white iris with soft veins of pale lavender light, delicate silver rim, gentle divine sight glow. Eye-lens prop only, not a full face.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered lens fills most of the square frame, floating, no face, no person, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, full human face, gore, black background, pure black matte, transparent checkerboard, gradient background, watermark, violence.

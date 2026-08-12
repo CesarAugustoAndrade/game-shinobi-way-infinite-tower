@@ -37,7 +37,6 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
   if (!activities) {
     return (
       <div className="activity-icons">
-        <span className="activity-icons__label">📋</span>
         {[1, 2, 3, 4, 5].map((i) => (
           <span key={i} className="activity-icons__placeholder">?</span>
         ))}
@@ -49,9 +48,11 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
 
   return (
     <div className="activity-icons">
-      <span className="activity-icons__label">📋</span>
       {activeActivities.length === 0 ? (
-        <span className="activity-icons__empty">No activities</span>
+        // Only amenity flags reach this row (getLocationActivities sets merchant/rest/training/
+        // infoGathering/boss and never combat/event/treasure/scroll), so "no activities" would be
+        // a lie — every site still generates combat, treasure and events.
+        <span className="activity-icons__empty">No amenities confirmed</span>
       ) : (
         activeActivities.map((key) => {
           const status: ActivityStatus = activities[key];

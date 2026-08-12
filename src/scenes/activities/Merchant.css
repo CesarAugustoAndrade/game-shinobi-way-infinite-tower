@@ -1,7 +1,7 @@
 /**
- * Merchant Scene Styles
- * BEM-style CSS for the Traveling Merchant experience
- * Pixel-arcade card pattern: solid bg, rarity border 2px, hard shadow, translate hover.
+ * Merchant Scene — event-style split poster layout
+ * Left: vertical shop key-art poster + title/quote.
+ * Right: path bar (purse) + stock option rows + services + leave.
  */
 
 @import '../../styles/design-system/index.css';
@@ -12,80 +12,144 @@
    =========================================== */
 
 .merchant {
+  --mc-panel: #12161f;
+  --mc-border: #2a3140;
+  --mc-hard: #05070c;
+  --mc-gold: #e8a825;
+  --mc-title: #f2f4f8;
+  --mc-body: #a8b2c2;
+
   width: 100%;
-  max-width: none;
+  max-width: 72rem;
+  margin: 0 auto;
   min-height: 100%;
-  padding: var(--sw-space-4) var(--sw-space-5);
+  padding: var(--sw-space-4) var(--sw-space-5) var(--sw-space-6);
   display: flex;
   flex-direction: column;
-  gap: var(--sw-space-4);
+  gap: var(--sw-space-3);
   box-sizing: border-box;
+  z-index: 10;
 }
 
 /* ===========================================
-   Top HUD — NPC + meta left, purse right (no ornate bar)
+   Split: poster | decision
    =========================================== */
 
-.merchant__top {
+.merchant__split {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.92fr) minmax(18rem, 1.2fr);
+  gap: var(--sw-space-5);
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ===========================================
+   LEFT — vertical shop poster
+   =========================================== */
+
+.merchant__poster {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sw-space-4);
-  flex-wrap: wrap;
+  min-height: 0;
+  animation: merchant-fade-up 0.4s steps(5) both;
+}
+
+.merchant__poster-frame {
+  position: relative;
   width: 100%;
-}
-
-.merchant__npc {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: var(--sw-space-3);
-  min-width: 0;
-  flex: 1 1 16rem;
-}
-
-.merchant__npc-frame {
-  width: 72px;
-  height: 72px;
-  flex-shrink: 0;
-  border: 2px solid var(--sw-rust-border, rgba(154, 52, 18, 0.55));
-  border-radius: var(--sw-radius-sm);
-  background:
-    radial-gradient(ellipse at 50% 40%, rgba(56, 72, 96, 0.28) 0%, transparent 70%),
-    linear-gradient(160deg, rgba(18, 20, 28, 0.95) 0%, rgba(6, 7, 12, 0.98) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  aspect-ratio: 3 / 4;
+  max-height: min(78vh, 36rem);
+  min-height: 18rem;
+  margin: 0 auto;
+  border: 3px solid var(--mc-border);
+  border-top: 4px solid var(--mc-gold);
+  box-shadow: 6px 6px 0 0 var(--mc-hard);
+  background: #05070c;
   overflow: hidden;
-  box-shadow: var(--sw-pix-shadow-sm), inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
-.merchant__npc-frame img,
-.merchant__npc-art {
-  width: 100%;
-  height: 100%;
+.merchant__poster-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.merchant__poster-art .art-icon,
+.merchant__poster-art img {
+  width: 100% !important;
+  height: 100% !important;
   object-fit: cover;
+  object-position: center 35%;
+  display: block;
 }
 
-.merchant__npc-icon {
-  font-size: 2rem;
-  line-height: 1;
+.merchant__poster-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(5, 7, 12, 0.1) 0%,
+      rgba(5, 7, 12, 0.08) 36%,
+      rgba(5, 7, 12, 0.74) 68%,
+      rgba(5, 7, 12, 0.95) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(5, 7, 12, 0.3) 0%,
+      transparent 14%,
+      transparent 86%,
+      rgba(5, 7, 12, 0.3) 100%
+    );
 }
 
-.merchant--lean .merchant__npc-frame {
-  border-color: rgba(161, 98, 7, 0.75);
-}
-
-.merchant__npc-meta {
+.merchant__poster-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: var(--sw-space-4) var(--sw-space-4) var(--sw-space-5);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  gap: var(--sw-space-2);
+  text-align: center;
+}
+
+.merchant__plate-tag {
+  font-family: var(--sw-font-display);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(232, 168, 37, 0.95);
+  text-shadow: 2px 2px 0 var(--mc-hard);
+}
+
+.merchant__title {
+  font-size: clamp(1.15rem, 2.4vw, 1.65rem);
+  font-family: var(--sw-font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mc-title);
+  text-shadow: 3px 3px 0 var(--mc-hard);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.merchant__description {
+  font-family: var(--sw-font-pixel, monospace);
+  font-size: clamp(0.8rem, 1.4vw, 0.95rem);
+  color: var(--mc-body);
+  line-height: 1.35;
+  margin: 0 auto;
+  max-width: 28rem;
+  text-shadow: 1px 1px 0 var(--mc-hard);
 }
 
 .merchant__lean-note {
   margin: 0;
-  max-width: 28rem;
   font-family: var(--sw-font-mono, monospace);
   font-size: var(--sw-text-2xs);
   letter-spacing: 0.04em;
@@ -100,40 +164,11 @@
   background: rgba(180, 83, 9, 0.28);
 }
 
-.merchant__npc-nameplate {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sw-space-2);
-}
-
-.merchant__npc-role {
-  font-family: var(--sw-font-display, Silkscreen, monospace);
-  font-size: var(--sw-text-sm);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--sw-bone, #e8e4dc);
-  text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.95),
-    0 2px 10px rgba(0, 0, 0, 0.85);
-}
-
-.merchant__npc-quote {
-  margin: 0;
-  font-size: var(--sw-text-xs);
-  color: var(--sw-bone-dim, #b8b4a8);
-  font-style: italic;
-  max-width: 32rem;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.95);
-}
-
-/* T-090: region lootTheme identity (stock already biased T-070) */
 .merchant__theme {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 6px;
-  max-width: 32rem;
   margin-top: 2px;
 }
 
@@ -164,14 +199,99 @@
   border-color: #a16207;
 }
 
-/* Purse + quality/slots — floating text, no panel chrome */
+/* ===========================================
+   RIGHT — decision column
+   =========================================== */
+
+.merchant__decision {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-3);
+  min-width: 0;
+  min-height: 0;
+  animation: merchant-group-in 0.38s steps(5) both;
+}
+
+.merchant__path-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sw-space-3);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: var(--sw-space-2) var(--sw-space-3);
+  background: rgba(14, 18, 25, 0.94);
+  border: 2px solid var(--mc-border);
+  border-left: 4px solid var(--mc-gold);
+  box-shadow: 3px 3px 0 0 var(--mc-hard);
+}
+
+.merchant__divider {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-xs);
+  letter-spacing: var(--sw-tracking-widest);
+  text-transform: uppercase;
+  color: var(--mc-gold);
+}
+
 .merchant__hud {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--sw-space-2);
+  gap: 4px;
   flex: 0 0 auto;
   text-align: right;
+}
+
+.merchant__wares {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-2);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.merchant__ware {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sw-space-2);
+  animation: merchant-fade-up 0.35s steps(4) both;
+  animation-delay: calc(var(--ware-stagger, 0) * 45ms);
+}
+
+.merchant__ware-index {
+  flex-shrink: 0;
+  width: 1.5rem;
+  align-self: center;
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-xs);
+  color: var(--mc-gold);
+  text-align: center;
+  text-shadow: 2px 2px 0 var(--mc-hard);
+}
+
+@keyframes merchant-group-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes merchant-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* T-091: per-item Focus match cues */
@@ -292,25 +412,121 @@
   font-family: var(--sw-font-mono);
 }
 
-/* ===========================================
-   Toolbar — services left, leave right
-   =========================================== */
+/* Fence bag — sell inventory only at shop */
+.merchant__fence {
+  flex-shrink: 0;
+  border: 2px solid var(--mc-border, #2a3140);
+  border-left: 4px solid #86efac;
+  background: rgba(14, 18, 25, 0.94);
+  box-shadow: 3px 3px 0 0 var(--mc-hard, #05070c);
+  padding: var(--sw-space-2) var(--sw-space-3);
+  max-height: 12rem;
+  overflow-y: auto;
+}
 
-.merchant__toolbar {
+.merchant__fence-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.merchant__fence-title {
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #86efac;
+}
+
+.merchant__fence-note {
+  font-size: 9px;
+  font-family: var(--sw-font-mono, monospace);
+  color: var(--sw-text-muted);
+  text-transform: uppercase;
+}
+
+.merchant__fence-empty {
+  margin: 0;
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-text-muted);
+  font-style: italic;
+}
+
+.merchant__fence-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.merchant__fence-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sw-space-3);
-  flex-wrap: wrap;
-  width: 100%;
+  gap: 8px;
 }
+
+.merchant__fence-art {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(45, 61, 74, 0.55);
+}
+
+.merchant__fence-art .art-icon,
+.merchant__fence-art img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+.merchant__fence-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--sw-text-2xs);
+  color: var(--sw-bone, #e8e4d9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.merchant__fence-sell {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid #16a34a;
+  background: rgba(22, 163, 74, 0.15);
+  color: #86efac;
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 1px 1px 0 #000;
+}
+
+.merchant__fence-sell:hover:not(:disabled) {
+  background: rgba(22, 163, 74, 0.35);
+}
+
+.merchant__fence-sell:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===========================================
+   Services + leave (right column footer)
+   =========================================== */
 
 .merchant__services {
   display: flex;
   justify-content: flex-start;
   gap: var(--sw-space-2);
   flex-wrap: wrap;
-  flex: 1 1 auto;
+  flex-shrink: 0;
 }
 
 .service-button {
@@ -375,56 +591,97 @@
 }
 
 /* ===========================================
-   Content Area (Grid + Preview)
-   =========================================== */
-
-.merchant__content {
-  display: flex;
-  gap: var(--sw-space-5);
-  min-height: 0;
-  flex: 1 1 auto;
-  width: 100%;
-  align-items: flex-start;
-}
-
-/* ===========================================
-   Item Grid
-   =========================================== */
-
-.item-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--sw-space-4);
-  flex: 1;
-}
-
-/* ===========================================
-   Item Card  —  pixel-arcade pattern
-   bg: --sw-bg-secondary solid
-   border: 2px rarity-color
-   shadow: 4px 4px 0 0 --sw-hard
-   hover: translate(-2px,-2px) + 6px shadow + rarity glow (approved exception)
-   active: translate(2px,2px) + 1px shadow
+   Item option row (event-style choice card)
    =========================================== */
 
 .item-card {
   position: relative;
-  width: 200px;
-  height: 280px;
+  flex: 1;
+  min-width: 0;
   border: 2px solid var(--sw-frame-soft);
-  border-radius: var(--sw-radius-lg);
+  border-radius: var(--sw-radius-md);
   cursor: pointer;
   transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
     border-color var(--sw-transition-base);
   display: flex;
   flex-direction: column;
-  /* Contain in-card tooltip overlay */
   overflow: hidden;
   background:
     linear-gradient(165deg, rgba(22, 26, 36, 0.95) 0%, rgba(10, 11, 16, 0.98) 100%);
-  box-shadow: 4px 4px 0 0 var(--sw-hard);
+  box-shadow: 3px 3px 0 0 var(--sw-hard);
 }
+
+/* Horizontal stock row */
+.item-card--row {
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 5.5rem;
+  padding: 0;
+}
+
+.item-card__thumb {
+  width: 4.5rem;
+  flex-shrink: 0;
+  background: rgba(5, 6, 8, 0.85);
+  border-right: 1px solid rgba(45, 61, 74, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.item-card__thumb .art-icon,
+.item-card__thumb img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+.item-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--sw-space-2) var(--sw-space-3);
+}
+
+.item-card__header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.item-card__statline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.item-card__stat-chip {
+  font-family: var(--sw-font-mono, monospace);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--sw-bone-dim, #b8b4a8);
+  padding: 1px 5px;
+  border: 1px solid rgba(45, 61, 74, 0.55);
+  background: rgba(5, 6, 8, 0.45);
+}
+
+.item-card__stat-chip--focus {
+  color: #c4b5fd;
+  border-color: #6d28d9;
+}
+
+.item-card__stat-chip em {
+  font-style: normal;
+  margin-left: 3px;
+}
+
+.item-card__stat-chip em.up { color: #86efac; }
+.item-card__stat-chip em.down { color: #fca5a5; }
 
 .item-card .item-tile__visual {
   width: 100%;
@@ -460,8 +717,7 @@
 .item-card.item-tile:focus-within > .item-tile__tooltip,
 .item-card.item-tile.item-tile--tooltip-below:hover > .item-tile__tooltip,
 .item-card.item-tile.item-tile--tooltip-below:focus-within > .item-tile__tooltip {
-  display: block;
-  transform: none !important;
+  display: none !important;
 }
 
 .item-card.item-tile > .item-tile__tooltip::after {
@@ -490,98 +746,21 @@
 .item-card--legendary { border-color: var(--sw-rarity-legendary); }
 .item-card--cursed  { border-color: var(--sw-rarity-cursed); }
 
-/* Frame overlay — void plate, no zinc gray */
-.item-card__frame {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 50% 40%, rgba(154, 52, 18, 0.08) 0%, transparent 65%),
-    linear-gradient(160deg, rgba(18, 20, 28, 0.95) 0%, var(--sw-void, #050608) 100%);
-  border-radius: var(--sw-radius-lg);
-  pointer-events: none;
-}
-
-/* Corner ornaments */
-.item-card__corner {
-  position: absolute;
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--treasure-gold);
-  opacity: 0.5;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.item-card__corner--tl {
-  top: 6px;
-  left: 6px;
-  border-right: none;
-  border-bottom: none;
-  border-radius: 4px 0 0 0;
-}
-
-.item-card__corner--tr {
-  top: 6px;
-  right: 6px;
-  border-left: none;
-  border-bottom: none;
-  border-radius: 0 4px 0 0;
-}
-
-.item-card__corner--bl {
-  bottom: 6px;
-  left: 6px;
-  border-right: none;
-  border-top: none;
-  border-radius: 0 0 0 4px;
-}
-
-.item-card__corner--br {
-  bottom: 6px;
-  right: 6px;
-  border-left: none;
-  border-top: none;
-  border-radius: 0 0 4px 0;
-}
-
-/* Card content area */
-.item-card__content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-1);
-  padding: var(--sw-space-3);
-  flex: 1;
-}
-
-/* Item visual + detail stats live in the shared item-tile pattern —
-   see src/styles/item-tile.css (T-018 a3). */
-
-/* Hover: translate up-left + larger shadow */
+/* Hover / selected — event choice feel */
 .item-card:hover:not(.item-card--dimmed) {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 0 var(--sw-hard);
+  box-shadow: 5px 5px 0 0 var(--sw-hard);
 }
 
-/* Active: press down */
 .item-card:active:not(.item-card--dimmed) {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 0 var(--sw-hard);
 }
 
-.item-card:hover:not(.item-card--dimmed) .item-card__corner {
-  opacity: 0.8;
-}
-
-/* Selected: same as hover */
 .item-card--selected {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 0 var(--sw-hard);
-}
-
-.item-card--selected .item-card__corner {
-  opacity: 0.8;
+  box-shadow: 5px 5px 0 0 var(--sw-hard);
+  border-left-width: 4px;
 }
 
 .item-card--dimmed {
@@ -589,14 +768,6 @@
   filter: grayscale(30%);
   cursor: default;
 }
-
-/* Rarity-specific corner colors */
-.item-card--broken   .item-card__corner { border-color: var(--sw-rarity-broken); }
-.item-card--common   .item-card__corner { border-color: var(--sw-fog, #8a9199); }
-.item-card--rare     .item-card__corner { border-color: var(--sw-rarity-rare); }
-.item-card--epic     .item-card__corner { border-color: var(--sw-rarity-epic); }
-.item-card--legendary .item-card__corner { border-color: var(--sw-rarity-legendary); }
-.item-card--cursed   .item-card__corner { border-color: var(--sw-rarity-cursed); }
 
 /* Rarity glows on hover/selected — APPROVED EXCEPTION for item-cards only (no blur) */
 .item-card--rare:hover:not(.item-card--dimmed),
@@ -625,6 +796,10 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sw-space-2);
+}
+
+.item-card--row .item-card__header {
+  align-items: center;
 }
 
 .item-card__rarity-tag {
@@ -661,7 +836,12 @@
 .item-card__name {
   font-size: var(--sw-text-sm);
   font-weight: 600;
-  text-align: center;
+  text-align: left;
+  margin: 0;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .item-card__name--broken   { color: var(--sw-rarity-broken); }
@@ -671,17 +851,24 @@
 .item-card__name--legendary { color: var(--sw-rarity-legendary); }
 .item-card__name--cursed   { color: var(--sw-rarity-cursed); }
 
-/* Item Card Stats */
 /* Item Card Footer */
 .item-card__footer {
   margin-top: auto;
-  padding-top: var(--sw-space-2);
+  padding-top: 4px;
   border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sw-space-2);
 }
 
 .item-card__price {
-  text-align: center;
-  margin-bottom: var(--sw-space-1);
+  text-align: left;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-bottom: 0;
 }
 
 .item-card__price-current {
@@ -723,7 +910,8 @@
 }
 
 .item-card__buy-button {
-  width: 100%;
+  flex-shrink: 0;
+  min-width: 5.5rem;
   padding: var(--sw-space-1) var(--sw-space-2);
   border: 1px solid;
   border-radius: var(--sw-radius-sm);
@@ -758,20 +946,21 @@
    =========================================== */
 
 .preview-panel {
-  width: 320px;
+  width: 100%;
   flex-shrink: 0;
   background:
     linear-gradient(165deg, rgba(22, 26, 36, 0.97) 0%, rgba(8, 10, 16, 0.98) 100%);
-  border: 1px solid rgba(140, 160, 190, 0.28);
-  border-radius: var(--sw-radius-lg);
-  box-shadow:
-    var(--sw-pix-shadow),
-    0 0 24px rgba(125, 211, 252, 0.06);
-  padding: var(--sw-space-5);
+  border: 2px solid var(--mc-border, #2a3140);
+  border-left: 4px solid var(--mc-gold, #e8a825);
+  border-radius: var(--sw-radius-md);
+  box-shadow: 4px 4px 0 0 var(--mc-hard, #05070c);
+  padding: var(--sw-space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--sw-space-4);
+  gap: var(--sw-space-3);
   animation: slideIn 0.25s ease-out;
+  max-height: min(42vh, 22rem);
+  overflow-y: auto;
 }
 
 .preview-panel__header {
@@ -1072,8 +1261,9 @@
   outline-offset: 2px;
 }
 
-/* Leave — sits on the toolbar (right) */
+/* Leave — decision column footer */
 .merchant__leave-button {
+  align-self: flex-end;
   color: var(--sw-bone-dim, #b8b4a8);
   font-size: var(--sw-text-xs);
   text-transform: uppercase;
@@ -1090,6 +1280,27 @@
 .merchant__leave-button:hover {
   color: var(--sw-bone, #e8e4dc);
   border-color: var(--sw-rust-border, rgba(154, 52, 18, 0.55));
+}
+
+/* Stack on narrow viewports */
+@media (max-width: 900px) {
+  .merchant__split {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant__poster-frame {
+    aspect-ratio: 16 / 10;
+    max-height: 14rem;
+    min-height: 11rem;
+  }
+
+  .merchant__poster-copy {
+    padding: var(--sw-space-3);
+  }
+
+  .merchant__title {
+    font-size: 1.1rem;
+  }
 }
 
 /* ===========================================

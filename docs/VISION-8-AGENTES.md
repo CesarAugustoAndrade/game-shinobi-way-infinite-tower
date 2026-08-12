@@ -207,6 +207,8 @@ Campañas posteriores (Exams, Retrieval, War) **escalan** la promesa de R1; no d
 4. CRT y neón de mapa son el visor, no el clima del mundo.  
 5. Cada item/skill se recorta contra el vacío; el emoji es last-resort.
 
+**Canon de combate (adopción art direction):** **contenido** (sprites, pósters, skills, láminas) = **painted HQ** neo-retro / cel-shade / outlines; **chrome** (HUD, UI, fuentes) = **pixel-arcade**. No tratar 16-bit SNES como estilo principal de personajes — ver `docs/guia_direccion_de_arte_combate.md`.
+
 ### Exploración (A4)
 1. Cada location es un transformador de ninja.  
 2. La niebla de Wave es el UI de la verdad (intel / secretos / mentiras de danger).  

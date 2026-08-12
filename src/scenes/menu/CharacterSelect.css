@@ -1,5 +1,5 @@
 /* ============================================================================
-   CharacterSelect Scene - Modernized Styling
+   CharacterSelect Scene — Portrait-first lineage pick
    ============================================================================ */
 
 @import '../../styles/design-system/index.css';
@@ -15,43 +15,101 @@
   flex-direction: column;
   align-items: center;
   justify-content: safe center;
-  padding: var(--sw-space-8);
+  padding: var(--sw-space-6) var(--sw-space-8);
   position: relative;
-  /* Short viewports: scroll so Mission Brief / Esc path and cards stay reachable */
   overflow-x: hidden;
   overflow-y: auto;
   background: linear-gradient(180deg, var(--sw-abyss, #1a2633) 0%, var(--sw-void, #050608) 100%);
 }
 
-/* R1-002: back to main menu for difficulty retune */
+/* Dim painted identity plate — readable plate, cards stay on top */
+.char-select::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url(/assets/backgrounds/character_select_background.png);
+  background-size: cover;
+  background-position: center;
+  background-attachment: scroll;
+  filter: blur(2px) brightness(0.32) saturate(0.8);
+  transform: scale(1.04);
+}
+
+/* Vignette + faint CRT scanlines */
+.char-select::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.1) 3px,
+      rgba(0, 0, 0, 0.1) 4px
+    ),
+    radial-gradient(
+      ellipse at 50% 40%,
+      transparent 0%,
+      rgba(0, 0, 0, 0.4) 58%,
+      rgba(0, 0, 0, 0.88) 100%
+    );
+  box-shadow: inset 0 0 100px rgba(5, 6, 8, 0.75);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HEADER
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.char-select__header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  margin-bottom: var(--sw-space-6);
+  animation: sw-slide-in-down 0.4s ease-out;
+}
+
 .char-select__back {
   display: inline-block;
   margin-bottom: var(--sw-space-3);
-  padding: 0.35rem 0.75rem;
-  font-family: var(--sw-font-mono, monospace);
+  padding: 0.4rem 0.85rem;
+  font-family: var(--sw-font-display, var(--sw-font-mono, monospace));
   font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sw-fog, #8a9199);
-  background: transparent;
-  border: 1px solid rgba(45, 61, 74, 0.65);
+  background: var(--sw-void-glass, rgba(5, 6, 8, 0.85));
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-radius: var(--sw-radius-sm, 3px);
+  box-shadow: var(--sw-pix-shadow-sm, 3px 3px 0 0 #04060d);
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s ease, color 0.15s ease;
 }
+
 .char-select__back:hover,
 .char-select__back:focus-visible {
   color: var(--sw-bone, #e8e4dc);
   border-color: var(--sw-rust, #a65d3f);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--sw-pix-shadow, 4px 4px 0 0 #04060d);
   outline: none;
 }
 
-/* T-027: pending Infinite Ascent — lineage screen is not silent about run mode */
+.char-select__back:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 #04060d;
+}
+
 .char-select__mode {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
-  margin: 0 0 var(--sw-space-3);
+  gap: 0.15rem;
+  margin: 0 0 var(--sw-space-2);
   font-family: var(--sw-font-mono, monospace);
   font-size: 11px;
   font-weight: 700;
@@ -67,73 +125,18 @@
   color: var(--sw-fog, #8a9199);
 }
 
-.char-select--infinite .char-select__title {
-  color: var(--sw-bone, #e8e4dc);
-}
-
-.char-select--infinite .clan-card__select-text {
-  letter-spacing: 0.04em;
-}
-
-/* Dim painted identity plate */
-.char-select::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: url(/assets/character_select_background.png);
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
-  filter: blur(5px) brightness(0.18) saturate(0.7);
-  transform: scale(1.06);
-}
-
-/* Vignette + CRT scanlines */
-.char-select::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0px,
-      transparent 3px,
-      rgba(0, 0, 0, 0.12) 3px,
-      rgba(0, 0, 0, 0.12) 4px
-    ),
-    radial-gradient(
-      ellipse at 50% 40%,
-      transparent 0%,
-      rgba(0, 0, 0, 0.5) 58%,
-      rgba(0, 0, 0, 0.94) 100%
-    );
-  box-shadow: inset 0 0 130px rgba(5, 6, 8, 0.88);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   HEADER
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.char-select__header {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  margin-bottom: var(--sw-space-10);
-  animation: sw-slide-in-down 0.4s ease-out;
-}
-
 .char-select__title {
-  font-family: var(--sw-font-serif);
+  font-family: var(--sw-font-display, var(--sw-font-serif));
   font-size: var(--sw-text-2xl);
-  font-weight: 600;
-  letter-spacing: var(--sw-tracking-ultra);
+  font-weight: 700;
+  letter-spacing: var(--sw-tracking-ultra, 0.12em);
   text-transform: uppercase;
   color: var(--sw-bone, #e8e4dc);
-  text-shadow: 0 0 24px rgba(166, 93, 63, 0.2);
   margin: 0;
+}
+
+.char-select--infinite .char-select__title {
+  color: var(--sw-bone, #e8e4dc);
 }
 
 .char-select__hint {
@@ -141,25 +144,28 @@
   font-size: var(--sw-text-xs);
   color: var(--sw-fog, #8a9199);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: var(--sw-space-2);
+  gap: var(--sw-space-1) var(--sw-space-2);
 }
 
 .char-select__tip {
   margin: var(--sw-space-3) auto 0;
-  max-width: 28rem;
+  max-width: 26rem;
   padding: var(--sw-space-2) var(--sw-space-3);
   font-size: 12px;
   line-height: 1.35;
-  color: #fcd34d;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(252, 211, 77, 0.35);
-  border-radius: var(--sw-radius-sm);
+  color: var(--sw-rust-light, #c47a52);
+  background: var(--sw-void-glass, rgba(5, 6, 8, 0.88));
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-top-color: var(--sw-rust, #a65d3f);
+  border-radius: var(--sw-radius-sm, 3px);
+  box-shadow: var(--sw-pix-shadow-sm, 3px 3px 0 0 #04060d);
 }
 
 .char-select__tip strong {
-  color: #fde68a;
+  color: var(--sw-bone, #e8e4dc);
   font-weight: 700;
 }
 
@@ -174,7 +180,8 @@
   grid-template-columns: repeat(5, 1fr);
   gap: var(--sw-space-4);
   width: 100%;
-  max-width: 90rem;
+  max-width: 92rem;
+  align-items: stretch;
 }
 
 @media (max-width: 1280px) {
@@ -193,15 +200,14 @@
 @media (max-width: 480px) {
   .char-select__grid {
     grid-template-columns: 1fr;
-    max-width: 20rem;
+    max-width: 22rem;
   }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   CLAN CARD
+   CLAN CARD — portrait-first
    ───────────────────────────────────────────────────────────────────────────── */
 
-/* Tooltip host fills grid cell so stagger + stretch match the card */
 .clan-card__tip-host {
   display: flex;
   flex-direction: column;
@@ -214,22 +220,18 @@
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 22rem;
-  padding: var(--sw-space-6);
-  /* Identity plate: abyss glass, rust heat on focus */
-  background: var(--sw-abyss-glass, rgba(26, 38, 51, 0.88));
+  min-height: 0;
+  padding: 0;
+  background: var(--sw-void-glass, rgba(5, 6, 8, 0.94));
   border: 2px solid var(--sw-metal, #2d3d4a);
-  border-radius: var(--sw-radius-lg);
-  box-shadow: var(--sw-pix-shadow-sm);
+  border-radius: var(--sw-radius-sm, 3px);
+  box-shadow: var(--sw-pix-shadow, 4px 4px 0 0 #04060d);
   overflow: hidden;
   cursor: pointer;
-  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
-    border-color var(--sw-transition-base);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s ease;
   animation: sw-fade-in 0.4s ease-out backwards;
 }
 
-/* Stagger animation for each card */
-/* Stagger on grid children (tooltip host is the direct child now) */
 .char-select__grid > *:nth-child(1) .clan-card { animation-delay: 0ms; }
 .char-select__grid > *:nth-child(2) .clan-card { animation-delay: 50ms; }
 .char-select__grid > *:nth-child(3) .clan-card { animation-delay: 100ms; }
@@ -239,48 +241,72 @@
 .clan-card:hover {
   transform: translate(-3px, -3px);
   border-color: var(--sw-rust, #a65d3f);
-  box-shadow: var(--sw-pix-shadow-lg), 0 0 18px var(--sw-rust-glow, rgba(166, 93, 63, 0.35));
+  box-shadow: var(--sw-pix-shadow-lg, 6px 6px 0 0 #04060d);
+}
+
+.clan-card:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 #04060d;
 }
 
 .clan-card:focus-visible {
   outline: 2px solid var(--sw-rust, #a65d3f);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
-/* Big letter watermark */
-.clan-card__watermark {
-  position: absolute;
-  top: -1rem;
-  right: -0.5rem;
-  font-size: 8rem;
-  font-weight: 900;
-  color: var(--sw-bg-surface);
-  opacity: 0.3;
-  pointer-events: none;
-  line-height: 1;
-}
+/* ── Portrait plate ──────────────────────────────────────────────────────── */
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   CARD HEADER
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.clan-card__header {
+.clan-card__portrait {
   position: relative;
-  z-index: 1;
-  margin-bottom: var(--sw-space-4);
+  z-index: 0;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 16rem;
+  background:
+    linear-gradient(180deg, rgba(26, 38, 51, 0.35) 0%, rgba(5, 6, 8, 0.9) 100%),
+    var(--sw-abyss, #1a2633);
+  border-bottom: 2px solid var(--sw-metal, #2d3d4a);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.clan-card__name {
-  font-size: var(--sw-text-xl);
-  font-weight: 900;
-  color: var(--sw-bone, #e8e4dc);
-  margin: 0 0 var(--sw-space-2) 0;
+.clan-card:hover .clan-card__portrait {
+  border-bottom-color: var(--sw-rust, #a65d3f);
+}
+
+.clan-card__portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+  user-select: none;
+  image-rendering: auto;
+}
+
+/* Cutouts sit clean; full portraits can fill slightly more */
+.clan-card__portrait-img--portrait {
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+.clan-card__portrait-fallback {
   display: flex;
   align-items: center;
-  gap: var(--sw-space-2);
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  opacity: 0.85;
 }
 
 .clan-card__index {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -290,10 +316,11 @@
   font-family: var(--sw-font-mono);
   font-size: var(--sw-text-xs);
   font-weight: 700;
-  background: var(--sw-bg-primary);
-  border: 1px solid var(--sw-glass-border);
-  border-radius: var(--sw-radius-sm);
-  color: var(--sw-text-muted);
+  background: var(--sw-void, #050608);
+  border: 2px solid var(--sw-metal, #2d3d4a);
+  border-radius: var(--sw-radius-sm, 3px);
+  color: var(--sw-fog, #8a9199);
+  box-shadow: 2px 2px 0 0 #04060d;
 }
 
 .clan-card:hover .clan-card__index {
@@ -301,9 +328,33 @@
   color: var(--sw-rust-light, #c47a52);
 }
 
+/* ── Body (text stack under portrait) ────────────────────────────────────── */
+
+.clan-card__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: var(--sw-space-3) var(--sw-space-3) var(--sw-space-4);
+  flex: 1 1 auto;
+  background: var(--sw-abyss-glass, rgba(26, 38, 51, 0.92));
+}
+
+.clan-card__name {
+  font-family: var(--sw-font-display, var(--sw-font-serif));
+  font-size: var(--sw-text-lg, 1.125rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sw-bone, #e8e4dc);
+  margin: 0;
+  line-height: 1.15;
+}
+
 .clan-card__role {
-  margin: 0.15rem 0 0;
-  font-size: 11px;
+  margin: 0;
+  font-size: 10px;
   font-family: var(--sw-font-mono, monospace);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -311,30 +362,32 @@
 }
 
 .clan-card__weak {
-  margin: 0.4rem 0 0;
+  margin: 0;
   font-size: 10px;
   line-height: 1.3;
   color: var(--sw-text-muted, #a1a1aa);
-  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .clan-card__skill {
-  font-size: var(--sw-text-2xs);
+  font-size: var(--sw-text-2xs, 10px);
   font-weight: 700;
-  letter-spacing: var(--sw-tracking-wide);
+  letter-spacing: var(--sw-tracking-wide, 0.04em);
   text-transform: uppercase;
   color: var(--sw-text-muted);
-  padding-bottom: var(--sw-space-2);
-  border-bottom: 1px solid var(--sw-glass-border);
-  line-height: 1.3;
-  min-height: 2.6em;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--sw-glass-border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid var(--sw-glass-border, rgba(255, 255, 255, 0.08));
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 4px;
+  min-height: 0;
 }
 
-/* T-045: signature skill Imagine chips on clan card */
 .clan-card__skill-arts {
   display: flex;
   align-items: center;
@@ -343,67 +396,57 @@
 
 .clan-card__skill-chip {
   display: inline-flex;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.6rem;
+  height: 1.6rem;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.45);
   border: 2px solid #000;
   box-shadow: 1px 1px 0 #000;
   overflow: hidden;
 }
 
 .clan-card__skill-art {
-  width: 1.5rem !important;
-  height: 1.5rem !important;
+  width: 1.35rem !important;
+  height: 1.35rem !important;
   object-fit: contain;
   image-rendering: pixelated;
 }
 
 .clan-card__skill-names {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   width: 100%;
+  line-height: 1.25;
 }
 
-.clan-tooltip__loadout-skills {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.clan-tooltip__loadout-skill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   STAT RANKS
-   ───────────────────────────────────────────────────────────────────────────── */
+/* ── Compact triad row ───────────────────────────────────────────────────── */
 
 .clan-card__stats {
-  position: relative;
-  z-index: 1;
-  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: var(--sw-space-3);
-  padding: var(--sw-space-4) 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sw-space-1);
+  margin-top: auto;
+  padding-top: var(--sw-space-2);
 }
 
 .stat-rank {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
 }
 
 .stat-rank__label {
-  font-size: var(--sw-text-2xs);
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: var(--sw-tracking-wider);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -412,20 +455,20 @@
 .stat-rank__label--technique { color: var(--sw-category-technique, #10b981); }
 
 .stat-rank__value {
-  font-size: var(--sw-text-xl);
+  font-size: var(--sw-text-base, 1rem);
   font-weight: 900;
   font-family: var(--sw-font-mono);
+  line-height: 1;
 }
 
-/* Rank colors */
-.stat-rank__value--s { color: #ef4444; text-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
+.stat-rank__value--s { color: #ef4444; }
 .stat-rank__value--a { color: var(--sw-rust-light, #c47a52); }
 .stat-rank__value--b { color: var(--sw-bone-dim, #b8b4a8); }
 .stat-rank__value--c { color: var(--sw-fog, #8a9199); }
 .stat-rank__value--d { color: var(--sw-bone-muted, #7a766c); }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   TOOLTIP CONTENT
+   TOOLTIP CONTENT (deep loadout + raw stats)
    ───────────────────────────────────────────────────────────────────────────── */
 
 .clan-tooltip {
@@ -489,6 +532,18 @@
   font-size: 9px;
 }
 
+.clan-tooltip__loadout-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clan-tooltip__loadout-skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .clan-tooltip__stat {
   display: flex;
   justify-content: space-between;
@@ -500,7 +555,6 @@
 .clan-tooltip__stat-name { opacity: 0.8; }
 .clan-tooltip__stat-value { font-weight: 600; }
 
-/* Stat name colors */
 .clan-tooltip__stat-name--wil { color: #ef4444; }
 .clan-tooltip__stat-name--cha { color: var(--sw-chakra-color, #3b82f6); }
 .clan-tooltip__stat-name--spi { color: var(--sw-category-mind, #a855f7); }
@@ -512,71 +566,6 @@
 .clan-tooltip__stat-name--dex { color: #ec4899; }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   SELECT BUTTON
-   ───────────────────────────────────────────────────────────────────────────── */
-
-.clan-card__select {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  padding: 0;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: transform var(--sw-transition-base);
-}
-
-.clan-card__select:hover {
-  transform: scale(1.03);
-}
-
-.clan-card__select-img {
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  border-radius: var(--sw-radius-md);
-  opacity: 0.9;
-  transition: opacity var(--sw-transition-base);
-}
-
-.clan-card:hover .clan-card__select-img {
-  opacity: 1;
-}
-
-/* Text shown as fallback or alongside image */
-.clan-card__select-text {
-  display: none;
-  padding: var(--sw-space-3) var(--sw-space-4);
-  background: var(--sw-accent-primary);
-  border: 2px solid var(--sw-frame);
-  border-radius: var(--sw-radius-md);
-  font-family: var(--sw-font-display);
-  font-size: var(--sw-text-xs);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--sw-on-accent);
-  box-shadow: var(--sw-pix-shadow-sm);
-  transition: all var(--sw-transition-base);
-}
-
-/* When fallback mode is active, hide image and show text */
-.clan-card__select--fallback .clan-card__select-img {
-  display: none;
-}
-
-.clan-card__select--fallback .clan-card__select-text {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.clan-card:hover .clan-card__select-text {
-  background: var(--sw-accent-tertiary);
-  box-shadow: var(--sw-pix-shadow), 0 0 14px var(--sw-accent-glow);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
    RESPONSIVE
    ───────────────────────────────────────────────────────────────────────────── */
 
@@ -586,16 +575,11 @@
   }
 
   .char-select__header {
-    margin-bottom: var(--sw-space-6);
+    margin-bottom: var(--sw-space-4);
   }
 
-  .clan-card {
-    min-height: 18rem;
-    padding: var(--sw-space-4);
-  }
-
-  .clan-card__watermark {
-    font-size: 5rem;
+  .clan-card__portrait {
+    max-height: 12rem;
   }
 }
 
@@ -603,5 +587,10 @@
   .char-select__header,
   .clan-card {
     animation: none;
+  }
+
+  .clan-card,
+  .char-select__back {
+    transition: none;
   }
 }

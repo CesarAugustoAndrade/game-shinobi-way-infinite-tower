@@ -32,6 +32,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 150,
               ryo: 400,
+              heatDelta: 30,
               logMessage: 'You disrupt the ritual and the captive escapes. Their gratitude knows no bounds.',
               logType: 'loot',
             },
@@ -42,13 +43,14 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
         label: 'Observe Secretly',
         description: 'MEDIUM RISK - Gather intelligence',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.CALMNESS, value: 20 } },
+        requirements: { minStat: { stat: PrimaryStat.CALMNESS, value: 1 } },
         outcomes: [
           {
             weight: 80,
             effects: {
               exp: 100,
               statChanges: { intelligence: 2 },
+              heatDelta: 5,
               logMessage: 'You learn the Sound Village\'s secrets from the shadows.',
               logType: 'gain',
             },
@@ -80,6 +82,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 120,
               ryo: 250,
+              heatDelta: 30,
               logMessage:
                 'Your sealing chains shatter the Sound formation. The captive flees; the Sound Four scatter.',
               logType: 'loot',
@@ -135,8 +138,9 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
           {
             weight: 35,
             effects: {
-              statChanges: { strength: 5, spirit: 5 },
+              statChanges: { strength: 2, spirit: 2 },
               exp: 200,
+              heatDelta: 5,
               logMessage: 'The curse mark brands itself onto your flesh! Immense power flows, but at what cost?',
               logType: 'loot',
             },
@@ -154,6 +158,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 120,
               ryo: 300,
+              heatDelta: 30,
               logMessage: 'You resist the curse and seize the artifact. Its power is contained but no longer amplified.',
               logType: 'gain',
             },
@@ -164,13 +169,14 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
         label: 'Study the Amplifier',
         description: 'MEDIUM RISK - Learn its secrets',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 22 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         outcomes: [
           {
             weight: 75,
             effects: {
               exp: 150,
               statChanges: { intelligence: 3 },
+              heatDelta: 5,
               logMessage: 'Your intellect rivals Orochimaru\'s cunning. You understand the curse seal.',
               logType: 'gain',
             },
@@ -222,6 +228,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
               statChanges: { calmness: 2, intelligence: 1 },
               hpChange: { percent: 20 },
               chakraChange: { percent: 20 },
+              heatDelta: 5,
               logMessage: 'The valley\'s essence teaches you about bonds and sacrifice.',
               logType: 'gain',
             },
@@ -237,6 +244,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
             weight: 40,
             effects: {
               exp: 180,
+              heatDelta: 5,
               logMessage: 'You overcome your inner demons. The statue bows in respect.',
               logType: 'gain',
             },
@@ -304,7 +312,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
         label: 'Harvest the Specimen',
         description: 'HIGH RISK - Extract Orochimaru\'s serum for yourself (needs 22 Intelligence)',
         riskLevel: RiskLevel.HIGH,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 22 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'The Sannin\'s gifts always demand flesh in return.',
         outcomes: [
           {
@@ -328,6 +336,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 90,
               intelGain: 15,
+              heatDelta: 5,
               logMessage: 'You bring the ceiling down on the whole cursed place and leave it buried.',
               logType: 'gain',
             },
@@ -361,6 +370,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
               exp: 130,
               hpChange: { percent: 20 },
               intelGain: 20,
+              heatDelta: 5,
               logMessage: 'The subject presses a shaking hand to your brow and pours the lab\'s secrets into you before vanishing into the tunnels.',
               logType: 'gain',
             },
@@ -397,6 +407,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
               grantSkillById: 'poison_fog',
               curse: { value: 0.5, duration: 3 },
               intelGain: 20,
+              heatDelta: 10,
               logMessage: 'The serum rewrites your chakra. Orochimaru\'s poison-fog jutsu is yours now — and so is the cursed hunger that comes with it.',
               logType: 'loot',
             },
@@ -425,6 +436,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 70,
               intelGain: 15,
+              heatDelta: 5,
               logMessage: 'Whatever you took here, you leave the serum a smear on the floor. Some doors are better shut.',
               logType: 'info',
             },

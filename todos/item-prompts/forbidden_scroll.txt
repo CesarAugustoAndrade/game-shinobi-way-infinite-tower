@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Forbidden Scroll — sealed forbidden-jutsu scroll. Dark aged paper roll on black rods, heavy red sealing cords and ofuda paper tags across the middle, ominous purple glow at edges, forbidden knowledge prop. Scroll only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered sealed scroll fills most of the square frame, slight angle, floating, no hands, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern binder, English body text, black background, pure black matte, transparent checkerboard, gradient background, watermark.

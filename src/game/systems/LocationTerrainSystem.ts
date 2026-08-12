@@ -22,6 +22,7 @@ import {
   TerrainDefinition,
 } from '../types';
 import { chance } from '../utils/rng';
+import { getHazardLabel } from '../constants/terrain';
 
 /** Aggregated location terrain mods (fractions unless noted). */
 export interface LocationTerrainMods {
@@ -304,7 +305,7 @@ export function formatRoomTerrainEffectLines(
     lines.push(`${e.elementAmplify} +${shown}%`);
   }
   if (e.hazard) {
-    lines.push(`${e.hazard.type} hazard`);
+    lines.push(`${getHazardLabel(e.hazard.type)} hazard`);
   }
   if (e.stealthModifier) {
     lines.push(`Stealth ${e.stealthModifier > 0 ? '+' : ''}${e.stealthModifier}%`);

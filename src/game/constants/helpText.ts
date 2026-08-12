@@ -7,7 +7,7 @@ export const HELP_TEXT = {
         id: PrimaryStat.WILLPOWER,
         name: "Willpower",
         desc: "Grit & Survival.",
-        effect: "Increases Max HP (9 per point). Governs Guts chance (survival at 1 HP) and HP Regen."
+        effect: "Increases Max HP (20 per point; base 100). Governs Guts chance (survival at 1 HP) and HP Regen."
       },
       {
         id: PrimaryStat.CHAKRA,
@@ -70,6 +70,16 @@ export const HELP_TEXT = {
     { name: "Guts", desc: "Chance to survive a lethal blow with 1 HP. Scaling based on Willpower." },
     { name: "Status Resistance", desc: "Chance to ignore negative effects. Scaling based on Calmness." }
   ],
+
+  /** F3 visit alert meter (not a primary stat). */
+  HEAT: {
+    name: "Heat",
+    desc: "Visit alert / greed. Optional rewards raise it; mandatory paths stay low.",
+    tiers: "Quiet 0–24 · Suspicious 25–49 · Alert 50–74 · Hunted 75–100",
+    effects:
+      "Penalizes risky approaches; at high heat may ambush with a second elite fight (rewards held until both wins). At 100 arms a Hunter on EXIT (latch). Does not buff ordinary enemy stats. Resets when you leave the location.",
+    deathPolicy: "Dying on the ambush fight forfeits uncommitted rewards.",
+  },
 
   EFFECTS: [
     { type: EffectType.STUN, label: "Stun", desc: "Target cannot act for the duration." },
@@ -161,24 +171,27 @@ export const HELP_TEXT = {
         { danger: 7, difficulty: 100, text: "Danger 7, 10 locations, Diff 100: 1.98 × 1.40 × 0.90 × 0.85 = 2.12×" }
       ]
     },
+    // Bands MUST match MainMenu.getRank (25 / 45 / 65 / 85) — the handbook previously shipped the
+    // pre-R1-007 four-band table and contradicted the rank shown on the menu slider.
     DIFFICULTY_RANKS: [
-      { rank: "D", range: "0-29", color: "green-500", desc: "Thin pressure; low stat scaling" },
-      { rank: "C", range: "30-59", color: "yellow-500", desc: "Usual pressure; moderate scaling" },
-      { rank: "B", range: "60-84", color: "orange-500", desc: "Hard edge; significant scaling" },
+      { rank: "D", range: "0-24", color: "green-500", desc: "Thin pressure; low stat scaling" },
+      { rank: "C", range: "25-44", color: "yellow-500", desc: "Usual pressure; moderate scaling" },
+      { rank: "B", range: "45-64", color: "orange-500", desc: "Hard edge; significant scaling" },
+      { rank: "A", range: "65-84", color: "red-500", desc: "Severe pressure; heavy scaling" },
       { rank: "S", range: "85-100", color: "red-600", desc: "Maximum pressure; full scaling" }
     ],
     RESOURCES: [
-      { label: "HP Calculation", formula: "80 + (Willpower × 9) + equipment" },
-      { label: "Chakra Calculation", formula: "30 + (Chakra stat × 8) + equipment" },
-      { label: "Skill Chakra Cost", formula: "Typical 10-30; Ultimate skills 40-50" },
-      { label: "HP Regen", formula: "2% of Max HP per turn, scaled by Willpower (÷20)" },
-      { label: "Chakra Regen", formula: "Intelligence × 0.5 per turn" }
+      { label: "HP Calculation", formula: "100 + (Willpower × 20) + equipment flats" },
+      { label: "Chakra Calculation", formula: "30 + (Chakra × 15) + equipment flats" },
+      { label: "Skill Chakra Cost", formula: "Bands by tier: 0–5 / 5–10 / 10–15 / 15–25 / 25–35" },
+      { label: "HP Regen", formula: "max(1, floor(maxHP × (0.01 + 0.04 × WILL/(WILL+10))))" },
+      { label: "Chakra Regen", formula: "1 + 2 × Intelligence per turn" }
     ],
     PROGRESSION_DETAILS: [
       { label: "XP per Enemy", formula: "Base 25 + (Floor × 5) + tier bonuses" },
-      { label: "Level Up Requirement", formula: "100 × Level XP needed" },
-      { label: "Crit Damage Multiplier", formula: "1.75x (Base 8% + 0.5% per Dexterity)" },
-      { label: "Hit Chance Formula", formula: "92% + (Attacker Stat - Defender Stat) × 1.5%" }
+      { label: "Level Up", formula: "100 × Level XP; each level grants 1 unspent stat point (assign all before continuing)" },
+      { label: "Crit Chance", formula: "5% + 50% × DEX/(DEX+12), max 55%; crit mult ≈1.75×" },
+      { label: "Impact (hit)", formula: "clamp(60–98, 90 + 6×(atkStat − defender Speed)); MELEE uses Speed, RANGED Accuracy, AUTO always hits" }
     ]
   },
 
@@ -229,7 +242,7 @@ export const HELP_TEXT = {
       { slot: "Body", primary: "Willpower", desc: "Increases HP and guts chance." },
       { slot: "Accessory", primary: "Speed/Spirit", desc: "Boosts reflexes or elemental power." }
     ],
-    SCALING: "Item stats scale with Floor and Difficulty. Higher floors = stronger drops."
+    SCALING: "F1: each component grants +1 to its primary. Artifacts = sum of component points + at most +1 thematic. Floor no longer multiplies primaries (sell value may still scale)."
   },
 
   // ============================================================================
@@ -238,12 +251,14 @@ export const HELP_TEXT = {
   COMBAT_MECHANICS: {
     DECK_ECONOMY: {
       title: "Deck, Hand & Action Points",
-      overview: "Combat is a card-based system. Your known jutsu form a deck; each turn you draw a hand and spend Action Points (AP) to play cards.",
+      overview: "Combat is a card-based system. Your known jutsu form a deck; each turn you draw a hand and spend Action Points (AP) to play cards. There is no MAIN/SIDE phase — only AP.",
       points: [
-        { label: "Deck", desc: "Built from your skill list (MAIN, SIDE, TOGGLE, PASSIVE). Every jutsu you know can appear as a card." },
-        { label: "Hand", desc: "You draw 4 cards at the start of each turn. Posture biases which kinds of cards appear." },
-        { label: "Action Points (AP)", desc: "Base 3 AP/turn + 1 per 10 Speed. Each card costs AP; when AP is gone, your turn ends. Harsh location terrain (movement penalty) can cut your AP budget — the combat HUD shows Terrain −N when that happens." },
-        { label: "Playing cards", desc: "MAIN skills are attacks/heals; SIDE are setups/utility; TOGGLE shift combat posture; PASSIVES stay on your character." }
+        { label: "Deck (8–20)", desc: "Playable jutsu (ACTIVE + TOGGLE) form your draw pile. Academy kits start ~8 cards; hard cap 20. PASSIVES stay always-on and never enter the deck." },
+        { label: "Hand", desc: "You draw 4 cards at the start of each turn. Posture biases which kinds of cards appear (offensive / utility / defensive)." },
+        { label: "Action Points (AP)", desc: "AP = min(9, 3 + floor((Speed − 1) / 2)) per turn. Each card costs AP (and often CP); when AP is gone, your turn ends. Harsh location terrain (movement penalty) can cut your AP budget — the combat HUD shows Terrain −N when that happens." },
+        { label: "Card types", desc: "ACTIVE — attacks, utility, and setups (each card has its own AP cost). TOGGLE — modes: pay AP to activate, then upkeep each turn. PASSIVE — always on, not drawn. Some ACTIVE cards deal bonus damage when your combat posture matches their stance bonus." },
+        { label: "Range (F2)", desc: "Fighting range is Close / Medium / Long. Melee cards need Close; ranged need Medium or Long; Auto works at any band. Spend 1 AP once per turn to Close in or Back off. Distance only gates cards — it does not buff damage. Opening range comes from your approach and the enemy's preferred band." },
+        { label: "Learning", desc: "Most techniques are open to any clan if you meet the stat requirements. Bloodline skills (e.g. Sharingan, Byakugan) stay clan-locked. Your clan's favorite techniques appear more often on scrolls and loot." }
       ]
     },
     POSTURES: [
@@ -252,11 +267,12 @@ export const HELP_TEXT = {
       { type: "Defensive", desc: "Favors guard/utility cards. Deal −15% damage, take −15% damage.", color: "blue" }
     ],
     APPROACHES: [
-      { type: "Frontal Assault", desc: "Always available. Face the enemy head-on with no bonuses or penalties.", color: "gray" },
-      { type: "Silent Strike", desc: "Requires Speed 12+. On success: first hit deals 2× damage, high initiative, chance to stun. +15% XP. Location stealth_bonus improves success chance (shown on the approach panel).", color: "green" },
-      { type: "Mind Trap", desc: "Requires Calmness 15+. Costs chakra. On success: enemy starts confused and slowed. +20% XP.", color: "blue" },
-      { type: "Terrain Trap", desc: "Requires Intelligence 14+ and trap-friendly room terrain. On success: enemy loses 20% HP before combat. +25% XP.", color: "red" },
-      { type: "Shadow Passage", desc: "Requires Speed 35+ and Body Flicker. On success: skip the fight entirely (no XP/loot).", color: "green" }
+      { type: "Frontal Assault", desc: "Always available. Safe baseline — no bonuses, no risk. Default approach from the HUD.", color: "gray" },
+      { type: "Silent Strike", desc: "Requires Dexterity 3+ and Speed 2+ (DEX specialists: Uchiha/Hyuga). Costs chakra. Success: 1.5× first hit, +initiative. Fail: enemy seizes initiative and applies light debuffs. Terrain stealth helps odds.", color: "green" },
+      { type: "Mind Trap", desc: "Requires Calmness 3+ and Intelligence 2+. Costs chakra. Success: short confuse + slow. Fail: self-confusion and mind debuffs.", color: "blue" },
+      { type: "Terrain Trap", desc: "Requires Intelligence 2+ and Accuracy 2+, plus trap-friendly room terrain. Costs chakra. Success: chip enemy HP pre-fight. Fail: HP backfire + accuracy curse.", color: "red" },
+      { type: "Iron Guard", desc: "Requires Willpower 3+. Costs chakra. Success: shield + slight init loss (defensive open). Fail: take more damage.", color: "blue" },
+      { type: "Shadow Passage", desc: "Requires Speed 7+ (legend-tier mobility). Costs heavy chakra. Success: skip fight (no XP/loot). Blocked on elite/boss. Fail: heavy init loss and vulnerability.", color: "green" }
     ],
     /**
      * T-076: real location terrainEffects (LocationTerrainSystem), not fluff biomes.

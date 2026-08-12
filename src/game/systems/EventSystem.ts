@@ -69,15 +69,15 @@ import {
   PrimaryStat,
   GameEvent,
   CharacterStats,
-  TreasureQuality,
-  MAX_MERCHANT_SLOTS,
-  Buff,
-  EffectType,
   Rarity,
 } from '../types';
-import { SKILLS } from '../constants/skills';
 import { EVENT_RARITY_WEIGHTS } from '../constants';
-import { pick, generateId, random, type RandomGenerator } from '../utils/rng';
+import { EVENT_FLAG_RUN_MODIFIERS } from '../constants/eventFlagRunModifiers';
+import { random, type RandomGenerator } from '../utils/rng';
+import { applyOutcomeEffects } from './eventEffectHandlers';
+
+// Re-export so existing import sites (`from './EventSystem'`) keep working.
+export { applyOutcomeEffects };
 
 /**
  * Check if a player meets all requirements for an event choice.
@@ -283,136 +283,6 @@ export const selectWeightedEvent = (
 };
 
 /**
- * Apply outcome effects to a player
- * Returns updated player or null if validation fails
- */
-export const applyOutcomeEffects = (
-  player: Player,
-  outcome: EventOutcome,
-  playerStats: any, // DerivedStats
-): Player => {
-  let updated = { ...player };
-  const effects = outcome.effects;
-
-  // Apply stat changes (only known primary attributes — skip typos / garbage keys)
-  if (effects.statChanges) {
-    updated.primaryStats = { ...updated.primaryStats };
-    for (const [stat, value] of Object.entries(effects.statChanges)) {
-      if (typeof value !== 'number') continue;
-      const key = stat as keyof typeof updated.primaryStats;
-      if (key in updated.primaryStats && typeof updated.primaryStats[key] === 'number') {
-        updated.primaryStats[key] = Math.max(1, updated.primaryStats[key] + value);
-      }
-    }
-  }
-
-  // Apply XP
-  if (effects.exp) {
-    updated.exp += effects.exp;
-  }
-
-  // Apply Ryo (never go negative from event effects)
-  if (effects.ryo) {
-    updated.ryo = Math.max(0, updated.ryo + effects.ryo);
-  }
-
-  // Apply HP changes
-  if (effects.hpChange) {
-    if (typeof effects.hpChange === 'number') {
-      updated.currentHp = Math.max(1, updated.currentHp + effects.hpChange);
-    } else if (effects.hpChange.percent) {
-      const hpChange = Math.floor(playerStats.derived.maxHp * (effects.hpChange.percent / 100));
-      updated.currentHp = Math.max(1, updated.currentHp + hpChange);
-    }
-    updated.currentHp = Math.min(playerStats.derived.maxHp, updated.currentHp);
-  }
-
-  // Apply Chakra changes
-  if (effects.chakraChange) {
-    if (typeof effects.chakraChange === 'number') {
-      updated.currentChakra = Math.max(0, updated.currentChakra + effects.chakraChange);
-    } else if (effects.chakraChange.percent) {
-      const chakraChange = Math.floor(
-        playerStats.derived.maxChakra * (effects.chakraChange.percent / 100),
-      );
-      updated.currentChakra = Math.max(0, updated.currentChakra + chakraChange);
-    }
-    updated.currentChakra = Math.min(playerStats.derived.maxChakra, updated.currentChakra);
-  }
-
-  // Apply buffs (store for combat system)
-  if (effects.buffs) {
-    updated.activeBuffs = [...updated.activeBuffs, ...effects.buffs];
-  }
-
-  // Upgrade treasure quality (BROKEN → COMMON → RARE)
-  if (effects.upgradeTreasureQuality) {
-    if (updated.treasureQuality === TreasureQuality.BROKEN) {
-      updated.treasureQuality = TreasureQuality.COMMON;
-    } else if (updated.treasureQuality === TreasureQuality.COMMON) {
-      updated.treasureQuality = TreasureQuality.RARE;
-    }
-    // Already at RARE - no change (alternative reward should be given)
-  }
-
-  // Add merchant slot (up to MAX_MERCHANT_SLOTS)
-  if (effects.addMerchantSlot && updated.merchantSlots < MAX_MERCHANT_SLOTS) {
-    updated.merchantSlots += 1;
-  }
-
-  // --- Event Engine 2.0 (T-008) effects ---
-
-  // Persist narrative flags for the run (immutable merge into eventFlags).
-  if (effects.setFlags) {
-    updated.eventFlags = { ...(updated.eventFlags ?? {}), ...effects.setFlags };
-  }
-
-  // Grant a skill by its Skill.id (from the SKILLS table). Deduped by id so a
-  // repeat grant is a no-op rather than a duplicate loadout entry.
-  if (effects.grantSkillById) {
-    const granted = Object.values(SKILLS).find((s) => s.id === effects.grantSkillById);
-    if (granted && !updated.skills.some((s) => s.id === granted.id)) {
-      updated.skills = [...updated.skills, { ...granted, level: 1 }];
-    }
-  }
-
-  // Brand the player with a curse: a damage-amplification Buff (EffectType.CURSE)
-  // stored in activeBuffs so the existing combat mitigation pipeline applies it.
-  if (effects.curse) {
-    const value = effects.curse.value ?? 0.5;
-    const duration = effects.curse.duration ?? 3;
-    const curseBuff: Buff = {
-      id: `event-curse-${generateId()}`,
-      name: 'Cursed Mark',
-      duration,
-      effect: {
-        type: EffectType.CURSE,
-        value,
-        duration,
-        chance: 1,
-      },
-      source: 'event',
-    };
-    updated.activeBuffs = [...updated.activeBuffs, curseBuff];
-  }
-
-  // Remove one random item from the bag using the game PRNG (immutable slot clear).
-  if (effects.removeRandomItem) {
-    const filledIndices = updated.bag.reduce<number[]>((acc, item, idx) => {
-      if (item) acc.push(idx);
-      return acc;
-    }, []);
-    if (filledIndices.length > 0) {
-      const targetIndex = pick(filledIndices) ?? filledIndices[0];
-      updated.bag = [...updated.bag];
-      updated.bag[targetIndex] = null;
-    }
-  }
-
-  return updated;
-};
-
-/**
  * Resolve a complete event choice
  * Returns { player, outcome, message, triggerCombat? }
  */
@@ -511,6 +381,7 @@ export const getEventsForArc = (
 /**
  * Mechanical run modifiers derived from narrative eventFlags.
  * Pure; stacks additively for damage, multiplicatively for ryo.
+ * Flag→bonus table: constants/eventFlagRunModifiers.ts
  */
 export interface EventFlagRunModifiers {
   /** Additive damage mult (0.05 = +5% damage). */
@@ -523,6 +394,7 @@ export interface EventFlagRunModifiers {
 
 /**
  * Map known story flags to combat/loot bonuses so event choices matter beyond gating.
+ * Driven by EVENT_FLAG_RUN_MODIFIERS pure-data table.
  */
 export function getEventFlagRunModifiers(player: {
   eventFlags?: Record<string, number>;
@@ -532,26 +404,13 @@ export function getEventFlagRunModifiers(player: {
   let ryoMultiplier = 1;
   const activeLabels: string[] = [];
 
-  // T-037: labels are player-facing (HUD chips), not raw flag keys
-  if ((f.envoy_freed ?? 0) > 0) {
-    ryoMultiplier *= 1.1;
-    activeLabels.push('Envoy bond +10% Ryō');
-  }
-  if ((f.envoy_debt_settled ?? 0) > 0) {
-    damageBonus += 0.05;
-    activeLabels.push('Debt settled +5% DMG');
-  }
-  if ((f.subject_harvested ?? 0) > 0) {
-    damageBonus += 0.08;
-    activeLabels.push('Harvested power +8% DMG');
-  }
-  if ((f.subject_freed ?? 0) > 0) {
-    ryoMultiplier *= 1.05;
-    activeLabels.push('Mercy karma +5% Ryō');
-  }
-  if ((f.sunken_ship_discovered ?? 0) > 0 || (f.hidden_cove_discovered ?? 0) > 0) {
-    ryoMultiplier *= 1.05;
-    activeLabels.push('Secret intel +5% Ryō');
+  for (const def of EVENT_FLAG_RUN_MODIFIERS) {
+    const flags = def.anyOfFlags ?? [def.flagId];
+    const active = flags.some((id) => (f[id] ?? 0) > 0);
+    if (!active) continue;
+    if (def.damageBonus) damageBonus += def.damageBonus;
+    if (def.ryoMultiplier) ryoMultiplier *= def.ryoMultiplier;
+    activeLabels.push(def.label);
   }
 
   return { damageBonus, ryoMultiplier, activeLabels };

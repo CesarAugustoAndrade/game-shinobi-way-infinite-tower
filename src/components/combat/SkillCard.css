@@ -44,21 +44,13 @@
   box-shadow: 1px 1px 0 var(--sw-void, #050608);
 }
 
-/* Border Color Variants */
-.skill-card--main {
+/* Border Color Variants (ACTIVE playable cards) */
+.skill-card--active-type {
   border-color: var(--sw-metal, #2d3d4a);
 }
 
-.skill-card--main:hover:not(.skill-card--disabled) {
+.skill-card--active-type:hover:not(.skill-card--disabled) {
   border-color: var(--sw-fog, #8a9199);
-}
-
-.skill-card--side {
-  border-color: rgba(45, 90, 130, 0.85);
-}
-
-.skill-card--side:hover:not(.skill-card--disabled) {
-  border-color: #7aa8c9;
 }
 
 .skill-card--toggle {
@@ -373,14 +365,9 @@
   letter-spacing: var(--sw-tracking-wide);
 }
 
-.skill-card__action-badge--main {
+.skill-card__action-badge--active {
   background: rgba(107, 61, 42, 0.85);
   color: var(--sw-rust-light, #c47a52);
-}
-
-.skill-card__action-badge--side {
-  background: rgba(26, 48, 72, 0.85);
-  color: #9bb8d1;
 }
 
 .skill-card__action-badge--toggle {

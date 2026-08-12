@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   TrainingActivity,
-  TrainingIntensity,
+  TrainingCostType,
+  TrainingOffer,
   PrimaryStat,
   Player,
-  DerivedStats
+  DerivedStats,
 } from '../../game/types';
 import {
   Heart,
@@ -17,7 +18,8 @@ import {
   Target,
   Sparkles,
   Swords,
-  type LucideIcon
+  Coins,
+  type LucideIcon,
 } from 'lucide-react';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import { isFocusStat } from '../../game/utils/itemFocusMatch';
@@ -27,7 +29,7 @@ interface TrainingProps {
   training: TrainingActivity;
   player: Player;
   playerStats: { derived: DerivedStats };
-  onTrain: (stat: PrimaryStat, intensity: TrainingIntensity) => void;
+  onTrain: (stat: PrimaryStat, costType: TrainingCostType) => void;
   onSkip: () => void;
   /** Biome background image — fills the scene via SceneBackdrop. */
   background?: string;
@@ -125,485 +127,289 @@ const STAT_DISPLAY_NAMES: Record<PrimaryStat, string> = {
   [PrimaryStat.DEXTERITY]: 'Dexterity',
 };
 
-const INTENSITY_ORDER: TrainingIntensity[] = ['light', 'medium', 'intense'];
-
-/* ===========================================
-   Resource Panel Component
-   =========================================== */
-
-interface ResourcePanelProps {
-  currentHp: number;
-  maxHp: number;
-  currentChakra: number;
-  maxChakra: number;
-  previewCost: { hp: number; chakra: number } | null;
-}
-
-const ResourcePanel: React.FC<ResourcePanelProps> = ({
-  currentHp,
-  maxHp,
-  currentChakra,
-  maxChakra,
-  previewCost,
-}) => {
-  const hpPercent = (currentHp / maxHp) * 100;
-  const chakraPercent = (currentChakra / maxChakra) * 100;
-
-  const previewHp = previewCost ? currentHp - previewCost.hp : currentHp;
-  const previewChakra = previewCost ? currentChakra - previewCost.chakra : currentChakra;
-  const previewHpPercent = previewCost ? (previewHp / maxHp) * 100 : hpPercent;
-  const previewChakraPercent = previewCost ? (previewChakra / maxChakra) * 100 : chakraPercent;
-
-  return (
-    <div className="resource-panel">
-      <div className="resource-panel__content">
-        {/* HP */}
-        <div className="resource-panel__item">
-          <div className="resource-panel__label">
-            <Heart size={12} />
-            <span>Vitality</span>
-          </div>
-          <div className="resource-panel__bar">
-            <div
-              className="resource-panel__bar-fill resource-panel__bar-fill--hp"
-              style={{ width: `${hpPercent}%` }}
-            />
-            {previewCost && previewHpPercent < hpPercent && (
-              <div
-                className="resource-panel__bar-preview"
-                style={{
-                  left: `${previewHpPercent}%`,
-                  width: `${hpPercent - previewHpPercent}%`,
-                }}
-              />
-            )}
-          </div>
-          <div className="resource-panel__values">
-            <span className="resource-panel__current">{currentHp}/{maxHp}</span>
-            {previewCost && (
-              <>
-                <span className="resource-panel__arrow">→</span>
-                <span className="resource-panel__preview">{previewHp}</span>
-                <span className="resource-panel__cost">(-{previewCost.hp})</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Chakra */}
-        <div className="resource-panel__item">
-          <div className="resource-panel__label">
-            <Droplet size={12} />
-            <span>Chakra</span>
-          </div>
-          <div className="resource-panel__bar">
-            <div
-              className="resource-panel__bar-fill resource-panel__bar-fill--chakra"
-              style={{ width: `${chakraPercent}%` }}
-            />
-            {previewCost && previewChakraPercent < chakraPercent && (
-              <div
-                className="resource-panel__bar-preview"
-                style={{
-                  left: `${previewChakraPercent}%`,
-                  width: `${chakraPercent - previewChakraPercent}%`,
-                }}
-              />
-            )}
-          </div>
-          <div className="resource-panel__values">
-            <span className="resource-panel__current">{currentChakra}/{maxChakra}</span>
-            {previewCost && (
-              <>
-                <span className="resource-panel__arrow">→</span>
-                <span className="resource-panel__preview">{previewChakra}</span>
-                <span className="resource-panel__cost">(-{previewCost.chakra})</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+const COST_LABELS: Record<TrainingCostType, string> = {
+  hp: 'HP',
+  chakra: 'CP',
+  ryo: 'Ryo',
 };
 
-/* ===========================================
-   Intensity Selector Component
-   =========================================== */
-
-interface IntensitySelectorProps {
-  option: TrainingActivity['options'][0];
-  selectedIntensity: TrainingIntensity | null;
-  onSelect: (intensity: TrainingIntensity) => void;
-  canAfford: (hp: number, chakra: number) => boolean;
+function formatPaidCost(costType: TrainingCostType, cost: number): string {
+  if (costType === 'hp') return `${cost} HP`;
+  if (costType === 'chakra') return `${cost} CP`;
+  return `${cost} ryo`;
 }
 
-const IntensitySelector: React.FC<IntensitySelectorProps> = ({
-  option,
-  selectedIntensity,
-  onSelect,
-  canAfford,
-}) => {
-  return (
-    <div className="intensity-selector">
-      {INTENSITY_ORDER.map((intensity) => {
-        const data = option.intensities[intensity];
-        const affordable = canAfford(data.cost.hp, data.cost.chakra);
-        const isSelected = selectedIntensity === intensity;
-
-        return (
-          <button
-            key={intensity}
-            type="button"
-            className={`intensity-option intensity-option--${intensity} ${
-              isSelected ? 'intensity-option--selected' : ''
-            } ${!affordable ? 'intensity-option--disabled' : ''}`}
-            onClick={() => affordable && onSelect(intensity)}
-            disabled={!affordable}
-          >
-            <div className="intensity-option__left">
-              <div className="intensity-option__radio">
-                <div className="intensity-option__radio-dot" />
-              </div>
-              <span className={`intensity-option__label intensity-option__label--${intensity}`}>
-                {intensity}
-              </span>
-              <span className="intensity-option__gain">+{data.gain}</span>
-            </div>
-            <div className="intensity-option__right">
-              <span className={`intensity-option__cost intensity-option__cost--hp ${!affordable ? 'intensity-option__insufficient' : ''}`}>
-                {data.cost.hp} HP
-              </span>
-              <span className={`intensity-option__cost intensity-option__cost--chakra ${!affordable ? 'intensity-option__insufficient' : ''}`}>
-                {data.cost.chakra} CK
-              </span>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-};
-
 /* ===========================================
-   Stat Card Component
+   Offer Card
    =========================================== */
 
-interface StatCardProps {
-  option: TrainingActivity['options'][0];
+interface OfferCardProps {
+  offer: TrainingOffer;
+  index: number;
   currentValue: number;
   isSelected: boolean;
   isDimmed: boolean;
-  selectedIntensity: TrainingIntensity | null;
-  index: number;
+  affordable: boolean;
+  isFocus: boolean;
   onSelect: () => void;
-  onIntensityChange: (intensity: TrainingIntensity) => void;
-  canAfford: (hp: number, chakra: number) => boolean;
-  /** T-112 */
-  isFocus?: boolean;
+  onConfirm: () => void;
 }
 
-const StatCard: React.FC<StatCardProps> = ({
-  option,
+const OfferCard: React.FC<OfferCardProps> = ({
+  offer,
+  index,
   currentValue,
   isSelected,
   isDimmed,
-  selectedIntensity,
-  index,
+  affordable,
+  isFocus,
   onSelect,
-  onIntensityChange,
-  canAfford,
-  isFocus = false,
+  onConfirm,
 }) => {
-  const info = STAT_INFO[option.stat];
+  const info = STAT_INFO[offer.stat];
   const Icon = info.icon;
-  const displayName = STAT_DISPLAY_NAMES[option.stat];
+  const displayName = STAT_DISPLAY_NAMES[offer.stat];
+  const CostIcon =
+    offer.costType === 'hp' ? Heart : offer.costType === 'chakra' ? Droplet : Coins;
 
   const handleClick = useCallback(() => {
-    if (!isSelected) {
-      onSelect();
-    }
-  }, [isSelected, onSelect]);
+    if (!affordable || isDimmed) return;
+    if (isSelected) onConfirm();
+    else onSelect();
+  }, [affordable, isDimmed, isSelected, onConfirm, onSelect]);
 
   return (
     <div
-      className={`stat-card stat-card--${info.category} ${
-        isSelected ? 'stat-card--selected' : ''
-      } ${isDimmed ? 'stat-card--dimmed' : ''} ${isFocus ? 'stat-card--focus' : ''}`}
+      className={[
+        'train-offer',
+        `train-offer--${offer.costType}`,
+        `train-offer--cat-${info.category}`,
+        isSelected ? 'train-offer--selected' : '',
+        isDimmed ? 'train-offer--dimmed' : '',
+        !affordable ? 'train-offer--disabled' : '',
+        isFocus ? 'train-offer--focus' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       onClick={handleClick}
       role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && handleClick()}
+      aria-pressed={isSelected}
+      aria-disabled={!affordable}
+      tabIndex={!affordable || isDimmed ? -1 : 0}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && affordable && !isDimmed && !isSelected) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
-      {/* Header */}
-      <div className="stat-card__header">
-        <div>
-          <span className="stat-card__index">{index + 1}</span>
-          <span className="stat-card__category">{info.categoryLabel}</span>
+      <div className="train-offer__header">
+        <div className="train-offer__header-left">
+          <span className="train-offer__index">{['A', 'S', 'D', 'Z', 'X', 'C'][index] ?? (index + 1)}</span>
+          <span className="train-offer__category">{info.categoryLabel}</span>
           {isFocus && (
-            <span className="stat-card__focus-badge" title="Matches region Focus">
+            <span className="train-offer__focus-badge" title="Matches region Focus">
               Focus
             </span>
           )}
         </div>
-        <span className={`stat-card__value stat-card__value--${info.category}`}>
+        <span className={`train-offer__stat-val train-offer__stat-val--${info.category}`}>
           {currentValue}
         </span>
       </div>
 
-      {/* Title with Icon */}
-      <div className="stat-card__title">
-        <div className={`stat-card__icon stat-card__icon--${info.category}`}>
-          <Icon size={18} />
+      <div className="train-offer__title">
+        <div className={`train-offer__icon train-offer__icon--${info.category}`}>
+          <Icon size={18} aria-hidden />
         </div>
-        <span className="stat-card__name">
+        <span className="train-offer__name">
           {displayName}
-          {isFocus && <span className="stat-card__focus-mark"> ★</span>}
+          {isFocus && <span className="train-offer__focus-mark"> ★</span>}
+        </span>
+        <span className="train-offer__gain" title="Stat gain">
+          +{offer.gain}
         </span>
       </div>
 
-      {/* Benefits */}
-      <div className="stat-card__benefits">
-        {info.benefits.map((benefit) => (
-          <span key={benefit} className="stat-card__benefit">
-            {benefit}
+      <p className="train-offer__desc">{info.description}</p>
+
+      <div className="train-offer__benefits">
+        {info.benefits.map((b) => (
+          <span key={b} className="train-offer__benefit">
+            {b}
           </span>
         ))}
       </div>
 
-      {/* Intensity Selector */}
-      <IntensitySelector
-        option={option}
-        selectedIntensity={isSelected ? selectedIntensity : null}
-        onSelect={onIntensityChange}
-        canAfford={canAfford}
-      />
+      <div className={`train-offer__cost train-offer__cost--${offer.costType}`}>
+        <CostIcon size={14} aria-hidden />
+        <span className="train-offer__cost-label">
+          {COST_LABELS[offer.costType]} Toll
+        </span>
+        <span className="train-offer__cost-amount">{offer.cost}</span>
+      </div>
+
+      {!affordable && (
+        <div className="train-offer__gate">Not enough {COST_LABELS[offer.costType]}</div>
+      )}
+
+      {isSelected && affordable && (
+        <span className="train-offer__confirm-tag" aria-hidden="true">
+          Confirm ▸
+        </span>
+      )}
     </div>
   );
 };
 
 /* ===========================================
-   Train Button Component
+   Result view
    =========================================== */
 
-interface TrainButtonProps {
-  stat: PrimaryStat;
-  gain: number;
-  category: StatCategory;
-  onClick: () => void;
-  disabled: boolean;
+interface TrainingResultView {
+  offer: TrainingOffer;
+  before: number;
+  after: number;
 }
-
-const TrainButton: React.FC<TrainButtonProps> = ({
-  stat,
-  gain,
-  category,
-  onClick,
-  disabled,
-}) => {
-  const displayName = STAT_DISPLAY_NAMES[stat];
-
-  return (
-    <div className="train-button-container">
-      <button
-        type="button"
-        className={`train-button train-button--${category}`}
-        onClick={onClick}
-        disabled={disabled}
-      >
-        <span>Train {displayName}</span>
-        <span className="train-button__gain">+{gain}</span>
-      </button>
-    </div>
-  );
-};
 
 /* ===========================================
    Main Training Component
    =========================================== */
 
-/** T-048: local result before parent applies training and leaves */
-interface TrainingResultView {
-  stat: PrimaryStat;
-  intensity: TrainingIntensity;
-  gain: number;
-  cost: { hp: number; chakra: number };
-  before: number;
-  after: number;
-}
-
 const Training: React.FC<TrainingProps> = ({
   training,
   player,
-  playerStats,
   onTrain,
   onSkip,
   background,
   equipmentFocus = null,
 }) => {
-  const [selectedStat, setSelectedStat] = useState<PrimaryStat | null>(null);
-  const [selectedIntensity, setSelectedIntensity] = useState<TrainingIntensity | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [result, setResult] = useState<TrainingResultView | null>(null);
-
-  const canAfford = useCallback((hp: number, chakra: number): boolean => {
-    return player.currentHp > hp && player.currentChakra >= chakra;
-  }, [player.currentHp, player.currentChakra]);
-
-  const getStatValue = useCallback((stat: PrimaryStat): number => {
-    const statKey = stat.toLowerCase() as keyof typeof player.primaryStats;
-    return player.primaryStats[statKey] || 0;
-  }, [player.primaryStats]);
-
-  const selectedOption = useMemo(() => {
-    if (!selectedStat) return null;
-    return training.options.find((opt) => opt.stat === selectedStat) || null;
-  }, [selectedStat, training.options]);
-
-  const previewCost = useMemo(() => {
-    if (!selectedOption || !selectedIntensity) return null;
-    return selectedOption.intensities[selectedIntensity].cost;
-  }, [selectedOption, selectedIntensity]);
-
-  const handleStatSelect = useCallback((stat: PrimaryStat) => {
-    setSelectedStat(stat);
-    setSelectedIntensity(null);
-  }, []);
-
-  const handleIntensitySelect = useCallback((intensity: TrainingIntensity) => {
-    setSelectedIntensity(intensity);
-  }, []);
-
-  /** Sync mutex — result state lags; double Enter/click before re-render re-called onTrain. */
   const resultContinueLockRef = useRef(false);
 
-  // T-048: show result panel first; parent apply + leave on continue
-  const handleTrain = useCallback(() => {
-    if (!selectedStat || !selectedIntensity || !selectedOption) return;
-    if (resultContinueLockRef.current) return;
-    const { cost, gain } = selectedOption.intensities[selectedIntensity];
-    if (!canAfford(cost.hp, cost.chakra)) return;
-    const before = getStatValue(selectedStat);
+  const getStatValue = useCallback(
+    (stat: PrimaryStat): number => {
+      const statKey = stat.toLowerCase() as keyof typeof player.primaryStats;
+      return player.primaryStats[statKey] || 0;
+    },
+    [player.primaryStats],
+  );
+
+  const canAffordOffer = useCallback(
+    (offer: TrainingOffer): boolean => {
+      if (offer.costType === 'hp') return player.currentHp > offer.cost;
+      if (offer.costType === 'chakra') return player.currentChakra >= offer.cost;
+      return player.ryo >= offer.cost;
+    },
+    [player.currentHp, player.currentChakra, player.ryo],
+  );
+
+  const handleSelect = useCallback((index: number) => {
+    const offer = training.options[index];
+    if (!offer || !canAffordOffer(offer)) return;
+    setSelectedIndex((prev) => (prev === index ? null : index));
+  }, [training.options, canAffordOffer]);
+
+  const handleConfirm = useCallback((index: number) => {
+    if (resultContinueLockRef.current || result) return;
+    const offer = training.options[index];
+    if (!offer || !canAffordOffer(offer)) return;
+    const before = getStatValue(offer.stat);
     setResult({
-      stat: selectedStat,
-      intensity: selectedIntensity,
-      gain,
-      cost,
+      offer,
       before,
-      after: before + gain,
+      after: before + offer.gain,
     });
-  }, [selectedStat, selectedIntensity, selectedOption, canAfford, getStatValue]);
+  }, [training.options, canAffordOffer, getStatValue, result]);
 
   const handleResultContinue = useCallback(() => {
     if (!result || resultContinueLockRef.current) return;
     resultContinueLockRef.current = true;
-    // Clear local result first so double Enter/click cannot re-apply training
-    const { stat, intensity } = result;
+    const { offer } = result;
     setResult(null);
-    onTrain(stat, intensity);
+    onTrain(offer.stat, offer.costType);
   }, [result, onTrain]);
 
-  const canTrain = useMemo(() => {
-    if (!selectedOption || !selectedIntensity) return false;
-    const cost = selectedOption.intensities[selectedIntensity].cost;
-    return canAfford(cost.hp, cost.chakra);
-  }, [selectedOption, selectedIntensity, canAfford]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      // Bag / character overlay owns Esc (do not skip training under it)
+      if (document.querySelector('.explore-overlay')) return;
 
-  const selectedCategory = selectedStat ? STAT_INFO[selectedStat].category : null;
-  const selectedGain = selectedOption && selectedIntensity
-    ? selectedOption.intensities[selectedIntensity].gain
-    : 0;
-
-  // Keyboard shortcuts
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.repeat) return;
-    const key = e.key.toUpperCase();
-
-    // Number keys 1-9 to select stat
-    if (e.key >= '1' && e.key <= '9') {
-      e.preventDefault();
-      const index = parseInt(e.key) - 1;
-      if (index < training.options.length) {
-        handleStatSelect(training.options[index].stat);
-      }
-    }
-
-    // L/M/I for intensity (only when stat is selected)
-    if (selectedStat && selectedOption) {
-      if (key === 'L') {
-        e.preventDefault();
-        const data = selectedOption.intensities.light;
-        if (canAfford(data.cost.hp, data.cost.chakra)) {
-          handleIntensitySelect('light');
-        }
-      } else if (key === 'M') {
-        e.preventDefault();
-        const data = selectedOption.intensities.medium;
-        if (canAfford(data.cost.hp, data.cost.chakra)) {
-          handleIntensitySelect('medium');
-        }
-      } else if (key === 'I') {
-        e.preventDefault();
-        const data = selectedOption.intensities.intense;
-        if (canAfford(data.cost.hp, data.cost.chakra)) {
-          handleIntensitySelect('intense');
-        }
-      }
-    }
-
-    // T-048: Enter on result → apply & leave; else train
-    if (e.key === 'Enter') {
-      e.preventDefault();
       if (result) {
-        handleResultContinue();
+        if (e.key === 'Enter' || e.key === 'Escape') {
+          e.preventDefault();
+          handleResultContinue();
+        }
         return;
       }
-      if (selectedStat && selectedIntensity && canTrain) {
-        handleTrain();
-      }
-    }
 
-    // Escape: result → continue (parity Scroll/Reward); else deselect or leave
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      if (result) {
-        handleResultContinue();
-        return;
+      const optionKeys = ['A', 'S', 'D', 'Z', 'X', 'C'];
+      const upperKey = e.key.toUpperCase();
+      let index = -1;
+      if (e.key >= '1' && e.key <= '6') {
+        index = parseInt(e.key, 10) - 1;
+      } else if (optionKeys.includes(upperKey)) {
+        index = optionKeys.indexOf(upperKey);
       }
-      if (selectedStat) {
-        setSelectedStat(null);
-        setSelectedIntensity(null);
-      } else {
-        onSkip();
+
+      if (index >= 0 && index < training.options.length) {
+        e.preventDefault();
+        handleSelect(index);
       }
-    }
-  }, [training.options, selectedStat, selectedOption, selectedIntensity, canTrain, canAfford, handleStatSelect, handleIntensitySelect, handleTrain, handleResultContinue, result, onSkip]);
+
+      if (e.key === 'Enter' && selectedIndex !== null) {
+        e.preventDefault();
+        handleConfirm(selectedIndex);
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (selectedIndex !== null) {
+          setSelectedIndex(null);
+        } else {
+          onSkip();
+        }
+      }
+    },
+    [
+      result,
+      handleResultContinue,
+      training.options.length,
+      handleSelect,
+      selectedIndex,
+      handleConfirm,
+      onSkip,
+    ],
+  );
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // T-048: completion reveal before parent unmounts Training
   if (result) {
-    const intensityLabel =
-      result.intensity.charAt(0).toUpperCase() + result.intensity.slice(1);
+    const { offer, before, after } = result;
     return (
-      <SceneBackdrop background={background}>
+      <SceneBackdrop background={background} dim={0.28}>
         <div className="training training--result">
           <div className="training__result" role="status">
             <h2 className="training__result-title">Session Sealed</h2>
-            <p className="training__result-intensity">{intensityLabel} drill</p>
+            <p className="training__result-intensity">
+              {COST_LABELS[offer.costType]} regimen
+            </p>
             <div className="training__result-stat">
-              <span className="training__result-stat-name">{result.stat}</span>
+              <span className="training__result-stat-name">
+                {STAT_DISPLAY_NAMES[offer.stat]}
+              </span>
               <span className="training__result-stat-delta">
-                {result.before} → <strong>{result.after}</strong>
-                <span className="training__result-gain"> (+{result.gain})</span>
+                {before} → <strong>{after}</strong>
+                <span className="training__result-gain"> (+{offer.gain})</span>
               </span>
             </div>
             <div className="training__result-cost">
-              <span>Paid {result.cost.hp} HP</span>
-              <span>·</span>
-              <span>{result.cost.chakra} CP</span>
+              <span>Paid {formatPaidCost(offer.costType, offer.cost)}</span>
             </div>
             <button
               type="button"
@@ -621,100 +427,76 @@ const Training: React.FC<TrainingProps> = ({
   }
 
   return (
-    <SceneBackdrop background={background}>
-    <div className="training">
-      {/* Dojo NPC Presence — mirrors Merchant's NPC block */}
-      <header className="training__dojo">
-        <div className="training__dojo-frame">
-          <Swords size={40} className="training__dojo-icon" />
-        </div>
-        <div className="training__dojo-nameplate">
-          <span className="training__dojo-role">Training Grounds</span>
-        </div>
-        <p className="training__dojo-quote">Steel remembers every toll. Spend vitality. Claim the mark.</p>
-        {/* T-112: region Focus for training choices */}
-        {equipmentFocus && equipmentFocus.length > 0 && (
-          <div className="training__focus-strip" aria-label="Region Focus stats">
-            <span className="training__focus-label">Region Focus</span>
-            {equipmentFocus.map((s) => (
-              <span key={s} className="training__focus-chip">
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </span>
-            ))}
+    <SceneBackdrop background={background} dim={0.28}>
+      <div className="training" role="region" aria-label="Training Grounds">
+        <header className="training__dojo">
+          <div className="training__dojo-frame">
+            <Swords size={40} className="training__dojo-icon" />
           </div>
-        )}
-      </header>
+          <div className="training__dojo-nameplate">
+            <span className="training__dojo-role">Training Grounds</span>
+          </div>
+          <p className="training__dojo-quote">
+            Blood, chakra, or coin — pick the toll. One regimen. One mark.
+          </p>
+          {equipmentFocus && equipmentFocus.length > 0 && (
+            <div className="training__focus-strip" aria-label="Region Focus stats">
+              <span className="training__focus-label">Region Focus</span>
+              {equipmentFocus.map((s) => (
+                <span key={s} className="training__focus-chip">
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </span>
+              ))}
+            </div>
+          )}
+        </header>
 
-      {/* Keyboard Hints */}
-      <div className="training__hints">
-        <span className="training__hint">
-          <span className="sw-shortcut">1</span>-<span className="sw-shortcut">9</span> Select Stat
-        </span>
-        <span className="training__hint">
-          <span className="sw-shortcut">L</span>/<span className="sw-shortcut">M</span>/<span className="sw-shortcut">I</span> Intensity
-        </span>
-        <span className="training__hint">
-          <span className="sw-shortcut">Enter</span> Train
-        </span>
-        <span className="training__hint">
-          <span className="sw-shortcut">Esc</span> Skip
-        </span>
+        <div className="training__path-bar">
+          <div className="training__divider">▸ Choose One Regimen</div>
+          <div className="training__hints">
+            <span className="training__hint">
+              <span className="sw-shortcut">A</span>-
+              <span className="sw-shortcut">D</span> Select
+            </span>
+            <span className="training__hint">
+              <span className="sw-shortcut">Enter</span> Confirm
+            </span>
+            <span className="training__hint">
+              <span className="sw-shortcut">Esc</span> Skip / Deselect
+            </span>
+            <span className="training__hint">
+              <span className="sw-shortcut">I</span> Bag
+            </span>
+            <span className="training__hint">
+              <span className="sw-shortcut">C</span> Character
+            </span>
+          </div>
+        </div>
+
+        <div className="training__offers" role="list">
+          {training.options.map((offer, idx) => (
+            <OfferCard
+              key={`${offer.stat}-${offer.costType}`}
+              offer={offer}
+              index={idx}
+              currentValue={getStatValue(offer.stat)}
+              isSelected={selectedIndex === idx}
+              isDimmed={selectedIndex !== null && selectedIndex !== idx}
+              affordable={canAffordOffer(offer)}
+              isFocus={isFocusStat(offer.stat, equipmentFocus)}
+              onSelect={() => handleSelect(idx)}
+              onConfirm={() => handleConfirm(idx)}
+            />
+          ))}
+        </div>
+
+        <div className="training__footer">
+          <button type="button" className="training__skip" onClick={onSkip}>
+            Leave without training
+            <span className="sw-shortcut">Esc</span>
+          </button>
+        </div>
       </div>
-
-      {/* Resource Panel */}
-      <ResourcePanel
-        currentHp={player.currentHp}
-        maxHp={playerStats.derived.maxHp}
-        currentChakra={player.currentChakra}
-        maxChakra={playerStats.derived.maxChakra}
-        previewCost={previewCost}
-      />
-
-      {/* Stat Cards */}
-      <div className="training__cards">
-        {training.options.map((option, idx) => (
-          <StatCard
-            key={option.stat}
-            option={option}
-            currentValue={getStatValue(option.stat)}
-            isSelected={selectedStat === option.stat}
-            isDimmed={selectedStat !== null && selectedStat !== option.stat}
-            selectedIntensity={selectedIntensity}
-            index={idx}
-            onSelect={() => handleStatSelect(option.stat)}
-            onIntensityChange={handleIntensitySelect}
-            canAfford={canAfford}
-            isFocus={
-              isFocusStat(String(option.stat), equipmentFocus)
-              || isFocusStat(STAT_DISPLAY_NAMES[option.stat], equipmentFocus)
-            }
-          />
-        ))}
-      </div>
-
-      {/* Train Button */}
-      {selectedStat && selectedIntensity && selectedCategory && (
-        <TrainButton
-          stat={selectedStat}
-          gain={selectedGain}
-          category={selectedCategory}
-          onClick={handleTrain}
-          disabled={!canTrain}
-        />
-      )}
-
-      {/* Skip Button */}
-      <div className="training__skip">
-        <button
-          type="button"
-          className="training__skip-button"
-          onClick={onSkip}
-        >
-          Leave training
-          <span className="sw-shortcut">Esc</span>
-        </button>
-      </div>
-    </div>
     </SceneBackdrop>
   );
 };

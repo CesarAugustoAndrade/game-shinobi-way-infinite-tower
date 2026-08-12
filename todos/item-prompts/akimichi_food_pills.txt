@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Akimichi Food Pills — three colored military ration pills of the Akimichi clan. Small round hard pills in green, yellow, and red, slight medicinal gloss, nested in a tiny open paper pouch or floating as a trio. Shinobi field ration prop, not modern pharmacy packaging.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered pill trio fills most of the square frame, floating, no hands, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette. (Pills may include a green pill — keep green pill more olive/teal so it keys cleanly against pure #00FF00, or make green pill darker forest green with outlines.)
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern blister pack, black background, pure black matte, transparent checkerboard, gradient background, watermark.

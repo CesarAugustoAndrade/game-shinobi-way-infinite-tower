@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Kabutowari — the Blunt Blade / helmet splitter of the Mist. Heavy cleaver-axe hybrid weapon with thick dark steel blunt edge and hammer-like mass, bandaged grip, brutal heavy silhouette. Fantasy anime prop weapon only, floating.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered heavy blade fills most of the square frame, diagonal, floating, no hands, no character, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern axe tool, black background, pure black matte, transparent checkerboard, gradient background, watermark, blood, violence.

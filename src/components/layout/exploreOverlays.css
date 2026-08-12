@@ -14,6 +14,20 @@
   pointer-events: none;
 }
 
+/* Dual open: character left, bag right */
+.explore-overlay--start {
+  justify-content: flex-start;
+}
+
+.explore-overlay--end {
+  justify-content: flex-end;
+}
+
+/* Other panel owns the dim — this root only hosts its plate */
+.explore-overlay--no-backdrop {
+  /* panels still receive pointer-events via children */
+}
+
 .explore-overlay__backdrop {
   position: absolute;
   inset: 0;
@@ -40,8 +54,22 @@
   color: var(--sw-bone-dim, #b8b4a8);
 }
 
+.explore-overlay--start .explore-overlay__panel {
+  border-left: none;
+  border-right: 3px solid var(--sw-rust-border, rgba(154, 52, 18, 0.65));
+  box-shadow: 6px 0 0 0 var(--sw-hard, #04060d);
+}
+
 .explore-overlay__panel--sheet {
   width: min(320px, 100vw);
+}
+
+/* Side-by-side: keep both readable on mid widths */
+@media (max-width: 720px) {
+  .explore-overlay--start .explore-overlay__panel,
+  .explore-overlay--end .explore-overlay__panel {
+    width: min(280px, 46vw);
+  }
 }
 
 .explore-overlay__header {

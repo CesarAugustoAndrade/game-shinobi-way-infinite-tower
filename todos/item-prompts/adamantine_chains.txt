@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Adamantine Chains — legendary golden sealing chains of Uzumaki style. Thick glowing gold metal chain links with soft amber chakra light, coiled or looping as a floating chain cluster. Chains only, no person.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered chain cluster fills most of the square frame, floating, no hands, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern industrial chain only, black background, pure black matte, transparent checkerboard, gradient background, watermark, gore, violence.

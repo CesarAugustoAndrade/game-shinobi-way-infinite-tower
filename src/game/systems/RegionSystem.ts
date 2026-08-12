@@ -993,15 +993,30 @@ const ATMOSPHERE_PROSE: Record<string, string> = {
   animal_attack: 'Something large moved between the trunks. Blood on the needles.',
   hidden_cache: 'A cache buried shallow — someone left in a hurry.',
   bandit_camp: 'Ash rings and boot prints. They were here last night.',
+  // Smuggler's Cave (black-ledger tunnels under Gato's books)
+  oilcloth_ledger: 'Oilcloth and coin. Smugglers keep better books than the village — and Gato\'s name is never in ink.',
+  wired_tunnel: 'A wire sings when the air moves wrong. The mountain is not the only thing listening.',
+  tarp_handshake: 'Hands change under a tarp. Nobody smiles. The hound does not need to.',
+  // Legacy cave tags (kept if older floors still reference them)
   hidden_stash: 'Oilcloth and coin. Smugglers keep better books than the village.',
   cave_in: 'Dust falls from the ceiling. The mountain is thinking about it.',
   smuggler_deal: 'Hands change under a tarp. Nobody smiles.',
   villager_plea: 'A mother counts coins that will never be enough.',
   hidden_resistance: 'Someone scrapes a kanji into a post: not yet, not broken.',
   tax_collection: 'Gato’s men leave with more than coin. Quiet doors stay shut.',
+  // Riverside Camp (ashfire road-sellers between village and bridge)
+  ashfire_smoke: 'Salt-wood burns wrong — blue-green haze, no river pine. Maps curl at the fire’s edge.',
+  rope_ferry: 'The ferry rope is slick with tide-grease. Coin first, then the current.',
+  sold_road: 'A charcoal line on fish-skin: river cut → span underbelly. Luck is not on the invoice.',
+  // Legacy tags (kept if any older floors still reference them)
   campfire_tales: 'Smoke tastes of fish and fear. The stories stop when you sit.',
   river_crossing: 'The rope is slick. One misstep and the current keeps you.',
   supply_trade: 'Rations for a rumor. Fair enough in this weather.',
+  // Sunken Ship (Gato's intentional scuttle / false-floor treasury)
+  hold_breath: 'The wreck holds a bubble of old breath. It will not last — and something else is breathing it.',
+  spectral_count: 'A wet coat with no man inside still points at the manifest. The drowned keep better books than the pier.',
+  false_floor_lock: 'Gato\'s seal on a chest that seems to breathe. Gold is quiet. The lock is not.',
+  // Legacy wreck tags
   trapped_air_pocket: 'The wreck holds a bubble of old breath. It won’t last.',
   spectral_captain: 'A wet coat with no man inside still points the way below.',
   treasure_cache: 'Gold is quiet. The lock is not.',
@@ -1214,11 +1229,17 @@ export function drawLocationCards(
     return { ...deckLoc, calculatedWeight: weight, location };
   }).filter(item => item.location !== null && item.calculatedWeight > 0);
 
-  // Draw cards
+  // Draw cards. Distinct within a single spread: at 0% progress getTierWeights puts ~78% of the
+  // weight on the three danger<=2 locations, so drawing each card independently offered the SAME
+  // destination twice in about half of opening spreads ("Fishing Village | Fishing Village").
+  // A repeat is only allowed once every distinct candidate has been used.
+  let available = [...weightedLocations];
   for (let i = 0; i < count; i++) {
     if (weightedLocations.length === 0) break;
+    if (available.length === 0) available = [...weightedLocations];
 
-    const selected = weightedRandomSelect(weightedLocations);
+    const selected = weightedRandomSelect(available);
+    available = available.filter(item => item.locationId !== selected.locationId);
     const location = region.locations.find(l => l.id === selected.locationId)!;
 
     // NEW: Use revealedCount to determine intel level if provided
@@ -1239,8 +1260,6 @@ export function drawLocationCards(
       isRevisit: selected.isCompleted,
     });
 
-    // Note: We don't remove from weightedLocations to allow same location
-    // to appear multiple times (as per requirements)
   }
 
   // If we couldn't draw enough cards, fill with whatever is available

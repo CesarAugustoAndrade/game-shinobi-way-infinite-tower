@@ -33,12 +33,10 @@ import { LaunchProperties } from '../../config/featureFlags';
 export type CardCategory = 'offensive' | 'utility' | 'defensive';
 
 /**
- * A skill counts as offensive when its damage multiplier exceeds this floor.
- * Tuned so pure attacks (lowest real attack ≈ 0.8) read as offensive while
- * defensive techniques that deal incidental chip damage (e.g. Rotation at 0.5)
- * fall through to their protective classification.
+ * Expected damage at ref stat 3: baseDamage + scalingPerPoint×3.
+ * Offensive if above this floor; low-chip defensive techniques stay defensive.
  */
-export const CARD_OFFENSIVE_DAMAGE_THRESHOLD = 0.5;
+export const CARD_OFFENSIVE_DAMAGE_THRESHOLD = 6;
 
 /** Flat starting weight for every card before posture multipliers apply. */
 export const CARD_BASE_WEIGHT = 1.0;
@@ -72,7 +70,7 @@ const DEFENSIVE_BUFF_STATS: ReadonlySet<PrimaryStat> = new Set([
  * @returns The card category used for draw weighting.
  */
 export function getCardCategory(skill: Skill): CardCategory {
-  if (skill.damageMult > CARD_OFFENSIVE_DAMAGE_THRESHOLD) {
+  if (((skill.baseDamage ?? 0) + (skill.scalingPerPoint ?? 0) * 3) > CARD_OFFENSIVE_DAMAGE_THRESHOLD) {
     return 'offensive';
   }
 
@@ -104,28 +102,23 @@ export function getCardCategory(skill: Skill): CardCategory {
 
 /**
  * Derive the default Action Point cost for a card from its `ActionType`.
- * Used as a fallback when `Skill.apCost` is not explicitly set.
+ * Used only as a safety fallback when `Skill.apCost` is not set.
+ * Catalog skills should author `apCost` explicitly.
  *
- * - MAIN   → 2 (heavy techniques / primary attacks)
- * - TOGGLE → 2 (activating a stance)
- * - SIDE   → 1 (light support actions)
- * - PASSIVE → 0 (never played as a card; always active)
- *
- * @param skill - The skill to price.
- * @returns The AP cost to play this card.
+ * - ACTIVE  → 2
+ * - TOGGLE  → 2
+ * - PASSIVE → 0
  */
 export function getDefaultApCost(skill: Skill): number {
   switch (skill.actionType) {
-    case ActionType.MAIN:
+    case ActionType.ACTIVE:
       return 2;
     case ActionType.TOGGLE:
       return 2;
-    case ActionType.SIDE:
-      return 1;
     case ActionType.PASSIVE:
       return 0;
     default:
-      return 1;
+      return 2;
   }
 }
 

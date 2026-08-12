@@ -1,0 +1,1142 @@
+[
+  {
+    "id": "basic_atk",
+    "name": "Taijutsu",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/skill_taijutsu.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "shuriken",
+    "name": "Shuriken",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/skill_shuriken.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "mud_wall",
+    "name": "Mud Wall",
+    "el": "EARTH",
+    "action": "SIDE",
+    "dmg": "ELEMENTAL",
+    "emoji": "🪨",
+    "src": "/assets/icons/skills/mud_wall.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "phoenix_flower",
+    "name": "Phoenix Flower",
+    "el": "FIRE",
+    "action": "SIDE",
+    "dmg": "ELEMENTAL",
+    "emoji": "🔥",
+    "src": "/assets/icons/skills/phoenix_flower.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "kawarimi",
+    "name": "Body Replacement",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/kawarimi.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "bunshin",
+    "name": "Clone Technique",
+    "el": "MENTAL",
+    "action": "SIDE",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/bunshin.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "henge",
+    "name": "Transformation",
+    "el": "MENTAL",
+    "action": "SIDE",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/henge.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "shunshin",
+    "name": "Body Flicker",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/shunshin.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "kai",
+    "name": "Release",
+    "el": "MENTAL",
+    "action": "SIDE",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/kai.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "leaf_whirlwind",
+    "name": "Leaf Whirlwind",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/leaf_whirlwind.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "dynamic_entry",
+    "name": "Dynamic Entry",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/dynamic_entry.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "rising_wind",
+    "name": "Leaf Rising Wind",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/rising_wind.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "strong_fist",
+    "name": "Strong Fist Combo",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/strong_fist.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "sweeping_kick",
+    "name": "Sweeping Kick",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/sweeping_kick.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "elbow_strike",
+    "name": "Elbow Strike",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/elbow_strike.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "feint_strike",
+    "name": "Feint Strike",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/feint_strike.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "counter_stance",
+    "name": "Counter Stance",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/counter_stance.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "dancing_leaf",
+    "name": "Shadow of Dancing Leaf",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/dancing_leaf.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "focused_breathing",
+    "name": "Focused Breathing",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/focused_breathing.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "kunai_slash",
+    "name": "Kunai Slash",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/kunai_slash.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "kunai_throw",
+    "name": "Kunai Throw",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/kunai_throw.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "shuriken_barrage",
+    "name": "Shuriken Barrage",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/shuriken_barrage.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "windmill_shuriken",
+    "name": "Windmill Shuriken",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/windmill_shuriken.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "senbon",
+    "name": "Senbon Needle",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/senbon.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "senbon_rain",
+    "name": "Senbon Rain",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/senbon_rain.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "explosive_tag",
+    "name": "Explosive Tag",
+    "el": "FIRE",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🔥",
+    "src": "/assets/icons/skills/explosive_tag.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "explosive_barrage",
+    "name": "Explosive Barrage",
+    "el": "FIRE",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🔥",
+    "src": "/assets/icons/skills/explosive_barrage.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "sword_slash",
+    "name": "Sword Slash",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/sword_slash.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "iaido",
+    "name": "Iaido",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/iaido.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "wire_setup",
+    "name": "Wire Trap Setup",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/wire_setup.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "poison_coat",
+    "name": "Poison Coat",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/poison_coat.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "smoke_bomb",
+    "name": "Smoke Bomb",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/smoke_bomb.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "flash_bomb",
+    "name": "Flash Bomb",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/flash_bomb.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "analyze",
+    "name": "Analyze Enemy",
+    "el": "MENTAL",
+    "action": "SIDE",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/analyze.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "brace",
+    "name": "Brace",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/brace.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "cloak_invis",
+    "name": "Cloak of Invisibility",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/cloak_invis.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "basic_medical",
+    "name": "Basic Medical Jutsu",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/basic_medical.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "focused_stance",
+    "name": "Focused Stance",
+    "el": "PHYSICAL",
+    "action": "TOGGLE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/focused_stance.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "defensive_posture",
+    "name": "Defensive Posture",
+    "el": "PHYSICAL",
+    "action": "TOGGLE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/defensive_posture.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "aggressive_stance",
+    "name": "Aggressive Stance",
+    "el": "PHYSICAL",
+    "action": "TOGGLE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/aggressive_stance.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "weapon_proficiency",
+    "name": "Weapon Proficiency",
+    "el": "PHYSICAL",
+    "action": "PASSIVE",
+    "dmg": "PHYSICAL",
+    "emoji": "✨",
+    "src": "/assets/icons/skills/weapon_proficiency.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "taijutsu_training",
+    "name": "Taijutsu Training",
+    "el": "PHYSICAL",
+    "action": "PASSIVE",
+    "dmg": "PHYSICAL",
+    "emoji": "✨",
+    "src": "/assets/icons/skills/taijutsu_training.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "quick_reflexes",
+    "name": "Quick Reflexes",
+    "el": "PHYSICAL",
+    "action": "PASSIVE",
+    "dmg": "PHYSICAL",
+    "emoji": "✨",
+    "src": "/assets/icons/skills/quick_reflexes.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "iron_body",
+    "name": "Iron Body",
+    "el": "PHYSICAL",
+    "action": "PASSIVE",
+    "dmg": "PHYSICAL",
+    "emoji": "✨",
+    "src": "/assets/icons/skills/iron_body.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "chakra_reserves",
+    "name": "Chakra Reserves",
+    "el": "PHYSICAL",
+    "action": "PASSIVE",
+    "dmg": "PHYSICAL",
+    "emoji": "✨",
+    "src": "/assets/icons/skills/chakra_reserves.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "mental_fortitude",
+    "name": "Mental Fortitude",
+    "el": "MENTAL",
+    "action": "PASSIVE",
+    "dmg": "MENTAL",
+    "emoji": "✨",
+    "src": "/assets/icons/skills/mental_fortitude.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "precision",
+    "name": "Precision",
+    "el": "PHYSICAL",
+    "action": "PASSIVE",
+    "dmg": "PHYSICAL",
+    "emoji": "✨",
+    "src": "/assets/icons/skills/precision.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "fire_affinity",
+    "name": "Fire Affinity",
+    "el": "FIRE",
+    "action": "PASSIVE",
+    "dmg": "ELEMENTAL",
+    "emoji": "✨",
+    "src": "/assets/icons/skills/fire_affinity.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "air_palm",
+    "name": "Air Palm",
+    "el": "WIND",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "🌪️",
+    "src": "/assets/icons/skills/air_palm.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "rasengan",
+    "name": "Rasengan",
+    "el": "WIND",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🌪️",
+    "src": "/assets/icons/skills/rasengan.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "fireball",
+    "name": "Fireball Jutsu",
+    "el": "FIRE",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🔥",
+    "src": "/assets/skill_fireball.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "kaiten",
+    "name": "8 Trigrams Rotation",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "ELEMENTAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/kaiten.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "byakugan",
+    "name": "Byakugan",
+    "el": "PHYSICAL",
+    "action": "TOGGLE",
+    "dmg": "MENTAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/byakugan.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "gentle_fist",
+    "name": "Gentle Fist",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "👊",
+    "src": "/assets/skill_gentle_fist.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "sharingan_2",
+    "name": "Sharingan (2-Tomoe)",
+    "el": "FIRE",
+    "action": "TOGGLE",
+    "dmg": "PHYSICAL",
+    "emoji": "🔥",
+    "src": "/assets/icons/skills/sharingan_2.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "water_prison",
+    "name": "Water Prison",
+    "el": "WATER",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "💧",
+    "src": "/assets/icons/skills/water_prison.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "suijinheki",
+    "name": "Water Wall",
+    "el": "WATER",
+    "action": "SIDE",
+    "dmg": "ELEMENTAL",
+    "emoji": "💧",
+    "src": "/assets/icons/skills/suijinheki.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "hell_viewing",
+    "name": "Hell Viewing Technique",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/hell_viewing.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "mind_destruction",
+    "name": "Mind Body Disturbance",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/skill_mind_body_disturbing.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "dragon_flame",
+    "name": "Dragon Flame Bomb",
+    "el": "FIRE",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🔥",
+    "src": "/assets/icons/skills/dragon_flame.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "hidden_mist",
+    "name": "Hidden Mist Jutsu",
+    "el": "WATER",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "💧",
+    "src": "/assets/icons/skills/hidden_mist.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "water_clone",
+    "name": "Water Clone Jutsu",
+    "el": "WATER",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "💧",
+    "src": "/assets/icons/skills/water_clone.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "lightning_ball",
+    "name": "Lightning Ball",
+    "el": "LIGHTNING",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "⚡",
+    "src": "/assets/icons/skills/lightning_ball.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "earth_decapitation",
+    "name": "Inner Decapitation",
+    "el": "EARTH",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🪨",
+    "src": "/assets/icons/skills/earth_decapitation.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "great_breakthrough",
+    "name": "Great Breakthrough",
+    "el": "WIND",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🌪️",
+    "src": "/assets/icons/skills/great_breakthrough.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "air_bullet",
+    "name": "Air Bullet",
+    "el": "WIND",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🌪️",
+    "src": "/assets/icons/skills/air_bullet.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "fang_over_fang",
+    "name": "Fang Over Fang",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/fang_over_fang.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "mind_transfer",
+    "name": "Mind Transfer Jutsu",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/mind_transfer.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "shadow_possession",
+    "name": "Shadow Possession",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/shadow_possession.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "bug_swarm",
+    "name": "Parasitic Insects",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/bug_swarm.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "expansion",
+    "name": "Expansion Jutsu",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/expansion.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "64_palms",
+    "name": "8 Trigrams 64 Palms",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/64_palms.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "sand_burial",
+    "name": "Sand Burial",
+    "el": "EARTH",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🪨",
+    "src": "/assets/icons/skills/sand_burial.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "curse_mark_1",
+    "name": "Curse Mark Stage 1",
+    "el": "PHYSICAL",
+    "action": "TOGGLE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/curse_mark_1.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "sand_shield",
+    "name": "Sand Shield",
+    "el": "EARTH",
+    "action": "SIDE",
+    "dmg": "ELEMENTAL",
+    "emoji": "🪨",
+    "src": "/assets/icons/skills/sand_shield.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "sharingan_predict",
+    "name": "Sharingan: Predict",
+    "el": "MENTAL",
+    "action": "SIDE",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/sharingan_predict.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "byakugan_scan",
+    "name": "Tenketsu Scan",
+    "el": "MENTAL",
+    "action": "SIDE",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/byakugan_scan.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "summon_gamabunta",
+    "name": "Summoning: Gamabunta",
+    "el": "WATER",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "💧",
+    "src": "/assets/icons/skills/summon_gamabunta.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "summon_manda",
+    "name": "Summoning: Manda",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/summon_manda.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "puppet_crow",
+    "name": "Puppet: Crow",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/puppet_crow.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "shadow_clone",
+    "name": "Shadow Clone Jutsu",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/skill_shadow_clones.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "primary_lotus",
+    "name": "Primary Lotus",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/skill_primary_lotus.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "chidori",
+    "name": "Chidori",
+    "el": "LIGHTNING",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "⚡",
+    "src": "/assets/skill_chidori.png",
+    "quality": "painted-png"
+  },
+  {
+    "id": "chidori_stream",
+    "name": "Chidori Stream",
+    "el": "LIGHTNING",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "⚡",
+    "src": "/assets/icons/skills/chidori_stream.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "sand_coffin",
+    "name": "Sand Coffin",
+    "el": "EARTH",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🪨",
+    "src": "/assets/icons/skills/sand_coffin.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "water_dragon",
+    "name": "Water Dragon Jutsu",
+    "el": "WATER",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "💧",
+    "src": "/assets/icons/skills/water_dragon.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "ice_mirrors",
+    "name": "Demonic Ice Mirrors",
+    "el": "WATER",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "💧",
+    "src": "/assets/icons/skills/ice_mirrors.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "false_surroundings",
+    "name": "False Surroundings",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/false_surroundings.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "temple_nirvana",
+    "name": "Temple of Nirvana",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/temple_nirvana.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "hidden_lotus",
+    "name": "Hidden Lotus",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/hidden_lotus.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "water_vortex",
+    "name": "Giant Water Vortex",
+    "el": "WATER",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "💧",
+    "src": "/assets/icons/skills/water_vortex.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "clone_explosion",
+    "name": "Clone Great Explosion",
+    "el": "FIRE",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🔥",
+    "src": "/assets/icons/skills/clone_explosion.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "1000_years",
+    "name": "1000 Years of Death",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/1000_years.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "gate_of_life",
+    "name": "Gate of Life (3rd Gate)",
+    "el": "PHYSICAL",
+    "action": "TOGGLE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/gate_of_life.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "curse_mark_2",
+    "name": "Curse Mark Stage 2",
+    "el": "PHYSICAL",
+    "action": "TOGGLE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/curse_mark_2.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "curse_surge",
+    "name": "Curse Mark Surge",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/curse_surge.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "gate_prep",
+    "name": "Gate Release Prep",
+    "el": "PHYSICAL",
+    "action": "SIDE",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/gate_prep.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "killing_intent",
+    "name": "Killing Intent",
+    "el": "MENTAL",
+    "action": "SIDE",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/killing_intent.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "demon_slash",
+    "name": "Demon Slash",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/demon_slash.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "bone_drill",
+    "name": "Dance of Clematis",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/bone_drill.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "poison_fog",
+    "name": "Ibuse Poison Fog",
+    "el": "FIRE",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🔥",
+    "src": "/assets/icons/skills/poison_fog.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "tsukuyomi",
+    "name": "Tsukuyomi",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/tsukuyomi.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "reaper_death_seal",
+    "name": "Reaper Death Seal",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/reaper_death_seal.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "edo_tensei",
+    "name": "Edo Tensei",
+    "el": "MENTAL",
+    "action": "MAIN",
+    "dmg": "MENTAL",
+    "emoji": "👁️",
+    "src": "/assets/icons/skills/edo_tensei.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "gate_of_limit",
+    "name": "Gate of Limit (5th Gate)",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/gate_of_limit.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "shukaku_arm",
+    "name": "Shukaku Arm",
+    "el": "EARTH",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🪨",
+    "src": "/assets/icons/skills/shukaku_arm.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "copy_jutsu",
+    "name": "Sharingan: Copy",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "PHYSICAL",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/copy_jutsu.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "c4_karura",
+    "name": "C4 Karura",
+    "el": "EARTH",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "🪨",
+    "src": "/assets/icons/skills/c4_karura.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "rasenshuriken",
+    "name": "Rasenshuriken",
+    "el": "WIND",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "🌪️",
+    "src": "/assets/icons/skills/rasenshuriken.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "amaterasu",
+    "name": "Amaterasu",
+    "el": "FIRE",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "🔥",
+    "src": "/assets/icons/skills/amaterasu.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "kirin",
+    "name": "Kirin",
+    "el": "LIGHTNING",
+    "action": "MAIN",
+    "dmg": "ELEMENTAL",
+    "emoji": "⚡",
+    "src": "/assets/icons/skills/kirin.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "shinra_tensei",
+    "name": "Shinra Tensei",
+    "el": "WIND",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "🌪️",
+    "src": "/assets/icons/skills/shinra_tensei.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "kamui_impact",
+    "name": "Kamui",
+    "el": "PHYSICAL",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "👊",
+    "src": "/assets/icons/skills/kamui_impact.svg",
+    "quality": "svg-tile"
+  },
+  {
+    "id": "tengai_shinsei",
+    "name": "Tengai Shinsei",
+    "el": "EARTH",
+    "action": "MAIN",
+    "dmg": "TRUE",
+    "emoji": "🪨",
+    "src": "/assets/icons/skills/tengai_shinsei.svg",
+    "quality": "svg-tile"
+  }
+]

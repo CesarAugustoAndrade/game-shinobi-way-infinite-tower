@@ -18,6 +18,9 @@ export * from './skills';
 // Art registry (T-019) — central key→asset with emoji cascade
 export * from './artRegistry';
 
+// Story flag → combat/loot run modifiers (T-034 table)
+export * from './eventFlagRunModifiers';
+
 // MAX_LOGS removed - use LIMITS.MAX_LOG_ENTRIES from config.ts instead
 
 // ============================================================================
@@ -68,106 +71,39 @@ export const CLAN_ELEMENTS: Record<Clan, ElementType> = {
 // - Lee: Extreme Strength/Speed, Zero Spirit/Intelligence (Pure Body)
 // - Yamanaka: High Intelligence/Calmness/Spirit (Mind Controller)
 // ============================================================================
-export const CLAN_STATS: Record<Clan, PrimaryAttributes> = {
-  [Clan.UZUMAKI]: {
-    willpower: 25,   // Massive life force
-    chakra: 22,      // Huge reserves
-    strength: 12,
-    spirit: 10,
-    intelligence: 10,
-    calmness: 14,    // Stubborn determination
-    speed: 10,
-    accuracy: 8,
-    dexterity: 8
-  },
-  [Clan.UCHIHA]: {
-    willpower: 12,
-    chakra: 14,
-    strength: 10,
-    spirit: 22,      // Fire affinity mastery
-    intelligence: 16,
-    calmness: 12,
-    speed: 18,       // Sharingan perception
-    accuracy: 14,
-    dexterity: 18    // Precise strikes
-  },
-  [Clan.HYUGA]: {
-    willpower: 14,
-    chakra: 12,
-    strength: 16,    // Gentle Fist conditioning
-    spirit: 8,       // Less elemental focus
-    intelligence: 14,
-    calmness: 16,    // Byakugan mental clarity
-    speed: 16,
-    accuracy: 19,    // Tenketsu precision (T-006 B.2: 22→19, trims Hyuga's dominant hit/crit + Gentle Fist scaling)
-    dexterity: 18    // Surgical strikes
-  },
-  [Clan.LEE]: {
-    willpower: 20,   // Never gives up
-    chakra: 4,       // Almost no ninjutsu capacity
-    strength: 28,    // Peak physical conditioning
-    spirit: 2,       // Cannot mold elemental chakra
-    intelligence: 6, // Limited jutsu learning
-    calmness: 10,
-    speed: 26,       // Extreme speed training
-    accuracy: 12,
-    dexterity: 12
-  },
-  [Clan.YAMANAKA]: {
-    willpower: 12,
-    chakra: 18,
-    strength: 6,     // Frail body
-    spirit: 14,
-    intelligence: 22, // Master tacticians
-    calmness: 24,    // Unshakeable mind
-    speed: 10,
-    accuracy: 10,
-    dexterity: 12
-  },
+/**
+ * F1 start: all primaries 1 except two clan affinities at 3.
+ * Uzumaki WILL+CHA | Uchiha SPI+DEX | Hyūga ACC+DEX | Lee STR+SPD | Yamanaka INT+CAL
+ */
+const BASE_ONE: PrimaryAttributes = {
+  willpower: 1,
+  chakra: 1,
+  strength: 1,
+  spirit: 1,
+  intelligence: 1,
+  calmness: 1,
+  speed: 1,
+  accuracy: 1,
+  dexterity: 1,
 };
 
-// ============================================================================
-// CLAN GROWTH RATES (Stats per Level)
-// ============================================================================
-export const CLAN_GROWTH: Record<Clan, Partial<PrimaryAttributes>> = {
-  // T-006 B.2: willpower growth 4→3 — at +4/level Uzumaki reached ~61 willpower
-  // (780+ HP), an unkillable tank-mage that cleared 100% deep into the endgame.
-  [Clan.UZUMAKI]: {
-    willpower: 3, chakra: 3, strength: 1, spirit: 3,
-    intelligence: 1, calmness: 1, speed: 1, accuracy: 1, dexterity: 1
-  },
-  [Clan.UCHIHA]: { 
-    willpower: 1, chakra: 2, strength: 1, spirit: 3, 
-    intelligence: 2, calmness: 1, speed: 2, accuracy: 2, dexterity: 3 
-  },
-  // T-006 B.2: Hyuga was clearing 100% at every danger — its precision offense
-  // (high accuracy/dexterity/strength feeding Gentle Fist + Primary Lotus) deleted
-  // enemies before they could act, and high willpower kept it tanky. Trimmed
-  // accuracy/dexterity/strength AND willpower growth to break the one-shot loop
-  // and make it mortal in the endgame.
-  [Clan.HYUGA]: {
-    willpower: 1, chakra: 1, strength: 1, spirit: 1,
-    intelligence: 2, calmness: 2, speed: 2, accuracy: 2, dexterity: 1
-  },
-  // T-006 B.2: Lee also cleared 100% everywhere — extreme strength + speed +
-  // willpower made it a one-shotting, evasive, tanky triple-threat. Trimmed
-  // strength/speed/willpower growth so the endgame can punish it.
-  [Clan.LEE]: {
-    willpower: 2, chakra: 0, strength: 2, spirit: 0,
-    intelligence: 0, calmness: 1, speed: 2, accuracy: 1, dexterity: 2
-  },
-  // T-006 B.2: Yamanaka is the frail genjutsu clan (base willpower 12) and its
-  // preset doesn't override willpower, so it entered the endgame on ~222 HP and
-  // got deleted by the danger HP/offense walls — the earlier mental-damage buffs
-  // couldn't save it because the preset clamps int/calmness BELOW their natural
-  // growth, nullifying them. Raised willpower growth 1→3 (survivability lever,
-  // not damage) to bring it back into band (D1≈80, D7 in the 20-40 tail). Mind
-  // Controller is unaffected: it hard-overrides willpower to 15.
-  [Clan.YAMANAKA]: {
-    willpower: 3, chakra: 2, strength: 0, spirit: 2,
-    intelligence: 3, calmness: 4, speed: 1, accuracy: 1, dexterity: 2
-  },
+export const CLAN_STATS: Record<Clan, PrimaryAttributes> = {
+  [Clan.UZUMAKI]: { ...BASE_ONE, willpower: 3, chakra: 3 },
+  [Clan.UCHIHA]: { ...BASE_ONE, spirit: 3, dexterity: 3 },
+  [Clan.HYUGA]: { ...BASE_ONE, accuracy: 3, dexterity: 3 },
+  [Clan.LEE]: { ...BASE_ONE, strength: 3, speed: 3 },
+  [Clan.YAMANAKA]: { ...BASE_ONE, intelligence: 3, calmness: 3 },
 };
+
+export const CLAN_PRIMARY_STATS: Record<Clan, (keyof PrimaryAttributes)[]> = {
+  [Clan.UZUMAKI]: ['willpower', 'chakra'],
+  [Clan.UCHIHA]: ['spirit', 'dexterity'],
+  [Clan.HYUGA]: ['accuracy', 'dexterity'],
+  [Clan.LEE]: ['strength', 'speed'],
+  [Clan.YAMANAKA]: ['intelligence', 'calmness'],
+};
+
+// CLAN_GROWTH removed (F1): each level grants 1 unspentStatPoint; player assigns.
 
 // ============================================================================
 // ENEMY PREFIXES FOR GENERATION
@@ -191,56 +127,118 @@ export const CLAN_START_SKILL: Record<Clan, Skill> = {
 };
 
 // ============================================================================
-// CLAN STARTING LOADOUTS (Full Jutsu Card System)
-// Each clan starts with a balanced loadout of skills by action type
+// CLAN STARTING LOADOUTS — academy-first card combat kits (~8 playable)
+// ACTIVE = playable cards; TOGGLE = stance/dojutsu; PASSIVE = always-on
 // ============================================================================
 export interface ClanLoadout {
-  main: Skill[];      // Primary attack skills
-  side: Skill[];      // Setup/utility skills
-  toggle: Skill[];    // Stance/transformation skills
-  passive: Skill[];   // Permanent bonus skills
+  active: Skill[];    // Playable deck cards (was main + side)
+  toggle: Skill[];    // Stance / dojutsu toggles
+  passive: Skill[];   // Permanent bonus skills (not in deck)
 }
 
+/** Shared academy core (~6) + clan delta keep start near START_DECK_TARGET (8). */
+const ACADEMY_CORE: Skill[] = [
+  SKILLS.BASIC_ATTACK,
+  SKILLS.HEAVY_KICK,
+  SKILLS.SHURIKEN,
+  SKILLS.WIRE_SETUP,
+  SKILLS.KAWARIMI,
+  SKILLS.BUNSHIN,
+];
+
 export const CLAN_START_LOADOUT: Record<Clan, ClanLoadout> = {
-  // Uzumaki: Tank/Sustain - High chakra, shadow clones, healing
+  // Uzumaki: sustain academy + medical; mid signatures learned in run
   [Clan.UZUMAKI]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.RASENGAN, SKILLS.BASIC_MEDICAL],
-    side: [SKILLS.BUNSHIN, SKILLS.SHUNSHIN, SKILLS.BRACE, SKILLS.SHADOW_CLONE],
-    toggle: [],
-    passive: [SKILLS.CHAKRA_RESERVES]
+    active: [...ACADEMY_CORE, SKILLS.BASIC_MEDICAL],
+    toggle: [SKILLS.DEFENSIVE_POSTURE],
+    passive: [SKILLS.CHAKRA_RESERVES],
   },
 
-  // Uchiha: Glass Cannon - High damage, fire ninjutsu, sharingan
+  // Uchiha: tools + simple fire; Great Fireball / Chidori mid-run
   [Clan.UCHIHA]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.SHURIKEN, SKILLS.FIREBALL],
-    side: [SKILLS.WIRE_SETUP, SKILLS.SMOKE_BOMB, SKILLS.SHARINGAN_PREDICT, SKILLS.PHOENIX_FLOWER],
+    active: [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.HEAVY_KICK,
+      SKILLS.SHURIKEN,
+      SKILLS.WIRE_SETUP,
+      SKILLS.SMOKE_BOMB,
+      SKILLS.KAWARIMI,
+      SKILLS.PHOENIX_FLOWER,
+    ],
     toggle: [SKILLS.SHARINGAN_2TOMOE],
-    passive: [SKILLS.FIRE_AFFINITY, SKILLS.PRECISION]
+    passive: [SKILLS.FIRE_AFFINITY],
   },
 
-  // Hyuga: Precision Fighter - TRUE damage, chakra disruption, defensive
+  // Hyuga: Gentle Fist + Byakugan; 64/Kaiten/Air mid-run
   [Clan.HYUGA]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.GENTLE_FIST, SKILLS.SIXTY_FOUR_PALMS, SKILLS.AIR_PALM],
-    side: [SKILLS.ROTATION, SKILLS.BYAKUGAN_SCAN, SKILLS.ANALYZE],
+    active: [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.HEAVY_KICK,
+      SKILLS.SHURIKEN,
+      SKILLS.KAWARIMI,
+      SKILLS.ANALYZE,
+      SKILLS.GENTLE_FIST,
+      SKILLS.BRACE,
+    ],
     toggle: [SKILLS.BYAKUGAN],
-    passive: [SKILLS.PRECISION, SKILLS.TAIJUTSU_TRAINING]
+    passive: [SKILLS.PRECISION],
   },
 
-  // Lee: Pure Taijutsu - No ninjutsu, extreme physical stats, gates
+  // Lee: pure tai academy; Lotus/Gates mid-run (no INT gates)
   [Clan.LEE]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.LEAF_WHIRLWIND, SKILLS.DYNAMIC_ENTRY, SKILLS.PRIMARY_LOTUS],
-    side: [SKILLS.DANCING_LEAF, SKILLS.FOCUSED_BREATHING, SKILLS.BRACE],
-    toggle: [],
-    passive: [SKILLS.TAIJUTSU_TRAINING, SKILLS.IRON_BODY]
+    active: [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.HEAVY_KICK,
+      SKILLS.LEAF_WHIRLWIND,
+      SKILLS.DYNAMIC_ENTRY,
+      SKILLS.FOCUSED_BREATHING,
+      SKILLS.BRACE,
+      SKILLS.SHURIKEN,
+    ],
+    toggle: [SKILLS.AGGRESSIVE_STANCE],
+    passive: [SKILLS.TAIJUTSU_TRAINING],
   },
 
-  // Yamanaka: Mind Controller - CC focus, genjutsu, debuffs
+  // Yamanaka: analyze/kai tools; Mind Transfer mid (still clan-locked)
   [Clan.YAMANAKA]: {
-    main: [SKILLS.BASIC_ATTACK, SKILLS.SHURIKEN, SKILLS.MIND_TRANSFER, SKILLS.HELL_VIEWING],
-    side: [SKILLS.BUNSHIN, SKILLS.ANALYZE, SKILLS.KAI],
-    toggle: [],
-    passive: [SKILLS.MENTAL_FORTITUDE]
-  }
+    active: [
+      SKILLS.BASIC_ATTACK,
+      SKILLS.HEAVY_KICK,
+      SKILLS.SHURIKEN,
+      SKILLS.BUNSHIN,
+      SKILLS.ANALYZE,
+      SKILLS.KAI,
+      SKILLS.HELL_VIEWING,
+    ],
+    toggle: [SKILLS.FOCUSED_STANCE],
+    passive: [SKILLS.MENTAL_FORTITUDE],
+  },
+};
+
+/**
+ * Skills this clan is more likely to see in scrolls/loot (bias only).
+ * Not a hard gate — open learn still applies except requirements.clan.
+ */
+export const CLAN_FAVORITE_SKILLS: Record<Clan, readonly string[]> = {
+  [Clan.UZUMAKI]: [
+    'basic_medical', 'bunshin', 'shadow_clone', 'rasengan', 'rasenshuriken',
+    'adamantine_chains', 'brace', 'focused_breathing',
+  ],
+  [Clan.UCHIHA]: [
+    'phoenix_flower', 'fireball', 'chidori', 'sharingan_predict',
+    'sharingan_2', 'fire_affinity', 'amaterasu',
+  ],
+  [Clan.HYUGA]: [
+    'gentle_fist', 'air_palm', 'kaiten', '64_palms', 'byakugan',
+    'byakugan_scan', 'analyze',
+  ],
+  [Clan.LEE]: [
+    'leaf_whirlwind', 'dynamic_entry', 'heavy_kick', 'primary_lotus',
+    'hidden_lotus', 'gate_of_life', 'gate_prep', 'gate_of_limit', 'dancing_leaf',
+  ],
+  [Clan.YAMANAKA]: [
+    'analyze', 'kai', 'hell_viewing', 'mind_transfer', 'mind_destruction',
+  ],
 };
 
 /**
@@ -250,12 +248,117 @@ export const CLAN_START_LOADOUT: Record<Clan, ClanLoadout> = {
 export const getClanStartingSkills = (clan: Clan): Skill[] => {
   const loadout = CLAN_START_LOADOUT[clan];
   return [
-    ...loadout.main,
-    ...loadout.side,
+    ...loadout.active,
     ...loadout.toggle,
-    ...loadout.passive
+    ...loadout.passive,
   ];
 };
+
+/** Cap for Player.clanLevel (Clan Rite scroll mode). */
+export const MAX_CLAN_LEVEL = 5;
+
+/**
+ * Clan bloodline track: skill ids offered when ascending to that level.
+ * Generator picks 2–3 not already owned; falls back to favorites if thin.
+ */
+export const CLAN_LEVEL_SKILL_POOL: Record<Clan, Record<number, readonly string[]>> = {
+  [Clan.UZUMAKI]: {
+    1: ['basic_medical', 'bunshin', 'brace'],
+    2: ['shadow_clone', 'focused_breathing', 'adamantine_chains'],
+    3: ['rasengan', 'chakra_reserves', 'basic_medical'],
+    4: ['rasenshuriken', 'adamantine_chains', 'shadow_clone'],
+    5: ['rasenshuriken', 'rasengan', 'adamantine_chains'],
+  },
+  [Clan.UCHIHA]: {
+    1: ['phoenix_flower', 'fireball', 'fire_affinity'],
+    2: ['chidori', 'sharingan_predict', 'phoenix_flower'],
+    3: ['sharingan_2', 'chidori', 'fireball'],
+    4: ['amaterasu', 'sharingan_2', 'sharingan_predict'],
+    5: ['amaterasu', 'chidori', 'fireball'],
+  },
+  [Clan.HYUGA]: {
+    1: ['gentle_fist', 'air_palm', 'analyze'],
+    2: ['byakugan', 'gentle_fist', 'byakugan_scan'],
+    3: ['kaiten', '64_palms', 'air_palm'],
+    4: ['64_palms', 'kaiten', 'byakugan'],
+    5: ['64_palms', 'kaiten', 'byakugan_scan'],
+  },
+  [Clan.LEE]: {
+    1: ['leaf_whirlwind', 'dynamic_entry', 'heavy_kick'],
+    2: ['dancing_leaf', 'primary_lotus', 'leaf_whirlwind'],
+    3: ['gate_prep', 'primary_lotus', 'dynamic_entry'],
+    4: ['hidden_lotus', 'gate_of_life', 'gate_prep'],
+    5: ['gate_of_limit', 'hidden_lotus', 'gate_of_life'],
+  },
+  [Clan.YAMANAKA]: {
+    1: ['analyze', 'kai', 'hell_viewing'],
+    2: ['mind_transfer', 'kai', 'analyze'],
+    3: ['mind_destruction', 'mind_transfer', 'hell_viewing'],
+    4: ['mind_destruction', 'mind_transfer', 'kai'],
+    5: ['mind_destruction', 'hell_viewing', 'mind_transfer'],
+  },
+};
+
+export function resolveSkillById(skillId: string): Skill | undefined {
+  return Object.values(SKILLS).find((s) => s.id === skillId);
+}
+
+/**
+ * Build 2–3 clan skill choices for ascending to `targetLevel`.
+ * Prefers unused pool skills; pads with favorites / academy kit.
+ */
+export function getClanLevelSkillChoices(
+  clan: Clan,
+  targetLevel: number,
+  ownedSkillIds: Set<string>,
+  count: number = 3,
+): Skill[] {
+  const level = Math.max(1, Math.min(MAX_CLAN_LEVEL, targetLevel));
+  const poolIds = [
+    ...(CLAN_LEVEL_SKILL_POOL[clan]?.[level] ?? []),
+    ...(CLAN_FAVORITE_SKILLS[clan] ?? []),
+    ...getClanStartingSkills(clan).map((s) => s.id),
+  ];
+  const seen = new Set<string>();
+  const out: Skill[] = [];
+  for (const id of poolIds) {
+    if (seen.has(id) || ownedSkillIds.has(id)) continue;
+    const skill = resolveSkillById(id);
+    if (!skill) continue;
+    seen.add(id);
+    out.push({ ...skill, level: 1 });
+    if (out.length >= count) break;
+  }
+  // If all owned, allow upgrades of favorites as last resort
+  if (out.length === 0) {
+    for (const id of CLAN_FAVORITE_SKILLS[clan] ?? []) {
+      const skill = resolveSkillById(id);
+      if (!skill || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ ...skill, level: 1 });
+      if (out.length >= count) break;
+    }
+  }
+  return out;
+}
+
+/** Vendor scroll ryo price by tier × floor */
+export function getScrollVendorPrice(skill: Skill, floor: number): number {
+  const tierBase: Record<string, number> = {
+    BASIC: 40,
+    ADVANCED: 80,
+    HIDDEN: 140,
+    FORBIDDEN: 220,
+    KINJUTSU: 320,
+  };
+  const base = tierBase[skill.tier] ?? 60;
+  return Math.floor(base + floor * 12 + (skill.apCost ?? 1) * 5);
+}
+
+/** Flat forget cost at scroll vendor */
+export function getScrollForgetCostRyo(skillLevel: number = 1): number {
+  return 40 + Math.max(0, skillLevel - 1) * 15;
+}
 
 // ============================================================================
 // BOSS DEFINITIONS (danger 1–7; legacy floor keys 8/17/25… removed)

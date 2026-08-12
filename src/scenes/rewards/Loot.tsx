@@ -11,7 +11,11 @@ import {
   SLOT_MAPPING,
   RegionLootTheme,
   ComponentId,
+  ActionType,
 } from '../../game/types';
+import { canLearnSkill } from '../../game/systems/StatSystem';
+import { canAddPlayableSkill } from '../../game/systems/DeckSystem';
+import { LaunchProperties } from '../../config/featureFlags';
 import { Scroll, Package } from 'lucide-react';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import {
@@ -31,12 +35,12 @@ import {
   getArtifactArt,
   getComponentArt,
 } from '../../game/constants/artRegistry';
-import { getSellPrice } from '../../game/systems/LootSystem';
+
 import {
   itemMatchesEquipmentFocus,
   isFocusStat,
 } from '../../game/utils/itemFocusMatch';
-import { BALANCE } from '../../game/config';
+
 import ArtIcon from '../../components/shared/ArtIcon';
 import { alignItemTileTooltip } from '../../utils/itemTileTooltip';
 import './Loot.css';
@@ -50,7 +54,8 @@ interface LootProps {
   player: Player | null;
   playerStats: any;
   onEquipItem: (item: Item) => void;
-  onSellItem: (item: Item) => void;
+  /** @deprecated Sell only at merchant — prop ignored if passed */
+  onSellItem?: (item: Item) => void;
   onStoreToBag?: (item: Item) => void;
   onLearnSkill: (skill: Skill, slotIndex?: number) => void;
   onLeaveAll: () => void;
@@ -95,7 +100,7 @@ const Loot: React.FC<LootProps> = ({
   player,
   playerStats,
   onEquipItem,
-  onSellItem,
+
   onStoreToBag,
   onLearnSkill,
   onLeaveAll,
@@ -135,37 +140,87 @@ const Loot: React.FC<LootProps> = ({
     onLeaveAll();
   }, [isProcessing, onLeaveAll]);
 
-  // Keyboard: SPACE/ENTER leave (or confirm); Esc cancels confirm
+  // Check if bag has space
+  const bagHasSpace = player ? player.bag.some(s => s === null) : false;
+  const bagSlotCount = player?.bag.filter(s => s !== null).length || 0;
+
+  /** First unclaimed spoil — Z equip / X store act on this card. */
+  const primaryItem = droppedItems[0] ?? null;
+
+  // Keep latest handlers/items in refs so the window listener never goes stale
+  const equipRef = useRef(onEquipItem);
+  const storeRef = useRef(onStoreToBag);
+  const primaryRef = useRef(primaryItem);
+  const bagSpaceRef = useRef(bagHasSpace);
+  equipRef.current = onEquipItem;
+  storeRef.current = onStoreToBag;
+  primaryRef.current = primaryItem;
+  bagSpaceRef.current = bagHasSpace;
+
+  // Keyboard: Z equip · X store · SPACE/ENTER leave; Esc cancels confirm
+  // Capture phase so other shell listeners cannot swallow Z/X first.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const t = e.target;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        (t instanceof HTMLElement && t.isContentEditable)
+      ) {
+        return;
+      }
       if (isProcessing) return;
 
       if (e.key === 'Escape' && confirmLeave) {
         e.preventDefault();
+        e.stopPropagation();
         setConfirmLeave(false);
+        return;
+      }
+
+      if (confirmLeave) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          confirmLeaveAll();
+        }
+        return;
+      }
+
+      // Z — equip first spoil (physical KeyZ; Spanish layout safe)
+      if (e.code === 'KeyZ') {
+        const item = primaryRef.current;
+        if (item) {
+          e.preventDefault();
+          e.stopPropagation();
+          equipRef.current(item);
+        }
+        return;
+      }
+
+      // X — store first spoil in bag
+      if (e.code === 'KeyX') {
+        const item = primaryRef.current;
+        const store = storeRef.current;
+        if (item && store && bagSpaceRef.current) {
+          e.preventDefault();
+          e.stopPropagation();
+          store(item);
+        }
         return;
       }
 
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
-        if (confirmLeave) {
-          confirmLeaveAll();
-        } else {
-          requestLeave();
-        }
-        return;
+        e.stopPropagation();
+        requestLeave();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [isProcessing, confirmLeave, confirmLeaveAll, requestLeave]);
-
-  // Check if bag has space
-  const bagHasSpace = player ? player.bag.some(s => s === null) : false;
-  const bagSlotCount = player?.bag.filter(s => s !== null).length || 0;
 
   return (
     <SceneBackdrop background={background}>
@@ -178,33 +233,22 @@ const Loot: React.FC<LootProps> = ({
             ? 'The field is quiet — only dust and victory remain'
             : `Take each spoil${remainingCount > 1 ? ` (${remainingCount} left)` : ''}`}
         </p>
-        {/* T-093: drops already bias via lootTheme — surface region identity */}
-        {lootTheme && (
-          <div className="loot__theme" aria-label="Region loot theme">
-            {lootTheme.primaryElement && (
-              <span className="loot__theme-chip loot__theme-chip--affinity">
-                Affinity {lootTheme.primaryElement}
-              </span>
-            )}
-            {lootTheme.equipmentFocus?.length > 0 && (
-              <span className="loot__theme-chip loot__theme-chip--focus">
-                Focus{' '}
-                {lootTheme.equipmentFocus
-                  .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-                  .join(' · ')}
-              </span>
-            )}
-            {lootTheme.goldMultiplier !== 1 && (
-              <span className="loot__theme-chip loot__theme-chip--gold">
-                Ryo ×{lootTheme.goldMultiplier}
-              </span>
-            )}
-          </div>
-        )}
+
       </div>
 
       {/* Keyboard Hints */}
       <div className="loot__hints">
+        {remainingCount > 0 && droppedItems.length > 0 && (
+          <span className="loot__hint">
+            <span className="sw-shortcut">Z</span> Equip
+            {onStoreToBag && (
+              <>
+                {' · '}
+                <span className="sw-shortcut">X</span> Store
+              </>
+            )}
+          </span>
+        )}
         <span className="loot__hint">
           <span className="sw-shortcut">Space</span> or <span className="sw-shortcut">Enter</span>{' '}
           {remainingCount === 0 ? 'Step onward' : 'Leave the spoils'}
@@ -346,9 +390,7 @@ const Loot: React.FC<LootProps> = ({
                 })()}
 
                 <div className="item-tooltip__section">
-                  <div className="item-tooltip__sell">
-                    Sell: {getSellPrice(item)} Ryo ({Math.round(BALANCE.SELL_PRICE_RATIO * 100)}%)
-                  </div>
+
                 </div>
               </div>
 
@@ -397,8 +439,12 @@ const Loot: React.FC<LootProps> = ({
                   disabled={isProcessing}
                   onClick={(e) => { e.stopPropagation(); onEquipItem(item); }}
                   className="loot-card__btn loot-card__btn--equip"
+                  title={item.id === primaryItem?.id ? 'Equip (Z)' : 'Equip'}
                 >
                   Equip
+                  {item.id === primaryItem?.id && (
+                    <span className="sw-shortcut">Z</span>
+                  )}
                 </button>
                 {onStoreToBag && (
                   <button
@@ -406,20 +452,19 @@ const Loot: React.FC<LootProps> = ({
                     disabled={isProcessing || !bagHasSpace}
                     onClick={(e) => { e.stopPropagation(); onStoreToBag(item); }}
                     className={`loot-card__btn ${bagHasSpace ? 'loot-card__btn--store' : 'loot-card__btn--store-disabled'}`}
-                    title={bagHasSpace ? `Store in bag (${bagSlotCount}/${MAX_BAG_SLOTS})` : 'Bag is full'}
+                    title={
+                      bagHasSpace
+                        ? `Store in bag (${bagSlotCount}/${MAX_BAG_SLOTS})${item.id === primaryItem?.id ? ' · X' : ''}`
+                        : 'Bag is full'
+                    }
                   >
                     <Package size={12} />
-                    {bagSlotCount}/{MAX_BAG_SLOTS}
+                    Store
+                    {item.id === primaryItem?.id && bagHasSpace && (
+                      <span className="sw-shortcut">X</span>
+                    )}
                   </button>
                 )}
-                <button
-                  type="button"
-                  disabled={isProcessing}
-                  onClick={(e) => { e.stopPropagation(); onSellItem(item); }}
-                  className="loot-card__btn loot-card__btn--sell"
-                >
-                  Sell (+{getSellPrice(item)})
-                </button>
               </div>
             </div>
           );
@@ -462,11 +507,48 @@ const Loot: React.FC<LootProps> = ({
                   <span className="item-tooltip__label">Element</span>
                   <span className={getElementColor(droppedSkill.element)}>{droppedSkill.element}</span>
                 </div>
+                {droppedSkill.requirements?.stats &&
+                  Object.entries(droppedSkill.requirements.stats).map(([stat, min]) => {
+                    if (min === undefined) return null;
+                    const have =
+                      playerStats?.effectivePrimary?.[
+                        stat.toLowerCase() as keyof typeof playerStats.effectivePrimary
+                      ] ?? 0;
+                    const met = have >= min;
+                    return (
+                      <div className="item-tooltip__row" key={stat}>
+                        <span className="item-tooltip__label">Requires {stat}</span>
+                        <span
+                          className={
+                            met
+                              ? 'loot-card__skill-stat-value--requirement-met'
+                              : 'loot-card__skill-stat-value--requirement-not-met'
+                          }
+                        >
+                          {min}
+                        </span>
+                      </div>
+                    );
+                  })}
                 {droppedSkill.requirements?.intelligence && (
                   <div className="item-tooltip__row">
                     <span className="item-tooltip__label">Requires INT</span>
                     <span className={playerStats.effectivePrimary.intelligence >= droppedSkill.requirements.intelligence ? 'loot-card__skill-stat-value--requirement-met' : 'loot-card__skill-stat-value--requirement-not-met'}>
                       {droppedSkill.requirements.intelligence}
+                    </span>
+                  </div>
+                )}
+                {droppedSkill.requirements?.clan && (
+                  <div className="item-tooltip__row">
+                    <span className="item-tooltip__label">Clan</span>
+                    <span
+                      className={
+                        player?.clan === droppedSkill.requirements.clan
+                          ? 'loot-card__skill-stat-value--requirement-met'
+                          : 'loot-card__skill-stat-value--requirement-not-met'
+                      }
+                    >
+                      {droppedSkill.requirements.clan}
                     </span>
                   </div>
                 )}
@@ -531,31 +613,58 @@ const Loot: React.FC<LootProps> = ({
                 </button>
               ) : (
                 <>
-                  {player && player.skills.length < 4 && (
-                    <button
-                      type="button"
-                      disabled={isProcessing}
-                      onClick={() => onLearnSkill(droppedSkill)}
-                      className="loot-card__btn loot-card__btn--learn"
-                    >
-                      Learn
-                    </button>
-                  )}
-                  {player && player.skills.length > 0 && (
-                    <div className="loot-card__replace-grid">
-                      {player.skills.map((s, idx) => (
-                        <button
-                          type="button"
-                          key={idx}
-                          disabled={isProcessing}
-                          onClick={() => onLearnSkill(droppedSkill, idx)}
-                          className="loot-card__btn loot-card__btn--replace"
-                        >
-                          Replace {s.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {player && playerStats && (() => {
+                    const learnCheck = canLearnSkill(
+                      droppedSkill,
+                      playerStats.effectivePrimary,
+                      player.level,
+                      player.clan,
+                    );
+                    const roomInDeck =
+                      droppedSkill.actionType === ActionType.PASSIVE ||
+                      canAddPlayableSkill(player.skills);
+                    const deckFull =
+                      droppedSkill.actionType !== ActionType.PASSIVE &&
+                      !canAddPlayableSkill(player.skills);
+                    return (
+                      <>
+                        {!learnCheck.canLearn && (
+                          <p className="loot-card__replace-hint">{learnCheck.reason}</p>
+                        )}
+                        {learnCheck.canLearn && roomInDeck && (
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={() => onLearnSkill(droppedSkill)}
+                            className="loot-card__btn loot-card__btn--learn"
+                          >
+                            Learn
+                          </button>
+                        )}
+                        {learnCheck.canLearn && deckFull && (
+                          <div className="loot-card__replace-grid">
+                            <p className="loot-card__replace-hint">
+                              Deck full ({LaunchProperties.MAX_DECK_SIZE}). Forget a card to learn this:
+                            </p>
+                            {player.skills
+                              .map((s, idx) => ({ s, idx }))
+                              .filter(({ s }) => s.actionType !== ActionType.PASSIVE)
+                              .map(({ s, idx }) => (
+                                <button
+                                  type="button"
+                                  key={s.id}
+                                  disabled={isProcessing}
+                                  onClick={() => onLearnSkill(droppedSkill, idx)}
+                                  className="loot-card__btn loot-card__btn--replace"
+                                >
+                                  Forget {s.name}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </div>

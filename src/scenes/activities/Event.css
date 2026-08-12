@@ -1,35 +1,37 @@
 /**
- * Event Scene Styles (T-011 / A5)
- * Moral combat of choice: cinematic plate, risk chips, hard shadows (no blur).
- * SceneBackdrop supplies location biome; .event is the take over that plate.
- * Silkscreen chrome + VT323 body. Palette scoped to .event.
+ * Event Scene — split poster layout (mockup style)
+ * Left: vertical cinematic key-art poster + title/body.
+ * Right: path bar + risk-railed choice cards (staggered enter).
+ * Explore HUD (App) owns stats/inventory chrome.
  */
 
 @import '../../styles/design-system/index.css';
 
 .event {
-  /* ── Approved event palette (scene-scoped tokens) ── */
-  --ev-panel: #141924;
-  --ev-border: #2b3242;
+  --ev-panel: #12161f;
+  --ev-panel-2: #0e1219;
+  --ev-border: #2a3140;
   --ev-hard: #05070c;
-  --ev-title: #eef2f8;
-  --ev-body: #aeb9c8;
-  --ev-gold: #f2b134;
-  --ev-muted: #5b6575;
-  --ev-risk-safe: #43c26a;
-  --ev-risk-low: #cdd63f;
-  --ev-risk-medium: #eb8a3c;
-  --ev-risk-high: #e6483f;
-  --ev-risk-extreme: #a95cff;
+  --ev-title: #f2f4f8;
+  --ev-body: #a8b2c2;
+  --ev-gold: #e8a825;
+  --ev-muted: #5a6474;
+  --ev-risk-safe: #3dba6a;
+  --ev-risk-low: #c9d23a;
+  --ev-risk-medium: #e8872e;
+  --ev-risk-high: #e0423a;
+  --ev-risk-extreme: #a65cff;
 
   width: 100%;
-  max-width: 52rem;
+  max-width: 72rem;
   margin: 0 auto;
-  padding: var(--sw-space-6);
+  padding: var(--sw-space-4) var(--sw-space-5) var(--sw-space-6);
   display: flex;
   flex-direction: column;
-  gap: var(--sw-space-5);
+  gap: var(--sw-space-3);
   z-index: 10;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 /* ===========================================
@@ -37,7 +39,7 @@
    =========================================== */
 
 .event__chain {
-  align-self: center;
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: var(--sw-space-2);
@@ -50,6 +52,7 @@
   background: var(--ev-gold);
   border-radius: var(--sw-radius-sm);
   box-shadow: 3px 3px 0 0 var(--ev-hard);
+  animation: event-fade-up 0.35s steps(4) both;
 }
 
 .event__chain-glyph {
@@ -57,116 +60,195 @@
 }
 
 /* ===========================================
-   Header — cinematic plate frame
+   Split: poster | decision
    =========================================== */
 
-.event__header {
-  text-align: center;
-  padding: var(--sw-space-5);
-  background: linear-gradient(180deg, rgba(20, 25, 36, 0.94) 0%, rgba(10, 12, 18, 0.92) 100%);
-  border: 2px solid var(--ev-border);
-  border-top: 4px solid var(--ev-gold);
-  border-radius: var(--sw-radius-lg);
-  box-shadow: 5px 5px 0 0 var(--ev-hard), inset 0 0 0 1px rgba(242, 177, 52, 0.08);
+.event__split {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.92fr) minmax(18rem, 1.2fr);
+  gap: var(--sw-space-5);
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 
-/* Plate art — widescreen take over the location BG */
-.event__plate {
+/* ===========================================
+   LEFT — vertical poster
+   =========================================== */
+
+.event__poster {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sw-space-2);
-  margin: 0 auto var(--sw-space-4);
-  max-width: 28rem;
+  min-height: 0;
+  animation: event-fade-up 0.4s steps(5) both;
 }
 
-.event__plate-frame {
+.event__poster-frame {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
-  min-height: 8rem;
-  padding: var(--sw-space-2);
+  /* Tall key-art card — matches mockup portrait plate */
+  aspect-ratio: 3 / 4;
+  max-height: min(78vh, 36rem);
+  min-height: 18rem;
+  margin: 0 auto;
+  border: 3px solid var(--ev-border);
+  border-top: 4px solid var(--ev-gold);
+  box-shadow: 6px 6px 0 0 var(--ev-hard);
   background: #05070c;
-  border: 2px solid var(--ev-border);
-  border-bottom-color: var(--ev-gold);
-  box-shadow: 4px 4px 0 0 var(--ev-hard), inset 0 0 24px rgba(0, 0, 0, 0.55);
-  image-rendering: pixelated;
   overflow: hidden;
 }
 
-.event__plate-frame::before {
-  content: '';
+.event__poster-art {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    transparent 55%,
-    rgba(5, 7, 12, 0.55) 100%
-  );
-  z-index: 1;
+  z-index: 0;
 }
 
-.event__plate-frame img {
-  max-height: 9rem;
-  width: auto;
-  max-width: 100%;
+.event__poster-art .art-icon,
+.event__poster-art img {
+  width: 100% !important;
+  height: 100% !important;
   object-fit: cover;
-  image-rendering: pixelated;
+  object-position: center 28%;
+  display: block;
+}
+
+.event__poster-art .art-icon--emoji {
+  font-size: clamp(3.5rem, 14vw, 7rem);
+  background: linear-gradient(165deg, #1a2230 0%, #0a0c12 100%);
+}
+
+.event__poster-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(5, 7, 12, 0.12) 0%,
+      rgba(5, 7, 12, 0.08) 38%,
+      rgba(5, 7, 12, 0.72) 68%,
+      rgba(5, 7, 12, 0.94) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(5, 7, 12, 0.35) 0%,
+      transparent 14%,
+      transparent 86%,
+      rgba(5, 7, 12, 0.35) 100%
+    );
+}
+
+.event__poster-copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: var(--sw-space-4) var(--sw-space-4) var(--sw-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-2);
+  text-align: center;
 }
 
 .event__plate-tag {
   font-family: var(--sw-font-display);
-  font-size: var(--sw-text-2xs);
-  letter-spacing: var(--sw-tracking-widest);
+  font-size: 0.625rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ev-muted);
+  color: rgba(232, 168, 37, 0.95);
+  text-shadow: 2px 2px 0 var(--ev-hard);
 }
 
 .event__title {
-  font-size: var(--sw-text-2xl);
+  font-size: clamp(1.15rem, 2.4vw, 1.65rem);
   font-family: var(--sw-font-display);
-  letter-spacing: var(--sw-tracking-wider);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ev-title);
-  text-shadow: 0 0 10px rgba(242, 177, 52, 0.4);
-  margin-bottom: var(--sw-space-2);
+  text-shadow: 3px 3px 0 var(--ev-hard);
+  margin: 0;
+  line-height: 1.15;
 }
 
-/* Optional one-line pressure tag under title (mystery residual) */
 .event__mystery-flavor {
   font-family: var(--sw-font-display);
-  font-size: var(--sw-text-xs);
+  font-size: var(--sw-text-2xs);
   letter-spacing: var(--sw-tracking-widest);
   text-transform: uppercase;
   color: var(--ev-gold);
   opacity: 0.88;
-  margin: 0 auto var(--sw-space-3);
-  max-width: 32rem;
+  margin: 0;
   line-height: var(--sw-leading-snug);
 }
 
 .event__description {
   font-family: var(--sw-font-pixel);
-  font-size: var(--sw-text-base);
+  font-size: clamp(0.8rem, 1.4vw, 0.95rem);
   color: var(--ev-body);
-  line-height: var(--sw-leading-snug);
-  max-width: 36rem;
+  line-height: 1.35;
   margin: 0 auto;
+  max-width: 28rem;
+  text-shadow: 1px 1px 0 var(--ev-hard);
 }
 
 /* ===========================================
-   Path bar (divider + keyboard hints)
+   RIGHT — decision column
+   =========================================== */
+
+.event__decision {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-3);
+  min-width: 0;
+  min-height: 0;
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+.event__decision--enter {
+  animation: event-group-in 0.38s steps(5) both;
+}
+
+@keyframes event-group-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes event-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===========================================
+   Path bar
    =========================================== */
 
 .event__path-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--sw-space-4);
+  gap: var(--sw-space-3);
   flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: var(--sw-space-2) var(--sw-space-3);
+  background: rgba(14, 18, 25, 0.94);
+  border: 2px solid var(--ev-border);
+  border-left: 4px solid var(--ev-gold);
+  box-shadow: 3px 3px 0 0 var(--ev-hard);
 }
 
 .event__divider {
@@ -179,7 +261,8 @@
 
 .event__hints {
   display: flex;
-  gap: var(--sw-space-3);
+  flex-wrap: wrap;
+  gap: var(--sw-space-2) var(--sw-space-3);
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-xs);
   color: var(--sw-text-muted);
@@ -198,35 +281,51 @@
 .event__choices {
   display: flex;
   flex-direction: column;
-  gap: var(--sw-space-3);
+  gap: var(--sw-space-2);
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+  flex: 1;
 }
 
 .choice-card {
   --risk: var(--ev-risk-safe);
+  --choice-stagger: 0;
   position: relative;
-  background: var(--ev-panel);
+  background: linear-gradient(180deg, var(--ev-panel) 0%, var(--ev-panel-2) 100%);
   border: 2px solid var(--ev-border);
-  /* Thick risk rail — legible at a glance before reading body copy */
-  border-left: 6px solid var(--risk);
-  border-radius: var(--sw-radius-lg);
-  box-shadow: 4px 4px 0 0 var(--ev-hard), inset 3px 0 0 0 color-mix(in srgb, var(--risk) 22%, transparent);
-  padding: var(--sw-space-4);
+  border-left: 5px solid var(--risk);
+  border-radius: 2px;
+  box-shadow: 4px 4px 0 0 var(--ev-hard);
+  padding: var(--sw-space-3) var(--sw-space-4);
   cursor: pointer;
   text-align: left;
-  transition: transform var(--sw-transition-fast), box-shadow var(--sw-transition-fast),
-    border-color var(--sw-transition-base);
+  opacity: 0;
+  transform: translateX(10px);
+  transition:
+    opacity 0.3s steps(4) calc(var(--choice-stagger) * 65ms + 60ms),
+    transform 0.3s steps(4) calc(var(--choice-stagger) * 65ms + 60ms),
+    box-shadow var(--sw-transition-fast),
+    border-color var(--sw-transition-base),
+    background var(--sw-transition-base);
 }
 
-.choice-card:hover:not(.choice-card--disabled):not(.choice-card--dimmed) {
+.choice-card--enter {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.choice-card--enter:hover:not(.choice-card--disabled):not(.choice-card--dimmed) {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0 0 var(--ev-hard),
-    inset 3px 0 0 0 color-mix(in srgb, var(--risk) 28%, transparent);
+  transition-delay: 0s;
+  box-shadow: 6px 6px 0 0 var(--ev-hard);
+  border-color: color-mix(in srgb, var(--risk) 55%, var(--ev-border));
 }
 
-.choice-card:active:not(.choice-card--disabled):not(.choice-card--dimmed) {
+.choice-card--enter:active:not(.choice-card--disabled):not(.choice-card--dimmed) {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 0 var(--ev-hard),
-    inset 3px 0 0 0 color-mix(in srgb, var(--risk) 22%, transparent);
+  transition-delay: 0s;
+  box-shadow: 1px 1px 0 0 var(--ev-hard);
 }
 
 .choice-card:focus-visible {
@@ -234,44 +333,41 @@
   outline-offset: 2px;
 }
 
-.choice-card--dimmed {
-  opacity: 0.45;
-  filter: grayscale(35%);
+.choice-card--enter.choice-card--dimmed {
+  opacity: 0.4;
+  filter: grayscale(30%);
   pointer-events: none;
+  transform: translateX(0);
 }
 
-.choice-card--disabled {
+.choice-card--enter.choice-card--disabled {
   cursor: not-allowed;
-  opacity: 0.45;
-  filter: grayscale(60%);
+  opacity: 0.42;
+  filter: grayscale(55%);
   border-color: var(--ev-muted);
   border-left-color: var(--ev-muted);
 }
 
-.choice-card--selected {
+.choice-card--enter.choice-card--selected {
   border-color: var(--ev-gold);
   border-left-color: var(--risk);
-  box-shadow: 6px 6px 0 0 var(--ev-hard), 0 0 16px rgba(242, 177, 52, 0.35);
+  box-shadow: 5px 5px 0 0 var(--ev-hard), inset 0 0 0 1px rgba(232, 168, 37, 0.25);
   transform: translate(-2px, -2px);
+  transition-delay: 0s;
 }
 
-/* Risk tints */
 .choice-card--safe {
   --risk: var(--ev-risk-safe);
 }
-
 .choice-card--low {
   --risk: var(--ev-risk-low);
 }
-
 .choice-card--medium {
   --risk: var(--ev-risk-medium);
 }
-
 .choice-card--high {
   --risk: var(--ev-risk-high);
 }
-
 .choice-card--extreme {
   --risk: var(--ev-risk-extreme);
 }
@@ -299,28 +395,28 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.55rem;
-  height: 1.55rem;
+  width: 1.4rem;
+  height: 1.4rem;
   flex-shrink: 0;
   font-family: var(--sw-font-pixel);
   font-size: var(--sw-text-sm);
   font-weight: 700;
   color: var(--ev-title);
-  background: color-mix(in srgb, var(--risk) 18%, rgba(0, 0, 0, 0.55));
+  background: color-mix(in srgb, var(--risk) 16%, rgba(0, 0, 0, 0.55));
   border: 2px solid var(--risk);
-  border-radius: var(--sw-radius-sm);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--risk) 25%, transparent);
+  border-radius: 2px;
 }
 
 .choice-card__label {
   font-family: var(--sw-font-display);
   font-size: var(--sw-text-sm);
-  letter-spacing: var(--sw-tracking-wide);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ev-title);
 }
 
 /* ===========================================
-   Risk meter (badge + segmented bar)
+   Risk meter
    =========================================== */
 
 .risk-meter {
@@ -330,67 +426,60 @@
   align-items: flex-end;
   gap: 3px;
   flex-shrink: 0;
-  min-width: 4.25rem;
+  min-width: 4rem;
 }
 
 .risk-meter--safe {
   --meter: var(--ev-risk-safe);
 }
-
 .risk-meter--low {
   --meter: var(--ev-risk-low);
 }
-
 .risk-meter--medium {
   --meter: var(--ev-risk-medium);
 }
-
 .risk-meter--high {
   --meter: var(--ev-risk-high);
 }
-
 .risk-meter--extreme {
   --meter: var(--ev-risk-extreme);
 }
 
-/* Risk chip: hard edge, high contrast label — DD / cyber-terror readability */
 .risk-meter__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 3.5rem;
-  padding: 0.15rem 0.45rem;
+  min-width: 3.4rem;
+  padding: 0.12rem 0.4rem;
   font-family: var(--sw-font-display);
-  font-size: var(--sw-text-2xs);
+  font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: var(--sw-tracking-widest);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #0a0c10;
   background: var(--meter);
-  border: 2px solid color-mix(in srgb, var(--meter) 55%, #000);
-  border-radius: var(--sw-radius-sm);
-  box-shadow: 2px 2px 0 0 var(--ev-hard), 0 0 10px color-mix(in srgb, var(--meter) 35%, transparent);
+  border: 2px solid color-mix(in srgb, var(--meter) 50%, #000);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 0 var(--ev-hard);
 }
 
 .risk-meter__bar {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   width: 100%;
   justify-content: flex-end;
 }
 
 .risk-meter__seg {
-  width: 0.7rem;
-  height: 0.45rem;
+  width: 0.65rem;
+  height: 0.4rem;
   background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--ev-border);
-  border-radius: 1px;
 }
 
 .risk-meter__seg--on {
   background: var(--meter);
-  border-color: color-mix(in srgb, var(--meter) 70%, #fff);
-  box-shadow: 0 0 4px color-mix(in srgb, var(--meter) 50%, transparent);
+  border-color: color-mix(in srgb, var(--meter) 65%, #fff);
 }
 
 /* ===========================================
@@ -405,23 +494,21 @@
 
 .choice-card__description {
   font-family: var(--sw-font-pixel);
-  font-size: var(--sw-text-base);
+  font-size: var(--sw-text-sm);
   color: var(--ev-body);
-  line-height: var(--sw-leading-snug);
+  line-height: 1.35;
+  margin: 0;
 }
 
 .choice-card__hint {
   font-family: var(--sw-font-pixel);
-  font-size: var(--sw-text-sm);
+  font-size: var(--sw-text-xs);
   font-style: italic;
   color: var(--sw-text-tertiary);
   padding-left: var(--sw-space-2);
   border-left: 2px solid var(--ev-border);
+  margin: 0;
 }
-
-/* ===========================================
-   Requirement read-out
-   =========================================== */
 
 .choice-card__requirements {
   display: flex;
@@ -440,7 +527,7 @@
   gap: var(--sw-space-1);
   padding: var(--sw-space-1) var(--sw-space-2);
   background: rgba(0, 0, 0, 0.35);
-  border-radius: var(--sw-radius-sm);
+  border-radius: 2px;
 }
 
 .choice-card__requirement--met {
@@ -454,24 +541,18 @@
 .choice-card__stat-value {
   padding: var(--sw-space-1) var(--sw-space-2);
   background: rgba(0, 0, 0, 0.4);
-  border-radius: var(--sw-radius-sm);
+  border-radius: 2px;
 }
 
 .choice-card__stat-value--body {
   color: var(--sw-category-body);
 }
-
 .choice-card__stat-value--mind {
   color: var(--sw-category-mind);
 }
-
 .choice-card__stat-value--technique {
   color: var(--sw-category-technique);
 }
-
-/* ===========================================
-   Gated indicator
-   =========================================== */
 
 .choice-card__gate {
   display: flex;
@@ -483,11 +564,11 @@
   color: var(--ev-muted);
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--ev-muted);
-  border-radius: var(--sw-radius-sm);
+  border-radius: 2px;
 }
 
 /* ===========================================
-   Outcome preview
+   Outcomes
    =========================================== */
 
 .choice-card__outcomes {
@@ -526,21 +607,21 @@
   letter-spacing: var(--sw-tracking-wide);
   text-transform: uppercase;
   padding: var(--sw-space-0-5) var(--sw-space-2);
-  border-radius: var(--sw-radius-sm);
+  border-radius: 2px;
 }
 
 .choice-card__outcome-type--reward {
-  background: rgba(67, 194, 106, 0.18);
+  background: rgba(61, 186, 106, 0.18);
   color: var(--ev-risk-safe);
 }
 
 .choice-card__outcome-type--danger {
-  background: rgba(230, 72, 63, 0.18);
+  background: rgba(224, 66, 58, 0.18);
   color: var(--ev-risk-high);
 }
 
 .choice-card__outcome-type--neutral {
-  background: rgba(91, 101, 117, 0.25);
+  background: rgba(90, 100, 116, 0.25);
   color: var(--ev-body);
 }
 
@@ -548,10 +629,6 @@
   flex: 1;
   color: var(--ev-body);
 }
-
-/* ===========================================
-   Outcomes affordance + hover tooltip
-   =========================================== */
 
 .choice-card__outcomes-wrap {
   position: relative;
@@ -570,9 +647,8 @@
   text-transform: uppercase;
   color: var(--sw-text-tertiary);
   border: 1px solid var(--ev-border);
-  border-radius: var(--sw-radius-sm);
+  border-radius: 2px;
   cursor: help;
-  transition: color var(--sw-transition-base), border-color var(--sw-transition-base);
 }
 
 .choice-card__outcomes-wrap:hover .choice-card__outcomes-cue,
@@ -581,20 +657,18 @@
   border-color: var(--ev-gold);
 }
 
-/* Blocky popover above the cue — full card width, so it never overflows the
-   scroll container horizontally; hard shadow, no blur. */
 .choice-card__tooltip {
   position: absolute;
   left: 0;
   bottom: calc(100% + var(--sw-space-2));
   z-index: var(--sw-z-popover);
-  min-width: 18rem;
+  min-width: 16rem;
   width: max-content;
-  max-width: min(26rem, 80vw);
+  max-width: min(24rem, 70vw);
   padding: var(--sw-space-3);
   background: var(--ev-panel);
   border: 2px solid var(--ev-gold);
-  border-radius: var(--sw-radius-md);
+  border-radius: 2px;
   box-shadow: 5px 5px 0 0 var(--ev-hard);
   opacity: 0;
   visibility: hidden;
@@ -611,7 +685,6 @@
   transform: translateY(0);
 }
 
-/* Downward-pointing notch on the tooltip's lower-left, aimed at the cue. */
 .choice-card__tooltip::after {
   content: '';
   position: absolute;
@@ -620,10 +693,6 @@
   border: 6px solid transparent;
   border-top-color: var(--ev-gold);
 }
-
-/* ===========================================
-   Confirm affordance (selected card)
-   =========================================== */
 
 .choice-card__confirm-tag {
   position: absolute;
@@ -636,14 +705,10 @@
   text-transform: uppercase;
   color: var(--sw-on-accent);
   background: var(--ev-gold);
-  border-radius: var(--sw-radius-sm);
+  border-radius: 2px;
   box-shadow: 2px 2px 0 0 var(--ev-hard);
   pointer-events: none;
 }
-
-/* ===========================================
-   Hidden-path hint
-   =========================================== */
 
 .event__hidden-note {
   text-align: center;
@@ -652,6 +717,7 @@
   font-style: italic;
   color: var(--sw-text-muted);
   margin: 0;
+  flex-shrink: 0;
 }
 
 .event__empty-choices {
@@ -664,20 +730,56 @@
 }
 
 /* ===========================================
-   Responsive
+   Reduced motion
    =========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .event__poster,
+  .event__chain,
+  .event__decision--enter {
+    animation: none !important;
+  }
+
+  .event__decision {
+    opacity: 1;
+    transform: none;
+  }
+
+  .choice-card {
+    opacity: 1;
+    transform: none;
+    transition: box-shadow var(--sw-transition-fast), border-color var(--sw-transition-base);
+  }
+}
+
+/* ===========================================
+   Responsive — stack poster above choices
+   =========================================== */
+
+@media (max-width: 900px) {
+  .event__split {
+    grid-template-columns: 1fr;
+    gap: var(--sw-space-4);
+  }
+
+  .event__poster-frame {
+    max-height: min(48vh, 22rem);
+    aspect-ratio: 16 / 10;
+    width: 100%;
+  }
+
+  .event__poster-copy {
+    text-align: left;
+  }
+
+  .event__description {
+    margin: 0;
+  }
+}
 
 @media (max-width: 640px) {
   .event {
-    padding: var(--sw-space-4);
-  }
-
-  .event__header {
-    padding: var(--sw-space-4);
-  }
-
-  .event__title {
-    font-size: var(--sw-text-xl);
+    padding: var(--sw-space-3);
   }
 
   .event__path-bar {

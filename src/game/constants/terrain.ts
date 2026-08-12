@@ -483,3 +483,21 @@ export function getElementAmplification(terrain: TerrainType, element: ElementTy
   }
   return 0;
 }
+
+/**
+ * Player-facing prose for room hazard types.
+ * The union is SCREAMING_SNAKE (`GameTypes.hazard.type`), which used to be interpolated raw into
+ * the UI ("CHAKRA_DRAIN hazard"). Every Region 1 exit room is a BOSS_GATE, so that leak was
+ * near-universal. Shared by ApproachSelector and LocationTerrainSystem.
+ */
+export const HAZARD_LABELS: Record<'DAMAGE' | 'CHAKRA_DRAIN' | 'POISON' | 'FALL', string> = {
+  DAMAGE: 'Environmental damage',
+  CHAKRA_DRAIN: 'Chakra drain',
+  POISON: 'Poison',
+  FALL: 'Falling',
+};
+
+/** Prose label for a hazard type, falling back to the raw key if the union ever grows. */
+export function getHazardLabel(type: string): string {
+  return HAZARD_LABELS[type as keyof typeof HAZARD_LABELS] ?? type;
+}

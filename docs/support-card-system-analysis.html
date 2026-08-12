@@ -1,0 +1,2757 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Auditoría del sistema actual de cartas de soporte de Shinobi Way y análisis de una visión de combate por capas con setup multi-turno.">
+  <title>Shinobi Way — Dossier de soporte y setup multi-turno</title>
+  <style>
+    :root {
+      --charcoal-950: #0e0d0b;
+      --charcoal-900: #151310;
+      --charcoal-850: #1c1915;
+      --charcoal-800: #24201b;
+      --paper-100: #f1e9d8;
+      --paper-150: #e9deca;
+      --paper-200: #dfd1b9;
+      --paper-300: #cdbb9d;
+      --ink-900: #211e19;
+      --ink-700: #4d453a;
+      --ink-500: #716657;
+      --vermilion: #b44931;
+      --vermilion-deep: #7e2c20;
+      --gold: #b49355;
+      --moss: #52645a;
+      --teal: #486f6d;
+      --danger: #a9372f;
+      --warning: #a56c26;
+      --fact: #426a6d;
+      --vision: #8d5631;
+      --recommendation: #56704e;
+      --risk: #9a3831;
+      --line-dark: rgba(33, 30, 25, 0.2);
+      --line-light: rgba(241, 233, 216, 0.14);
+      --shadow: 0 22px 80px rgba(0, 0, 0, 0.26);
+      --display: "Bahnschrift Condensed", "Franklin Gothic Medium", "Arial Narrow", sans-serif;
+      --serif: Baskerville, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+      --mono: "Cascadia Code", "IBM Plex Mono", Consolas, monospace;
+      --sidebar: 18.5rem;
+      --radius: 2px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 1.5rem;
+    }
+
+    body {
+      margin: 0;
+      min-width: 19rem;
+      color: var(--paper-100);
+      background:
+        radial-gradient(circle at 72% 8%, rgba(180, 73, 49, 0.13), transparent 27rem),
+        repeating-linear-gradient(118deg, transparent 0 54px, rgba(255, 255, 255, 0.012) 55px 56px),
+        var(--charcoal-950);
+      font-family: var(--serif);
+      font-size: 17px;
+      line-height: 1.63;
+      text-rendering: optimizeLegibility;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.36;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.025) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 70% 80%, rgba(0, 0, 0, 0.2) 0 1px, transparent 1.5px);
+      background-size: 11px 13px, 17px 19px;
+      mix-blend-mode: soft-light;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--gold);
+      outline-offset: 3px;
+    }
+
+    ::selection {
+      color: var(--paper-100);
+      background: var(--vermilion);
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 0.75rem;
+      left: 0.75rem;
+      z-index: 100;
+      transform: translateY(-180%);
+      padding: 0.7rem 1rem;
+      color: var(--paper-100);
+      background: var(--vermilion-deep);
+      border: 1px solid var(--gold);
+      transition: transform 160ms ease;
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .reading-progress {
+      position: fixed;
+      inset: 0 auto auto 0;
+      z-index: 90;
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--vermilion), var(--gold));
+      box-shadow: 0 0 14px rgba(180, 73, 49, 0.8);
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 2rem 1.35rem 1.5rem;
+      background:
+        linear-gradient(180deg, rgba(180, 73, 49, 0.08), transparent 12rem),
+        var(--charcoal-900);
+      border-right: 1px solid var(--line-light);
+      scrollbar-width: thin;
+      scrollbar-color: var(--vermilion-deep) transparent;
+    }
+
+    .brand {
+      display: grid;
+      grid-template-columns: 3rem 1fr;
+      gap: 0.8rem;
+      align-items: center;
+      margin-bottom: 1.35rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--line-light);
+    }
+
+    .brand__seal {
+      display: grid;
+      width: 3rem;
+      aspect-ratio: 1;
+      place-items: center;
+      color: var(--paper-100);
+      background: var(--vermilion-deep);
+      border: 2px solid var(--vermilion);
+      box-shadow: inset 0 0 0 3px var(--charcoal-900), 0 0 0 1px rgba(180, 73, 49, 0.5);
+      font-family: var(--serif);
+      font-size: 1.5rem;
+      font-weight: 700;
+      transform: rotate(-3deg);
+    }
+
+    .brand__kicker,
+    .eyebrow,
+    .section-kicker,
+    .mini-label,
+    .meta-label {
+      margin: 0;
+      color: var(--gold);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      line-height: 1.35;
+      text-transform: uppercase;
+    }
+
+    .brand__name {
+      margin: 0.18rem 0 0;
+      font-family: var(--display);
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .sidebar__meta {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.2rem 0.7rem;
+      margin: 0 0 1.4rem;
+      color: var(--paper-300);
+      font-family: var(--mono);
+      font-size: 0.66rem;
+    }
+
+    .sidebar__meta dt,
+    .sidebar__meta dd {
+      margin: 0;
+    }
+
+    .sidebar__meta dd {
+      color: var(--paper-100);
+      text-align: right;
+    }
+
+    .nav-title {
+      margin: 1.2rem 0 0.55rem;
+      color: var(--paper-300);
+      font-family: var(--mono);
+      font-size: 0.64rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .toc {
+      display: grid;
+      gap: 0.16rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .toc a {
+      display: grid;
+      grid-template-columns: 1.85rem 1fr;
+      gap: 0.4rem;
+      align-items: baseline;
+      padding: 0.47rem 0.55rem;
+      color: rgba(241, 233, 216, 0.65);
+      border-left: 2px solid transparent;
+      font-family: var(--display);
+      font-size: 0.92rem;
+      letter-spacing: 0.025em;
+      line-height: 1.1;
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+    }
+
+    .toc a span {
+      color: var(--ink-500);
+      font-family: var(--mono);
+      font-size: 0.62rem;
+    }
+
+    .toc a:hover,
+    .toc a[aria-current="true"] {
+      color: var(--paper-100);
+      background: rgba(241, 233, 216, 0.055);
+      border-left-color: var(--vermilion);
+    }
+
+    .filter-panel {
+      margin-top: 1.25rem;
+      padding-top: 1.15rem;
+      border-top: 1px solid var(--line-light);
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.42rem;
+      margin-top: 0.65rem;
+    }
+
+    .filter-button,
+    .print-button {
+      min-height: 2.1rem;
+      padding: 0.45rem 0.55rem;
+      color: var(--paper-300);
+      background: rgba(241, 233, 216, 0.035);
+      border: 1px solid var(--line-light);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 0.61rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+    }
+
+    .filter-button:hover,
+    .filter-button[aria-pressed="true"],
+    .print-button:hover {
+      color: var(--paper-100);
+      background: rgba(180, 73, 49, 0.16);
+      border-color: rgba(180, 73, 49, 0.72);
+    }
+
+    .print-button {
+      width: 100%;
+      margin-top: 0.5rem;
+    }
+
+    .main {
+      min-width: 0;
+    }
+
+    .hero {
+      position: relative;
+      min-height: min(94vh, 58rem);
+      display: grid;
+      align-content: center;
+      overflow: hidden;
+      padding: clamp(4rem, 9vw, 8rem) clamp(1.35rem, 7vw, 8rem) clamp(4rem, 8vw, 7rem);
+      background:
+        linear-gradient(105deg, rgba(14, 13, 11, 0.98) 0 35%, rgba(14, 13, 11, 0.78) 67%, rgba(14, 13, 11, 0.92)),
+        repeating-linear-gradient(135deg, transparent 0 31px, rgba(241, 233, 216, 0.02) 32px 33px),
+        var(--charcoal-850);
+      border-bottom: 1px solid var(--line-light);
+    }
+
+    .hero::before {
+      content: "支";
+      position: absolute;
+      top: 50%;
+      right: clamp(-4rem, 4vw, 4rem);
+      color: rgba(180, 73, 49, 0.12);
+      font-family: var(--serif);
+      font-size: clamp(19rem, 47vw, 43rem);
+      font-weight: 700;
+      line-height: 0.75;
+      transform: translateY(-46%) rotate(-5deg);
+      pointer-events: none;
+    }
+
+    .hero::after {
+      content: "DOSSIER  /  SUPPORT SYSTEM  /  07·08·2026";
+      position: absolute;
+      right: 1.1rem;
+      bottom: 1.25rem;
+      color: rgba(241, 233, 216, 0.32);
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.16em;
+      writing-mode: vertical-rl;
+    }
+
+    .hero__inner {
+      position: relative;
+      z-index: 1;
+      max-width: 61rem;
+    }
+
+    .hero h1 {
+      max-width: 13ch;
+      margin: 0.65rem 0 1.25rem;
+      font-family: var(--display);
+      font-size: clamp(3.6rem, 9.7vw, 8.8rem);
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 0.8;
+      text-transform: uppercase;
+    }
+
+    .hero h1 em {
+      display: block;
+      color: var(--vermilion);
+      font-family: var(--serif);
+      font-size: 0.45em;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      line-height: 1.25;
+      text-transform: none;
+    }
+
+    .hero__verdict {
+      max-width: 53rem;
+      margin: 0;
+      padding: 1rem 1.2rem 1rem 1.35rem;
+      color: var(--paper-150);
+      background: linear-gradient(90deg, rgba(180, 73, 49, 0.17), transparent 86%);
+      border-left: 4px solid var(--vermilion);
+      font-size: clamp(1.05rem, 2.1vw, 1.38rem);
+      line-height: 1.48;
+    }
+
+    .hero__tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 1.55rem;
+    }
+
+    .hero__tag,
+    .kind-label,
+    .status-pill,
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      width: fit-content;
+      padding: 0.28rem 0.55rem;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .hero__tag {
+      color: var(--paper-300);
+      border-color: rgba(241, 233, 216, 0.22);
+    }
+
+    .document {
+      background:
+        linear-gradient(rgba(241, 233, 216, 0.965), rgba(241, 233, 216, 0.965)),
+        repeating-linear-gradient(92deg, transparent 0 5px, rgba(49, 42, 33, 0.06) 6px 7px),
+        var(--paper-100);
+      color: var(--ink-900);
+    }
+
+    .document-section {
+      position: relative;
+      padding: clamp(4rem, 8vw, 7.5rem) clamp(1.25rem, 7vw, 7rem);
+      border-bottom: 1px solid var(--line-dark);
+    }
+
+    .document-section:nth-child(even) {
+      background: rgba(205, 187, 157, 0.14);
+    }
+
+    .section-inner {
+      max-width: 78rem;
+      margin: 0 auto;
+    }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 2rem;
+      align-items: end;
+      margin-bottom: clamp(2rem, 5vw, 4rem);
+      padding-bottom: 1.3rem;
+      border-bottom: 2px solid var(--ink-900);
+    }
+
+    .section-heading h2 {
+      max-width: 15ch;
+      margin: 0.35rem 0 0;
+      font-family: var(--display);
+      font-size: clamp(2.45rem, 5.6vw, 5.3rem);
+      font-weight: 900;
+      letter-spacing: -0.025em;
+      line-height: 0.88;
+      text-transform: uppercase;
+    }
+
+    .section-number {
+      color: var(--vermilion);
+      font-family: var(--serif);
+      font-size: clamp(4rem, 8vw, 8rem);
+      font-style: italic;
+      line-height: 0.7;
+    }
+
+    .section-lead {
+      max-width: 58rem;
+      margin: -1.5rem 0 3rem;
+      color: var(--ink-700);
+      font-size: clamp(1.05rem, 1.7vw, 1.28rem);
+    }
+
+    h3,
+    h4 {
+      color: var(--ink-900);
+      font-family: var(--display);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1.05;
+      text-transform: uppercase;
+    }
+
+    h3 {
+      margin: 3.8rem 0 1.2rem;
+      font-size: clamp(1.6rem, 3vw, 2.45rem);
+    }
+
+    h4 {
+      margin: 1.8rem 0 0.65rem;
+      font-size: 1.18rem;
+    }
+
+    p {
+      max-width: 72ch;
+    }
+
+    .lede {
+      max-width: 64rem;
+      font-size: clamp(1.12rem, 2vw, 1.45rem);
+      line-height: 1.54;
+    }
+
+    .dropcap::first-letter {
+      float: left;
+      margin: 0.11em 0.13em 0 0;
+      color: var(--vermilion);
+      font-family: var(--serif);
+      font-size: 4.6em;
+      font-weight: 700;
+      line-height: 0.72;
+    }
+
+    .callout {
+      position: relative;
+      margin: 2rem 0;
+      padding: 1.25rem 1.35rem 1.25rem 1.5rem;
+      background: rgba(255, 255, 255, 0.29);
+      border: 1px solid var(--line-dark);
+      border-left: 5px solid var(--ink-900);
+      box-shadow: 7px 7px 0 rgba(33, 30, 25, 0.06);
+    }
+
+    .callout p:last-child,
+    .signal p:last-child {
+      margin-bottom: 0;
+    }
+
+    .callout--verdict {
+      border-left-color: var(--vermilion);
+    }
+
+    .callout--risk {
+      background: rgba(154, 56, 49, 0.07);
+      border-left-color: var(--risk);
+    }
+
+    .callout--recommendation {
+      background: rgba(86, 112, 78, 0.08);
+      border-left-color: var(--recommendation);
+    }
+
+    .kind-label::before {
+      content: "";
+      width: 0.45rem;
+      height: 0.45rem;
+      background: currentColor;
+      border-radius: 50%;
+    }
+
+    .kind-label--fact {
+      color: var(--fact);
+    }
+
+    .kind-label--vision {
+      color: var(--vision);
+    }
+
+    .kind-label--risk {
+      color: var(--risk);
+    }
+
+    .kind-label--recommendation {
+      color: var(--recommendation);
+    }
+
+    .signal {
+      transition: opacity 180ms ease, filter 180ms ease, transform 180ms ease;
+    }
+
+    body[data-filter="fact"] .signal:not([data-kind~="fact"]),
+    body[data-filter="vision"] .signal:not([data-kind~="vision"]),
+    body[data-filter="risk"] .signal:not([data-kind~="risk"]),
+    body[data-filter="recommendation"] .signal:not([data-kind~="recommendation"]) {
+      opacity: 0.23;
+      filter: grayscale(0.75);
+    }
+
+    body[data-filter]:not([data-filter="all"]) .signal:hover,
+    body[data-filter]:not([data-filter="all"]) .signal:focus-within {
+      opacity: 1;
+      filter: none;
+    }
+
+    .legend-grid,
+    .stat-grid,
+    .role-grid,
+    .implication-grid,
+    .dossier-grid,
+    .principle-grid,
+    .metric-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .legend-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .legend-card,
+    .stat-card,
+    .implication-card,
+    .dossier,
+    .principle-card,
+    .metric-card {
+      padding: 1.25rem;
+      background: rgba(255, 255, 255, 0.22);
+      border: 1px solid var(--line-dark);
+      border-radius: var(--radius);
+    }
+
+    .legend-card h3,
+    .stat-card h3,
+    .implication-card h3,
+    .dossier h3,
+    .principle-card h3,
+    .metric-card h3 {
+      margin: 0.8rem 0 0.55rem;
+      font-size: 1.12rem;
+    }
+
+    .legend-card p,
+    .stat-card p,
+    .implication-card p,
+    .principle-card p,
+    .metric-card p {
+      margin: 0;
+      color: var(--ink-700);
+      font-size: 0.92rem;
+    }
+
+    .stat-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      margin: 2rem 0 3rem;
+    }
+
+    .stat-card {
+      min-height: 9rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-top: 4px solid var(--ink-900);
+    }
+
+    .stat-card__value {
+      margin: 0.55rem 0;
+      color: var(--vermilion-deep);
+      font-family: var(--display);
+      font-size: clamp(2.2rem, 4.5vw, 4rem);
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      line-height: 0.85;
+    }
+
+    .stat-card__label {
+      color: var(--ink-500);
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      line-height: 1.35;
+      text-transform: uppercase;
+    }
+
+    .split-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(18rem, 0.88fr);
+      gap: clamp(1.5rem, 4vw, 4rem);
+      align-items: start;
+    }
+
+    .table-wrap {
+      max-width: 100%;
+      margin: 1.25rem 0 2.25rem;
+      overflow-x: auto;
+      border: 1px solid var(--line-dark);
+      box-shadow: 6px 6px 0 rgba(33, 30, 25, 0.055);
+    }
+
+    table {
+      width: 100%;
+      min-width: 45rem;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.2);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    caption {
+      padding: 0.9rem 1rem;
+      color: var(--paper-100);
+      background: var(--ink-900);
+      font-family: var(--display);
+      font-size: 1.08rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    th,
+    td {
+      padding: 0.77rem 0.85rem;
+      border-right: 1px solid var(--line-dark);
+      border-bottom: 1px solid var(--line-dark);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th:last-child,
+    td:last-child {
+      border-right: 0;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    thead th {
+      color: var(--ink-900);
+      background: rgba(205, 187, 157, 0.42);
+      font-family: var(--mono);
+      font-size: 0.64rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    tbody tr:hover {
+      background: rgba(180, 73, 49, 0.055);
+    }
+
+    code,
+    .code {
+      padding: 0.08em 0.34em;
+      color: var(--vermilion-deep);
+      background: rgba(126, 44, 32, 0.08);
+      border: 1px solid rgba(126, 44, 32, 0.14);
+      font-family: var(--mono);
+      font-size: 0.84em;
+    }
+
+    .bar-chart {
+      display: grid;
+      gap: 0.85rem;
+      margin: 1.4rem 0 2rem;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 6.7rem minmax(0, 1fr) 3.3rem;
+      gap: 0.75rem;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .bar-track {
+      height: 0.85rem;
+      overflow: hidden;
+      background: rgba(33, 30, 25, 0.12);
+      border: 1px solid rgba(33, 30, 25, 0.13);
+    }
+
+    .bar-fill {
+      display: block;
+      height: 100%;
+      width: var(--bar);
+      background: var(--ink-900);
+    }
+
+    .bar-fill--red {
+      background: var(--vermilion);
+    }
+
+    .bar-fill--gold {
+      background: var(--gold);
+    }
+
+    .ratio-figure {
+      display: grid;
+      grid-template-columns: 11rem 1fr;
+      gap: 1.5rem;
+      align-items: center;
+      margin: 1.5rem 0 2.5rem;
+      padding: 1.2rem;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid var(--line-dark);
+    }
+
+    .ratio-ring {
+      position: relative;
+      width: 10rem;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(var(--vermilion) 0 69%, var(--ink-900) 69% 100%);
+      border-radius: 50%;
+    }
+
+    .ratio-ring::after {
+      content: "";
+      position: absolute;
+      width: 67%;
+      aspect-ratio: 1;
+      background: var(--paper-100);
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 1px var(--line-dark);
+    }
+
+    .ratio-ring strong {
+      position: relative;
+      z-index: 1;
+      color: var(--vermilion-deep);
+      font-family: var(--display);
+      font-size: 2.6rem;
+      line-height: 1;
+    }
+
+    .ratio-copy strong {
+      font-family: var(--display);
+      font-size: 1.35rem;
+      text-transform: uppercase;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(8rem, 1fr));
+      gap: 1.8rem;
+      margin: 2rem 0 3rem;
+      overflow-x: auto;
+      padding: 0.4rem 0.4rem 1rem;
+    }
+
+    .flow-node {
+      position: relative;
+      min-width: 8rem;
+      padding: 1rem;
+      background: var(--ink-900);
+      color: var(--paper-100);
+      border: 1px solid var(--ink-900);
+      box-shadow: 5px 5px 0 rgba(180, 73, 49, 0.24);
+    }
+
+    .flow-node:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -1.5rem;
+      color: var(--vermilion);
+      font-family: var(--mono);
+      font-size: 1.4rem;
+      transform: translateY(-50%);
+    }
+
+    .flow-node strong {
+      display: block;
+      margin-bottom: 0.45rem;
+      font-family: var(--display);
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .flow-node span {
+      color: var(--paper-300);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .role-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 2rem 0 3rem;
+    }
+
+    .role-card {
+      position: relative;
+      min-height: 24rem;
+      overflow: hidden;
+      padding: 1.5rem 1.35rem 1.4rem;
+      color: var(--paper-100);
+      background: var(--charcoal-900);
+      border: 1px solid var(--charcoal-800);
+      box-shadow: var(--shadow);
+    }
+
+    .role-card::before {
+      content: attr(data-number);
+      position: absolute;
+      right: -0.05em;
+      bottom: -0.2em;
+      color: rgba(241, 233, 216, 0.045);
+      font-family: var(--display);
+      font-size: 12rem;
+      font-weight: 900;
+      line-height: 0.8;
+    }
+
+    .role-card:nth-child(1) { border-top: 5px solid var(--teal); }
+    .role-card:nth-child(2) { border-top: 5px solid var(--vermilion); }
+    .role-card:nth-child(3) { border-top: 5px solid var(--gold); }
+    .role-card:nth-child(4) { border-top: 5px solid #a33d32; }
+
+    .role-card h3 {
+      position: relative;
+      margin: 1.4rem 0 0.75rem;
+      color: var(--paper-100);
+      font-size: 1.8rem;
+    }
+
+    .role-card p,
+    .role-card li {
+      position: relative;
+      color: var(--paper-300);
+      font-size: 0.91rem;
+    }
+
+    .role-card ul {
+      margin: 1rem 0 0;
+      padding-left: 1.1rem;
+    }
+
+    .role-card .role-rule {
+      position: relative;
+      margin-top: 1.25rem;
+      padding-top: 0.85rem;
+      color: var(--paper-100);
+      border-top: 1px solid var(--line-light);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .role-badge {
+      position: relative;
+      color: var(--gold);
+    }
+
+    .layer-stack {
+      display: grid;
+      max-width: 62rem;
+      margin: 2.5rem auto 3rem;
+      perspective: 70rem;
+    }
+
+    .layer {
+      position: relative;
+      display: grid;
+      grid-template-columns: 8rem 1fr auto;
+      gap: 1rem;
+      align-items: center;
+      min-height: 4.8rem;
+      margin-top: -0.35rem;
+      padding: 0.85rem 1.15rem;
+      background: var(--paper-150);
+      border: 1px solid var(--ink-500);
+      box-shadow: 0 9px 18px rgba(33, 30, 25, 0.13);
+      transform: rotateX(2deg) rotateZ(var(--tilt));
+      transform-origin: center;
+    }
+
+    .layer:nth-child(1) { --tilt: -0.25deg; z-index: 5; }
+    .layer:nth-child(2) { --tilt: 0.2deg; z-index: 4; }
+    .layer:nth-child(3) { --tilt: -0.14deg; z-index: 3; background: #ead5c5; border-color: var(--vermilion-deep); }
+    .layer:nth-child(4) { --tilt: 0.3deg; z-index: 2; }
+    .layer:nth-child(5) { --tilt: -0.2deg; z-index: 1; }
+
+    .layer strong {
+      font-family: var(--display);
+      font-size: 1.05rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .layer span {
+      color: var(--ink-700);
+      font-size: 0.88rem;
+    }
+
+    .layer code {
+      white-space: nowrap;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 2.5rem 0 3.5rem;
+      border-top: 3px solid var(--ink-900);
+    }
+
+    .turn {
+      position: relative;
+      min-height: 20rem;
+      padding: 2.1rem 1.15rem 1.3rem;
+      border-right: 1px solid var(--line-dark);
+    }
+
+    .turn:last-child {
+      border-right: 0;
+    }
+
+    .turn::before {
+      content: "";
+      position: absolute;
+      top: -0.58rem;
+      left: 1.1rem;
+      width: 0.95rem;
+      height: 0.95rem;
+      background: var(--paper-100);
+      border: 3px solid var(--vermilion);
+      border-radius: 50%;
+    }
+
+    .turn__number {
+      color: var(--vermilion-deep);
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .turn h3 {
+      margin: 0.55rem 0 0.7rem;
+      font-size: 1.4rem;
+    }
+
+    .turn p,
+    .turn li {
+      color: var(--ink-700);
+      font-size: 0.89rem;
+    }
+
+    .turn ul {
+      padding-left: 1.1rem;
+    }
+
+    .ap-strip {
+      display: flex;
+      gap: 0.28rem;
+      margin: 1rem 0;
+    }
+
+    .ap-pip {
+      width: 1.1rem;
+      height: 1.1rem;
+      background: var(--vermilion);
+      border: 1px solid var(--vermilion-deep);
+      transform: rotate(45deg);
+    }
+
+    .ap-pip--spent {
+      background: transparent;
+      border-color: var(--ink-500);
+    }
+
+    .state-machine {
+      display: grid;
+      grid-template-columns: minmax(8rem, 0.7fr) 2rem minmax(14rem, 1.25fr) 2rem minmax(9rem, 0.75fr);
+      gap: 0.5rem;
+      align-items: stretch;
+      margin: 2.5rem 0 3rem;
+    }
+
+    .state-box {
+      display: grid;
+      align-content: center;
+      min-height: 12rem;
+      padding: 1.25rem;
+      color: var(--paper-100);
+      background: var(--ink-900);
+      border: 1px solid var(--ink-900);
+      box-shadow: 6px 6px 0 rgba(180, 73, 49, 0.18);
+    }
+
+    .state-box--active {
+      background: var(--vermilion-deep);
+      border-color: var(--vermilion);
+    }
+
+    .state-box strong {
+      margin-bottom: 0.55rem;
+      font-family: var(--display);
+      font-size: 1.45rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .state-box span,
+    .state-box li {
+      color: var(--paper-300);
+      font-size: 0.85rem;
+    }
+
+    .state-box ul {
+      margin: 0;
+      padding-left: 1rem;
+    }
+
+    .state-arrow {
+      display: grid;
+      place-items: center;
+      color: var(--vermilion);
+      font-family: var(--mono);
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .implication-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin: 1.8rem 0 3rem;
+    }
+
+    .implication-card {
+      position: relative;
+      min-height: 16rem;
+      padding-top: 3.2rem;
+      border-top: 4px solid var(--ink-900);
+    }
+
+    .implication-card__icon {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      color: rgba(33, 30, 25, 0.16);
+      font-family: var(--display);
+      font-size: 3.6rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .implication-card ul,
+    .principle-card ul {
+      margin: 0.8rem 0 0;
+      padding-left: 1.1rem;
+      color: var(--ink-700);
+      font-size: 0.9rem;
+    }
+
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      margin: 1.8rem 0 3rem;
+      background: var(--ink-500);
+      border: 1px solid var(--ink-500);
+    }
+
+    .scenario {
+      padding: 1.35rem;
+      background: var(--paper-100);
+    }
+
+    .scenario h3 {
+      margin: 0.55rem 0 0.75rem;
+      font-size: 1.3rem;
+    }
+
+    .scenario p {
+      margin: 0.5rem 0;
+      color: var(--ink-700);
+      font-size: 0.9rem;
+    }
+
+    .scenario__ap {
+      color: var(--vermilion-deep);
+      font-family: var(--display);
+      font-size: 2.25rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .dossier-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin: 2rem 0 3rem;
+    }
+
+    .dossier {
+      position: relative;
+      overflow: hidden;
+      min-height: 22rem;
+      padding: 1.5rem;
+      background:
+        linear-gradient(110deg, rgba(255, 255, 255, 0.24), rgba(205, 187, 157, 0.16)),
+        var(--paper-150);
+      border-left: 4px solid var(--vermilion-deep);
+    }
+
+    .dossier::after {
+      content: attr(data-mark);
+      position: absolute;
+      right: -0.1em;
+      bottom: -0.23em;
+      color: rgba(126, 44, 32, 0.06);
+      font-family: var(--serif);
+      font-size: 12rem;
+      font-weight: 700;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .dossier h3 {
+      position: relative;
+      z-index: 1;
+      margin: 0.75rem 0 0.8rem;
+      font-size: 1.65rem;
+    }
+
+    .dossier dl {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 7rem 1fr;
+      gap: 0.45rem 0.8rem;
+      margin: 1rem 0 0;
+      font-size: 0.88rem;
+    }
+
+    .dossier dt {
+      color: var(--ink-500);
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .dossier dd {
+      margin: 0;
+    }
+
+    .approach-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1rem;
+      margin: 2rem 0 3rem;
+    }
+
+    .approach-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 23rem;
+      padding: 1.25rem;
+      color: var(--paper-100);
+      background: var(--charcoal-900);
+      border: 1px solid var(--charcoal-800);
+    }
+
+    .approach-card__index {
+      color: var(--vermilion);
+      font-family: var(--serif);
+      font-size: 2.6rem;
+      font-style: italic;
+      line-height: 1;
+    }
+
+    .approach-card h3 {
+      margin: 1rem 0 0.65rem;
+      color: var(--paper-100);
+      font-size: 1.4rem;
+    }
+
+    .approach-card p,
+    .approach-card li {
+      color: var(--paper-300);
+      font-size: 0.86rem;
+    }
+
+    .approach-card ul {
+      padding-left: 1rem;
+    }
+
+    .approach-card__verdict {
+      margin-top: auto;
+      padding-top: 0.8rem;
+      color: var(--gold);
+      border-top: 1px solid var(--line-light);
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .risk-table .severity {
+      display: inline-grid;
+      min-width: 4.4rem;
+      place-items: center;
+      padding: 0.25rem 0.4rem;
+      color: var(--paper-100);
+      background: var(--ink-700);
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .risk-table .severity--critical { background: var(--danger); }
+    .risk-table .severity--high { background: var(--warning); }
+    .risk-table .severity--medium { background: var(--teal); }
+
+    .metric-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 1.6rem 0 3rem;
+    }
+
+    .metric-card {
+      min-height: 9.5rem;
+      border-top: 3px solid var(--teal);
+    }
+
+    .metric-card strong {
+      display: block;
+      margin-bottom: 0.55rem;
+      color: var(--vermilion-deep);
+      font-family: var(--display);
+      font-size: 1.25rem;
+      text-transform: uppercase;
+    }
+
+    .principle-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin: 2rem 0 3rem;
+      counter-reset: principle;
+    }
+
+    .principle-card {
+      position: relative;
+      min-height: 13rem;
+      padding-top: 3.2rem;
+      counter-increment: principle;
+    }
+
+    .principle-card::before {
+      content: counter(principle, decimal-leading-zero);
+      position: absolute;
+      top: 0.7rem;
+      right: 0.9rem;
+      color: rgba(180, 73, 49, 0.34);
+      font-family: var(--display);
+      font-size: 2.5rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .quote-block {
+      position: relative;
+      max-width: 68rem;
+      margin: 3rem auto;
+      padding: 2rem clamp(1.4rem, 5vw, 4rem);
+      color: var(--paper-100);
+      background: var(--ink-900);
+      box-shadow: 10px 10px 0 rgba(180, 73, 49, 0.22);
+      font-family: var(--serif);
+      font-size: clamp(1.35rem, 3vw, 2.2rem);
+      font-style: italic;
+      line-height: 1.32;
+    }
+
+    .quote-block::before {
+      content: "“";
+      position: absolute;
+      top: -0.18em;
+      left: 0.2em;
+      color: var(--vermilion);
+      font-size: 5rem;
+      line-height: 1;
+    }
+
+    .quote-block footer {
+      margin-top: 1rem;
+      color: var(--gold);
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      font-style: normal;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .source-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.6rem 2rem;
+      margin: 1.5rem 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .source-list li {
+      padding: 0.7rem 0;
+      border-bottom: 1px solid var(--line-dark);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .source-list code {
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+
+    .document-footer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: end;
+      padding: 3rem clamp(1.25rem, 7vw, 7rem);
+      color: var(--paper-300);
+      background: var(--charcoal-900);
+      border-top: 4px solid var(--vermilion-deep);
+    }
+
+    .document-footer strong {
+      display: block;
+      color: var(--paper-100);
+      font-family: var(--display);
+      font-size: 1.25rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .document-footer p {
+      margin: 0.4rem 0 0;
+      font-size: 0.83rem;
+    }
+
+    .footer-seal {
+      display: grid;
+      width: 5rem;
+      aspect-ratio: 1;
+      place-items: center;
+      color: var(--paper-100);
+      background: var(--vermilion-deep);
+      border: 3px double var(--paper-300);
+      font-family: var(--serif);
+      font-size: 2.2rem;
+      font-weight: 700;
+      transform: rotate(4deg);
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 480ms ease, transform 480ms ease;
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    @media (max-width: 1180px) {
+      :root { --sidebar: 15.5rem; }
+      .stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .legend-grid,
+      .role-grid,
+      .approach-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .role-card { min-height: 20rem; }
+    }
+
+    @media (max-width: 850px) {
+      .shell { display: block; }
+      .sidebar {
+        position: relative;
+        z-index: 10;
+        height: auto;
+        padding: 1.1rem;
+        border-right: 0;
+        border-bottom: 1px solid var(--line-light);
+      }
+      .brand {
+        max-width: 26rem;
+        margin-bottom: 0.8rem;
+        padding-bottom: 0.8rem;
+      }
+      .sidebar__meta { display: none; }
+      .nav-title { margin-top: 0.7rem; }
+      .toc {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(9rem, 1fr);
+        overflow-x: auto;
+        padding-bottom: 0.45rem;
+      }
+      .filter-panel {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.7rem;
+        align-items: end;
+        margin-top: 0.7rem;
+        padding-top: 0.7rem;
+      }
+      .filters {
+        grid-template-columns: repeat(5, minmax(4rem, 1fr));
+      }
+      .print-button {
+        width: auto;
+        min-width: 7rem;
+      }
+      .hero { min-height: 74vh; }
+      .split-layout,
+      .dossier-grid { grid-template-columns: 1fr; }
+      .timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .turn:nth-child(2) { border-right: 0; }
+      .turn:nth-child(-n+2) { border-bottom: 1px solid var(--line-dark); }
+      .state-machine {
+        grid-template-columns: 1fr;
+      }
+      .state-arrow { min-height: 2rem; transform: rotate(90deg); }
+      .principle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .layer { grid-template-columns: 7rem 1fr; }
+      .layer code { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      body { font-size: 16px; }
+      .filters { grid-template-columns: repeat(2, 1fr); }
+      .filter-panel { display: block; }
+      .print-button { width: 100%; }
+      .hero { padding-top: 3.2rem; }
+      .hero::after { display: none; }
+      .hero h1 { font-size: clamp(3.1rem, 18vw, 5rem); }
+      .section-heading { grid-template-columns: 1fr; gap: 1rem; }
+      .section-number { order: -1; font-size: 3.5rem; }
+      .legend-grid,
+      .stat-grid,
+      .role-grid,
+      .implication-grid,
+      .scenario-grid,
+      .approach-grid,
+      .metric-grid,
+      .principle-grid,
+      .source-list { grid-template-columns: 1fr; }
+      .ratio-figure { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+      .timeline { grid-template-columns: 1fr; }
+      .turn { min-height: 0; border-right: 0; border-bottom: 1px solid var(--line-dark); }
+      .turn:last-child { border-bottom: 0; }
+      .flow { grid-template-columns: repeat(5, 10rem); }
+      .layer { grid-template-columns: 1fr; gap: 0.2rem; }
+      .bar-row { grid-template-columns: 5.8rem minmax(0, 1fr) 2.5rem; }
+      .document-footer { grid-template-columns: 1fr; }
+      .footer-seal { width: 4rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+      .reveal { opacity: 1; transform: none; }
+    }
+
+    @media print {
+      @page { size: A4; margin: 14mm; }
+      :root { color-scheme: light; }
+      body { color: #111; background: #fff; font-size: 10pt; }
+      body::before,
+      .sidebar,
+      .reading-progress,
+      .skip-link,
+      .hero::before,
+      .hero::after { display: none !important; }
+      .shell { display: block; }
+      .hero {
+        min-height: 0;
+        padding: 18mm 0 15mm;
+        color: #111;
+        background: #fff;
+        border-bottom: 2px solid #111;
+      }
+      .hero h1 { color: #111; font-size: 44pt; }
+      .hero__verdict { color: #222; background: none; }
+      .hero__tag { color: #333; }
+      .document { background: #fff; }
+      .document-section {
+        padding: 13mm 0;
+        background: #fff !important;
+        break-inside: auto;
+      }
+      .section-heading h2 { font-size: 28pt; }
+      .section-number { font-size: 36pt; }
+      .reveal { opacity: 1; transform: none; }
+      .legend-card,
+      .stat-card,
+      .implication-card,
+      .dossier,
+      .principle-card,
+      .metric-card,
+      .role-card,
+      .approach-card,
+      .state-box,
+      .quote-block,
+      .flow-node {
+        color: #111 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+      }
+      .role-card p,
+      .role-card li,
+      .approach-card p,
+      .approach-card li,
+      .state-box span,
+      .state-box li { color: #333 !important; }
+      .role-card h3,
+      .approach-card h3,
+      .state-box strong { color: #111 !important; }
+      .table-wrap { overflow: visible; box-shadow: none; break-inside: avoid; }
+      table { min-width: 0; font-size: 7.5pt; }
+      th, td { padding: 4pt; }
+      .document-footer { color: #333; background: #fff; border-top: 2px solid #111; }
+      .document-footer strong { color: #111; }
+      a { text-decoration: none; }
+    }
+  </style>
+  <noscript>
+    <style>
+      .reveal { opacity: 1; transform: none; }
+      .filter-panel { display: none; }
+    </style>
+  </noscript>
+</head>
+<body data-filter="all">
+  <a class="skip-link" href="#contenido">Saltar al análisis</a>
+  <div class="reading-progress" id="readingProgress" aria-hidden="true"></div>
+
+  <div class="shell">
+    <aside class="sidebar" aria-label="Navegación del dossier">
+      <div class="brand">
+        <div class="brand__seal" aria-hidden="true">忍</div>
+        <div>
+          <p class="brand__kicker">Shinobi Way</p>
+          <p class="brand__name">Informe de combate</p>
+        </div>
+      </div>
+
+      <dl class="sidebar__meta">
+        <dt>Expediente</dt><dd>SW–SUP–01</dd>
+        <dt>Snapshot</dt><dd>07·08·2026</dd>
+        <dt>Estado</dt><dd>Solo análisis</dd>
+        <dt>Fuentes</dt><dd>Runtime + catálogo</dd>
+      </dl>
+
+      <p class="nav-title">Índice táctico</p>
+      <nav>
+        <ol class="toc" id="toc">
+          <li><a href="#lectura"><span>00</span>Cómo leerlo</a></li>
+          <li><a href="#estado-actual"><span>01</span>Radiografía actual</a></li>
+          <li><a href="#toggles-actuales"><span>02</span>Toggles actuales</a></li>
+          <li><a href="#vision"><span>03</span>Cuatro capas</a></li>
+          <li><a href="#tempo"><span>04</span>Tempo 2–4 turnos</a></li>
+          <li><a href="#ciclo-prep"><span>05</span>Ciclo de Prep</a></li>
+          <li><a href="#implicaciones"><span>06</span>Implicaciones</a></li>
+          <li><a href="#contenido-cartas"><span>07</span>Cartas y arquetipos</a></li>
+          <li><a href="#rutas"><span>08</span>Rutas de diseño</a></li>
+          <li><a href="#riesgos"><span>09</span>Riesgos y métricas</a></li>
+          <li><a href="#conclusiones"><span>10</span>Reglas canónicas</a></li>
+          <li><a href="#fuentes"><span>11</span>Fuentes</a></li>
+        </ol>
+      </nav>
+
+      <div class="filter-panel">
+        <div>
+          <p class="nav-title">Enfocar lectura</p>
+          <div class="filters" role="group" aria-label="Filtrar énfasis del documento">
+            <button class="filter-button" type="button" data-filter-button="all" aria-pressed="true">Todo</button>
+            <button class="filter-button" type="button" data-filter-button="fact" aria-pressed="false">Hechos</button>
+            <button class="filter-button" type="button" data-filter-button="vision" aria-pressed="false">Visión</button>
+            <button class="filter-button" type="button" data-filter-button="risk" aria-pressed="false">Riesgos</button>
+            <button class="filter-button" type="button" data-filter-button="recommendation" aria-pressed="false">Criterio</button>
+          </div>
+        </div>
+        <button class="print-button" id="printDocument" type="button">Imprimir / PDF</button>
+      </div>
+    </aside>
+
+    <main class="main" id="contenido">
+      <header class="hero">
+        <div class="hero__inner">
+          <p class="eyebrow">Auditoría de sistema · visión de diseño · sin implementación</p>
+          <h1>El combate que <em>se prepara antes de dispararse</em></h1>
+          <p class="hero__verdict">
+            Hoy las soportes son principalmente stats, control y escudo inmediatos. La visión posible las convierte en terreno para un arco multi-turno: <strong>Prep en mesa → Support para sobrevivir → Tool para armar → Attack para cobrar</strong>, conservando AP, posturas y distancia como decisiones reales.
+          </p>
+          <div class="hero__tags" aria-label="Alcance del documento">
+            <span class="hero__tag">115 skills auditadas</span>
+            <span class="hero__tag">mano de 4</span>
+            <span class="hero__tag">AP 3–9</span>
+            <span class="hero__tag">3 posturas</span>
+            <span class="hero__tag">3 distancias</span>
+            <span class="hero__tag">solo exploración</span>
+            <a class="hero__tag" href="./combat-tactical-setup-spec.html">Abrir spec canónica →</a>
+          </div>
+        </div>
+      </header>
+
+      <article class="document">
+        <section class="document-section" id="lectura" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Método de lectura</p>
+                <h2>Separar realidad de deseo</h2>
+              </div>
+              <span class="section-number">00</span>
+            </div>
+            <p class="section-lead">Este dossier no presenta la visión como si ya existiera. Cada afirmación pertenece a una de cuatro capas editoriales.</p>
+
+            <div class="legend-grid reveal">
+              <article class="legend-card signal" data-kind="fact">
+                <span class="kind-label kind-label--fact">Hecho actual</span>
+                <h3>Lo que ejecuta</h3>
+                <p>Contrato confirmado en tipos, catálogo, workflow, UI o simulación del worktree actual.</p>
+              </article>
+              <article class="legend-card signal" data-kind="vision">
+                <span class="kind-label kind-label--vision">Visión</span>
+                <h3>Lo que podría ser</h3>
+                <p>Modelo de cuatro roles, setup multi-turno y modos persistentes aportado como dirección.</p>
+              </article>
+              <article class="legend-card signal" data-kind="risk">
+                <span class="kind-label kind-label--risk">Riesgo</span>
+                <h3>Lo que puede romper</h3>
+                <p>Consecuencias sobre tempo, consistencia, daño, supervivencia, claridad o mantenimiento.</p>
+              </article>
+              <article class="legend-card signal" data-kind="recommendation">
+                <span class="kind-label kind-label--recommendation">Criterio</span>
+                <h3>Cómo protegerlo</h3>
+                <p>Guardrails recomendados para conservar el feeling actual mientras aparece profundidad nueva.</p>
+              </article>
+            </div>
+
+            <div class="callout callout--verdict signal reveal" data-kind="fact vision">
+              <span class="kind-label kind-label--fact">Diagnóstico central</span>
+              <p class="lede"><strong>El hueco no es “faltan buffs fuertes”.</strong> Falta un vocabulario de estado que una cartas a través de turnos. El sistema sabe aplicar efectos inmediatos; todavía no sabe recordar una intención como “estoy preparando Chidori con Sharingan”.</p>
+            </div>
+
+            <div class="split-layout">
+              <div>
+                <h3>Dos verdades compatibles</h3>
+                <p class="dropcap">La economía actual ya contiene decisiones valiosas. Gastar 1 AP en moverse, 1 AP en cambiar postura o 1–2 AP en una carta crea tensión real. No hay que borrarla para obtener combos: hay que permitir que la inversión sobreviva al turno y que otra carta pueda leerla.</p>
+                <p>Al mismo tiempo, un combo de cuatro capas no debe convertirse en un ritual obligatorio. Los enemigos débiles tienen que poder caer con tools y ataques normales. La preparación extensa pertenece a peleas donde hay tiempo, recompensa y presión suficientes para justificarla.</p>
+              </div>
+              <aside class="callout callout--recommendation signal" data-kind="recommendation">
+                <span class="kind-label kind-label--recommendation">Principio rector</span>
+                <p><strong>La profundidad debe aparecer por persistencia y compatibilidad, no por regalar AP.</strong></p>
+                <p>El jugador sigue pagando por posicionarse, adoptar postura y jugar cartas. Lo nuevo es que esas decisiones construyen un tablero que dura lo bastante para ser aprovechado.</p>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="estado-actual" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Snapshot verificable</p>
+                <h2>Radiografía del sistema actual</h2>
+              </div>
+              <span class="section-number">01</span>
+            </div>
+            <p class="section-lead">El catálogo no tiene un tipo Support explícito. El rol se deduce por daño y efectos, mientras ACTIVE, TOGGLE y PASSIVE describen cómo entra una skill en combate.</p>
+
+            <div class="stat-grid reveal" aria-label="Resumen cuantitativo del catálogo">
+              <article class="stat-card signal" data-kind="fact">
+                <span class="stat-card__label">Skills totales</span>
+                <strong class="stat-card__value">115</strong>
+                <span class="stat-card__label">snapshot del catálogo</span>
+              </article>
+              <article class="stat-card signal" data-kind="fact">
+                <span class="stat-card__label">ACTIVE</span>
+                <strong class="stat-card__value">99</strong>
+                <span class="stat-card__label">cartas jugables</span>
+              </article>
+              <article class="stat-card signal" data-kind="fact">
+                <span class="stat-card__label">TOGGLE</span>
+                <strong class="stat-card__value">8</strong>
+                <span class="stat-card__label">todas a 2 AP</span>
+              </article>
+              <article class="stat-card signal" data-kind="fact">
+                <span class="stat-card__label">PASSIVE</span>
+                <strong class="stat-card__value">8</strong>
+                <span class="stat-card__label">fuera del mazo</span>
+              </article>
+              <article class="stat-card signal" data-kind="fact risk">
+                <span class="stat-card__label">Utility pure-stat</span>
+                <strong class="stat-card__value">20/29</strong>
+                <span class="stat-card__label">≈69% del bucket</span>
+              </article>
+              <article class="stat-card signal" data-kind="fact">
+                <span class="stat-card__label">Soporte amplio</span>
+                <strong class="stat-card__value">41</strong>
+                <span class="stat-card__label">utility + guard 0 dmg</span>
+              </article>
+            </div>
+
+            <div class="split-layout">
+              <div>
+                <h3>Taxonomía que existe</h3>
+                <div class="table-wrap signal" data-kind="fact">
+                  <table>
+                    <caption>Clasificación derivada del deckbuilder</caption>
+                    <thead>
+                      <tr><th>Categoría</th><th>Criterio vivo</th><th>Conteo</th><th>Consecuencia</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><strong>Offensive</strong></td><td>Daño esperado a stat 3 mayor que 6.</td><td>66</td><td>La postura agresiva duplica su peso de robo.</td></tr>
+                      <tr><td><strong>Defensive</strong></td><td>Shield, heal, invuln, reflect, regen o BUFF de WIL/CAL.</td><td>12</td><td>La postura defensiva duplica su peso de robo.</td></tr>
+                      <tr><td><strong>Utility</strong></td><td>Todo lo demás con poco o cero daño.</td><td>29</td><td>Mezcla setup, control, recursos y buffs sin identidad visual propia.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="signal" data-kind="risk"><strong>Implicación:</strong> Shuriken es offensive porque hace daño, aunque conceptualmente pudiera ser Tool. Wire Trap es utility porque no supera el umbral, aunque su flavor prometa armar un ataque. La taxonomía describe el output actual, no la intención de diseño.</p>
+              </div>
+
+              <div>
+                <h3>El peso del stat stick</h3>
+                <figure class="ratio-figure signal" data-kind="fact risk">
+                  <div class="ratio-ring" aria-label="69 por ciento de las utility son solo buffs o debuffs de stats"><strong>69%</strong></div>
+                  <figcaption class="ratio-copy">
+                    <strong>20 de 29 utility</strong>
+                    <p>tienen daño cero y solo efectos BUFF/DEBUFF de atributos. El resto concentra DoT, control o recurso.</p>
+                  </figcaption>
+                </figure>
+                <div class="callout callout--risk signal" data-kind="fact risk">
+                  <span class="kind-label kind-label--risk">Packaging engañoso</span>
+                  <p>Un contenido autorado como <code>value: 0.15</code> se muestra como “+15%”, pero el runtime de stats lo transforma en <strong>+2 puntos</strong> mediante redondeo de <code>value × 10</code>. La migración a ±1/±2 quedó a medio camino entre contenido y presentación.</p>
+                </div>
+              </div>
+            </div>
+
+            <h3>Economía que ya define el feeling</h3>
+            <div class="implication-grid reveal">
+              <article class="implication-card signal" data-kind="fact">
+                <span class="implication-card__icon" aria-hidden="true">AP</span>
+                <span class="kind-label kind-label--fact">Action Points</span>
+                <h3>Presupuesto táctico</h3>
+                <p>El jugador empieza con 3 AP y escala con SPEED hasta 9. La mayoría de cartas cuesta 2 AP; movimiento y cambio manual de postura cuestan 1 AP.</p>
+                <ul>
+                  <li>26 cartas de 1 AP.</li>
+                  <li>80 cartas de 2 AP.</li>
+                  <li>1 carta de 3 AP.</li>
+                </ul>
+              </article>
+              <article class="implication-card signal" data-kind="fact risk">
+                <span class="implication-card__icon" aria-hidden="true">4</span>
+                <span class="kind-label kind-label--fact">Mano y mazo</span>
+                <h3>Variancia intencional</h3>
+                <p>Se roban 4 cartas por turno. Todo lo no jugado se descarta en el upkeep; se baraja cuando el mazo restante no llena la próxima mano.</p>
+                <ul>
+                  <li>Mazo inicial objetivo: 8.</li>
+                  <li>Cap de cartas jugables: 20.</li>
+                  <li>No existe retain, tutor ni draw autorado.</li>
+                </ul>
+              </article>
+              <article class="implication-card signal" data-kind="fact">
+                <span class="implication-card__icon" aria-hidden="true">姿</span>
+                <span class="kind-label kind-label--fact">Postura</span>
+                <h3>Orientación de combate</h3>
+                <p>Aggressive, Balanced y Defensive alteran daño causado/recibido y sesgan el robo. Una carta puede cambiar postura gratis al jugarse.</p>
+                <ul>
+                  <li>Aggressive: ×1.15 daño dado y recibido.</li>
+                  <li>Defensive: ×0.85 daño dado y recibido.</li>
+                  <li>Balanced: neutral.</li>
+                </ul>
+              </article>
+              <article class="implication-card signal" data-kind="fact">
+                <span class="implication-card__icon" aria-hidden="true">距</span>
+                <span class="kind-label kind-label--fact">Distancia</span>
+                <h3>Legalidad, no bonus</h3>
+                <p>CLOSE, MEDIUM y LONG habilitan o bloquean skills. Mover una banda cuesta 1 AP y solo puede hacerse voluntariamente una vez por turno.</p>
+                <ul>
+                  <li>MELEE: CLOSE.</li>
+                  <li>RANGED: MEDIUM/LONG.</li>
+                  <li>AUTO: todas las bandas.</li>
+                </ul>
+              </article>
+            </div>
+
+            <div class="bar-chart signal reveal" data-kind="fact" aria-label="Distribución de costes de AP">
+              <div class="bar-row"><span>1 AP</span><span class="bar-track"><span class="bar-fill bar-fill--gold" style="--bar: 32.5%"></span></span><strong>26</strong></div>
+              <div class="bar-row"><span>2 AP</span><span class="bar-track"><span class="bar-fill bar-fill--red" style="--bar: 100%"></span></span><strong>80</strong></div>
+              <div class="bar-row"><span>3 AP</span><span class="bar-track"><span class="bar-fill" style="--bar: 1.25%"></span></span><strong>1</strong></div>
+            </div>
+
+            <div class="callout callout--verdict signal" data-kind="fact recommendation">
+              <span class="kind-label kind-label--recommendation">Lectura de conjunto</span>
+              <p>El juego actual ya premia secuencias de varias acciones cuando SPEED lo permite. El problema no es la ausencia de economía: es que casi todo el valor de soporte se resuelve inmediatamente o como buff genérico. Nada establece una relación duradera “esta carta prepara aquella”.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="toggles-actuales" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Estado de mesa existente</p>
+                <h2>Los toggles ya persisten, pero no construyen rutas</h2>
+              </div>
+              <span class="section-number">02</span>
+            </div>
+            <p class="section-lead">La visión de persistencia no parte de cero: los buffs de toggle usan duración −1. Lo que falta son cláusulas de consumo, recursos tipados, exclusividad y técnicas que lean el modo.</p>
+
+            <div class="table-wrap signal reveal" data-kind="fact">
+              <table>
+                <caption>Ocho toggles del catálogo actual</caption>
+                <thead>
+                  <tr><th>Toggle</th><th>AP</th><th>Activación declarada</th><th>Upkeep declarado</th><th>Qué aporta realmente</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Focused Stance</td><td>2</td><td>3 CP</td><td>3</td><td>ACC y DEX permanentes.</td></tr>
+                  <tr><td>Defensive Posture</td><td>2</td><td>3 CP</td><td>3</td><td>WIL arriba, SPEED abajo.</td></tr>
+                  <tr><td>Aggressive Stance</td><td>2</td><td>3 CP</td><td>5</td><td>STR arriba, WIL abajo.</td></tr>
+                  <tr><td>Byakugan</td><td>2</td><td>3 CP</td><td>5</td><td>ACC y DEX permanentes.</td></tr>
+                  <tr><td>Sharingan (2-Tomoe)</td><td>2</td><td>3 CP</td><td>5</td><td>SPEED y DEX permanentes.</td></tr>
+                  <tr><td>Curse Mark Stage 1</td><td>2</td><td>15 HP</td><td>5 “HP”</td><td>STR y SPEED permanentes.</td></tr>
+                  <tr><td>Gate of Life</td><td>2</td><td>25 HP</td><td>10 “HP”</td><td>STR y SPEED permanentes.</td></tr>
+                  <tr><td>Curse Mark Stage 2</td><td>2</td><td>30 HP</td><td>10 “HP”</td><td>STR, SPEED y SPIRIT permanentes.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flow signal reveal" data-kind="fact" aria-label="Flujo de un toggle actual">
+              <div class="flow-node"><strong>Robar</strong><span>El toggle debe aparecer en la mano de 4.</span></div>
+              <div class="flow-node"><strong>Activar</strong><span>Paga 2 AP y, en la ruta viva, Chakra inicial.</span></div>
+              <div class="flow-node"><strong>Persistir</strong><span>Buffs con duración −1 y upkeep al inicio de turno.</span></div>
+              <div class="flow-node"><strong>Re-robar</strong><span>La misma carta debe volver a la mano para apagarla.</span></div>
+              <div class="flow-node"><strong>Apagar</strong><span>Paga otra vez 2 AP; elimina buffs por nombre de fuente.</span></div>
+            </div>
+
+            <div class="implication-grid">
+              <article class="implication-card signal reveal" data-kind="fact risk">
+                <span class="kind-label kind-label--risk">Contrato roto</span>
+                <h3>HP que no se paga</h3>
+                <p>La rama especial de toggles no descuenta <code>hpCost</code> al activar. Gate of Life y Curse Mark anuncian sacrificio, pero solo se comprueba y paga Chakra.</p>
+                <ul><li>El fantasy de riesgo corporal no existe.</li><li>El balance en papel sobrestima el coste.</li><li>La UI puede impedir o permitir con reglas distintas al workflow.</li></ul>
+              </article>
+              <article class="implication-card signal reveal" data-kind="fact risk">
+                <span class="kind-label kind-label--risk">Recurso sin tipo</span>
+                <h3>Upkeep siempre CP</h3>
+                <p><code>upkeepCost</code> es solo un número. El upkeep vivo lo resta de Chakra incluso cuando el comentario de autoría dice “HP por turno”.</p>
+                <ul><li>Gates y Curse Mark pierden identidad.</li><li>No hay forma segura de añadir cargas o costes mixtos.</li><li>Descripción, UI, sim y runtime divergen.</li></ul>
+              </article>
+              <article class="implication-card signal reveal" data-kind="fact risk">
+                <span class="kind-label kind-label--risk">Fricción de mazo</span>
+                <h3>Off manual por azar</h3>
+                <p>El estado sigue activo sin la carta en mano. Para desactivarlo voluntariamente hay que esperar a robarla de nuevo y pagar su coste completo.</p>
+                <ul><li>El jugador no controla con precisión su peaje.</li><li>Un mazo grande empeora la salida.</li><li>“Toggle” se comporta como carta perdida y botón oculto a la vez.</li></ul>
+              </article>
+              <article class="implication-card signal reveal" data-kind="fact risk">
+                <span class="kind-label kind-label--risk">Estado duplicado</span>
+                <h3>Skill + buff</h3>
+                <p>La activación vive en <code>skill.isActive</code>; el beneficio vive en buffs cuya fuente es el nombre legible de la skill.</p>
+                <ul><li>Renombrar/localizar puede afectar la limpieza.</li><li>Es posible desincronizar flag y buffs.</li><li>No hay objeto de modo con identidad propia, cargas o cláusulas.</li></ul>
+              </article>
+            </div>
+
+            <h3>Promesa narrativa frente a ejecución</h3>
+            <div class="table-wrap signal reveal" data-kind="fact risk">
+              <table>
+                <caption>Cartas que parecen preparar otra acción</caption>
+                <thead>
+                  <tr><th>Carta</th><th>Promesa</th><th>Ejecución actual</th><th>Hueco sistémico</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Wire Trap</td><td>Siguiente ataque +20% y Bleed.</td><td>BUFF de STR propio; Bleed se intenta aplicar ya.</td><td>No existe “next attack” consumible.</td></tr>
+                  <tr><td>Poison Coat</td><td>El siguiente ataque aplica Poison.</td><td>Poison inmediato sobre el enemigo.</td><td>No existe recubrimiento de arma persistente.</td></tr>
+                  <tr><td>Cloak of Invisibility</td><td>Evasión y próximo golpe autocrítico.</td><td>BUFF temporal de SPEED y DEX.</td><td>No existe crítico forzado consumible.</td></tr>
+                  <tr><td>Tenketsu Scan</td><td>Próximo ataque ignora 30% DEF.</td><td>BUFF temporal de ACC.</td><td>No existe exposición/penetración preparada.</td></tr>
+                  <tr><td>Gate Release Prep</td><td>Próximo Gate cuesta 50% menos HP.</td><td>BUFF temporal de WIL.</td><td>No existe modificador al coste de otra carta.</td></tr>
+                  <tr><td>Shadow Clone</td><td>Clones sólidos que abruman.</td><td>ACTIVE de 1 AP; STR y SPEED durante 3 turnos.</td><td>No existe recurso de cargas ni relación con Rasengan.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout callout--risk signal reveal" data-kind="fact risk">
+              <span class="kind-label kind-label--risk">Conclusión de la auditoría</span>
+              <p>El toggle actual ya satisface “no caduca por duración”, pero solo como <strong>stat stick permanente con impuesto</strong>. La visión nueva no necesita inventar persistencia; necesita elevarla a un estado de mesa explícito capaz de habilitar, acumular y terminar por reglas legibles.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="vision" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Visión unificada</p>
+                <h2>Cuatro roles, cinco capas de decisión</h2>
+              </div>
+              <span class="section-number">03</span>
+            </div>
+            <p class="section-lead">El cambio esencial es dejar de inferir intención por daño. Cada carta tiene un rol primario explícito; postura, distancia y tags siguen siendo ejes separados.</p>
+
+            <div class="role-grid reveal">
+              <article class="role-card signal" data-kind="vision" data-number="1">
+                <span class="role-badge">Support</span>
+                <h3>El terreno</h3>
+                <p>Defiende, sostiene, controla, posiciona, manipula el mazo o prepara una condición. Puede dar stats, pero el stat sirve a una jugada.</p>
+                <ul>
+                  <li>Escudo y brace.</li>
+                  <li>Humo y evasión.</li>
+                  <li>Curación o Chakra.</li>
+                  <li>Draw, retain o tutor limitado.</li>
+                  <li>Marcas y rango.</li>
+                </ul>
+                <p class="role-rule">No suele consumir Prep.</p>
+              </article>
+              <article class="role-card signal" data-kind="vision" data-number="2">
+                <span class="role-badge">Prep / Mode</span>
+                <h3>El motor</h3>
+                <p>Identidad persistente en mesa: Sharingan, Byakugan, Gates, Curse Mark o Clones. Combina beneficio, peaje y rutas habilitadas.</p>
+                <ul>
+                  <li>Permanece entre turnos.</li>
+                  <li>No expira por timer.</li>
+                  <li>Puede tener cargas.</li>
+                  <li>Define cláusulas de fin.</li>
+                  <li>Potencia familias concretas.</li>
+                </ul>
+                <p class="role-rule">Es la preparación principal.</p>
+              </article>
+              <article class="role-card signal" data-kind="vision" data-number="3">
+                <span class="role-badge">Tool</span>
+                <h3>El armado</h3>
+                <p>Chip barato que permite actuar mientras el plan madura. Kunai, shuriken, senbon y herramientas aportan presión sin disparar el payoff.</p>
+                <ul>
+                  <li>Daño bajo o medio.</li>
+                  <li>Mejora el próximo impacto.</li>
+                  <li>Puede mover una banda.</li>
+                  <li>Puede añadir una marca.</li>
+                  <li>No gasta el modo por defecto.</li>
+                </ul>
+                <p class="role-rule">Mantiene Prep intacta.</p>
+              </article>
+              <article class="role-card signal" data-kind="vision" data-number="4">
+                <span class="role-badge">Attack</span>
+                <h3>El disparo</h3>
+                <p>Daño principal. Puede ser normal, híbrido o payoff. Solo consume Prep cuando la carta lo declara de forma visible.</p>
+                <ul>
+                  <li>Normal: piso fiable.</li>
+                  <li>Híbrido: mejora con Prep.</li>
+                  <li>Payoff: techo alto.</li>
+                  <li>Puede requerir rango.</li>
+                  <li>Puede gastar cargas.</li>
+                </ul>
+                <p class="role-rule">Consume solo con cláusula explícita.</p>
+              </article>
+            </div>
+
+            <div class="callout callout--recommendation signal" data-kind="vision recommendation">
+              <span class="kind-label kind-label--recommendation">Separación semántica</span>
+              <p><code>ActionType</code> responde “¿cómo se juega?”; <strong>CardRole</strong> respondería “¿qué función cumple?”; los tags responderían “¿con qué interactúa?”. Mezclarlos en un único enum volvería a crear inferencias ambiguas.</p>
+            </div>
+
+            <h3>El tablero real tendría cinco capas</h3>
+            <div class="layer-stack signal reveal" data-kind="vision recommendation" aria-label="Capas simultáneas del combate propuesto">
+              <div class="layer"><strong>Postura</strong><span>Cómo combates ahora: daño, defensa y sesgo de robo.</span><code>Agg / Bal / Def</code></div>
+              <div class="layer"><strong>Distancia</strong><span>Dónde ocurre: legalidad de skills y coste de moverse.</span><code>Close / Mid / Long</code></div>
+              <div class="layer"><strong>Prep / Mode</strong><span>Qué motor está encendido, qué habilita y qué lo termina.</span><code>Sharingan ON</code></div>
+              <div class="layer"><strong>Terreno táctico</strong><span>Escudos, humo, marks, “next hit” y recursos auxiliares.</span><code>Smoke · Exposed</code></div>
+              <div class="layer"><strong>Economía de cartas</strong><span>AP, mano, mazo, descarte, cooldown y costes.</span><code>4 cards · 3 AP</code></div>
+            </div>
+
+            <div class="split-layout">
+              <div class="signal" data-kind="vision">
+                <h3>La regla de mesa</h3>
+                <p class="lede"><strong>Toggle es el motor. Support es el terreno. Tool es el armado. Attack es el disparo.</strong></p>
+                <p>No es obligatorio recorrer las cuatro piezas en cada pelea o turno. Es un vocabulario para que distintos arquetipos puedan utilizar subconjuntos sin quedar bloqueados.</p>
+              </div>
+              <aside class="callout callout--risk signal" data-kind="risk recommendation">
+                <span class="kind-label kind-label--risk">Colisión de nombres</span>
+                <p>El juego ya llama “Stance” a Aggressive/Balanced/Defensive y contiene cartas llamadas Focused Stance, Defensive Posture y Aggressive Stance.</p>
+                <p><strong>Criterio:</strong> reservar <em>Posture</em> para el eje global y usar <em>Prep/Mode</em> para la carta persistente. Las tres cartas genéricas deberían analizarse como Support que cambia postura, no como un segundo sistema de stances.</p>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="tempo" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Arco corto de combate</p>
+                <h2>Setup de 2–4 turnos, no cast de tres turnos</h2>
+              </div>
+              <span class="section-number">04</span>
+            </div>
+            <p class="section-lead">La duración no la impone un contador. Emerge de AP, mano, costes, distancia y presión enemiga. El jugador puede cobrar pronto o invertir más para una ventana segura.</p>
+
+            <div class="timeline reveal">
+              <article class="turn signal" data-kind="vision">
+                <span class="turn__number">Turno 01</span>
+                <h3>Encender</h3>
+                <div class="ap-strip" aria-label="3 AP: dos gastados, uno disponible"><span class="ap-pip ap-pip--spent"></span><span class="ap-pip ap-pip--spent"></span><span class="ap-pip"></span></div>
+                <p>Sharingan por 2 AP. El AP restante permite una Tool o Support barato.</p>
+                <ul><li>El modo queda ON.</li><li>Empieza el peaje.</li><li>No hay obligación de atacar.</li></ul>
+              </article>
+              <article class="turn signal" data-kind="vision">
+                <span class="turn__number">Turno 02</span>
+                <h3>Sobrevivir</h3>
+                <div class="ap-strip" aria-label="3 AP utilizados"><span class="ap-pip ap-pip--spent"></span><span class="ap-pip ap-pip--spent"></span><span class="ap-pip ap-pip--spent"></span></div>
+                <p>No aparece Chidori. Humo, escudo, kunai o cambio de distancia mantienen el plan.</p>
+                <ul><li>Prep no caduca.</li><li>La mala mano cuesta riesgo.</li><li>Tools no consumen.</li></ul>
+              </article>
+              <article class="turn signal" data-kind="vision">
+                <span class="turn__number">Turno 03</span>
+                <h3>Alinear</h3>
+                <div class="ap-strip" aria-label="3 AP: uno en movimiento y dos en payoff"><span class="ap-pip ap-pip--spent"></span><span class="ap-pip ap-pip--spent"></span><span class="ap-pip ap-pip--spent"></span></div>
+                <p>Aparece el payoff. Si rango y AP encajan, se dispara; si no, se protege otro turno.</p>
+                <ul><li>Move 1 + Attack 2.</li><li>Se consumen marks.</li><li>Sharingan termina.</li></ul>
+              </article>
+              <article class="turn signal" data-kind="vision risk">
+                <span class="turn__number">Turno 04</span>
+                <h3>Salida tardía</h3>
+                <div class="ap-strip" aria-label="3 AP flexibles"><span class="ap-pip"></span><span class="ap-pip"></span><span class="ap-pip"></span></div>
+                <p>Turno de contingencia cuando curar, un stun, el rango o el robo aplazan el disparo.</p>
+                <ul><li>No debe ser el promedio en trash.</li><li>El upkeep acumula coste.</li><li>La presión evita esperar gratis.</li></ul>
+              </article>
+            </div>
+
+            <h3>Qué regula la longitud</h3>
+            <div class="implication-grid">
+              <article class="implication-card signal reveal" data-kind="fact vision">
+                <span class="kind-label kind-label--fact">AP</span>
+                <h3>El límite duro</h3>
+                <p>Con 3 AP, Toggle 2 + Support 1 cabe, pero Toggle 2 + Attack 2 no. Con 4 AP ya puede comprimirse el arco; con 7–9 AP puede colapsar si no existen otros frenos.</p>
+              </article>
+              <article class="implication-card signal reveal" data-kind="fact vision risk">
+                <span class="kind-label kind-label--risk">Robo</span>
+                <h3>El límite probabilístico</h3>
+                <p>La mano de 4 produce ventanas, pero el descarte completo castiga payoffs que aparecen antes del motor o motores que aparecen después del payoff.</p>
+              </article>
+              <article class="implication-card signal reveal" data-kind="fact vision">
+                <span class="kind-label kind-label--fact">Coste de piezas</span>
+                <h3>El límite compositivo</h3>
+                <p>Toggle 2 + Support 1 + Tool 1 + Attack 2 suma 6 AP. El orden y la persistencia, no AP mágicos, permiten repartirlo entre turnos.</p>
+              </article>
+              <article class="implication-card signal reveal" data-kind="vision risk">
+                <span class="kind-label kind-label--risk">Presión enemiga</span>
+                <h3>El reloj auténtico</h3>
+                <p>Mientras el jugador monta, recibe daño, pierde rango y paga upkeep. Escudo, humo y control existen para comprar tiempo, pero no deben volverlo ilimitado.</p>
+              </article>
+            </div>
+
+            <div class="scenario-grid reveal">
+              <article class="scenario signal" data-kind="vision recommendation">
+                <span class="mini-label">Trash débil</span>
+                <div class="scenario__ap">1 turno</div>
+                <h3>Sin ritual obligatorio</h3>
+                <p>Tool + ataque normal, o ataque directo. Prep puede ser innecesaria porque su coste no se amortiza antes de la victoria.</p>
+              </article>
+              <article class="scenario signal" data-kind="vision recommendation">
+                <span class="mini-label">Pelea seria</span>
+                <div class="scenario__ap">2–4 turnos</div>
+                <h3>Ventana ideal</h3>
+                <p>El modo permanece visible, el jugador compra seguridad y decide cuándo cobrar. El riesgo crece con cada upkeep.</p>
+              </article>
+              <article class="scenario signal" data-kind="vision risk">
+                <span class="mini-label">Boss / Hunter</span>
+                <div class="scenario__ap">varios ciclos</div>
+                <h3>Rearmar, no repetir</h3>
+                <p>Un boss debería permitir más de un ciclo, pero forzar adaptación de postura, rango o payoff para evitar una rotación mecánica.</p>
+              </article>
+            </div>
+
+            <div class="callout callout--risk signal reveal" data-kind="risk recommendation">
+              <span class="kind-label kind-label--risk">La paradoja de SPEED</span>
+              <p>SPEED aumenta AP hasta 9. El arquetipo que mejor comprime un setup puede ser precisamente el que ya gana iniciativa, impacto o acceso a Taijutsu. Si el techo de AP permite jugar motor + soporte + tool + payoff en un turno, el arco deja de ser multi-turno en late game.</p>
+              <p><strong>Guardrail:</strong> evaluar el rendimiento del combo por AP total y por turnos a distintos escalones de SPEED; usar costes, cooldown, una activación de modo por turno o requisitos de estado cuando el presupuesto por sí solo no preserve el arco.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="ciclo-prep" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Regla de oro</p>
+                <h2>Persistente hasta cláusula de finalización</h2>
+              </div>
+              <span class="section-number">05</span>
+            </div>
+            <p class="section-lead">Prep no es un buff de dos turnos. Es un modo de combate cuyo final está escrito en la carta y ocurre por un evento, no porque un contador invisible llegue a cero.</p>
+
+            <div class="state-machine signal reveal" data-kind="vision">
+              <div class="state-box"><strong>OFF</strong><span>El modo no aporta buffs, rutas ni mecánica única.</span></div>
+              <div class="state-arrow" aria-hidden="true">→</div>
+              <div class="state-box state-box--active"><strong>ON · Persistente</strong><ul><li>Aplica beneficios y peajes.</li><li>Habilita familias de técnicas.</li><li>Sobrevive a support, tool y ataques no consumidores.</li><li>Puede acumular cargas o condiciones.</li></ul></div>
+              <div class="state-arrow" aria-hidden="true">→</div>
+              <div class="state-box"><strong>FIN</strong><span>Payoff, Release, upkeep fallido, cargas a cero o umbral específico.</span></div>
+            </div>
+
+            <div class="table-wrap signal reveal" data-kind="vision recommendation">
+              <table>
+                <caption>Catálogo de cláusulas de finalización</caption>
+                <thead>
+                  <tr><th>Cláusula</th><th>Significado</th><th>Aplicación natural</th><th>Riesgo</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>Consumo por payoff</strong></td><td>Una carta aceptada con el tag correcto termina o gasta el modo al resolverse.</td><td>Sharingan → Chidori/Katon; Gate → Lotus.</td><td>La UI debe advertir consumo antes del click.</td></tr>
+                  <tr><td><strong>Release manual</strong></td><td>El jugador renuncia al modo y elimina sus beneficios/peajes.</td><td>Dōjutsu, postura especial, transformación.</td><td>Si depende del robo, no es realmente manual.</td></tr>
+                  <tr><td><strong>Upkeep fallido</strong></td><td>Al no poder o decidir no pagar, el modo termina antes de actuar.</td><td>Sharingan CP; Gates HP.</td><td>Debe indicar recurso y próximo coste.</td></tr>
+                  <tr><td><strong>Cargas a cero</strong></td><td>Cada payoff consume unidades; el modo termina al agotar el recurso.</td><td>Shadow Clones.</td><td>Las cargas no pueden ser otro buff invisible.</td></tr>
+                  <tr><td><strong>Umbral / estertor</strong></td><td>Un estado de HP, una técnica final o una fase fuerza el cierre.</td><td>Gates, Curse Mark.</td><td>Evitar reglas excepcionales distintas por carta.</td></tr>
+                  <tr><td><strong>Rotura forzada</strong></td><td>Seal, supresión o efecto de boss apaga el modo.</td><td>Contenido avanzado, no base.</td><td>No invalidar un arquetipo completo sin counterplay.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Semántica de consumo recomendada</h3>
+            <div class="principle-grid reveal">
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Acción rechazada</h3><p>Sin AP, Chakra, HP o rango: no se juega, no paga y no consume Prep.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Acción aceptada</h3><p>Al comenzar la resolución queda comprometida. El consumo ocurre aunque el ataque falle o sea evadido.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Attack normal</h3><p>No consume por pertenecer a una familia. Solo una cláusula explícita puede gastar el modo.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Tool y Support</h3><p>No consumen por defecto. Una excepción rara debe estar escrita y señalizada.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Payoff híbrido</h3><p>Sin Prep funciona como ataque normal; con Prep mejora y consume según su contrato.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Fin del combate</h3><p>Modos y recursos de combate se limpian; no atraviesan encuentros salvo regla futura explícita.</p></article>
+            </div>
+
+            <div class="split-layout">
+              <div class="signal" data-kind="vision recommendation">
+                <h3>Compatibilidad de estados</h3>
+                <p>La recomendación más legible es permitir <strong>un modo principal</strong> y <strong>un recurso auxiliar</strong>.</p>
+                <ul>
+                  <li>Sharingan y Byakugan compiten por el slot de modo.</li>
+                  <li>Gates y Curse Mark también son modos transformativos.</li>
+                  <li>Shadow Clones puede ocupar el slot auxiliar de cargas.</li>
+                  <li>Postura Aggressive/Balanced/Defensive sigue aparte.</li>
+                  <li>Escudos, humo y marks viven como terreno táctico, no como modos.</li>
+                </ul>
+              </div>
+              <aside class="callout callout--recommendation signal" data-kind="recommendation risk">
+                <span class="kind-label kind-label--recommendation">Release visible</span>
+                <p>El modo debería poder abandonarse desde su panel persistente. Una salida razonable para una spec futura sería:</p>
+                <ul>
+                  <li>Declinar upkeep al inicio del turno: gratis, termina antes de beneficiarte.</li>
+                  <li>Release durante la fase de acción: 1 AP.</li>
+                  <li>Rejugar la carta puede seguir siendo un atajo, pero no la única vía.</li>
+                </ul>
+              </aside>
+            </div>
+
+            <div class="quote-block signal reveal" data-kind="vision">
+              El Sharingan no es un buff de dos turnos: es un modo de combate que mantienes mientras construyes la ventana y que termina cuando el payoff, el peaje o tu decisión cierran el plan.
+              <footer>Regla de fantasía para el equipo</footer>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="implicaciones" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Consecuencias cruzadas</p>
+                <h2>AP, mano, postura y distancia deben seguir importando</h2>
+              </div>
+              <span class="section-number">06</span>
+            </div>
+            <p class="section-lead">Prep añade memoria al combate, no sustituye sus sistemas. Cada eje actual debe conservar una razón propia para existir.</p>
+
+            <div class="implication-grid">
+              <article class="implication-card signal reveal" data-kind="fact vision recommendation">
+                <span class="implication-card__icon" aria-hidden="true">AP</span>
+                <span class="kind-label kind-label--recommendation">Economía AP</span>
+                <h3>Coste como ritmo</h3>
+                <p>Support 1 AP permite preparación ligera; Support 2 AP representa compromiso. Tool 1 AP mantiene presión. Prep 2 AP ocupa el centro del turno. Attack 2–3 AP cobra la inversión.</p>
+                <ul>
+                  <li>No homogeneizar todo a 1 AP.</li>
+                  <li>Valorar coste total del ciclo, no carta aislada.</li>
+                  <li>Evitar descuentos acumulables que vuelvan gratis el payoff.</li>
+                </ul>
+              </article>
+              <article class="implication-card signal reveal" data-kind="fact vision risk recommendation">
+                <span class="implication-card__icon" aria-hidden="true">4</span>
+                <span class="kind-label kind-label--risk">Mano y tutor</span>
+                <h3>Consistencia sin guion</h3>
+                <p>Con mano de 4, un modo persistente evita que el combo muera por no coincidir. Un tutor total, barato y repetible eliminaría la tensión contraria.</p>
+                <ul>
+                  <li>Preferir top-N, retain o tutor por tag.</li>
+                  <li>Limitar tutor fuerte a una vez por combate o cooldown alto.</li>
+                  <li>La postura puede funcionar como tutor blando.</li>
+                </ul>
+              </article>
+              <article class="implication-card signal reveal" data-kind="fact vision recommendation">
+                <span class="implication-card__icon" aria-hidden="true">姿</span>
+                <span class="kind-label kind-label--recommendation">Postura</span>
+                <h3>Preparar el próximo robo</h3>
+                <p>Defensive favorece guard/utility mientras el modo se monta; Aggressive favorece ataques cuando toca cobrar. Cambiar postura puede ser la transición explícita entre fases.</p>
+                <ul>
+                  <li>Prep no debe fijar postura obligatoriamente.</li>
+                  <li>Las cartas pueden cambiarla gratis como hoy.</li>
+                  <li><code>stanceBonus</code> aporta payoff sin inventar otro eje.</li>
+                </ul>
+              </article>
+              <article class="implication-card signal reveal" data-kind="fact vision risk recommendation">
+                <span class="implication-card__icon" aria-hidden="true">距</span>
+                <span class="kind-label kind-label--recommendation">Distancia</span>
+                <h3>Preparar una ventana espacial</h3>
+                <p>El rango puede ser condición de activación, seguridad durante setup o requisito del payoff. Debe seguir habilitando/bloqueando, no transformarse en un bonus universal de daño.</p>
+                <ul>
+                  <li>Support mueve o protege.</li>
+                  <li>Tool empuja/tira o castiga movimiento.</li>
+                  <li>Payoff exige la banda correcta.</li>
+                </ul>
+              </article>
+            </div>
+
+            <h3>Interacciones que enriquecen y las que duplican impuestos</h3>
+            <div class="table-wrap signal reveal" data-kind="vision risk recommendation">
+              <table>
+                <caption>Matriz de convivencia con el feeling actual</caption>
+                <thead>
+                  <tr><th>Interacción</th><th>Enriquece cuando…</th><th>Se vuelve impuesto cuando…</th><th>Guardrail</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>Prep + AP</td><td>El coste obliga a repartir el plan y elegir seguridad o velocidad.</td><td>Cada arquetipo necesita siempre Toggle 2 + Support 2 antes de hacer daño.</td><td>Piso viable sin Prep y piezas de 1 AP.</td></tr>
+                  <tr><td>Prep + postura</td><td>La postura ayuda a buscar o amplificar la fase actual.</td><td>Hay que pagar 1 AP de postura antes de cada carta clave.</td><td>Shifts gratis autorados y bonuses opcionales.</td></tr>
+                  <tr><td>Prep + rango</td><td>Posicionarse crea counterplay visible.</td><td>El enemigo deshace cada turno el movimiento y nunca llega el payoff.</td><td>Forced move, control limitado o payoff que incluye aproximación.</td></tr>
+                  <tr><td>Prep + tutor</td><td>Reduce manos muertas después de invertir.</td><td>El mismo túnel aparece siempre y anula el deckbuilder.</td><td>Tutor por tag/top-N, coste o límite por combate.</td></tr>
+                  <tr><td>Prep + escudo</td><td>Compra un turno bajo presión.</td><td>Escudo + evade + stun permiten montar sin riesgo.</td><td>Capas defensivas con rendimientos decrecientes.</td></tr>
+                  <tr><td>Prep + stats</td><td>El stat refuerza una familia y explica el fantasy.</td><td>Stat × postura × mode × mark multiplican un one-shot.</td><td>Presupuesto de ciclo y orden de stacking definido.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout callout--recommendation signal reveal" data-kind="recommendation">
+              <span class="kind-label kind-label--recommendation">Principio de doble función</span>
+              <p>Una Prep debe hacer dos cosas: <strong>dar identidad mientras está ON</strong> y <strong>cambiar cómo se juega al menos una familia de cartas</strong>. Si solo concede stats, sigue siendo un toggle actual. Si solo bloquea una técnica hasta robarlo, es una llave burocrática.</p>
+            </div>
+
+            <h3>Orden conceptual de valor</h3>
+            <div class="flow signal reveal" data-kind="vision risk recommendation" aria-label="Orden de acumulación conceptual del payoff">
+              <div class="flow-node"><strong>Piso</strong><span>Attack jugable sin setup.</span></div>
+              <div class="flow-node"><strong>Postura</strong><span>Trade-off global ya existente.</span></div>
+              <div class="flow-node"><strong>Prep</strong><span>Habilita variante o familia.</span></div>
+              <div class="flow-node"><strong>Terreno</strong><span>Mark, rango, tool, próximo hit.</span></div>
+              <div class="flow-node"><strong>Payoff</strong><span>Resuelve y consume.</span></div>
+            </div>
+            <p class="signal" data-kind="risk recommendation">No todas las capas deberían multiplicar daño entre sí. Escudo, precisión, rango y control pueden aumentar la <em>fiabilidad</em> del payoff sin añadir otro multiplicador. Reservar el crecimiento explosivo para una o dos fuentes reduce one-shots y hace que los soportes defensivos sigan siendo valiosos.</p>
+          </div>
+        </section>
+
+        <section class="document-section" id="contenido-cartas" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Contenido posible</p>
+                <h2>Soportes variados y túneles de arquetipo</h2>
+              </div>
+              <span class="section-number">07</span>
+            </div>
+            <p class="section-lead">“Support” no significa una sola mecánica. Significa que su valor principal prepara, protege o organiza otra acción, incluso cuando usa stats.</p>
+
+            <div class="table-wrap signal reveal" data-kind="vision recommendation">
+              <table>
+                <caption>Familias de Support y función táctica</caption>
+                <thead>
+                  <tr><th>Familia</th><th>Ejemplo creativo</th><th>Qué decisión crea</th><th>Riesgo de balance</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>Defensa inmediata</strong></td><td>Mud Wall: escudo este turno y shift Defensive.</td><td>Invertir 1 AP para sobrevivir al montaje.</td><td>Escudos acumulados convierten setup en espera segura.</td></tr>
+                  <tr><td><strong>Stat al servicio del plan</strong></td><td>Fighting Rhythm: +STR mientras la siguiente carta sea Taijutsu.</td><td>Elegir familia y ordenar la mano.</td><td>Buff genérico disfrazado si afecta todo daño.</td></tr>
+                  <tr><td><strong>Carta concreta</strong></td><td>Lightning Line: el próximo Chidori incluye aproximación o gana piercing.</td><td>Construir un microtúnel reconocible.</td><td>Carta muerta fuera de una build estrecha.</td></tr>
+                  <tr><td><strong>Humo / evasión</strong></td><td>Smoke Bomb: protección breve y primer Tool desde humo gana ACC.</td><td>Comprar tiempo y preparar fiabilidad.</td><td>Evade + shield + stun puede negar todo counterplay.</td></tr>
+                  <tr><td><strong>Posición</strong></td><td>Wire Pull: acerca al enemigo; no consume movimiento voluntario.</td><td>Ahorrar o forzar AP de rango.</td><td>Soft-lock espacial si se repite.</td></tr>
+                  <tr><td><strong>Mazo</strong></td><td>Battle Read: mira tres cartas y conserva un Attack compatible.</td><td>Convertir conocimiento en consistencia.</td><td>Tutor universal hace determinista el combo.</td></tr>
+                  <tr><td><strong>Status / tempo</strong></td><td>Feint: baja ACC enemiga; si cambia de rango, queda Exposed.</td><td>Crear reacción y counterplay.</td><td>Control encadenado sin inmunidad temporal.</td></tr>
+                  <tr><td><strong>Sustain</strong></td><td>Focused Breathing: Chakra ahora o retain de una carta si ya estás Defensive.</td><td>Elegir recurso frente a consistencia.</td><td>Loop infinito si recupera más de lo que cuesta mantener.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>Tools: actuar sin romper la preparación</h3>
+            <div class="split-layout">
+              <div class="signal" data-kind="vision">
+                <p>Sin Tools, el turno intermedio oscila entre spamear soportes o gastar el modo con un ataque antes de tiempo. Una Tool ofrece chip, información o ajuste espacial mientras el motor permanece ON.</p>
+                <ul>
+                  <li>Daño bajo/medio y coste normalmente 1 AP.</li>
+                  <li>No consume Prep ni cargas salvo texto explícito.</li>
+                  <li>Puede mejorar hit chance, aplicar mark o empujar/tirar.</li>
+                  <li>Debe seguir siendo útil en un mazo sin Prep.</li>
+                </ul>
+              </div>
+              <aside class="callout callout--risk signal" data-kind="risk recommendation">
+                <span class="kind-label kind-label--risk">Umbral de clasificación</span>
+                <p>El criterio actual “daño esperado &gt; 6 = offensive” clasificaría muchas Tools como ataques. Por eso el rol futuro debe autorarse: una Shuriken puede ser Tool aunque haga daño suficiente para superar el umbral.</p>
+              </aside>
+            </div>
+
+            <h3>Arquetipos como túneles legibles</h3>
+            <div class="dossier-grid reveal">
+              <article class="dossier signal" data-kind="vision" data-mark="写">
+                <span class="kind-label kind-label--vision">Uchiha · Rayo</span>
+                <h3>Sharingan → Chidori</h3>
+                <dl>
+                  <dt>Motor</dt><dd>Sharingan: lectura, ACC/DEX y canal Lightning.</dd>
+                  <dt>Supports</dt><dd>Humo, escudo, tutor por tag, ACC debuff enemigo.</dd>
+                  <dt>Tools</dt><dd>Kunai/Senbon mejoran el próximo impacto sin consumir.</dd>
+                  <dt>Posición</dt><dd>Preparar a MEDIUM y terminar en CLOSE.</dd>
+                  <dt>Payoff</dt><dd>Chidori gana fiabilidad/piercing y consume Sharingan.</dd>
+                  <dt>Riesgo</dt><dd>Si todo el valor es daño, Katon queda como ruta falsa.</dd>
+                </dl>
+              </article>
+              <article class="dossier signal" data-kind="vision" data-mark="火">
+                <span class="kind-label kind-label--vision">Uchiha · Fuego</span>
+                <h3>Sharingan → Katon</h3>
+                <dl>
+                  <dt>Motor</dt><dd>El mismo Sharingan habilita una ruta FIRE distinta.</dd>
+                  <dt>Supports</dt><dd>Control, distancia y supervivencia, no solo precisión.</dd>
+                  <dt>Tools</dt><dd>Chip que aplica Oil/Exposed o fuerza movimiento.</dd>
+                  <dt>Posición</dt><dd>Mantener LONG/MEDIUM mientras el fuego madura.</dd>
+                  <dt>Payoff</dt><dd>Katon híbrido: usable solo, ampliado con Sharingan.</dd>
+                  <dt>Riesgo</dt><dd>Un único modo no debe dar el mejor bonus a todas las rutas.</dd>
+                </dl>
+              </article>
+              <article class="dossier signal" data-kind="vision" data-mark="眼">
+                <span class="kind-label kind-label--vision">Hyūga</span>
+                <h3>Byakugan → Tenketsu</h3>
+                <dl>
+                  <dt>Motor</dt><dd>Visión, lectura de Chakra y acceso a puntos de presión.</dd>
+                  <dt>Supports</dt><dd>Tenketsu Scan como mark real; heal ligero o guard.</dd>
+                  <dt>Tools</dt><dd>Gentle chip reduce recurso o acumula aperturas.</dd>
+                  <dt>Posición</dt><dd>Necesita CLOSE; Byakugan ayuda a llegar con seguridad.</dd>
+                  <dt>Payoff</dt><dd>64 Palms consume aperturas o el modo según versión.</dd>
+                  <dt>Riesgo</dt><dd>Ignore DEF excesivo invalida enemigos tank.</dd>
+                </dl>
+              </article>
+              <article class="dossier signal" data-kind="vision" data-mark="影">
+                <span class="kind-label kind-label--vision">Clones</span>
+                <h3>Shadow Clone → Rasengan</h3>
+                <dl>
+                  <dt>Motor</dt><dd>Recurso auxiliar de 1–N cargas, no simple buff de tres turnos.</dd>
+                  <dt>Supports</dt><dd>Acercar, escudo, Chakra y protección de cargas.</dd>
+                  <dt>Tools</dt><dd>Chip mientras los clones distraen; no gasta cargas.</dd>
+                  <dt>Posición</dt><dd>El Rasengan sigue exigiendo CLOSE.</dd>
+                  <dt>Payoff</dt><dd>Cada Rasengan gasta una o más cargas; el modo acaba a cero.</dd>
+                  <dt>Riesgo</dt><dd>Generar cargas más rápido que gastarlas crea loop dominante.</dd>
+                </dl>
+              </article>
+              <article class="dossier signal" data-kind="vision" data-mark="門">
+                <span class="kind-label kind-label--vision">Lee · Gates</span>
+                <h3>Gate → Lotus</h3>
+                <dl>
+                  <dt>Motor</dt><dd>STR/SPEED altos con coste HP tipado y riesgo creciente.</dd>
+                  <dt>Supports</dt><dd>Brace, curación posterior y control de rango.</dd>
+                  <dt>Tools</dt><dd>Taijutsu de presión que aprovecha stats sin cerrar el Gate.</dd>
+                  <dt>Posición</dt><dd>CLOSE; el enemigo puede intentar escapar.</dd>
+                  <dt>Payoff</dt><dd>Primary Lotus cierra el modo o cruza un umbral.</dd>
+                  <dt>Riesgo</dt><dd>HP coste ignorado o curación fácil elimina el fantasy de sacrificio.</dd>
+                </dl>
+              </article>
+              <article class="dossier signal" data-kind="vision" data-mark="心">
+                <span class="kind-label kind-label--vision">Yamanaka · Mind</span>
+                <h3>Lectura → Control mental</h3>
+                <dl>
+                  <dt>Motor</dt><dd>CAL/INT y preparación mental persistente.</dd>
+                  <dt>Supports</dt><dd>Silence, Confusion, humo y lectura de intención.</dd>
+                  <dt>Tools</dt><dd>Chip mental que no consume la ventana.</dd>
+                  <dt>Posición</dt><dd>Opera a LONG y sufre al ser alcanzado.</dd>
+                  <dt>Payoff</dt><dd>Mind Transfer o Genjutsu potente consume el mode.</dd>
+                  <dt>Riesgo</dt><dd>Bosses inmunes a control pueden borrar el arquetipo entero.</dd>
+                </dl>
+              </article>
+            </div>
+
+            <div class="callout callout--recommendation signal reveal" data-kind="vision recommendation">
+              <span class="kind-label kind-label--recommendation">Piso de poder obligatorio</span>
+              <p>Todos los túneles necesitan ataques normales y Tools viables. La Prep mejora techo, flexibilidad o fiabilidad; nunca debe ser la única forma de infligir daño. Así un mal draw duele sin convertir el turno en soft-lock.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="rutas" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Divergencia controlada</p>
+                <h2>Cuatro rutas posibles para materializar la idea</h2>
+              </div>
+              <span class="section-number">08</span>
+            </div>
+            <p class="section-lead">La visión puede aterrizar con distintos grados de ambición. Compararlos evita asumir que todo DRAW, MARK, rango y cargas debe llegar a la vez.</p>
+
+            <div class="approach-grid reveal">
+              <article class="approach-card signal" data-kind="vision recommendation">
+                <span class="approach-card__index">A</span>
+                <h3>La directa · Preparaciones consumibles</h3>
+                <p>Introduce “next attack”, flags de consumo y descripciones honestas. Reescribe Wire Trap, Poison Coat, Cloak, Scan y Gate Prep.</p>
+                <ul><li>Integración media.</li><li>Balance controlable.</li><li>Cambia el feel con poco vocabulario.</li><li>No resuelve por sí sola identidad de toggles.</li></ul>
+                <p class="approach-card__verdict">Buen primer corte vertical</p>
+              </article>
+              <article class="approach-card signal" data-kind="vision recommendation">
+                <span class="approach-card__index">B</span>
+                <h3>La minimalista · Postura como motor</h3>
+                <p>Activa <code>apDiscount</code>, <code>extraEffects</code> y shifts para que Support prepare el siguiente robo o familia sin un subsistema grande.</p>
+                <ul><li>Integración baja/media.</li><li>Reutiliza infraestructura.</li><li>Preserva AP y mano.</li><li>Puede hacer que todos los decks roten igual.</li></ul>
+                <p class="approach-card__verdict">Elegante, pero no basta para Sharingan</p>
+              </article>
+              <article class="approach-card signal" data-kind="vision recommendation">
+                <span class="approach-card__index">C</span>
+                <h3>La temática · Modos y túneles</h3>
+                <p>Cuatro roles explícitos, Prep persistente, payoffs por clan y cargas para Clones. Es la visión unificada de este dossier.</p>
+                <ul><li>Integración media/alta.</li><li>Identidad fuerte por build.</li><li>Exige UI, IA y sim nuevas.</li><li>Riesgo de demasiadas excepciones.</li></ul>
+                <p class="approach-card__verdict">Dirección recomendada, por fases</p>
+              </article>
+              <article class="approach-card signal" data-kind="vision risk">
+                <span class="approach-card__index">D</span>
+                <h3>La salvaje · Tablero shinobi completo</h3>
+                <p>Marks elementales, terrain dinámico, PUSH/PULL, reacciones, múltiples recursos y cadenas cruzadas entre clanes.</p>
+                <ul><li>Integración muy alta.</li><li>Techo expresivo enorme.</li><li>Balance y UI complejos.</li><li>Puede ocultar el combate bajo iconos.</li></ul>
+                <p class="approach-card__verdict">Reservar como horizonte, no v1</p>
+              </article>
+            </div>
+
+            <div class="table-wrap signal reveal" data-kind="vision recommendation">
+              <table>
+                <caption>Evaluación comparativa</caption>
+                <thead>
+                  <tr><th>Ruta</th><th>Arquitectura pura</th><th>Impacto de balance</th><th>Esfuerzo</th><th>Qué demuestra</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>A · Consumibles</td><td>Media</td><td>Medio</td><td>Medio</td><td>Que carta A puede preparar carta B.</td></tr>
+                  <tr><td>B · Postura</td><td>Baja/media</td><td>Bajo/medio</td><td>Bajo/medio</td><td>Que la infraestructura reservada aporta economía real.</td></tr>
+                  <tr><td>C · Modos</td><td>Media/alta</td><td>Alto</td><td>Alto</td><td>Que cada arquetipo tiene motor, armado y payoff propios.</td></tr>
+                  <tr><td>D · Tablero total</td><td>Alta</td><td>Muy alto</td><td>Muy alto</td><td>Que distancia, marks y elementos pueden formar una metacapa.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout callout--recommendation signal reveal" data-kind="recommendation">
+              <span class="kind-label kind-label--recommendation">Lectura recomendada</span>
+              <p>La visión C es el destino, pero A y B son los instrumentos para validarla sin construir todo el tablero D. Primero debe demostrarse que una preparación persistente produce decisiones divertidas con AP, postura y rango actuales.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="riesgos" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Registro de amenazas</p>
+                <h2>Lo que puede matar la visión</h2>
+              </div>
+              <span class="section-number">09</span>
+            </div>
+            <p class="section-lead">Un motor de setup no se balancea mirando el número de una carta. Se balancea observando el ciclo entero: coste, supervivencia, probabilidad de ensamblaje, payoff y frecuencia de repetición.</p>
+
+            <div class="table-wrap risk-table signal reveal" data-kind="risk recommendation">
+              <table>
+                <caption>Riesgos prioritarios y señales observables</caption>
+                <thead>
+                  <tr><th>Severidad</th><th>Riesgo</th><th>Por qué aparece</th><th>Guardrail</th><th>Señal de fracaso</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><span class="severity severity--critical">Crítico</span></td><td>One-shot multiplicativo</td><td>Stat + postura + Prep + mark + elemento se multiplican.</td><td>Presupuesto del ciclo y pocas fuentes multiplicativas.</td><td>Bosses mueren al primer payoff o se inflan para todos.</td></tr>
+                  <tr><td><span class="severity severity--critical">Crítico</span></td><td>Sim/IA ciega</td><td>El selector puntúa daño inmediato y no valor futuro.</td><td>Política stateful y métricas de conversión.</td><td>La sim concluye que todas las Supports son malas.</td></tr>
+                  <tr><td><span class="severity severity--high">Alto</span></td><td>Setup obligatorio</td><td>El piso sin modo queda demasiado bajo.</td><td>Attacks normales viables y payoffs híbridos.</td><td>Trash tarda 3–4 turnos o genera manos sin acción.</td></tr>
+                  <tr><td><span class="severity severity--high">Alto</span></td><td>Stall invulnerable</td><td>Shield, evade, control y sustain cubren todo el riesgo.</td><td>Rendimientos decrecientes y ventanas enemigas.</td><td>El jugador espera indefinidamente el draw perfecto.</td></tr>
+                  <tr><td><span class="severity severity--high">Alto</span></td><td>SPEED comprime el arco</td><td>AP máximo 9 permite ensamblar todo en un turno.</td><td>Evaluar por escalones de AP y limitar activaciones clave.</td><td>Late game ignora el setup multi-turno.</td></tr>
+                  <tr><td><span class="severity severity--high">Alto</span></td><td>Tutor obligatorio</td><td>Mazo 20 + mano 4 hace inconsistente el payoff.</td><td>Tag tutor, top-N, retain o límites por combate.</td><td>Toda build incluye las mismas cartas de búsqueda.</td></tr>
+                  <tr><td><span class="severity severity--medium">Medio</span></td><td>Rango frustrante</td><td>El enemigo deshace el posicionamiento antes del payoff.</td><td>Support espacial, control moderado o ataque con gap-close.</td><td>Payoffs permanecen bloqueados varias manos.</td></tr>
+                  <tr><td><span class="severity severity--medium">Medio</span></td><td>Inflación de iconos</td><td>Cada Prep inventa marks, cargas y cláusulas propias.</td><td>Vocabulario común pequeño y tooltips consistentes.</td><td>La carta necesita un párrafo para explicar su consumo.</td></tr>
+                  <tr><td><span class="severity severity--medium">Medio</span></td><td>Boss immunity</td><td>Control/marks se bloquean para proteger bosses.</td><td>Prep propia no resistible; control reducido, no anulado.</td><td>Un clan pierde su motor en las peleas importantes.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3>La simulación debe medir preparación, no solo daño</h3>
+            <div class="metric-grid reveal">
+              <article class="metric-card signal" data-kind="fact risk"><strong>Setup latency</strong><p>Turnos desde activar el modo hasta resolver un payoff compatible.</p></article>
+              <article class="metric-card signal" data-kind="risk recommendation"><strong>Conversion rate</strong><p>Porcentaje de modos activados que terminan en payoff antes de caer o apagarse.</p></article>
+              <article class="metric-card signal" data-kind="risk recommendation"><strong>Prep waste</strong><p>Recursos invertidos en un modo que termina sin producir valor de ruta.</p></article>
+              <article class="metric-card signal" data-kind="risk recommendation"><strong>Death during setup</strong><p>Derrotas ocurridas mientras el jugador aún no ha cobrado la inversión.</p></article>
+              <article class="metric-card signal" data-kind="risk recommendation"><strong>AP idle</strong><p>AP no gastado por manos incompatibles, rango o falta de payoff.</p></article>
+              <article class="metric-card signal" data-kind="risk recommendation"><strong>Mode uptime</strong><p>Turnos medios ON, upkeep total pagado y causa de finalización.</p></article>
+              <article class="metric-card signal" data-kind="risk recommendation"><strong>Payoff share</strong><p>Parte del daño total concentrada en el disparo frente a tools/ataques normales.</p></article>
+              <article class="metric-card signal" data-kind="risk recommendation"><strong>Tutor pressure</strong><p>Cuánto mejora una build al añadir búsqueda; detecta consistencia obligatoria.</p></article>
+            </div>
+
+            <div class="callout callout--risk signal reveal" data-kind="fact risk">
+              <span class="kind-label kind-label--risk">Brecha actual de simulación</span>
+              <p>La progresión prioriza tier y daño; el selector de combate escoge la mejor carta inmediata. El simulador procesa upkeep de toggles activos, pero no modela la activación especial del runtime ni comprende “guardar modo para Chidori”. Sin cambiar ese evaluador, cualquier balance automático castigará Supports y premiará daño directo.</p>
+            </div>
+
+            <h3>Implicaciones para UI y claridad</h3>
+            <div class="principle-grid reveal">
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Badge de rol</h3><p>SUPPORT, PREP, TOOL y ATTACK deben verse antes de leer el texto.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Mode en mesa</h3><p>Estado persistente separado de la mano, con icono, upkeep y rutas habilitadas.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Consumo visible</h3><p>Un payoff debe anunciar “consume Sharingan” tanto en carta como en preview.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Cargas legibles</h3><p>Clones y recursos usan conteo visible, no buffs duplicados en el tooltip.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Versión con/sin Prep</h3><p>El preview compara el ataque base con su variante potenciada y coste consumido.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Misplay honesto</h3><p>Si una acción gasta mal el modo, el jugador puede equivocarse, pero nunca sorprenderse.</p></article>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="conclusiones" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Cierre del análisis</p>
+                <h2>Reglas canónicas de la visión</h2>
+              </div>
+              <span class="section-number">10</span>
+            </div>
+            <p class="section-lead">Estas reglas condensan la dirección sin convertirse aún en una spec de código o una migración del catálogo.</p>
+
+            <div class="principle-grid reveal">
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Cuatro roles</h3><p>Support, Prep/Mode, Tool y Attack son funciones explícitas. PASSIVE continúa fuera del mazo.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Prep persiste</h3><p>No expira por duración. Termina por payoff, Release, upkeep, cargas o umbral.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Setup emergente</h3><p>Dura 2–4 turnos por AP, mano, rango y presión, no por un cast fijo.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Tools no rompen</h3><p>Permiten chip y armado mientras el modo sigue ON.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Payoff explícito</h3><p>Solo una cláusula autorada consume el modo o sus cargas.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Piso sin Prep</h3><p>Attacks normales mantienen viable cualquier mano y pelea corta.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Postura continúa</h3><p>Aggressive/Balanced/Defensive conserva daño, defensa y sesgo de robo.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Distancia continúa</h3><p>CLOSE/MEDIUM/LONG sigue siendo legalidad y movimiento, no bonus plano.</p></article>
+              <article class="principle-card signal" data-kind="vision recommendation"><h3>Stats con propósito</h3><p>Un Support puede dar STR o ACC si orienta una familia, ventana o carta concreta.</p></article>
+            </div>
+
+            <h3>Texto de glosario propuesto</h3>
+            <div class="table-wrap signal reveal" data-kind="vision recommendation">
+              <table>
+                <caption>Vocabulario canónico</caption>
+                <thead><tr><th>Término</th><th>Definición</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Preparación / Prep</strong></td><td>Estado de combate persistente obtenido al jugar una carta de modo. No expira por turnos; termina cuando se cumple una cláusula definida por la carta.</td></tr>
+                  <tr><td><strong>Setup multi-turno</strong></td><td>Secuencia de inversión que suele ocupar 2–4 turnos de jugador, limitada por AP, cartas robadas, rango y presión enemiga.</td></tr>
+                  <tr><td><strong>Support</strong></td><td>Carta cuyo valor principal protege, sostiene, controla, posiciona o prepara otra acción, con o sin modificación de stats.</td></tr>
+                  <tr><td><strong>Tool</strong></td><td>Ataque o herramienta de chip que mantiene la presión y puede armar el siguiente impacto sin consumir Prep por defecto.</td></tr>
+                  <tr><td><strong>Payoff</strong></td><td>Attack que lee una Prep, mark o recurso para producir una versión potenciada y consumir la condición declarada.</td></tr>
+                  <tr><td><strong>Cláusula de fin</strong></td><td>Evento explícito que apaga un modo: consumo, Release, upkeep fallido, cargas a cero, umbral o rotura forzada.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="callout callout--verdict signal reveal" data-kind="fact vision recommendation">
+              <span class="kind-label kind-label--recommendation">Veredicto final</span>
+              <p class="lede">El sistema actual contiene las piezas de tempo —AP, mano, postura, distancia y buffs permanentes—, pero carece del contrato que las convierta en una secuencia. La visión es viable si Prep aporta memoria, Tools aportan actividad y Supports compran ventanas sin neutralizar el riesgo.</p>
+            </div>
+
+            <div class="quote-block signal reveal" data-kind="vision recommendation">
+              Buen play no es sumar cinco porcentajes. Es leer el combate, encender el modo correcto, sobrevivir mientras armas la ventana y decidir cuándo el golpe merece consumir todo lo preparado.
+              <footer>Una frase para orientar contenido futuro</footer>
+            </div>
+          </div>
+        </section>
+
+        <section class="document-section" id="fuentes" data-section>
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Trazabilidad</p>
+                <h2>Fuentes del snapshot</h2>
+              </div>
+              <span class="section-number">11</span>
+            </div>
+            <p class="section-lead">Las cifras y comportamientos marcados como hechos se contrastaron directamente con el worktree. Las rutas siguientes son evidencia, no archivos modificados por este documento.</p>
+
+            <ul class="source-list signal reveal" data-kind="fact">
+              <li><code>src/game/constants/skills.ts</code> catálogo, costes, toggles, efectos y flavor.</li>
+              <li><code>src/game/constants/combatCards.ts</code> categorías, AP y pesos de robo.</li>
+              <li><code>src/game/systems/DeckSystem.ts</code> mano, descarte, reshuffle y draw ponderado.</li>
+              <li><code>src/game/systems/PlayerTurnSystem.ts</code> resolución, buffs, upkeep y movimiento.</li>
+              <li><code>src/game/systems/PostureSystem.ts</code> trade-offs y bonuses de postura.</li>
+              <li><code>src/game/systems/RangeSystem.ts</code> bandas, movimiento, PUSH/PULL y reacciones vacías.</li>
+              <li><code>src/hooks/useCombat.ts</code> activación/desactivación real de toggles.</li>
+              <li><code>src/components/combat/SkillCard.tsx</code> lenguaje visual y badges actuales.</li>
+              <li><code>src/simulation/</code> selección, scoring, AP y fidelidad del simulador.</li>
+              <li><code>docs/combat-distance-heat-stat-migration-plan.md</code> objetivos de duración e intención de rango/HEAT.</li>
+            </ul>
+
+            <div class="callout signal reveal" data-kind="fact">
+              <span class="kind-label kind-label--fact">Límite del documento</span>
+              <p>No se ha definido un schema TypeScript, un orden de migración, cifras finales de balance ni una lista cerrada de cartas a reautorizar. Esas decisiones pertenecen a una spec posterior; aquí se exponen sus consecuencias para que no nazca incompleta.</p>
+            </div>
+          </div>
+        </section>
+      </article>
+
+      <footer class="document-footer">
+        <div>
+          <strong>Shinobi Way · Dossier SW–SUP–01</strong>
+          <p>Auditoría y visión de combate por capas. Snapshot del 7 de agosto de 2026. Documento de exploración; sin cambios de runtime.</p>
+        </div>
+        <div class="footer-seal" aria-hidden="true">終</div>
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const body = document.body;
+      const progress = document.getElementById('readingProgress');
+      const filterButtons = [...document.querySelectorAll('[data-filter-button]')];
+      const navLinks = [...document.querySelectorAll('#toc a')];
+      const sections = [...document.querySelectorAll('[data-section]')];
+      const reveals = [...document.querySelectorAll('.reveal')];
+
+      const updateProgress = () => {
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        const percent = scrollable > 0 ? Math.min(100, Math.max(0, (window.scrollY / scrollable) * 100)) : 0;
+        progress.style.width = `${percent}%`;
+      };
+
+      filterButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const filter = button.dataset.filterButton || 'all';
+          body.dataset.filter = filter;
+          filterButtons.forEach((candidate) => {
+            candidate.setAttribute('aria-pressed', String(candidate === button));
+          });
+        });
+      });
+
+      document.getElementById('printDocument')?.addEventListener('click', () => window.print());
+
+      if ('IntersectionObserver' in window) {
+        const sectionObserver = new IntersectionObserver((entries) => {
+          const visible = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (!visible) return;
+          const activeId = visible.target.id;
+          navLinks.forEach((link) => {
+            link.setAttribute('aria-current', String(link.getAttribute('href') === `#${activeId}`));
+          });
+        }, { rootMargin: '-18% 0px -64% 0px', threshold: [0, 0.05, 0.2] });
+
+        sections.forEach((section) => sectionObserver.observe(section));
+
+        const revealObserver = new IntersectionObserver((entries, observer) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          });
+        }, { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+
+        reveals.forEach((element) => revealObserver.observe(element));
+      } else {
+        reveals.forEach((element) => element.classList.add('is-visible'));
+      }
+
+      window.addEventListener('scroll', updateProgress, { passive: true });
+      window.addEventListener('resize', updateProgress);
+      updateProgress();
+    })();
+  </script>
+</body>
+</html>

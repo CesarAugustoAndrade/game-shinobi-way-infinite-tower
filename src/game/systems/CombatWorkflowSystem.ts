@@ -7,22 +7,34 @@
  * changes across player and enemy turns. It uses pure calculation functions
  * from CombatCalculationSystem for the actual math.
  *
- * ## Architecture
+ * ## Architecture (Sprint B — single hit path)
  *
- * The combat system is split into four files for maintainability:
+ * Layered modules; consumers should import hit-core through this barrel or the
+ * pure systems directly:
  *
  * - **combat-types.ts**:
  *   Shared type definitions (CombatState, CombatResult, etc.)
  *   Prevents circular imports between turn systems
  *
+ * - **SurvivalSystem.ts**:
+ *   Lethal damage + guts (`checkLethalDamage`, GutsContext types)
+ *
+ * - **SkillResolutionSystem.ts** (+ **skillPlayability.ts**):
+ *   Shared hit pipeline after calculateDamage
+ *   (`applyDamageMultipliers` → `resolveMitigatedHit` → `resolveSuccessfulHit`)
+ *   and pure playability gates (`canPlaySkill` / `getSkillBlockReason`)
+ *
  * - **CombatWorkflowSystem.ts** (this file):
  *   Combat state initialization and re-exports from all combat modules
  *
- * - **PlayerTurnSystem.ts**:
- *   Player turn processing (useSkill, processUpkeep, applyApproachEffects)
+ * - **PlayerTurnSystem.ts** / **EnemyTurnSystem.ts**:
+ *   Live turn orchestration (`useSkill`, `processEnemyTurn`, upkeep, approach)
  *
- * - **EnemyTurnSystem.ts**:
- *   Enemy turn processing (processEnemyTurn and all phase helpers)
+ * - **CombatSimulationService** / **BattleSimulator**:
+ *   Auto and balance paths — Sprint B goal is that both call
+ *   SurvivalSystem.checkLethalDamage + SkillResolutionSystem.resolveSuccessfulHit
+ *   for the hit core (see docs/combat-single-path.md). Simulation should call
+ *   SkillResolution, not re-implement multipliers/mitigation.
  *
  * ## Combat Turn Order
  *
@@ -54,12 +66,33 @@
  * =============================================================================
  */
 
-import { Posture, TerrainDefinition } from '../types';
+import { CombatRange, Posture, TerrainDefinition } from '../types';
 import { CombatModifiers } from './ApproachSystem';
 
 // Re-export types from combat-types.ts (single source of truth)
 export type { CombatState, CombatResult, UpkeepResult, EnemyTurnResult } from './combat-types';
 import type { CombatState } from './combat-types';
+
+// Sprint B hit core — Survival (guts/lethal) + SkillResolution (shared hit pipeline)
+export { checkLethalDamage } from './SurvivalSystem';
+export type { GutsContext, LethalCheckResult, ArtifactGutsInfo } from './SurvivalSystem';
+export {
+  applyDamageMultipliers,
+  applyPostMitigationMultipliers,
+  applyEnemyDefenseBonusToDamage,
+  buildPlayerPreMitigationMults,
+  buildEnemyPreMitigationMults,
+  buildPlayerDefensePostMults,
+  resolveMitigatedHit,
+  resolveSuccessfulHit,
+} from './SkillResolutionSystem';
+export type {
+  MitigatedHitInput,
+  MitigatedHitResult,
+  ResolveSuccessfulHitParams,
+} from './SkillResolutionSystem';
+export { canPlaySkill, getSkillBlockReason } from './skillPlayability';
+export type { SkillPlayContext, SkillBlockReason } from './skillPlayability';
 
 // Re-export from PlayerTurnSystem
 export { useSkill, processUpkeep, applyApproachEffects } from './PlayerTurnSystem';
@@ -117,14 +150,20 @@ export function createCombatState(
     fallDamageOnMiss: roomCombatExtras?.fallDamageOnMiss ?? 0,
     roomConditionNames: roomCombatExtras?.roomConditionNames ?? [],
     enemyFirstHitMultiplier: roomCombatExtras?.enemyFirstHitMultiplier ?? 1,
-    // Deckbuilder/AP economy (T-004) — safe defaults; not consumed by the
-    // combat flow yet. Initialized for real when the deck/hand system lands.
+    openingInitHolder: undefined,
+    // Deckbuilder/AP economy (T-004)
     currentAp: 0,
     maxAp: 0,
     posture: Posture.BALANCED,
     hand: [],
     deck: [],
     discard: [],
+    // F2 distance — seeded by startCombat via resolveInitialRange
+    currentRange: CombatRange.MEDIUM,
+    playerMoveUsedThisTurn: false,
+    enemyMoveUsedThisTurn: false,
+    enemyCurrentAp: 0,
+    enemyMaxAp: 0,
   };
 }
 

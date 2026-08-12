@@ -3,7 +3,7 @@ import './SceneBackdrop.css';
 
 interface SceneBackdropProps {
   /**
-   * Biome background image URL — e.g. /assets/location_mist_covered_bridge.png.
+   * Biome background image URL — e.g. /assets/locations/location_mist_covered_bridge.png.
    * Falls back to the dark CSS gradient if absent or if the image fails to load.
    */
   background?: string;

@@ -22,3 +22,9 @@
 - Branches: `main` (prod), `develop` (dev).
 - Commit format: `feat:`, `fix:`, `refactor:`, `docs:`.
 - Update `CHANGELOG.md` under `[Unreleased]` before committing.
+
+## Asset generation (cutouts / alpha)
+- When generating any game asset that will later be cut out for real transparency (`enemy_cut_*`, hero cutouts, mid/fg laminas, prop sprites): **prompt a flat solid chroma key background**, never pure black.
+- **Default key color: pure green screen** `#00FF00`.
+- If the subject is green-heavy (moss, foliage, Lee/chakra green, slime, etc.): use **magenta/hot-pink** `#FF00FF` or **pure blue** `#0000FF` instead.
+- After generation, chroma-key → true RGBA PNG. Do **not** rely on black-matte keying for new cutouts.

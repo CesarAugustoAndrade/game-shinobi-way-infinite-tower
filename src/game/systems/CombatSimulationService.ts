@@ -19,10 +19,11 @@ import {
   TerrainDefinition,
   PrimaryAttributes,
   CombatModifierType,
+  CombatRange,
 } from '../types';
+import { skillAllowedAt, resolveInitialRange } from './RangeSystem';
 import {
   calculateDamage,
-  checkGuts,
   resistStatus,
   calculateDotDamage,
   getPlayerFullStats,
@@ -31,7 +32,6 @@ import {
 } from './StatSystem';
 import {
   generateId,
-  applyMitigation as applyMitigationCalc,
   tickBuffDurations,
   getTerrainElementAmplification,
   applyTerrainHazard,
@@ -60,13 +60,17 @@ import {
   calculateApproachSuccessChance,
 } from '../constants/approaches';
 import {
-  applyEnemyDefenseBonus,
   applyLocationHazardsToPlayer,
   skillLocationDamageMult,
   type LocationTerrainMods,
 } from './LocationTerrainSystem';
 import { applyRoomCombatModifiers } from './RoomCombatModifierSystem';
 import type { CombatModifiers } from './ApproachSystem';
+import { resolveSuccessfulHit } from './SkillResolutionSystem';
+import {
+  checkLethalDamage,
+  type GutsContext,
+} from './SurvivalSystem';
 
 /**
  * Result of an auto-simulated combat
@@ -102,6 +106,8 @@ interface SimulationContext {
   fallDamageOnMiss: number;
   /** FREE_FIRST_SKILL artifact passive */
   skipFirstSkillCost: boolean;
+  /** F2 engagement band (shared pure resolveInitialRange) */
+  currentRange: CombatRange;
   metrics: {
     damageDealt: number;
     damageReceived: number;
@@ -120,7 +126,9 @@ const MAX_TURNS = 100;
 function rollApproachSuccess(
   approach: ApproachType,
   playerStats: { primary: PrimaryAttributes; derived: DerivedStats },
-  terrainStealthBonus: number = 0
+  terrainStealthBonus: number = 0,
+  /** F3 visit heat — PP penalties before clamp (parity with live executeApproach) */
+  visitHeat: number = 0,
 ): boolean {
   if (approach === ApproachType.FRONTAL_ASSAULT) {
     return true;
@@ -141,54 +149,43 @@ function rollApproachSuccess(
   const successChance = calculateApproachSuccessChance(
     approach,
     stats,
-    terrainStealthBonus
+    terrainStealthBonus,
+    visitHeat,
   );
   return Math.random() * 100 < successChance;
 }
 
 /**
- * Select best available skill for combat
+ * Select best available skill for combat (F2: in-range only; never fire OOR).
+ * Returns null when nothing affordable is legal at the current band (idle/Guard parity).
  */
 function selectSkill(
   skills: Skill[],
   currentChakra: number,
-  currentHp: number
-): Skill {
-  // Filter available skills (off cooldown, can afford)
+  currentHp: number,
+  currentRange?: CombatRange
+): Skill | null {
+  // Filter available skills (off cooldown, can afford, in range when band known)
   const available = skills.filter(s =>
     s.currentCooldown === 0 &&
     currentChakra >= s.chakraCost &&
-    currentHp > s.hpCost
+    currentHp > s.hpCost &&
+    (!currentRange || skillAllowedAt(s, currentRange))
   );
 
   if (available.length === 0) {
-    // Find basic attack or first skill as fallback
-    return skills.find(s => s.id === 'basic_atk') || skills[0];
+    // Live combat rejects OOR; auto-sim must not disagree (AC3 / plan §2).
+    return null;
   }
 
-  // Prioritize by damage potential (damageMult * base scaling)
+  // Prioritize by damage potential
   const sorted = [...available].sort((a, b) => {
-    const aValue = (a.damageMult || 0) * (a.chakraCost > 0 ? 1.2 : 1);
-    const bValue = (b.damageMult || 0) * (b.chakraCost > 0 ? 1.2 : 1);
+    const aValue = (((a.baseDamage ?? 0) + (a.scalingPerPoint ?? 0) * 3) || 0) * (a.chakraCost > 0 ? 1.2 : 1);
+    const bValue = (((b.baseDamage ?? 0) + (b.scalingPerPoint ?? 0) * 3) || 0) * (b.chakraCost > 0 ? 1.2 : 1);
     return bValue - aValue;
   });
 
   return sorted[0];
-}
-
-/**
- * Apply mitigation (shields, invuln, curses, reflection)
- */
-function applyMitigation(
-  buffs: Buff[],
-  damage: number
-): { finalDamage: number; reflectedDamage: number; updatedBuffs: Buff[] } {
-  const result = applyMitigationCalc(buffs, damage, 'target');
-  return {
-    finalDamage: result.finalDamage,
-    reflectedDamage: result.reflectedDamage,
-    updatedBuffs: result.updatedBuffs,
-  };
 }
 
 /**
@@ -331,66 +328,81 @@ function executeAttack(
     ctx.metrics.crits++;
   }
 
-  let damage = result.finalDamage;
+  // Pre/post mult stacks (same factors & floor-after-each order as before; shared pipeline)
+  const preMitigationMultipliers: number[] = [];
+  const postMitigationMultipliers: number[] = [];
 
-  // Apply terrain element amplification for player
-  if (isPlayer && ctx.terrain) {
-    const terrainAmp = getTerrainElementAmplification(ctx.terrain, ctx.player.element);
-    if (terrainAmp > 1.0) {
-      damage = Math.floor(damage * terrainAmp);
-    }
-  }
-
-  // T-070: location terrain mods (parity with PlayerTurnSystem / EnemyTurnSystem)
-  if (isPlayer && ctx.locationTerrainMods) {
-    const locMult = skillLocationDamageMult(skill, ctx.locationTerrainMods);
-    if (locMult !== 1) {
-      damage = Math.floor(damage * locMult);
-    }
-    damage = applyEnemyDefenseBonus(damage, ctx.locationTerrainMods);
-  } else if (!isPlayer && ctx.locationTerrainMods) {
-    const atkBonus = ctx.locationTerrainMods.enemyAttackBonus;
-    if (atkBonus !== 0) {
-      damage = Math.floor(damage * (1 + atkBonus));
-    }
-  }
-
-  // Apply LaunchProperties Multipliers
   if (isPlayer) {
-    damage = Math.floor(damage * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
+    // Terrain element amp → location skill mult → enemy defense mult → launch → ambush first-hit
+    if (ctx.terrain) {
+      const terrainAmp = getTerrainElementAmplification(ctx.terrain, ctx.player.element);
+      if (terrainAmp > 1.0) {
+        preMitigationMultipliers.push(terrainAmp);
+      }
+    }
+    if (ctx.locationTerrainMods) {
+      const locMult = skillLocationDamageMult(skill, ctx.locationTerrainMods);
+      if (locMult !== 1) {
+        preMitigationMultipliers.push(locMult);
+      }
+      // Same formula as applyEnemyDefenseBonus (mid-stack floor preserved via mult list)
+      if (ctx.locationTerrainMods.enemyDefenseBonus !== 0) {
+        preMitigationMultipliers.push(
+          Math.max(0.25, 1 - ctx.locationTerrainMods.enemyDefenseBonus),
+        );
+      }
+    }
+    preMitigationMultipliers.push(LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
+    if (ctx.isFirstTurn && ctx.firstHitMultiplier > 1.0) {
+      preMitigationMultipliers.push(ctx.firstHitMultiplier);
+    }
   } else {
-    damage = Math.floor(damage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
+    // Location enemy attack bonus → launch → room AMBUSH first-strike
+    if (ctx.locationTerrainMods) {
+      const atkBonus = ctx.locationTerrainMods.enemyAttackBonus;
+      if (atkBonus !== 0) {
+        preMitigationMultipliers.push(1 + atkBonus);
+      }
+    }
+    preMitigationMultipliers.push(LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
+    if (ctx.isFirstTurn && ctx.enemyFirstHitMultiplier > 1.0) {
+      preMitigationMultipliers.push(ctx.enemyFirstHitMultiplier);
+    }
+    // Artifact DAMAGE_REDUCTION (incl. below_half_hp) after buff mitigation
+    const drPercent = getDamageReductionPercent(ctx.player, ctx.playerStats.derived.maxHp);
+    if (drPercent !== 0) {
+      postMitigationMultipliers.push(1 - drPercent / 100);
+    }
   }
 
-  // Opening ambush first-hit mult (STEALTH_AMBUSH success → 2.0× from APPROACH_DEFINITIONS)
-  if (isPlayer && ctx.isFirstTurn && ctx.firstHitMultiplier > 1.0) {
-    damage = Math.floor(damage * ctx.firstHitMultiplier);
-  }
-  // T-106: room AMBUSH enemy first-strike
-  if (!isPlayer && ctx.isFirstTurn && ctx.enemyFirstHitMultiplier > 1.0) {
-    damage = Math.floor(damage * ctx.enemyFirstHitMultiplier);
-  }
-
-  // Apply execute threshold for player
+  // Execute threshold replaces damage after pre-mults, before mitigation (prior sim behavior)
+  let rawDamage = result.finalDamage;
   if (isPlayer) {
     const enemyMaxHp = ctx.enemyStats.derived.maxHp;
     if (checkExecuteThreshold(ctx.player, ctx.enemy, enemyMaxHp)) {
-      damage = ctx.enemy.currentHp;
+      rawDamage = ctx.enemy.currentHp;
+      // Pre-mults discarded on execute overwrite (same as previous direct assignment)
+      preMitigationMultipliers.length = 0;
     }
   }
 
-  // Apply mitigation
-  const mitigation = applyMitigation(defender.activeBuffs, damage);
-  damage = mitigation.finalDamage;
+  const mitigation = resolveSuccessfulHit({
+    rawDamage,
+    preMitigationMultipliers,
+    defenderBuffs: defender.activeBuffs,
+    defenderLabel: isPlayer ? (ctx.enemy.name || 'Enemy') : 'You',
+    postMitigationMultipliers,
+  });
+  const damage = mitigation.finalDamage;
 
   if (isPlayer) {
-    ctx.enemy.activeBuffs = mitigation.updatedBuffs;
+    ctx.enemy.activeBuffs = mitigation.updatedDefenderBuffs;
     ctx.enemy.currentHp -= damage;
     ctx.metrics.damageDealt += damage;
 
     // Process passives on hit
     const onHitResult = processPassivesOnHit(ctx.player, ctx.enemy, damage, result.isCrit);
-    
+
     // Apply lifesteal
     if (onHitResult.healToPlayer > 0) {
       ctx.player.currentHp = Math.min(ctx.playerStats.derived.maxHp, ctx.player.currentHp + onHitResult.healToPlayer);
@@ -405,41 +417,49 @@ function executeAttack(
     );
     ctx.enemy.activeBuffs = [...ctx.enemy.activeBuffs, ...newPassiveDebuffs];
 
-    // Handle reflection
+    // Handle reflection — guts check if reflected damage would be lethal (parity with PlayerTurnSystem)
     if (mitigation.reflectedDamage > 0) {
-      ctx.player.currentHp -= mitigation.reflectedDamage;
+      const gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
+      const artifactGuts = checkGutsPassive(ctx.player);
+      const lethalCheck = checkLethalDamage(
+        ctx.player.currentHp,
+        mitigation.reflectedDamage,
+        ctx.playerStats.derived.gutsChance,
+        gutsContext,
+        artifactGuts,
+        ctx.artifactGutsUsed,
+        ctx.playerStats.derived.maxHp,
+      );
+      ctx.player.currentHp = lethalCheck.newHp;
+      if (lethalCheck.gutsTriggered) {
+        ctx.metrics.gutsTriggered++;
+      }
+      if (lethalCheck.artifactGutsTriggered) {
+        ctx.artifactGutsUsed = true;
+      }
       ctx.metrics.damageReceived += mitigation.reflectedDamage;
     }
   } else {
-    ctx.player.activeBuffs = mitigation.updatedBuffs;
+    ctx.player.activeBuffs = mitigation.updatedDefenderBuffs;
 
-    // Artifact DAMAGE_REDUCTION (incl. below_half_hp)
-    const drPercent = getDamageReductionPercent(ctx.player, ctx.playerStats.derived.maxHp);
-    if (drPercent !== 0 && damage > 0) {
-      damage = Math.max(0, Math.floor(damage * (1 - drPercent / 100)));
+    // Lethal damage + guts via SurvivalSystem (stat guts, then artifact guts)
+    const gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
+    const artifactGuts = checkGutsPassive(ctx.player);
+    const lethalCheck = checkLethalDamage(
+      ctx.player.currentHp,
+      damage,
+      ctx.playerStats.derived.gutsChance,
+      gutsContext,
+      artifactGuts,
+      ctx.artifactGutsUsed,
+      ctx.playerStats.derived.maxHp,
+    );
+    ctx.player.currentHp = lethalCheck.newHp;
+    if (lethalCheck.gutsTriggered) {
+      ctx.metrics.gutsTriggered++;
     }
-
-    // Check guts
-    const hpBefore = ctx.player.currentHp;
-    const hpAfterDamage = hpBefore - damage;
-    if (hpAfterDamage <= 0) {
-      const statGutsResult = checkGuts(hpBefore, damage, ctx.playerStats.derived.gutsChance);
-      if (statGutsResult.survived) {
-        ctx.player.currentHp = 1;
-        ctx.metrics.gutsTriggered++;
-      } else {
-        const artifactGuts = checkGutsPassive(ctx.player);
-        if (artifactGuts.hasGuts && !ctx.artifactGutsUsed) {
-          const healAmount = Math.floor(ctx.playerStats.derived.maxHp * (artifactGuts.healPercent / 100));
-          ctx.player.currentHp = Math.max(1, healAmount);
-          ctx.artifactGutsUsed = true;
-          ctx.metrics.gutsTriggered++;
-        } else {
-          ctx.player.currentHp = 0;
-        }
-      }
-    } else {
-      ctx.player.currentHp = hpAfterDamage;
+    if (lethalCheck.artifactGutsTriggered) {
+      ctx.artifactGutsUsed = true;
     }
     ctx.metrics.damageReceived += damage;
 
@@ -562,7 +582,8 @@ function executePlayerTurn(ctx: SimulationContext): void {
   const skill = selectSkill(
     ctx.player.skills,
     ctx.player.currentChakra,
-    ctx.player.currentHp
+    ctx.player.currentHp,
+    ctx.currentRange
   );
 
   if (skill) {
@@ -591,7 +612,8 @@ function executeEnemyTurn(ctx: SimulationContext): void {
   const skill = selectSkill(
     ctx.enemy.skills,
     ctx.enemy.currentChakra,
-    ctx.enemy.currentHp
+    ctx.enemy.currentHp,
+    ctx.currentRange
   );
 
   if (skill) {
@@ -613,6 +635,8 @@ export function simulateGameCombat(
   locationTerrainMods?: LocationTerrainMods | null,
   /** T-106: room combat activity modifiers (AMBUSH / SANCTUARY / …) */
   roomCombatModifiers?: CombatModifierType[] | null,
+  /** F3: visit heat for approach PP penalties + initial band bias */
+  visitHeat: number = 0,
 ): CombatSimulationResult {
   // Get full stats
   const playerFullStats = getPlayerFullStats(player);
@@ -650,9 +674,18 @@ export function simulateGameCombat(
     ? rollApproachSuccess(
         approach,
         { primary: playerFullStats.primary, derived: playerFullStats.derived },
-        terrainDef?.effects.stealthModifier ?? 0
+        terrainDef?.effects.stealthModifier ?? 0,
+        visitHeat,
       )
     : false;
+
+  // F2/F3: initial band from approach + preferred + heat bias (same pure helper as live)
+  const currentRange = resolveInitialRange({
+    approach: approach ?? ApproachType.FRONTAL_ASSAULT,
+    success: approach ? approachSucceeded : true,
+    enemy: clonedEnemy,
+    heat: visitHeat,
+  });
 
   const approachDef = approach ? APPROACH_DEFINITIONS[approach] : null;
   const approachEffects = approachDef
@@ -760,6 +793,7 @@ export function simulateGameCombat(
     roomCombatEvasion,
     fallDamageOnMiss,
     skipFirstSkillCost,
+    currentRange,
     metrics: {
       damageDealt: 0,
       damageReceived: 0,
@@ -808,22 +842,29 @@ export function simulateGameCombat(
     ctx.player.activeBuffs = playerBuffResult.newBuffs;
     ctx.metrics.damageReceived += playerBuffResult.dotDamage;
 
-    // Check player guts from DoT
+    // Check player guts from DoT (shared SurvivalSystem — HP already reduced)
     if (ctx.player.currentHp <= 0) {
-      const statGutsResult = checkGuts(ctx.player.currentHp, 0, ctx.playerStats.derived.gutsChance);
-      if (statGutsResult.survived) {
-        ctx.player.currentHp = 1;
-        ctx.metrics.gutsTriggered++;
-      } else {
-        const artifactGuts = checkGutsPassive(ctx.player);
-        if (artifactGuts.hasGuts && !ctx.artifactGutsUsed) {
-          const healAmount = Math.floor(ctx.playerStats.derived.maxHp * (artifactGuts.healPercent / 100));
-          ctx.player.currentHp = Math.max(1, healAmount);
-          ctx.artifactGutsUsed = true;
+      const gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
+      const artifactGuts = checkGutsPassive(ctx.player);
+      const lethalCheck = checkLethalDamage(
+        ctx.player.currentHp,
+        0,
+        ctx.playerStats.derived.gutsChance,
+        gutsContext,
+        artifactGuts,
+        ctx.artifactGutsUsed,
+        ctx.playerStats.derived.maxHp,
+      );
+      if (lethalCheck.survived) {
+        ctx.player.currentHp = lethalCheck.newHp;
+        if (lethalCheck.gutsTriggered) {
           ctx.metrics.gutsTriggered++;
-        } else {
-          break;
         }
+        if (lethalCheck.artifactGutsTriggered) {
+          ctx.artifactGutsUsed = true;
+        }
+      } else {
+        break;
       }
     }
 

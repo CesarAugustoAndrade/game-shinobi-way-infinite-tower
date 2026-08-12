@@ -9,21 +9,23 @@
  *
  * ## FLOOR STRUCTURE
  *
- * The floor uses a 1→2→2 branching pattern:
+ * Binary branching only — always choose 1 of 2, each room has 2 children:
  * ```
- *                    [START] (Tier 0, Floor 1 only)
- *                    /     \
- *               [LEFT]    [RIGHT] (Tier 1)
- *               /   \      /   \
- *           [CHILD_0] [CHILD_1] (Tier 2, 2 children per parent)
- *              |         |
- *           [...dynamic generation continues with 2 children each...]
+ *              [ENTRY HUB] (internal, pre-cleared, not played)
+ *                 /     \
+ *            [LEFT]    [RIGHT]     ← first choice (2)
+ *            /   \      /   \
+ *        [C0]  [C1]  [C0] [C1]   ← foresight (4)
+ *           ...dynamic 2-child chain...
  * ```
+ *
+ * Map UI reads as **2 → 4** (path choices + grandchildren). No playable
+ * single-room "START" tier.
  *
  * Rooms are generated dynamically as the player explores to ensure:
  * - Memory efficiency (only generate what's needed)
  * - Always 2 levels of rooms visible ahead
- * - Exit can appear at any depth after minimum rooms
+ * - Exit can appear from the 3rd visited room onward (intel-scaled)
  *
  * ## ACTIVITY ORDER
  * Each room can have multiple activities that must be completed in order:
@@ -36,7 +38,9 @@
  * 7. training - Spend HP/chakra to gain stats
  * 8. treasure - Collect components and ryo
  * ## EXIT ROOM PROBABILITY
- * The exit room appears dynamically based on exploration progress:
+ * When generating a room's 2 children (after min rooms visited):
+ * one roll decides if the batch contains the exit; if so, exactly one of the
+ * two children is exit (uniform). Intel raises the roll; long runs force exit.
  *
 **/
 
@@ -48,12 +52,10 @@ import {
   RoomActivities,
   RoomTier,
   RoomPosition,
-  TerrainType,
   Player,
   Enemy,
   Item,
   PrimaryStat,
-  ACTIVITY_ORDER,
   ACTIVITY_EXCLUSIONS,
   ActivityCountWeights,
   ActivityWeights,
@@ -63,9 +65,26 @@ import {
   TreasureType,
   TreasureChoice,
   TreasureHunt,
+  VaultRewardOption,
 } from '../types';
-import { generateEnemy } from './EnemySystem';
+import {
+  generateEnemy,
+  computeEnemyStatBudget,
+  applyAdditiveStatBudget,
+  type EnemyArchetype,
+} from './EnemySystem';
+import { getEnemyFullStats } from './StatSystem';
+import {
+  HUNTER_EXIT_CHANCE_BONUS,
+  initialHeatState,
+} from './HeatSystem';
 import { generateLoot, generateRandomArtifact, generateSkillForFloor, generateComponentByQuality, generateMerchantItem } from './LootSystem';
+import {
+  getClanLevelSkillChoices,
+  getScrollVendorPrice,
+  getScrollForgetCostRyo,
+  MAX_CLAN_LEVEL,
+} from '../constants';
 import {
   getLocationTerrainMods,
   getRoomHiddenRoomBonus,
@@ -84,9 +103,15 @@ import { EVENTS } from '../constants';
 import { getAvailableEventsForPlayer, selectWeightedEvent } from './EventSystem';
 import { calculateXP, calculateRyo } from './ScalingSystem';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
+import { generateHunterFromGuardian } from './FloorVisitSystem';
+import { moveToRoom as moveToRoomGraph, isFloorComplete } from './RoomGraphSystem';
 
 // Re-export scaling functions for backward compatibility
 export { dangerToFloor, getWealthMultiplier, applyWealthToRyo } from './ScalingSystem';
+
+// Re-export extracted systems (public API facade)
+export { getRequiredMapPieces, initializeTreasureHunt, addMapPiece, getTreasureHuntReward } from './TreasureHuntSystem';
+export { applyFloorHeatDelta, armHunterOnFloor, generateHunterFromGuardian } from './FloorVisitSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -275,6 +300,8 @@ function createRoom(
   dangerLevel: number = 4,
   /** Location wealth (1-7) for treasure/merchant scaling */
   wealthLevel: number = 4,
+  treasureHunt?: import('../types').TreasureHunt | null,
+  clanRiteUsed?: boolean,
 ): BranchingRoom {
   // Select room type
   const type = forceType ?? selectRandomRoomType(tier);
@@ -315,9 +342,10 @@ function createRoom(
 
   // Generate activities (T-033/056/059/064/068/070) — use config danger/wealth, not floor→danger
   room.activities = generateActivities(
-    room, config, floor, difficulty, arc, player, wealthLevel, null, false,
+    room, config, floor, difficulty, arc, player, wealthLevel,
+    treasureHunt ?? null,
     preferredEventIds, enemyPool, lootTable, ambushChanceBonus, preferredElement, lootTheme,
-    dangerLevel,
+    dangerLevel, clanRiteUsed,
   );
 
   return room;
@@ -463,19 +491,56 @@ function generateEventActivity(
   return { definition: event, completed: false };
 }
 
+const CLAN_RITE_SPAWN_CHANCE = 0.22;
+
 /**
  * Generate scroll discovery activity for a room.
- * Called only when weighted selection picks scrollDiscovery for this room.
+ * Modes: vendor (buy/forget ryo) or clan rite (once/location, free skill pick).
  */
 function generateScrollDiscoveryActivity(
   floor: number,
   lootTheme?: import('../types').RegionLootTheme,
+  player?: Player,
+  clanRiteUsed?: boolean,
 ): RoomActivities['scrollDiscovery'] {
-  // T-113: bias scroll element/scaling toward region lootTheme
-  const skill = generateSkillForFloor(floor, lootTheme);
+  const clan = player?.clan;
+  const clanLevel = player?.clanLevel ?? 0;
+  const canClanRite = !clanRiteUsed && clanLevel < MAX_CLAN_LEVEL && Boolean(clan);
+
+  if (canClanRite && Math.random() < CLAN_RITE_SPAWN_CHANCE && clan) {
+    const owned = new Set(player!.skills.map((s) => s.id));
+    const targetLevel = clanLevel + 1;
+    const choices = getClanLevelSkillChoices(clan, targetLevel, owned, 3);
+    return {
+      mode: 'clan',
+      availableScrolls: [],
+      prices: {},
+      forgetCostRyo: 0,
+      clanLevelAfter: targetLevel,
+      clanSkillChoices: choices,
+      completed: false,
+    };
+  }
+
+  const count = 2 + (Math.random() < 0.45 ? 1 : 0);
+  const scrolls: import('../types').Skill[] = [];
+  const prices: Record<string, number> = {};
+  for (let i = 0; i < count; i++) {
+    const skill = generateSkillForFloor(floor, lootTheme, clan);
+    if (scrolls.some((s) => s.id === skill.id)) continue;
+    scrolls.push(skill);
+  }
+  if (scrolls.length === 0) {
+    scrolls.push(generateSkillForFloor(floor, lootTheme, clan));
+  }
+  for (const s of scrolls) {
+    prices[s.id] = getScrollVendorPrice(s, floor);
+  }
   return {
-    availableScrolls: [skill],
-    cost: { chakra: 15 + floor * 2 },
+    mode: 'vendor',
+    availableScrolls: scrolls,
+    prices,
+    forgetCostRyo: getScrollForgetCostRyo(1),
     completed: false,
   };
 }
@@ -513,7 +578,7 @@ function generateEliteChallengeActivity(
     enemyPool,
     preferredElement,
   );
-  eliteEnemy.name = `${eliteEnemy.name} (Artifact Guardian)`;
+  // Keep elite enemy name clean for UI (Elite Challenge poster title) — no Guardian suffix
 
   // T-108: room-type combat modifiers (elite rooms have no combat activity)
   const roomConfig = config ?? getRoomTypeConfig(room.type);
@@ -546,7 +611,8 @@ function generateRestActivity(): RoomActivities['rest'] {
  * Called only when weighted selection picks training for this room.
  */
 function generateTrainingActivity(
-  floor: number
+  floor: number,
+  dangerLevel: number = 1
 ): RoomActivities['training'] | undefined {
   // Check feature flag first
   if (!FeatureFlags.ENABLE_TRAINING) return undefined;
@@ -557,22 +623,40 @@ function generateTrainingActivity(
     PrimaryStat.SPEED, PrimaryStat.ACCURACY, PrimaryStat.DEXTERITY,
   ];
 
-  const shuffled = [...allStats].sort(() => Math.random() - 0.5);
-  const selectedStats = shuffled.slice(0, 3);
+  const shuffledStats = [...allStats].sort(() => Math.random() - 0.5);
+  const selectedStats = shuffledStats.slice(0, 3);
 
-  const baseHpCost = 10 + floor * 2;
-  const baseChakraCost = 5 + floor;
-  const baseGain = 1 + Math.floor(floor / 10);
+  // One offer per resource so the player picks the toll (HP / CP / ryo).
+  const costTypes: Array<'hp' | 'chakra' | 'ryo'> = ['hp', 'chakra', 'ryo'];
+  const shuffledCosts = [...costTypes].sort(() => Math.random() - 0.5);
+
+  // F1: normal +1; at most one +2 jackpot at 5%×Danger, cost ×2.5
+  const baseGain = 1;
+  const hpCost = 10 + floor * 2;
+  const chakraCost = Math.max(1, Math.round(8 + floor * 1.5));
+  const ryoCost = 15 + floor * 5;
+
+  const costFor = (t: 'hp' | 'chakra' | 'ryo'): number => {
+    if (t === 'hp') return hpCost;
+    if (t === 'chakra') return chakraCost;
+    return ryoCost;
+  };
+
+  const jackpotIndex =
+    Math.random() < 0.05 * dangerLevel ? Math.floor(Math.random() * 3) : -1;
 
   return {
-    options: selectedStats.map(stat => ({
-      stat,
-      intensities: {
-        light: { cost: { hp: baseHpCost, chakra: baseChakraCost }, gain: baseGain },
-        medium: { cost: { hp: baseHpCost * 2, chakra: baseChakraCost * 2 }, gain: baseGain * 2 },
-        intense: { cost: { hp: baseHpCost * 3, chakra: baseChakraCost * 3 }, gain: baseGain * 3 },
-      },
-    })),
+    options: selectedStats.map((stat, i) => {
+      const isJackpot = i === jackpotIndex;
+      const gain = isJackpot ? 2 : baseGain;
+      const cost = Math.round(costFor(shuffledCosts[i]) * (isJackpot ? 2.5 : 1));
+      return {
+        stat,
+        costType: shuffledCosts[i],
+        cost,
+        gain,
+      };
+    }),
     completed: false,
   };
 }
@@ -599,27 +683,55 @@ function getTreasureConfig(wealthLevel: number): {
 
 /**
  * Calculate chakra cost to reveal treasure choices.
- * Formula: 10 + (floor * 2) + (choiceCount * 5)
+ * Formula: 5 + floor + (choiceCount * 2)
  */
 function calculateRevealCost(floor: number, choiceCount: number): number {
-  return 10 + (floor * 2) + (choiceCount * 5);
+  return 5 + floor + (choiceCount * 2);
 }
 
 /**
- * Get required map pieces for treasure hunt based on danger level.
+ * Build one sealed vault face: item | hp | ryo | scroll (weighted).
  */
-export function getRequiredMapPieces(dangerLevel: number): number {
-  const pieces = LaunchProperties.TREASURE_MAP_PIECES;
-  if (dangerLevel <= 2) return pieces.lowDanger;
-  if (dangerLevel <= 4) return pieces.midDanger;
-  return pieces.highDanger;
+function generateVaultRewardOption(
+  floor: number,
+  difficulty: number,
+  quality: TreasureQuality,
+  artifactChance: number,
+  ryoMultiplier: number,
+  lootTable?: string,
+  lootTheme?: import('../types').RegionLootTheme,
+  clan?: Player['clan'],
+): VaultRewardOption {
+  const roll = Math.random();
+  // 48% item, 20% ryo, 17% hp, 15% scroll
+  if (roll < 0.48) {
+    const isArtifact = artifactChance > 0 && Math.random() < artifactChance;
+    const item = isArtifact
+      ? generateRandomArtifact(floor, difficulty)
+      : generateComponentByQuality(floor, difficulty + 5, quality, lootTable, lootTheme);
+    return { kind: 'item', revealed: false, item, isArtifact };
+  }
+  if (roll < 0.68) {
+    const base = 40 + floor * 12 + Math.floor(Math.random() * 50);
+    return {
+      kind: 'ryo',
+      revealed: false,
+      ryoAmount: Math.floor(base * ryoMultiplier),
+    };
+  }
+  if (roll < 0.85) {
+    // Flat HP: scales mildly with floor (claim clamps to maxHp in handler)
+    const hpAmount = 25 + floor * 8 + Math.floor(Math.random() * 20);
+    return { kind: 'hp', revealed: false, hpAmount };
+  }
+  const skill = generateSkillForFloor(floor, lootTheme, clan);
+  return { kind: 'scroll', revealed: false, skill };
 }
 
 /**
  * Generate treasure activity for a room.
- * Randomly assigns either LOCKED_CHEST or TREASURE_HUNTER type.
- * If huntDeclined is true, always generates LOCKED_CHEST.
- * Called only when weighted selection picks treasure for this room.
+ * Vault overhaul: entry chooses Open Vault (chakra) or free Map Piece (if available).
+ * Open → 3 mixed sealed faces; pay to reveal; pick one.
  */
 function generateTreasureActivity(
   floor: number,
@@ -627,195 +739,77 @@ function generateTreasureActivity(
   wealthLevel: number = 4,
   player?: Player,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean,
   lootTable?: string,
   lootTheme?: import('../types').RegionLootTheme,
 ): RoomActivities['treasure'] {
   const quality = maybeUpgradeQuality(player?.treasureQuality ?? DEFAULT_TREASURE_QUALITY);
   const { choiceCount, artifactChance, ryoMultiplier } = getTreasureConfig(wealthLevel);
+  const VAULT_FACES = 3;
 
-  // Generate item choices
-  const choices: TreasureChoice[] = [];
-  for (let i = 0; i < choiceCount; i++) {
-    // Check for artifact (only in high-wealth, 5-10% chance)
-    if (artifactChance > 0 && Math.random() < artifactChance) {
-      choices.push({
-        item: generateRandomArtifact(floor, difficulty),
-        isArtifact: true,
-      });
-    } else {
-      choices.push({
-        // T-071: stack lootTable + region lootTheme like merchant
-        item: generateComponentByQuality(
-          floor, difficulty + 5, quality, lootTable, lootTheme,
-        ),
-        isArtifact: false,
-      });
-    }
+  const vaultOptions: VaultRewardOption[] = [];
+  for (let i = 0; i < VAULT_FACES; i++) {
+    vaultOptions.push(
+      generateVaultRewardOption(
+        floor, difficulty, quality, artifactChance, ryoMultiplier,
+        lootTable, lootTheme, player?.clan,
+      ),
+    );
   }
 
-  const baseRyo = 50 + floor * 10 + Math.floor(Math.random() * 67);
-  const revealCost = calculateRevealCost(floor, choiceCount);
-
-  // If hunt was declined, all treasures become locked chests
-  if (huntDeclined) {
-    return {
-      type: TreasureType.LOCKED_CHEST,
-      choices,
-      ryoBonus: Math.floor(baseRyo * ryoMultiplier),
-      revealCost,
-      isRevealed: false,
-      selectedIndex: null,
-      collected: false,
-      isHuntRoom: false,
-      mapPieceAvailable: false,
+  // Legacy choices: item faces only (bag-full / old callers)
+  const choices: TreasureChoice[] = vaultOptions
+    .filter((o) => o.kind === 'item' && o.item)
+    .map((o) => ({ item: o.item!, isArtifact: Boolean(o.isArtifact) }));
+  // Ensure at least one legacy choice for empty-item vaults
+  if (choices.length === 0) {
+    const fallback = generateComponentByQuality(
+      floor, difficulty + 5, quality, lootTable, lootTheme,
+    );
+    choices.push({ item: fallback, isArtifact: false });
+    vaultOptions[0] = {
+      kind: 'item',
+      revealed: false,
+      item: fallback,
+      isArtifact: false,
     };
   }
 
-  // Determine treasure type: first treasure in location starts hunt, rest are locked chests
-  // Unless hunt is already active, then this is a hunt room
+  const baseRyo = 50 + floor * 10 + Math.floor(Math.random() * 67);
+  const openCost = calculateRevealCost(floor, choiceCount);
+  const revealCost = Math.max(3, Math.floor(openCost / 3));
+
   const isFirstTreasure = !treasureHunt;
   const isHuntRoom = treasureHunt?.isActive ?? false;
 
-  // 50% chance for first treasure to be a hunt initiator, otherwise locked chest
-  const type = isFirstTreasure && Math.random() < 0.5
-    ? TreasureType.TREASURE_HUNTER
-    : (isHuntRoom ? TreasureType.TREASURE_HUNTER : TreasureType.LOCKED_CHEST);
+  // Map piece path: active hunt rooms, or first treasure 50% (starts hunt on take)
+  let type = TreasureType.LOCKED_CHEST;
+  let mapPieceAvailable = false;
+  if (isHuntRoom) {
+    type = TreasureType.TREASURE_HUNTER;
+    mapPieceAvailable = true;
+  } else if (isFirstTreasure && Math.random() < 0.5) {
+    type = TreasureType.TREASURE_HUNTER;
+    mapPieceAvailable = true;
+  }
 
   return {
     type,
     choices,
-    ryoBonus: Math.floor(baseRyo * ryoMultiplier),
+    vaultOptions,
+    ryoBonus: Math.floor(baseRyo * ryoMultiplier * 0.35),
+    openCost,
     revealCost,
     isRevealed: false,
+    phase: 'entry',
     selectedIndex: null,
     collected: false,
-    isHuntRoom: type === TreasureType.TREASURE_HUNTER,
-    mapPieceAvailable: type === TreasureType.TREASURE_HUNTER,
+    mapPieceAvailable,
+    // F3: optional treasure claim raises heat (valuable +10)
+    heatDelta: 10,
   };
 }
 
-/**
- * Initialize a treasure hunt for a location.
- * Called when first treasure room is encountered and player chooses to start hunt.
- */
-export function initializeTreasureHunt(
-  floor: BranchingFloor
-): BranchingFloor {
-  const treasureHunt: TreasureHunt = {
-    isActive: true,
-    requiredPieces: getRequiredMapPieces(floor.dangerLevel),
-    collectedPieces: 0,
-    mapId: `map-${floor.id}-${Date.now()}`,
-  };
 
-  return {
-    ...floor,
-    treasureHunt,
-    treasureProbabilityBoost: 0.25, // +25% treasure room chance during hunt
-  };
-}
-
-/**
- * Add a map piece to the treasure hunt.
- * Returns updated floor and whether the map is now complete.
- */
-export function addMapPiece(
-  floor: BranchingFloor
-): { floor: BranchingFloor; isComplete: boolean } {
-  if (!floor.treasureHunt) {
-    return { floor, isComplete: false };
-  }
-
-  const newPieces = floor.treasureHunt.collectedPieces + 1;
-  const isComplete = newPieces >= floor.treasureHunt.requiredPieces;
-
-  return {
-    floor: {
-      ...floor,
-      treasureHunt: {
-        ...floor.treasureHunt,
-        collectedPieces: newPieces,
-        isActive: !isComplete, // Deactivate when complete
-      },
-    },
-    isComplete,
-  };
-}
-
-/**
- * Calculate trap damage for failed dice roll.
- * Formula: 5% + (dangerLevel * 3)% of max HP
- */
-export function calculateTrapDamage(dangerLevel: number, maxHp: number): number {
-  const { base, perDanger } = LaunchProperties.TREASURE_TRAP_DAMAGE;
-  const damagePercent = base + (dangerLevel * perDanger);
-  return Math.floor(maxHp * damagePercent);
-}
-
-/**
- * Get treasure hunt completion reward based on pieces collected and wealth level.
- */
-export function getTreasureHuntReward(
-  pieces: number,
-  wealthLevel: number,
-  floor: number,
-  difficulty: number,
-  /** T-072: location/region loot bias for component rewards */
-  lootTable?: string,
-  lootTheme?: import('../types').RegionLootTheme,
-): { items: Item[]; skills: import('../types').Skill[]; ryo: number } {
-  const items: Item[] = [];
-  const skills: import('../types').Skill[] = [];
-  let ryo = 0;
-  const genComp = (q: TreasureQuality) =>
-    generateComponentByQuality(floor, difficulty, q, lootTable, lootTheme);
-
-  // Reward matrix based on pieces and wealth
-  if (pieces === 2) {
-    if (wealthLevel <= 2) {
-      items.push(genComp(TreasureQuality.COMMON));
-      ryo = 100;
-    } else if (wealthLevel <= 4) {
-      items.push(genComp(TreasureQuality.RARE));
-      ryo = 150;
-    } else if (wealthLevel <= 6) {
-      // T-114: themed skill rewards (same as scroll discovery)
-      skills.push(generateSkillForFloor(floor, lootTheme));
-    } else {
-      items.push(generateRandomArtifact(floor, difficulty));
-    }
-  } else if (pieces === 3) {
-    if (wealthLevel <= 2) {
-      items.push(genComp(TreasureQuality.RARE));
-      ryo = 150;
-    } else if (wealthLevel <= 4) {
-      skills.push(generateSkillForFloor(floor, lootTheme));
-      ryo = 200;
-    } else if (wealthLevel <= 6) {
-      items.push(generateRandomArtifact(floor, difficulty));
-    } else {
-      items.push(generateRandomArtifact(floor, difficulty));
-      skills.push(generateSkillForFloor(floor, lootTheme));
-    }
-  } else if (pieces >= 4) {
-    if (wealthLevel <= 2) {
-      skills.push(generateSkillForFloor(floor, lootTheme));
-      ryo = 200;
-    } else if (wealthLevel <= 4) {
-      items.push(generateRandomArtifact(floor, difficulty));
-    } else if (wealthLevel <= 6) {
-      items.push(generateRandomArtifact(floor, difficulty));
-      ryo = 300;
-    } else {
-      items.push(generateRandomArtifact(floor, difficulty));
-      skills.push(generateSkillForFloor(floor, lootTheme));
-      ryo = 500;
-    }
-  }
-
-  return { items, skills, ryo };
-}
 
 /**
  * Generate info gathering activity for a room.
@@ -855,7 +849,6 @@ function generateActivityData(
   player?: Player,
   wealthLevel: number = 4,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean,
   preferredEventIds?: string[],
   enemyPool?: string[],
   lootTable?: string,
@@ -863,6 +856,7 @@ function generateActivityData(
   preferredElement?: import('../types').ElementType,
   lootTheme?: import('../types').RegionLootTheme,
   dangerLevel: number = 4,
+  clanRiteUsed?: boolean,
 ): RoomActivities[keyof RoomActivities] | undefined {
   switch (activityKey) {
     case 'combat':
@@ -879,14 +873,14 @@ function generateActivityData(
     case 'event':
       return generateEventActivity(arc, player, preferredEventIds);
     case 'scrollDiscovery':
-      return generateScrollDiscoveryActivity(floor, lootTheme);
+      return generateScrollDiscoveryActivity(floor, lootTheme, player, clanRiteUsed);
     case 'rest':
       return generateRestActivity();
     case 'training':
-      return generateTrainingActivity(floor);
+      return generateTrainingActivity(floor, dangerLevel);
     case 'treasure':
       return generateTreasureActivity(
-        floor, difficulty, wealthLevel, player, treasureHunt, huntDeclined, lootTable,
+        floor, difficulty, wealthLevel, player, treasureHunt, lootTable,
         lootTheme,
       );
     case 'infoGathering':
@@ -916,7 +910,6 @@ function generateActivities(
   player?: Player,
   wealthLevel: number = 4,
   treasureHunt?: TreasureHunt | null,
-  huntDeclined?: boolean,
   preferredEventIds?: string[],
   enemyPool?: string[],
   lootTable?: string,
@@ -924,6 +917,7 @@ function generateActivities(
   preferredElement?: import('../types').ElementType,
   lootTheme?: import('../types').RegionLootTheme,
   dangerLevel: number = 4,
+  clanRiteUsed?: boolean,
 ): RoomActivities {
   const roomType = room.type;
   const activityConfig = ROOM_TYPE_ACTIVITY_CONFIGS[roomType];
@@ -986,7 +980,6 @@ function generateActivities(
       player,
       wealthLevel,
       treasureHunt,
-      huntDeclined,
       preferredEventIds,
       enemyPool,
       lootTable,
@@ -994,6 +987,7 @@ function generateActivities(
       preferredElement,
       lootTheme,
       dangerLevel,
+      clanRiteUsed,
     );
     if (activityData) {
       (activities as Record<keyof RoomActivities, unknown>)[activityKey] = activityData;
@@ -1064,7 +1058,6 @@ export function ensureLocationFlagActivities(
       gen.player,
       floor.wealthLevel ?? 4,
       floor.treasureHunt,
-      floor.huntDeclined,
       gen.preferredEventIds,
       floor.enemyPool,
       gen.lootTable ?? floor.lootTable,
@@ -1072,6 +1065,7 @@ export function ensureLocationFlagActivities(
       floor.preferredElement,
       gen.lootTheme ?? floor.lootTheme,
       floor.dangerLevel ?? 4,
+      floor.clanRiteUsed,
     );
     if (!data) continue;
 
@@ -1096,11 +1090,11 @@ export function ensureLocationFlagActivities(
  * - Spirit: ×1.2 (20% more elemental defense)
  *
  * ## HP Recalculation:
- * After stat boost, HP is recalculated using the standard formula:
- * HP = (willpower × 12) + 50
+ * After the stat boost, HP is recalculated from the live derived-stat formula
+ * (getEnemyFullStats -> derived.maxHp), so the Guardian always spawns exactly at its own maxHp.
  *
- * This ensures the Guardian has significantly more health than regular
- * elite enemies, making them a meaningful floor-ending challenge.
+ * The ×1.3 willpower boost is what makes the Guardian a meaningful floor-ending
+ * challenge — the HP follows from it rather than from a separate hardcoded curve.
  *
  * @param floor - Effective floor (loot/label scaling only; NOT used for danger)
  * @param difficulty - Difficulty modifier (extra +15 applied)
@@ -1118,25 +1112,37 @@ function generateGuardian(
   preferredElement?: import('../types').ElementType,
   dangerLevel: number = 4,
 ): Enemy {
-  // Use config dangerLevel directly — floorToDangerLevel(effectiveFloor) double-counts.
-  // T-057/T-073: pool art + region preferred element bias
-  const enemy = generateEnemy(
-    dangerLevel, locationsCleared, 'ELITE', difficulty + 15, arc, undefined, enemyPool,
+  void floor;
+  // F1: Elite kit/theme, then replace primaries with Guardian rank additive budget (4).
+  const baseEnemy = generateEnemy(
+    dangerLevel,
+    locationsCleared,
+    'ELITE',
+    difficulty,
+    arc,
+    undefined,
+    enemyPool,
     preferredElement,
   );
-
-  // Apply Guardian stat multipliers
-  enemy.name = `Guardian ${enemy.name}`;
-  enemy.tier = 'Guardian';
-  enemy.primaryStats.willpower = Math.floor(enemy.primaryStats.willpower * 1.3);
-  enemy.primaryStats.strength = Math.floor(enemy.primaryStats.strength * 1.2);
-  enemy.primaryStats.spirit = Math.floor(enemy.primaryStats.spirit * 1.2);
-
-  // Recalculate HP based on boosted willpower
-  const hpBonus = enemy.primaryStats.willpower * 12 + 50;
-  enemy.currentHp = hpBonus;
-
-  return enemy;
+  const arch = (baseEnemy.archetype as EnemyArchetype) || 'TANK';
+  const bases: Record<EnemyArchetype, import('../types').PrimaryAttributes> = {
+    TANK: { willpower: 3, chakra: 1, strength: 4, spirit: 2, intelligence: 1, calmness: 2, speed: 1, accuracy: 1, dexterity: 1 },
+    ASSASSIN: { willpower: 1, chakra: 1, strength: 3, spirit: 1, intelligence: 1, calmness: 1, speed: 3, accuracy: 2, dexterity: 3 },
+    CASTER: { willpower: 1, chakra: 3, strength: 1, spirit: 4, intelligence: 3, calmness: 1, speed: 1, accuracy: 1, dexterity: 1 },
+    GENJUTSU: { willpower: 1, chakra: 2, strength: 1, spirit: 3, intelligence: 4, calmness: 3, speed: 1, accuracy: 1, dexterity: 1 },
+    BALANCED: { willpower: 2, chakra: 2, strength: 3, spirit: 3, intelligence: 2, calmness: 2, speed: 2, accuracy: 2, dexterity: 2 },
+  };
+  const budget = computeEnemyStatBudget(dangerLevel, locationsCleared, difficulty, 'GUARDIAN');
+  const primaryStats = applyAdditiveStatBudget(bases[arch], budget, arch);
+  const derived = getEnemyFullStats({ ...baseEnemy, primaryStats }).derived;
+  return {
+    ...baseEnemy,
+    name: `Guardian ${baseEnemy.name.replace(/^Guardian\s+/, '')}`,
+    tier: 'Guardian',
+    primaryStats,
+    currentHp: derived.maxHp,
+    currentChakra: derived.maxChakra,
+  };
 }
 
 // ============================================================================
@@ -1157,35 +1163,44 @@ function generateGuardian(
 
 /**
  * Calculate minimum rooms player must visit before exit can appear.
- * Uses danger level (1-7) for reasonable minimums in location-based exploration.
+ * Floor is always ≥3 (first exit chance from the 3rd room). Danger still
+ * stretches safer/higher locations: D1→3, D4→6, D7→9.
  *
  * @param dangerLevel - Location danger level (1-7)
  * @returns Minimum room count before exit is possible
  */
 function getMinRoomsBeforeExit(dangerLevel: number): number {
-  return 2 + dangerLevel; // Results: D1→3, D4→6, D7→9
+  return Math.max(3, 2 + dangerLevel);
 }
 
+/** Rooms past min before the next child batch is forced to include the exit. */
+const EXIT_FORCE_AFTER_EXTRA_ROOMS = 5;
+
 /**
- * Calculate probability that a new room becomes the exit.
- * Uses a ramping probability system to prevent infinite exploration.
+ * Calculate probability that a child-generation batch includes the exit.
+ * One roll per batch; if it hits, exactly one of the 2 children becomes exit.
  *
  * ## Probability Curve:
- * - Below minimum: 0% (no exit possible)
- * - At minimum: 30% base chance
- * - Each room beyond: +5% cumulative
- * - Maximum: 80% (always some uncertainty)
- * - T-081: optional hiddenRoomBonus from parent room terrain (± fraction)
+ * - Below minimum roomsVisited: 0%
+ * - At minimum: 25% base
+ * - Each room beyond min: +5%
+ * - Intel 0–100: +0–40%
+ * - T-081: optional hiddenRoomBonus from parent room terrain
+ * - Cap 90% (force path handles soft-lock)
  *
- * @param roomsVisited - Total rooms player has entered
+ * @param roomsVisited - Total rooms player has entered (hub does not count)
  * @param dangerLevel - Location danger level (affects minimum)
  * @param hiddenRoomBonus - Absolute bonus from terrain (e.g. 0.2 from +20)
- * @returns Probability 0.0-0.8 that next room is the exit
+ * @param intel - Current intel 0–100 (raises exit find chance)
+ * @returns Probability 0.0–0.9 that this batch contains the exit
  */
 export function calculateExitProbability(
   roomsVisited: number,
   dangerLevel: number,
   hiddenRoomBonus: number = 0,
+  intel: number = 0,
+  /** F3: hunterArmed adds +40pp after min rooms (cap 90%). */
+  hunterArmed: boolean = false,
 ): number {
   const minRooms = getMinRoomsBeforeExit(dangerLevel);
 
@@ -1193,40 +1208,65 @@ export function calculateExitProbability(
     return 0;
   }
 
-  // Base 30% chance, increases with rooms visited beyond minimum
   const roomsBeyondMin = roomsVisited - minRooms;
-  const baseChance = 0.3;
-  const incrementPerRoom = 0.05; // +5% per room beyond minimum
+  const baseChance = 0.25;
+  const incrementPerRoom = 0.05;
+  const clampedIntel = Math.max(0, Math.min(100, intel));
+  const intelBonus = (clampedIntel / 100) * 0.4;
+  const hunterBonus = hunterArmed ? HUNTER_EXIT_CHANCE_BONUS : 0;
 
-  const raw = baseChance + (roomsBeyondMin * incrementPerRoom) + hiddenRoomBonus;
-  return Math.max(0, Math.min(0.8, raw));
+  const raw =
+    baseChance +
+    roomsBeyondMin * incrementPerRoom +
+    hiddenRoomBonus +
+    intelBonus +
+    hunterBonus;
+  return Math.max(0, Math.min(0.9, raw));
 }
 
 /**
- * Determine if a new room should be the exit.
- * @param parentRoom - Room whose children are being generated (terrain bonus source)
+ * Pick which child index (if any) becomes the exit for this generation batch.
+ * - Below min rooms visited: 0% chance (e.g. no boss before 3rd room for D1)
+ * - Allows boss rooms to spawn across branches according to intel probabilities
+ * - Force after min + EXIT_FORCE_AFTER_EXTRA_ROOMS visits if no exit exists yet
+ *
+ * @returns child index 0..childCount-1, or null if no exit this batch
  */
-function shouldBeExitRoom(
+function pickExitChildIndex(
   branchingFloor: BranchingFloor,
-  parentRoom?: BranchingRoom,
-): boolean {
-  // If exit already exists, no more exit rooms
-  if (branchingFloor.exitRoomId) {
-    return false;
+  parentRoom: BranchingRoom | undefined,
+  childCount: number,
+): number | null {
+  if (childCount <= 0 || branchingFloor.exitRoomId != null || isFloorComplete(branchingFloor)) {
+    return null;
   }
 
-  // T-081: parent room terrain hiddenRoomBonus shifts exit discovery
-  const bonus = parentRoom
-    ? getRoomHiddenRoomBonus(TERRAIN_DEFINITIONS[parentRoom.terrain])
-    : 0;
+  const minRooms = getMinRoomsBeforeExit(branchingFloor.dangerLevel);
+  if (branchingFloor.roomsVisited < minRooms) {
+    return null;
+  }
 
-  const probability = calculateExitProbability(
-    branchingFloor.roomsVisited,
-    branchingFloor.dangerLevel,
-    bonus,
-  );
+  const force =
+    !branchingFloor.exitRoomId &&
+    branchingFloor.roomsVisited >= minRooms + EXIT_FORCE_AFTER_EXTRA_ROOMS;
 
-  return Math.random() < probability;
+  if (!force) {
+    const bonus = parentRoom
+      ? getRoomHiddenRoomBonus(TERRAIN_DEFINITIONS[parentRoom.terrain])
+      : 0;
+    const probability = calculateExitProbability(
+      branchingFloor.roomsVisited,
+      branchingFloor.dangerLevel,
+      bonus,
+      branchingFloor.currentIntel,
+      branchingFloor.hunterArmed ?? false,
+    );
+    if (Math.random() >= probability) {
+      return null;
+    }
+  }
+
+  return Math.floor(Math.random() * childCount);
 }
 
 // ============================================================================
@@ -1249,53 +1289,66 @@ function configureAsExitRoom(
   lootTheme?: import('../types').RegionLootTheme,
   preferredElement?: import('../types').ElementType,
   dangerLevel: number = 4,
+  /** F3: when hunter already armed, spawn Hunter instead of Guardian */
+  hunterArmed: boolean = false,
 ): BranchingRoom {
   const quality = maybeUpgradeQuality(player?.treasureQuality ?? DEFAULT_TREASURE_QUALITY);
   const { choiceCount, artifactChance, ryoMultiplier } = getTreasureConfig(wealthLevel);
-
-  // Generate enhanced choices for exit room
-  const choices: TreasureChoice[] = [];
-  for (let i = 0; i < choiceCount; i++) {
-    if (artifactChance > 0 && Math.random() < artifactChance * 1.5) { // 1.5x artifact chance for boss
-      choices.push({
-        item: generateRandomArtifact(floor, difficulty + 15),
-        isArtifact: true,
-      });
-    } else {
-      choices.push({
-        item: generateComponentByQuality(
-          floor, difficulty + 15, quality, lootTable, lootTheme,
-        ),
-        isArtifact: false,
-      });
-    }
+  const VAULT_FACES = 3;
+  const vaultOptions: VaultRewardOption[] = [];
+  for (let i = 0; i < VAULT_FACES; i++) {
+    vaultOptions.push(
+      generateVaultRewardOption(
+        floor, difficulty + 15, quality, artifactChance * 1.5, ryoMultiplier,
+        lootTable, lootTheme, player?.clan,
+      ),
+    );
   }
+  const choices: TreasureChoice[] = vaultOptions
+    .filter((o) => o.kind === 'item' && o.item)
+    .map((o) => ({ item: o.item!, isArtifact: Boolean(o.isArtifact) }));
+  if (choices.length === 0) {
+    const fallback = generateComponentByQuality(
+      floor, difficulty + 15, quality, lootTable, lootTheme,
+    );
+    choices.push({ item: fallback, isArtifact: false });
+    vaultOptions[0] = { kind: 'item', revealed: false, item: fallback, isArtifact: false };
+  }
+  const baseRyo = 80 + floor * 15;
+  const openCost = Math.max(0, calculateRevealCost(floor, choiceCount) - 5);
+
+  const guardian = generateGuardian(
+    floor, difficulty, player?.locationsCleared ?? 0, arc, enemyPool,
+    preferredElement ?? lootTheme?.primaryElement,
+    dangerLevel,
+  );
+  const exitEnemy = hunterArmed ? generateHunterFromGuardian(guardian) : guardian;
 
   return {
     ...room,
     isExit: true,
-    name: getRandomRoomName(BranchingRoomType.BOSS_GATE, arc),
+    name: hunterArmed
+      ? 'Hunter Gate'
+      : getRandomRoomName(BranchingRoomType.BOSS_GATE, arc),
     description: getRandomRoomDescription(BranchingRoomType.BOSS_GATE),
     icon: ROOM_TYPE_CONFIGS[BranchingRoomType.BOSS_GATE].icon,
     activities: {
       combat: {
-        enemy: generateGuardian(
-          floor, difficulty, player?.locationsCleared ?? 0, arc, enemyPool,
-          preferredElement ?? lootTheme?.primaryElement,
-          dangerLevel,
-        ),
+        enemy: exitEnemy,
         modifiers: [CombatModifierType.NONE],
         completed: false,
       },
       treasure: {
         type: TreasureType.LOCKED_CHEST,
         choices,
-        ryoBonus: Math.floor((67 + floor * 10) * ryoMultiplier),
-        revealCost: 0, // Free reveal for boss treasure
-        isRevealed: true, // Always revealed for boss
+        vaultOptions: vaultOptions.map((o) => ({ ...o, revealed: true })),
+        ryoBonus: Math.floor(baseRyo * ryoMultiplier * 0.35),
+        openCost: 0, // Free open for boss treasure
+        revealCost: 0,
+        isRevealed: true,
+        phase: 'vault' as const, // Skip entry — boss vault already open
         selectedIndex: null,
         collected: false,
-        isHuntRoom: false,
         mapPieceAvailable: false,
       },
     },
@@ -1337,13 +1390,13 @@ export function generateChildrenForRoom(
   const childDepth = room.depth + 1;
   let updatedFloor = branchingFloor;
 
-  // Generate 2-4 children for this room (dynamic branching)
+  // Always 2 children; at most one exit in the batch (uniform among the two)
   const childCount = getChildCount();
   const positions = getChildPositions(childCount);
+  const exitIndex = pickExitChildIndex(updatedFloor, room, childCount);
 
   for (let i = 0; i < childCount; i++) {
-    // T-081: pass parent room so its terrain.hiddenRoomBonus affects exit odds
-    const isExit = shouldBeExitRoom(updatedFloor, room);
+    const isExit = exitIndex === i;
 
     const childAmbush = getLocationTerrainMods(branchingFloor.terrainEffects).ambushChance;
     const childRoom = createRoom(
@@ -1365,6 +1418,8 @@ export function generateChildrenForRoom(
       branchingFloor.lootTheme,
       dangerLevel,
       wealthLevel,
+      branchingFloor.treasureHunt,
+      branchingFloor.clanRiteUsed,
     );
 
     const finalRoom = isExit
@@ -1373,10 +1428,11 @@ export function generateChildrenForRoom(
           branchingFloor.lootTable, branchingFloor.lootTheme,
           branchingFloor.preferredElement,
           dangerLevel,
+          branchingFloor.hunterArmed ?? false,
         )
       : childRoom;
 
-    if (isExit) {
+    if (isExit && !updatedFloor.exitRoomId) {
       updatedFloor = { ...updatedFloor, exitRoomId: finalRoom.id };
     }
 
@@ -1479,69 +1535,94 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   const ambushChanceBonus = getLocationTerrainMods(terrainEffects).ambushChance;
 
   const rooms: BranchingRoom[] = [];
-  const isFirstFloor = floor === 1;
 
-  // Tier 0: Start room (Gateway) - ONLY on floor 1
-  let startRoom: BranchingRoom | null = null;
-  if (isFirstFloor) {
-    startRoom = createRoom(0, 'CENTER', null, floor, difficulty, arc, BranchingRoomType.START, 0, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
-    startRoom.hasGeneratedChildren = true;
-    rooms.push(startRoom);
-  }
+  // Internal entry hub (START type): pre-cleared, not played, never counted as visited.
+  // Map UI hides it so the first view is 2 path choices + 4 foresight rooms.
+  const entryHub = createRoom(
+    0,
+    'CENTER',
+    null,
+    floor,
+    difficulty,
+    arc,
+    BranchingRoomType.START,
+    0,
+    player,
+    preferredEventIds,
+    enemyPool,
+    lootTable,
+    ambushChanceBonus,
+    terrainEffects,
+    preferredElement,
+    lootTheme,
+    dangerLevel,
+    wealthLevel,
+  );
+  entryHub.hasGeneratedChildren = true;
+  entryHub.isVisible = false;
+  rooms.push(entryHub);
 
-  // Tier 1: Two rooms branching from start
-  const tier1Depth = isFirstFloor ? 1 : 0;
-  const tier1Left = createRoom(1, 'LEFT', startRoom?.id ?? null, floor, difficulty, arc, undefined, tier1Depth, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
-  const tier1Right = createRoom(1, 'RIGHT', startRoom?.id ?? null, floor, difficulty, arc, undefined, tier1Depth, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
+  // First choice: always 2 rooms off the hub
+  const tier1Left = createRoom(
+    1, 'LEFT', entryHub.id, floor, difficulty, arc, undefined, 1,
+    player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
+    terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+  );
+  const tier1Right = createRoom(
+    1, 'RIGHT', entryHub.id, floor, difficulty, arc, undefined, 1,
+    player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
+    terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+  );
 
   tier1Left.isAccessible = true;
   tier1Right.isAccessible = true;
   tier1Left.hasGeneratedChildren = true;
   tier1Right.hasGeneratedChildren = true;
+  tier1Left.isCurrent = false;
+  tier1Right.isCurrent = false;
 
-  if (!isFirstFloor) {
-    tier1Left.isCurrent = false;
-    tier1Right.isCurrent = false;
-  }
-
+  entryHub.childIds = [tier1Left.id, tier1Right.id];
   rooms.push(tier1Left, tier1Right);
 
-  if (startRoom) {
-    startRoom.childIds = [tier1Left.id, tier1Right.id];
-  }
-
-  // Tier 2: Dynamic 2-4 rooms per tier 1 parent
-  const tier2Depth = isFirstFloor ? 2 : 1;
+  // Foresight tier: 2 children per entry room → 4 visible ahead
   const tier2Rooms: BranchingRoom[] = [];
-
-  // Generate children for left branch (2-4 children)
   const leftChildCount = getChildCount();
   const leftPositions = getChildPositions(leftChildCount);
   const leftChildren: BranchingRoom[] = [];
   for (let i = 0; i < leftChildCount; i++) {
-    const childRoom = createRoom(2, leftPositions[i], tier1Left.id, floor, difficulty, arc, undefined, tier2Depth, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
-    leftChildren.push(childRoom);
+    leftChildren.push(
+      createRoom(
+        2, leftPositions[i], tier1Left.id, floor, difficulty, arc, undefined, 2,
+        player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
+        terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+      ),
+    );
   }
   tier2Rooms.push(...leftChildren);
   tier1Left.childIds = leftChildren.map(r => r.id);
 
-  // Generate children for right branch (2-4 children)
   const rightChildCount = getChildCount();
   const rightPositions = getChildPositions(rightChildCount);
   const rightChildren: BranchingRoom[] = [];
   for (let i = 0; i < rightChildCount; i++) {
-    const childRoom = createRoom(2, rightPositions[i], tier1Right.id, floor, difficulty, arc, undefined, tier2Depth, player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus, terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel);
-    rightChildren.push(childRoom);
+    rightChildren.push(
+      createRoom(
+        2, rightPositions[i], tier1Right.id, floor, difficulty, arc, undefined, 2,
+        player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
+        terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+      ),
+    );
   }
   tier2Rooms.push(...rightChildren);
   tier1Right.childIds = rightChildren.map(r => r.id);
 
   rooms.push(...tier2Rooms);
 
-  const currentRoomId = isFirstFloor ? startRoom!.id : tier1Left.id;
-  const clearedRooms = isFirstFloor ? 1 : 0;
+  // Stay on hub so map shows the 2 entry rooms as immediate choices (not parked on left).
+  const currentRoomId = entryHub.id;
 
-  let generatedFloor: BranchingFloor = {
+  const heatInit = initialHeatState();
+  const generatedFloor: BranchingFloor = {
     id: `floor-${floor}-${Date.now()}`,
     floor,
     arc,
@@ -1550,37 +1631,33 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     currentRoomId,
     exitRoomId: null,
     totalRooms: rooms.length,
-    clearedRooms,
-    roomsVisited: isFirstFloor ? 1 : 0,
+    clearedRooms: 0, // hub is structural, not a cleared playable room
+    roomsVisited: 0,
     difficulty,
     currentIntel: initialIntel,
     intelGainedThisLocation: 0,
     wealthLevel,
     roomGenerationMode,
     targetRoomCount,
-    // minRooms uses dangerLevel (1-7), not effectiveFloor (would inflate min rooms)
     minRoomsBeforeExit: getMinRoomsBeforeExit(dangerLevel),
     dangerLevel,
     treasureHunt: null,
-    treasureProbabilityBoost: 0,
-    huntDeclined: false,
+    clanRiteUsed: false,
     preferredEventIds,
     enemyPool,
     lootTable,
     terrainEffects,
     preferredElement,
     lootTheme,
+    heat: heatInit.heat,
+    hunterArmed: heatInit.hunterArmed,
   };
-
-  if (!isFirstFloor) {
-    generatedFloor = ensureGrandchildrenExist(generatedFloor, currentRoomId, player);
-  }
 
   return generatedFloor;
 }
 
 /**
- * Generate a complete branching floor with initial 1→2→(2-4) dynamic structure.
+ * Generate a complete branching floor with entry hub → 2 → 4 foresight structure.
  * Convenience wrapper around generateBranchingFloorFromConfig.
  */
 export function generateBranchingFloor(
@@ -1606,268 +1683,39 @@ export function generateBranchingFloor(
 }
 
 // ============================================================================
-// ROOM NAVIGATION
+// ROOM GRAPH (navigation / activity / queries)
 // ============================================================================
+// Pure graph ops live in RoomGraphSystem (no import of this file).
+// moveToRoom is wrapped here so foresight expansion stays with generation.
 
 /**
- * Check if a room is accessible from the current room
- */
-export function isRoomAccessible(
-  branchingFloor: BranchingFloor,
-  targetRoomId: string
-): boolean {
-  const currentRoom = branchingFloor.rooms.find(r => r.id === branchingFloor.currentRoomId);
-  if (!currentRoom) return false;
-
-  // Can always access current room
-  if (targetRoomId === branchingFloor.currentRoomId) return true;
-
-  // Can only move to child rooms if current room is cleared
-  if (!currentRoom.isCleared) return false;
-
-  return currentRoom.childIds.includes(targetRoomId);
-}
-
-/**
- * Move to a new room
- * Also triggers dynamic generation of grandchildren for the new room
+ * Move to a room and ensure two levels of foresight rooms exist ahead.
+ * Public API — prefer this over RoomGraphSystem.moveToRoom.
  */
 export function moveToRoom(
   branchingFloor: BranchingFloor,
   targetRoomId: string,
-  player?: Player
+  player?: Player,
 ): BranchingFloor {
-  const targetRoom = branchingFloor.rooms.find(r => r.id === targetRoomId);
-
-  // Check if target room exists and is accessible
-  if (!targetRoom || !targetRoom.isAccessible) {
-    return branchingFloor;
+  const moved = moveToRoomGraph(branchingFloor, targetRoomId);
+  if (moved.currentRoomId !== targetRoomId) {
+    return moved;
   }
-
-  // Only increment roomsVisited if actually moving to a different room
-  // (re-entering current room for remaining activities shouldn't count)
-  const isNewRoom = branchingFloor.currentRoomId !== targetRoomId;
-
-  // Update current room flags - preserve existing accessibility
-  const updatedRooms = branchingFloor.rooms.map(room => ({
-    ...room,
-    isCurrent: room.id === targetRoomId,
-  }));
-
-  let updatedFloor: BranchingFloor = {
-    ...branchingFloor,
-    currentRoomId: targetRoomId,
-    rooms: updatedRooms,
-    roomsVisited: isNewRoom ? branchingFloor.roomsVisited + 1 : branchingFloor.roomsVisited,
-  };
-
-  // Generate grandchildren for this room's children (ensure 2 levels visible)
-  updatedFloor = ensureGrandchildrenExist(updatedFloor, targetRoomId, player);
-
-  return updatedFloor;
+  return ensureGrandchildrenExist(moved, targetRoomId, player);
 }
 
-// ============================================================================
-// ACTIVITY MANAGEMENT
-// ============================================================================
-
-/**
- * Get the current activity for a room
- */
-export function getCurrentActivity(room: BranchingRoom): keyof RoomActivities | null {
-  for (const activityKey of ACTIVITY_ORDER) {
-    const activity = room.activities[activityKey];
-    if (activity && !isActivityCompleted(activity)) {
-      return activityKey;
-    }
-  }
-  return null;
-}
-
-/**
- * Check if an activity is completed
- */
-function isActivityCompleted(activity: RoomActivities[keyof RoomActivities]): boolean {
-  if (!activity) return true;
-
-  if ('completed' in activity) return activity.completed;
-  if ('collected' in activity) return activity.collected;
-
-  return false;
-}
-
-/**
- * Mark an activity as completed
- */
-export function completeActivity(
-  branchingFloor: BranchingFloor,
-  roomId: string,
-  activityKey: keyof RoomActivities
-): BranchingFloor {
-  const updatedRooms = branchingFloor.rooms.map(room => {
-    if (room.id !== roomId) return room;
-
-    const activity = room.activities[activityKey];
-    if (!activity) return room;
-
-    const updatedActivity = { ...activity };
-    if ('completed' in updatedActivity) {
-      updatedActivity.completed = true;
-    }
-    if ('collected' in updatedActivity) {
-      updatedActivity.collected = true;
-    }
-
-    const updatedActivities = {
-      ...room.activities,
-      [activityKey]: updatedActivity,
-    };
-
-    // Check if all activities are now complete
-    const allCompleted = ACTIVITY_ORDER.every(key => {
-      const act = updatedActivities[key];
-      return !act || isActivityCompleted(act);
-    });
-
-    // Update child rooms accessibility if room is now cleared
-    let updatedChildIds = room.childIds;
-
-    return {
-      ...room,
-      activities: updatedActivities,
-      isCleared: allCompleted,
-    };
-  });
-
-  // If the room was cleared, unlock children without mutating prior room objects
-  // (map kept non-target rooms by reference — in-place isAccessible=true corrupted history).
-  const clearedRoom = updatedRooms.find(r => r.id === roomId);
-  const roomsAfterUnlock =
-    clearedRoom?.isCleared
-      ? updatedRooms.map((room) =>
-          clearedRoom.childIds.includes(room.id) && !room.isAccessible
-            ? { ...room, isAccessible: true }
-            : room
-        )
-      : updatedRooms;
-
-  // Count cleared rooms
-  const clearedCount = roomsAfterUnlock.filter(r => r.isCleared).length;
-
-  return {
-    ...branchingFloor,
-    rooms: roomsAfterUnlock,
-    clearedRooms: clearedCount,
-  };
-}
-
-/**
- * Soft-lock recovery: room has no remaining activities but is still !isCleared
- * (empty gen after event/elite flag dropouts, or spent residue). Without this,
- * children never unlock and the branch is permanently sealed.
- * No-op when room already cleared or still has a pending activity.
- */
-export function clearRoomIfSpent(
-  branchingFloor: BranchingFloor,
-  roomId: string
-): BranchingFloor {
-  const room = branchingFloor.rooms.find((r) => r.id === roomId);
-  if (!room || room.isCleared) return branchingFloor;
-  if (getCurrentActivity(room)) return branchingFloor;
-
-  const updatedRooms = branchingFloor.rooms.map((r) =>
-    r.id === roomId ? { ...r, isCleared: true } : r
-  );
-  const clearedRoom = updatedRooms.find((r) => r.id === roomId);
-  const roomsAfterUnlock = clearedRoom
-    ? updatedRooms.map((r) =>
-        clearedRoom.childIds.includes(r.id) && !r.isAccessible
-          ? { ...r, isAccessible: true }
-          : r
-      )
-    : updatedRooms;
-
-  return {
-    ...branchingFloor,
-    rooms: roomsAfterUnlock,
-    clearedRooms: roomsAfterUnlock.filter((r) => r.isCleared).length,
-  };
-}
-
-/**
- * Check if the floor is complete (exit room cleared)
- */
-export function isFloorComplete(branchingFloor: BranchingFloor): boolean {
-  const exitRoom = branchingFloor.rooms.find(r => r.id === branchingFloor.exitRoomId);
-  return exitRoom?.isCleared ?? false;
-}
-
-// ============================================================================
-// ROOM STATE QUERIES
-// ============================================================================
-
-/**
- * Get a room by ID
- */
-export function getRoomById(
-  branchingFloor: BranchingFloor,
-  roomId: string
-): BranchingRoom | undefined {
-  return branchingFloor.rooms.find(r => r.id === roomId);
-}
-
-/**
- * Get the current room
- */
-export function getCurrentRoom(branchingFloor: BranchingFloor): BranchingRoom | undefined {
-  return branchingFloor.rooms.find(r => r.id === branchingFloor.currentRoomId);
-}
-
-/**
- * Get child rooms of a room
- */
-export function getChildRooms(
-  branchingFloor: BranchingFloor,
-  roomId: string
-): BranchingRoom[] {
-  const room = branchingFloor.rooms.find(r => r.id === roomId);
-  if (!room) return [];
-
-  return room.childIds
-    .map(childId => branchingFloor.rooms.find(r => r.id === childId))
-    .filter((r): r is BranchingRoom => r !== undefined);
-}
-
-/**
- * Get rooms by tier
- */
-export function getRoomsByTier(
-  branchingFloor: BranchingFloor,
-  tier: RoomTier
-): BranchingRoom[] {
-  return branchingFloor.rooms.filter(r => r.tier === tier);
-}
-
-// ============================================================================
-// COMBAT MODIFIER HELPERS
-// ============================================================================
-
-/**
- * Get combat setup for a room
- */
-export function getCombatSetup(room: BranchingRoom): {
-  enemy: Enemy | null;
-  modifiers: CombatModifierType[];
-  terrain: TerrainType;
-} {
-  const combat = room.activities.combat;
-
-  return {
-    enemy: combat?.enemy ?? null,
-    modifiers: combat?.modifiers ?? [CombatModifierType.NONE],
-    terrain: room.terrain,
-  };
-}
+export {
+  isRoomAccessible,
+  getCurrentActivity,
+  completeActivity,
+  clearRoomIfSpent,
+  isFloorComplete,
+  getRoomById,
+  getCurrentRoom,
+  getChildRooms,
+  getRoomsByTier,
+  getCombatSetup,
+} from './RoomGraphSystem';
 
 // ============================================================================
 // INTEL SYSTEM

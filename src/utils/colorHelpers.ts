@@ -150,11 +150,11 @@ export const getBiomeSlug = (biome: string): string =>
 
 /** Public asset paths for the three-layer combat parallax stack (CinematicViewscreen). */
 export interface LaminaPaths {
-  /** Lámina 1 — `/assets/location_<slug>.png` */
+  /** Lámina 1 — `/assets/locations/location_<slug>.png` */
   background: string;
-  /** Lámina 2 — `/assets/lamina_mid_<slug>.png` (optional asset; onError hides) */
+  /** Lámina 2 — `/assets/lamina/lamina_mid_<slug>.png` (optional asset; onError hides) */
   midground: string;
-  /** Lámina 3 — `/assets/lamina_fg_<slug>.png` (optional asset; onError hides) */
+  /** Lámina 3 — `/assets/lamina/lamina_fg_<slug>.png` (optional asset; onError hides) */
   foreground: string;
 }
 
@@ -163,12 +163,12 @@ export interface LaminaPaths {
  * Mid/fg assets may not exist yet; CinematicViewscreen hides missing layers.
  *
  * @example resolveLaminaPaths('Mist Covered Bridge')
- *   → { background: '/assets/location_mist_covered_bridge.png',
- *       midground:  '/assets/lamina_mid_mist_covered_bridge.png',
- *       foreground: '/assets/lamina_fg_mist_covered_bridge.png' }
+ *   → { background: '/assets/locations/location_mist_covered_bridge.png',
+ *       midground:  '/assets/lamina/lamina_mid_mist_covered_bridge.png',
+ *       foreground: '/assets/lamina/lamina_fg_mist_covered_bridge.png' }
  */
 /** Bump when lamina PNGs are re-keyed so browsers/Vite pick up new pixels without hard-clear. */
-const LAMINA_ASSET_REV = 'r2wave2a3';
+const LAMINA_ASSET_REV = 'r10fire10';
 
 /**
  * Region 1 default when biome is missing/blank — Coastal Harbor is the Waves
@@ -198,9 +198,9 @@ export const resolveLaminaPaths = (biome: string): LaminaPaths => {
   const slug = (raw && BIOME_SLUG_ALIASES[raw]) || raw || DEFAULT_BIOME_SLUG;
   const q = `v=${LAMINA_ASSET_REV}`;
   return {
-    background: `/assets/location_${slug}.png?${q}`,
-    midground: `/assets/lamina_mid_${slug}.png?${q}`,
-    foreground: `/assets/lamina_fg_${slug}.png?${q}`,
+    background: `/assets/locations/location_${slug}.png?${q}`,
+    midground: `/assets/lamina/lamina_mid_${slug}.png?${q}`,
+    foreground: `/assets/lamina/lamina_fg_${slug}.png?${q}`,
   };
 };
 

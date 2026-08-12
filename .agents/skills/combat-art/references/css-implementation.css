@@ -29,19 +29,18 @@
 
 /* ---- B. AURA DE CHAKRA POR FILTRO CSS ------------------------------ */
 /* Dos drop-shadow apilados (glow amplio + halo fino) en vez de duplicar el
-   sprite con el aura pintada. image-rendering: pixelated evita el suavizado.
+   cutout con el aura pintada. Painted HQ: NO forzar image-rendering: pixelated
+   en sujetos (aplasta anti-alias y detalle); reservar pixelated a iconos/chrome UI.
    Colores del héroe: verde/amarillo == --sw-clan-lee (#22c55e) / --sw-risk-safe-light. */
 .sprite-hero {
   filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.75))   /* glow vital (verde) */
           drop-shadow(0 0 2px rgba(187, 247, 208, 0.5)); /* halo claro fino */
-  image-rendering: pixelated;
 }
 
 /* Enemigo: chakra oscuro/elemental (azul/celeste). */
 .sprite-enemy {
   filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.75))
           drop-shadow(0 0 2px rgba(191, 219, 254, 0.5));
-  image-rendering: pixelated;
 }
 
 /* ---- C. OVERLAY CRT + SCANLINES ------------------------------------ */

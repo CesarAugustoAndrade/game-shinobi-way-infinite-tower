@@ -18,6 +18,7 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
             weight: 70,
             effects: {
               ryo: 150,
+              heatDelta: 20,
               logMessage: 'You disarmed the trap and claimed the scroll!',
               logType: 'gain',
             },
@@ -36,12 +37,13 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
         label: 'Rush and Grab',
         description: 'HIGH RISK - Trust your speed',
         riskLevel: RiskLevel.HIGH,
-        requirements: { minStat: { stat: PrimaryStat.SPEED, value: 40 } },
+        requirements: { minStat: { stat: PrimaryStat.SPEED, value: 1 } },
         outcomes: [
           {
             weight: 45,
             effects: {
               exp: 80,
+              heatDelta: 5,
               logMessage: 'Lightning-fast reflexes! You snatched it!',
               logType: 'gain',
             },
@@ -82,6 +84,7 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 180,
               exp: 70,
+              heatDelta: 20,
               logMessage:
                 'Your Byakugan maps every tension line. You claim the scroll without a scratch.',
               logType: 'loot',
@@ -136,6 +139,7 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
             weight: 50,
             effects: {
               exp: 100,
+              heatDelta: 5,
               logMessage: 'Your confident aura intimidates them. They back down.',
               logType: 'gain',
             },
@@ -146,7 +150,7 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
         label: 'Negotiate a Truce',
         description: 'MEDIUM RISK - Diplomacy or deception',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 15 } },
+        requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         outcomes: [
           {
             weight: 65,
@@ -205,6 +209,7 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 90,
               statChanges: { strength: 1, speed: 1 },
+              heatDelta: 5,
               logMessage:
                 'Your blazing taijutsu stance freezes the rivals. They yield the path without a fight.',
               logType: 'gain',
@@ -259,6 +264,7 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
             effects: {
               exp: 200,
               ryo: 500,
+              heatDelta: 30,
               logMessage: 'You hold your ground and the serpents hesitate, then yield. Their hoard gleams untouched in the hollow.',
               logType: 'loot',
             },
@@ -269,12 +275,13 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
         label: 'Move Carefully Around',
         description: 'MEDIUM RISK - Stealth approach',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 20 } },
+        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         outcomes: [
           {
             weight: 75,
             effects: {
               exp: 60,
+              heatDelta: 5,
               logMessage: 'You slip past the serpents without disturbing them.',
               logType: 'gain',
             },
@@ -319,13 +326,14 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
         description: 'HIGH RISK - Power at a cost',
         riskLevel: RiskLevel.HIGH,
         costs: { ryo: 300 },
-        requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 18 } },
+        requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 1 } },
         outcomes: [
           {
             weight: 100,
             effects: {
               statChanges: { spirit: 3, intelligence: 2 },
               exp: 80,
+              heatDelta: 5,
               logMessage: 'The forbidden jutsu awakens new power within you!',
               logType: 'loot',
             },
@@ -342,6 +350,7 @@ export const EXAMS_ARC_EVENTS: GameEvent[] = [
             weight: 70,
             effects: {
               exp: 100,
+              heatDelta: 5,
               logMessage: 'The merchant reveals the location of a hidden shortcut.',
               logType: 'loot',
             },

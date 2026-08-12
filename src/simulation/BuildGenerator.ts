@@ -1,6 +1,11 @@
 /**
- * Build Generator - Intelligence-Based Skill Loadout Generation
- * Creates optimal player builds based on Intelligence stat requirements
+ * Build Generator — Academy-first skill loadouts for combat simulation.
+ *
+ * Aligns with card combat vision:
+ * - Start from CLAN_START_LOADOUT / getClanStartingSkills (~8 playable academy kit)
+ * - Open learn via multi-stat canLearnSkill; hard clan gates only when requirements.clan set
+ * - CLAN_FAVORITE_SKILLS bias for progression picks
+ * - ActionType.ACTIVE | TOGGLE | PASSIVE (MAIN/SIDE removed)
  */
 
 import {
@@ -8,21 +13,29 @@ import {
   Skill,
   Clan,
   ElementType,
-  SkillTier
+  SkillTier,
+  ActionType,
 } from '../game/types';
-import { CLAN_STATS, CLAN_GROWTH, SKILLS, CLAN_START_SKILL } from '../game/constants';
+import {
+  CLAN_STATS,
+  SKILLS,
+  CLAN_FAVORITE_SKILLS,
+  getClanStartingSkills,
+} from '../game/constants';
+import { canLearnSkill } from '../game/systems/StatSystem';
+import { LaunchProperties } from '../config/featureFlags';
 import { PlayerBuildConfig } from './types';
 
 // ============================================================================
-// INTELLIGENCE TIERS
+// INTELLIGENCE TIERS (legacy labels for docs / INT banding)
 // ============================================================================
 
 export enum IntelligenceTier {
-  BASIC = 'BASIC',       // 0-10: Basic jutsu only
-  RARE = 'RARE',         // 11-15: Rare jutsu unlock
-  EPIC = 'EPIC',         // 16-20: Epic jutsu unlock
-  LEGENDARY = 'LEGENDARY', // 21-25: Legendary jutsu unlock
-  FORBIDDEN = 'FORBIDDEN'  // 26+: Forbidden jutsu unlock
+  BASIC = 'BASIC',       // 0-10
+  RARE = 'RARE',         // 11-15
+  EPIC = 'EPIC',         // 16-20
+  LEGENDARY = 'LEGENDARY', // 21-25
+  FORBIDDEN = 'FORBIDDEN'  // 26+
 }
 
 export function getIntelligenceTier(intelligence: number): IntelligenceTier {
@@ -34,25 +47,61 @@ export function getIntelligenceTier(intelligence: number): IntelligenceTier {
 }
 
 // ============================================================================
-// SKILL FILTERING
+// SKILL LOOKUP
 // ============================================================================
 
 /**
- * Get all skills that a player can learn based on their intelligence
+ * Resolve a skill by catalog key or by Skill.id (e.g. 'basic_atk').
+ */
+export function resolveSkillById(id: string): Skill | undefined {
+  if (!id) return undefined;
+  const upper = id.toUpperCase();
+  if (SKILLS[upper]) return SKILLS[upper];
+  if (SKILLS[id]) return SKILLS[id];
+  return Object.values(SKILLS).find(
+    (s) => s.id === id || s.id.toLowerCase() === id.toLowerCase()
+  );
+}
+
+/** Clone skill with cooldown reset for simulation. */
+export function cloneSkillForSim(skill: Skill): Skill {
+  return { ...skill, currentCooldown: 0 };
+}
+
+// ============================================================================
+// SKILL FILTERING (open learn + clan hard-gates + multi-stat)
+// ============================================================================
+
+/**
+ * Skills the player may learn given full primary stats, level, and clan.
+ * Uses live canLearnSkill (open learn except requirements.clan; multi-stat floors).
  */
 export function getAvailableSkills(
-  intelligence: number,
-  clan?: Clan
+  stats: PrimaryAttributes | number,
+  clan: Clan,
+  level: number = 1,
+  options?: { excludeIds?: ReadonlySet<string> | string[] }
 ): Skill[] {
+  const exclude = options?.excludeIds
+    ? new Set(
+        Array.isArray(options.excludeIds)
+          ? options.excludeIds
+          : [...options.excludeIds]
+      )
+    : new Set<string>();
+
+  const primary: PrimaryAttributes | number =
+    typeof stats === 'number'
+      ? stats
+      : stats;
+
   const available: Skill[] = [];
 
-  for (const [key, skill] of Object.entries(SKILLS)) {
-    // Check intelligence requirement
-    const intReq = skill.requirements?.intelligence || 0;
-    if (intReq > intelligence) continue;
+  for (const skill of Object.values(SKILLS)) {
+    if (exclude.has(skill.id)) continue;
 
-    // Check clan requirement
-    if (skill.requirements?.clan && skill.requirements.clan !== clan) continue;
+    const check = canLearnSkill(skill, primary, level, clan);
+    if (!check.canLearn) continue;
 
     available.push(skill);
   }
@@ -61,49 +110,125 @@ export function getAvailableSkills(
 }
 
 /**
- * Get skills sorted by damage potential
+ * Score for progression pick priority: favorites first, then tier, then damage.
+ */
+function skillProgressionScore(skill: Skill, clan: Clan): number {
+  const favorites = CLAN_FAVORITE_SKILLS[clan] ?? [];
+  const favIndex = favorites.indexOf(skill.id);
+  const favBoost = favIndex >= 0 ? 1000 - favIndex * 10 : 0;
+
+  let tierScore = 0;
+  switch (skill.tier) {
+    case SkillTier.KINJUTSU: tierScore = 50; break;
+    case SkillTier.FORBIDDEN: tierScore = 40; break;
+    case SkillTier.HIDDEN: tierScore = 30; break;
+    case SkillTier.ADVANCED: tierScore = 20; break;
+    case SkillTier.BASIC: tierScore = 10; break;
+    default: tierScore = 0;
+  }
+
+  const dmg =
+    (((skill.baseDamage ?? 0) + (skill.scalingPerPoint ?? 0) * 3) || 0) *
+    (skill.critBonus ? 1.2 : 1) *
+    (skill.penetration ? 1.3 : 1);
+
+  // Slight preference for playable ACTIVE cards over pure utility/passives when scoring
+  const activeBoost = skill.actionType === ActionType.ACTIVE ? 5 : 0;
+
+  return favBoost + tierScore + dmg + activeBoost;
+}
+
+/**
+ * Skills sorted by combat damage potential (no favorite bias).
  */
 export function getSkillsByDamagePotential(skills: Skill[]): Skill[] {
   return [...skills].sort((a, b) => {
-    // Calculate approximate damage score
-    const scoreA = a.damageMult * (a.critBonus ? 1.2 : 1) * (a.penetration ? 1.3 : 1);
-    const scoreB = b.damageMult * (b.critBonus ? 1.2 : 1) * (b.penetration ? 1.3 : 1);
+    const scoreA = ((a.baseDamage ?? 0) + (a.scalingPerPoint ?? 0) * 3) * (a.critBonus ? 1.2 : 1) * (a.penetration ? 1.3 : 1);
+    const scoreB = ((b.baseDamage ?? 0) + (b.scalingPerPoint ?? 0) * 3) * (b.critBonus ? 1.2 : 1) * (b.penetration ? 1.3 : 1);
     return scoreB - scoreA;
   });
 }
 
 /**
- * Generate optimal skill loadout based on intelligence
+ * Skills sorted for progression: clan favorites → higher tier → damage.
+ */
+export function getSkillsByProgressionPriority(
+  skills: Skill[],
+  clan: Clan
+): Skill[] {
+  return [...skills].sort(
+    (a, b) => skillProgressionScore(b, clan) - skillProgressionScore(a, clan)
+  );
+}
+
+/**
+ * Academy starting skill ids for a clan (ACTIVE + TOGGLE + PASSIVE).
+ */
+export function getClanStartingSkillIds(clan: Clan): string[] {
+  return getClanStartingSkills(clan).map((s) => s.id);
+}
+
+/**
+ * Generate loadout based on academy kit + learnable favorites / open skills.
+ * Base = getClanStartingSkills; fill remaining slots with favorites then open learn.
+ *
+ * @param stats - Full primary stats (or legacy intelligence number)
+ * @param clan - Player clan (clan-locked skills only if matching)
+ * @param maxSkills - Cap including starters (default MAX_DECK_SIZE + room for passives)
+ * @param level - Player level for canLearnSkill
  */
 export function generateOptimalLoadout(
-  intelligence: number,
+  stats: PrimaryAttributes | number,
   clan: Clan,
-  maxSkills: number = 5
+  maxSkills: number = LaunchProperties.MAX_DECK_SIZE + 4,
+  level: number = 1
 ): Skill[] {
-  const available = getAvailableSkills(intelligence, clan);
-  const sorted = getSkillsByDamagePotential(available);
+  const starters = getClanStartingSkills(clan).map(cloneSkillForSim);
+  const loadout: Skill[] = [...starters];
+  const knownIds = new Set(loadout.map((s) => s.id));
 
-  // Always include basic attack
-  const loadout: Skill[] = [{ ...SKILLS.BASIC_ATTACK, currentCooldown: 0 }];
-
-  // Add clan starting skill if available
-  const clanSkill = CLAN_START_SKILL[clan];
-  if (clanSkill && !loadout.some(s => s.id === clanSkill.id)) {
-    const intReq = clanSkill.requirements?.intelligence || 0;
-    if (intReq <= intelligence) {
-      loadout.push({ ...clanSkill, currentCooldown: 0 });
-    }
+  if (loadout.length >= maxSkills) {
+    return loadout.slice(0, maxSkills);
   }
 
-  // Fill remaining slots with best available skills
-  for (const skill of sorted) {
+  const available = getAvailableSkills(stats, clan, level, { excludeIds: knownIds });
+  const prioritized = getSkillsByProgressionPriority(available, clan);
+
+  for (const skill of prioritized) {
     if (loadout.length >= maxSkills) break;
-    if (loadout.some(s => s.id === skill.id)) continue;
-    if (skill.damageMult === 0 && !skill.effects?.length) continue; // Skip pure utility
-    loadout.push({ ...skill, currentCooldown: 0 });
+    if (knownIds.has(skill.id)) continue;
+    // Skip zero-impact pure placeholders (keep utility with effects / toggles / passives)
+    if (
+      skill.actionType === ActionType.ACTIVE &&
+      ((skill.baseDamage ?? 0) + (skill.scalingPerPoint ?? 0) * 3) === 0 &&
+      !(skill.effects && skill.effects.length > 0)
+    ) {
+      continue;
+    }
+    loadout.push(cloneSkillForSim(skill));
+    knownIds.add(skill.id);
   }
 
   return loadout;
+}
+
+/**
+ * Pick the next skill to learn during progression simulation.
+ * Prefers clan favorites among canLearnSkill-eligible open/clan-gated skills.
+ */
+export function selectNextProgressionSkill(
+  stats: PrimaryAttributes,
+  clan: Clan,
+  currentSkillIds: string[],
+  level: number
+): string | null {
+  const known = new Set(currentSkillIds);
+  const available = getAvailableSkills(stats, clan, level, { excludeIds: known });
+  if (available.length === 0) return null;
+
+  const prioritized = getSkillsByProgressionPriority(available, clan);
+  // Prefer skills not already conceptually covered; top of list is favorite-biased
+  return prioritized[0]?.id ?? null;
 }
 
 // ============================================================================
@@ -119,21 +244,20 @@ export function calculatePlayerStats(
   customOverrides?: Partial<PrimaryAttributes>
 ): PrimaryAttributes {
   const baseStats = CLAN_STATS[clan];
-  const growth = CLAN_GROWTH[clan];
-
+  // F1: no CLAN_GROWTH — sim dumps (level-1) unspent points into willpower.
+  const levels = Math.max(0, level - 1);
   const calculated: PrimaryAttributes = {
-    willpower: baseStats.willpower + ((growth.willpower || 0) * (level - 1)),
-    chakra: baseStats.chakra + ((growth.chakra || 0) * (level - 1)),
-    strength: baseStats.strength + ((growth.strength || 0) * (level - 1)),
-    spirit: baseStats.spirit + ((growth.spirit || 0) * (level - 1)),
-    intelligence: baseStats.intelligence + ((growth.intelligence || 0) * (level - 1)),
-    calmness: baseStats.calmness + ((growth.calmness || 0) * (level - 1)),
-    speed: baseStats.speed + ((growth.speed || 0) * (level - 1)),
-    accuracy: baseStats.accuracy + ((growth.accuracy || 0) * (level - 1)),
-    dexterity: baseStats.dexterity + ((growth.dexterity || 0) * (level - 1))
+    willpower: baseStats.willpower + levels,
+    chakra: baseStats.chakra,
+    strength: baseStats.strength,
+    spirit: baseStats.spirit,
+    intelligence: baseStats.intelligence,
+    calmness: baseStats.calmness,
+    speed: baseStats.speed,
+    accuracy: baseStats.accuracy,
+    dexterity: baseStats.dexterity,
   };
 
-  // Apply custom overrides
   if (customOverrides) {
     Object.entries(customOverrides).forEach(([key, value]) => {
       if (value !== undefined) {
@@ -160,120 +284,154 @@ export function getClanElement(clan: Clan): ElementType {
 }
 
 // ============================================================================
+// PRESET HELPERS
+// ============================================================================
+
+/**
+ * Merge academy start ids with mid-run signature picks, filtering wrong-clan locks
+ * and resolving only existing skills. Order: academy first, then extras.
+ */
+function buildClanSkillIds(
+  clan: Clan,
+  midRunIds: string[],
+  stats: PrimaryAttributes,
+  level: number
+): string[] {
+  const startIds = getClanStartingSkillIds(clan);
+  const known = new Set(startIds);
+  const out = [...startIds];
+
+  for (const id of midRunIds) {
+    if (known.has(id)) continue;
+    const skill = resolveSkillById(id);
+    if (!skill) continue;
+    const check = canLearnSkill(skill, stats, level, clan);
+    if (!check.canLearn) continue;
+    out.push(skill.id);
+    known.add(skill.id);
+  }
+
+  return out;
+}
+
+// ============================================================================
 // PRESET BUILDS
 // ============================================================================
 
 /**
- * Generate all clan preset builds at a given level
- * FIXED: Use calculated base stats with targeted overrides for optimization
+ * Generate all clan preset builds at a given level.
+ * Base = academy CLAN_START_LOADOUT; mid-run picks from favorites / open learn
+ * (never wrong-clan hard locks).
  */
 export function generateClanPresets(level: number = 10): PlayerBuildConfig[] {
   const builds: PlayerBuildConfig[] = [];
 
-  // UZUMAKI PRESET - Wind element focus with boosted Spirit
-  // Problem: Base Uzumaki has low Spirit growth, can't scale Wind damage
-  // Fix: Boost Spirit to 28, add Wind skills (Rasengan/Rasenshuriken)
+  // UZUMAKI — academy sustain + wind / medical progression
   const uzumakiStats = calculatePlayerStats(Clan.UZUMAKI, level);
+  const uzStats = {
+    ...uzumakiStats,
+    spirit: Math.max(uzumakiStats.spirit, 28),
+    intelligence: Math.max(uzumakiStats.intelligence, 20),
+    speed: Math.max(uzumakiStats.speed, 22),
+    accuracy: Math.max(uzumakiStats.accuracy, 20),
+  };
   builds.push({
     name: 'Uzumaki Preset',
     clan: Clan.UZUMAKI,
     level,
-    customStats: {
-      ...uzumakiStats,
-      spirit: 32,         // BUFFED: +4 more to offset 0.5x elemental weakness vs Fire
-      intelligence: 20,   // BOOSTED: Unlocks Rasenshuriken (req: 20)
-      speed: 24,          // BUFFED: Go first vs CASTER, use Shadow Clone early
-      accuracy: 22        // BUFFED: Hit Rasenshuriken more reliably
-    },
-    skillIds: [
-      'basic_atk',
-      'rasengan',         // Wind, PIERCING, 4.0x mult, Spirit scaling
-      'rasenshuriken',    // Wind, TRUE damage, 6.0x mult - signature move!
-      'shadow_clone',     // Buff skill for +60% STR, +40% SPD
-      'shuriken'          // Reliable ranged option
-    ],
-    element: ElementType.WIND
+    customStats: uzStats,
+    skillIds: buildClanSkillIds(
+      Clan.UZUMAKI,
+      ['shadow_clone', 'rasengan', 'rasenshuriken', 'adamantine_chains'],
+      uzStats,
+      level
+    ),
+    element: ElementType.WIND,
   });
 
-  // UCHIHA PRESET - Fire element focus (already works well, keep natural stats)
+  // UCHIHA — academy fire + sharingan progression (no foreign bloodline kits)
   const uchihaStats = calculatePlayerStats(Clan.UCHIHA, level);
+  const ucStats = {
+    ...uchihaStats,
+    intelligence: Math.max(uchihaStats.intelligence, 22),
+    spirit: Math.max(uchihaStats.spirit, 24),
+  };
   builds.push({
     name: 'Uchiha Preset',
     clan: Clan.UCHIHA,
     level,
-    customStats: {
-      ...uchihaStats,
-      intelligence: 22    // Ensure Kirin access (req: 22)
-    },
-    skillIds: [
-      'basic_atk',
-      'fireball',         // Fire, 2.5x mult, solid damage
-      'chidori',          // Lightning, PIERCING, 3.5x mult
-      'kirin',            // Lightning, TRUE, 5.0x mult + stun
-      'rasenshuriken'     // TRUE damage backup
-    ],
-    element: ElementType.FIRE
+    customStats: ucStats,
+    skillIds: buildClanSkillIds(
+      Clan.UCHIHA,
+      ['fireball', 'chidori', 'sharingan_predict', 'amaterasu', 'kirin'],
+      ucStats,
+      level
+    ),
+    element: ElementType.FIRE,
   });
 
-  // HYUGA PRESET - Physical/Gentle Fist focus
+  // HYUGA — academy gentle fist + byakugan tree
   const hyugaStats = calculatePlayerStats(Clan.HYUGA, level);
+  const hyStats = {
+    ...hyugaStats,
+    calmness: Math.max(hyugaStats.calmness, 22),
+    accuracy: Math.max(hyugaStats.accuracy, 24),
+    intelligence: Math.max(hyugaStats.intelligence, 16),
+  };
   builds.push({
     name: 'Hyuga Preset',
     clan: Clan.HYUGA,
     level,
-    customStats: {
-      ...hyugaStats,
-      calmness: 24        // Boost mental defense
-    },
-    skillIds: [
-      'basic_atk',
-      'gentle_fist',      // Physical, TRUE damage, chakra drain
-      'primary_lotus',    // PIERCING physical, 5.0x mult
-      'chidori',          // Lightning backup
-      'shuriken'          // Ranged option
-    ],
-    element: ElementType.PHYSICAL
+    customStats: hyStats,
+    skillIds: buildClanSkillIds(
+      Clan.HYUGA,
+      ['air_palm', 'kaiten', '64_palms', 'byakugan_scan'],
+      hyStats,
+      level
+    ),
+    element: ElementType.PHYSICAL,
   });
 
-  // LEE DISCIPLE PRESET - Pure taijutsu focus
+  // LEE — pure tai academy; lotus / gates mid-run (no INT gates)
   const leeStats = calculatePlayerStats(Clan.LEE, level);
+  const leeCustom = {
+    ...leeStats,
+    strength: Math.max(leeStats.strength, 24),
+    speed: Math.max(leeStats.speed, 26),
+  };
   builds.push({
     name: 'Lee Disciple Preset',
     clan: Clan.LEE,
     level,
-    customStats: {
-      ...leeStats
-      // Lee's natural stats are already optimized for taijutsu
-    },
-    skillIds: [
-      'basic_atk',
-      'primary_lotus',    // PIERCING, 5.0x, HP cost (Lee's signature)
-      'shuriken',         // Basic ranged
-      'kawarimi',         // Evasion utility
-      'bunshin'           // Clone distraction
-    ],
-    element: ElementType.PHYSICAL
+    customStats: leeCustom,
+    skillIds: buildClanSkillIds(
+      Clan.LEE,
+      ['primary_lotus', 'hidden_lotus', 'dancing_leaf', 'gate_of_life'],
+      leeCustom,
+      level
+    ),
+    element: ElementType.PHYSICAL,
   });
 
-  // YAMANAKA PRESET - Mental/Genjutsu focus
+  // YAMANAKA — academy genjutsu tools; mind transfer mid (NOT Tsukuyomi / Uchiha)
   const yamanakaStats = calculatePlayerStats(Clan.YAMANAKA, level);
+  const yaStats = {
+    ...yamanakaStats,
+    intelligence: Math.max(yamanakaStats.intelligence, 20),
+    calmness: Math.max(yamanakaStats.calmness, 28),
+  };
   builds.push({
     name: 'Yamanaka Preset',
     clan: Clan.YAMANAKA,
     level,
-    customStats: {
-      ...yamanakaStats,
-      intelligence: 22,   // Ensure Kirin access
-      calmness: 32        // Boost mental damage & defense
-    },
-    skillIds: [
-      'basic_atk',
-      'mind_destruction', // Mental, PIERCING, confusion
-      'kirin',            // TRUE damage backup
-      'rasenshuriken',    // TRUE damage
-      'shuriken'          // Ranged option
-    ],
-    element: ElementType.MENTAL
+    customStats: yaStats,
+    skillIds: buildClanSkillIds(
+      Clan.YAMANAKA,
+      ['mind_transfer', 'mind_destruction', 'temple_nirvana', 'shadow_possession'],
+      yaStats,
+      level
+    ),
+    element: ElementType.MENTAL,
   });
 
   return builds;
@@ -289,18 +447,13 @@ export function generateClanPresets(level: number = 10): PlayerBuildConfig[] {
  * ~20-40% at D6-7.
  *
  * Glass Cannon and Speed Demon are deliberately EXCLUDED from that curve: they
- * are EXTREME min-max stress-test fixtures (8 willpower / 40 spirit, 45 speed /
- * 8 chakra) that exist to probe the instrument's behaviour at the edges, not to
- * be balanced. They are expected to crater in the endgame and that is fine — do
- * NOT tune game data to drag their clear-rate up; doing so would distort the
- * builds the curve actually cares about.
+ * are EXTREME min-max stress-test fixtures that exist to probe the instrument
+ * at the edges, not to be balanced.
  */
 export function generateExtremeBuilds(level: number = 10): PlayerBuildConfig[] {
   const builds: PlayerBuildConfig[] = [];
 
-  // Glass Cannon - Max Spirit/Dex, Min Willpower
-  // SCOPE: EXTREME stress-test fixture, EXCLUDED from the balance target curve
-  // (see the function docstring). Expected to fall off hard at high danger.
+  // Glass Cannon - Max Spirit/Dex, Min Willpower (Uchiha fire kit only)
   builds.push({
     name: 'Glass Cannon',
     clan: Clan.UCHIHA,
@@ -310,18 +463,25 @@ export function generateExtremeBuilds(level: number = 10): PlayerBuildConfig[] {
       chakra: 20,
       strength: 10,
       spirit: 40,
-      intelligence: 18,
+      intelligence: 22,
       calmness: 10,
       speed: 20,
       accuracy: 16,
       dexterity: 30
     },
-    skillIds: ['basic_atk', 'fireball', 'chidori', 'amaterasu'],
+    skillIds: buildClanSkillIds(
+      Clan.UCHIHA,
+      ['fireball', 'phoenix_flower', 'chidori', 'amaterasu'],
+      {
+        willpower: 8, chakra: 20, strength: 10, spirit: 40, intelligence: 22,
+        calmness: 10, speed: 20, accuracy: 16, dexterity: 30
+      },
+      level
+    ),
     element: ElementType.FIRE
   });
 
-  // Immortal Tank - Max Willpower/Strength, Min Speed
-  // FIXED: Added strength-scaling damage skills instead of utility-only
+  // Immortal Tank - Max Willpower/Strength (Uzumaki base + open STR skills)
   builds.push({
     name: 'Immortal Tank',
     clan: Clan.UZUMAKI,
@@ -333,23 +493,23 @@ export function generateExtremeBuilds(level: number = 10): PlayerBuildConfig[] {
       spirit: 12,
       intelligence: 12,
       calmness: 20,
-      speed: 8,
-      accuracy: 14,       // BUFFED: +4 to actually hit enemies
+      speed: 12,
+      accuracy: 14,
       dexterity: 10
     },
-    skillIds: [
-      'basic_atk',
-      'bone_drill',       // TRUE damage, scales with STR, 4.0x mult
-      'demon_slash',      // PIERCING + BLEED, scales with STR, 3.5x mult
-      'primary_lotus',    // PIERCING physical, 5.0x mult, HP cost but tank has HP to spare
-      'mud_wall'          // Keep the shield for survivability
-    ],
-    element: ElementType.PHYSICAL  // Changed to PHYSICAL to match strength-based attacks
+    skillIds: buildClanSkillIds(
+      Clan.UZUMAKI,
+      ['bone_drill', 'demon_slash', 'primary_lotus', 'mud_wall', 'brace'],
+      {
+        willpower: 50, chakra: 30, strength: 35, spirit: 12, intelligence: 12,
+        calmness: 20, speed: 12, accuracy: 14, dexterity: 10
+      },
+      level
+    ),
+    element: ElementType.PHYSICAL
   });
 
-  // Speed Demon - Max Speed/Dex
-  // SCOPE: EXTREME stress-test fixture, EXCLUDED from the balance target curve
-  // (see the function docstring). Expected to fall off hard at high danger.
+  // Speed Demon - Max Speed/Dex (Lee taijutsu)
   builds.push({
     name: 'Speed Demon',
     clan: Clan.LEE,
@@ -365,16 +525,19 @@ export function generateExtremeBuilds(level: number = 10): PlayerBuildConfig[] {
       accuracy: 18,
       dexterity: 35
     },
-    skillIds: ['basic_atk', 'shuriken', 'primary_lotus'],
+    skillIds: buildClanSkillIds(
+      Clan.LEE,
+      ['primary_lotus', 'dynamic_entry', 'leaf_whirlwind', 'dancing_leaf'],
+      {
+        willpower: 20, chakra: 10, strength: 25, spirit: 8, intelligence: 8,
+        calmness: 12, speed: 45, accuracy: 18, dexterity: 35
+      },
+      level
+    ),
     element: ElementType.PHYSICAL
   });
 
-  // Mind Controller - Max Intelligence/Calmness
-  // T-006 B.2: willpower 15→18. This in-scope glass-genjutsu archetype was
-  // HP-bottlenecked at the endgame (166 HP) — extra mental damage couldn't lift
-  // its D7 clear-rate because it died before its nukes mattered. A small
-  // survivability nudge (still very glassy vs its int 40 / calmness 45) clears
-  // the 20% D7 floor at the actual cause instead of over-cranking enemy-damage.
+  // Mind Controller - Max Intelligence/Calmness (Yamanaka only — no Tsukuyomi)
   builds.push({
     name: 'Mind Controller',
     clan: Clan.YAMANAKA,
@@ -390,28 +553,49 @@ export function generateExtremeBuilds(level: number = 10): PlayerBuildConfig[] {
       accuracy: 12,
       dexterity: 15
     },
-    skillIds: ['basic_atk', 'hell_viewing', 'mind_destruction', 'temple_nirvana', 'tsukuyomi'],
+    skillIds: buildClanSkillIds(
+      Clan.YAMANAKA,
+      [
+        'hell_viewing',
+        'mind_destruction',
+        'mind_transfer',
+        'temple_nirvana',
+        'shadow_possession',
+      ],
+      {
+        willpower: 18, chakra: 25, strength: 8, spirit: 18, intelligence: 40,
+        calmness: 45, speed: 12, accuracy: 12, dexterity: 15
+      },
+      level
+    ),
     element: ElementType.MENTAL
   });
 
-  // Balanced - Competitive generalist (was 180 points, now 218)
-  // BUFFED: Old version had 0% win rate due to stat inefficiency
+  // Balanced - competitive generalist on Hyuga open-learn hybrid
   builds.push({
     name: 'Balanced Build',
     clan: Clan.HYUGA,
     level,
     customStats: {
-      willpower: 28,      // +8 (survive longer)
-      chakra: 24,         // +4 (more skill uses)
-      strength: 26,       // +6 (physical damage)
-      spirit: 26,         // +6 (elemental damage)
-      intelligence: 22,   // +2 (skill access)
-      calmness: 22,       // +2 (mental defense)
-      speed: 24,          // +4 (initiative)
-      accuracy: 24,       // +4 (hit rate)
-      dexterity: 22       // +2 (crit chance)
+      willpower: 28,
+      chakra: 24,
+      strength: 26,
+      spirit: 26,
+      intelligence: 22,
+      calmness: 22,
+      speed: 24,
+      accuracy: 24,
+      dexterity: 22
     },
-    skillIds: ['basic_atk', 'water_dragon', 'chidori', 'shuriken'],
+    skillIds: buildClanSkillIds(
+      Clan.HYUGA,
+      ['gentle_fist', 'water_dragon', 'chidori', 'shuriken', 'air_palm'],
+      {
+        willpower: 28, chakra: 24, strength: 26, spirit: 26, intelligence: 22,
+        calmness: 22, speed: 24, accuracy: 24, dexterity: 22
+      },
+      level
+    ),
     element: ElementType.WATER
   });
 
@@ -441,16 +625,13 @@ export function createBuildFromConfig(config: PlayerBuildConfig): {
     : calculatePlayerStats(config.clan, config.level);
 
   const skills = config.skillIds
-    .map(id => {
-      const upper = id.toUpperCase();
-      return SKILLS[upper] || SKILLS[id];
-    })
-    .filter(Boolean)
-    .map(skill => ({ ...skill, currentCooldown: 0 }));
+    .map((id) => resolveSkillById(id))
+    .filter((s): s is Skill => Boolean(s))
+    .map(cloneSkillForSim);
 
-  // Ensure at least basic attack
+  // Ensure at least basic attack if catalog lookup failed entirely
   if (skills.length === 0) {
-    skills.push({ ...SKILLS.BASIC_ATTACK, currentCooldown: 0 });
+    skills.push(cloneSkillForSim(SKILLS.BASIC_ATTACK));
   }
 
   return {

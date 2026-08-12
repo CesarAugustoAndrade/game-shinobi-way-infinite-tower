@@ -30,14 +30,16 @@ import {
   TerrainDefinition,
   EffectType,
   DamageType,
+  CombatRange,
+  RangeMoveDirection,
+  RangeMoveTrigger,
 } from '../types';
 import {
-  checkGuts,
   resistStatus,
   calculateDotDamage,
   calculateDamage,
 } from './StatSystem';
-import { selectEnemySkillDecision } from './EnemyAISystem';
+import { planEnemyAction } from './EnemyAISystem';
 import { combatLog } from '../utils/combatDebug';
 import {
   generateId,
@@ -46,16 +48,41 @@ import {
   applyTerrainHazard,
   getTerrainEvasionBonus,
 } from './CombatCalculationSystem';
-import { applyLocationHazardsToPlayer } from './LocationTerrainSystem';
+import {
+  applyLocationHazardsToPlayer,
+  applyRoomMovementCostToMaxAp,
+  applyMovementPenaltyToMaxAp,
+} from './LocationTerrainSystem';
+import {
+  shiftRange,
+  collectRangeReactions,
+  VOLUNTARY_MOVE_AP_COST,
+} from './RangeSystem';
+import { getApCost } from '../constants/combatCards';
 import {
   shouldCounterAttack,
   checkGutsPassive,
   getDamageReductionPercent,
 } from './EquipmentPassiveSystem';
 import { postureDefenseMod } from './PostureSystem';
+import {
+  resolveSuccessfulHit,
+  buildEnemyPreMitigationMults,
+  buildPlayerDefensePostMults,
+} from './SkillResolutionSystem';
 import { chance } from '../utils/rng';
 import type { CombatState, EnemyTurnResult } from './combat-types';
 import { LaunchProperties } from '../../config/featureFlags';
+import {
+  checkLethalDamage,
+  type GutsContext,
+  type ArtifactGutsInfo,
+  type LethalCheckResult,
+} from './SurvivalSystem';
+
+// Re-export for backward compat
+export { checkLethalDamage } from './SurvivalSystem';
+export type { GutsContext, ArtifactGutsInfo, LethalCheckResult } from './SurvivalSystem';
 
 // ============================================================================
 // INTERNAL TYPES
@@ -82,41 +109,6 @@ const DEFERRED_DURATION_TYPES: EffectType[] = [
 ];
 
 /**
- * Context for tracking guts state across turn phases.
- */
-interface GutsContext {
-  /** Whether stat-based or artifact guts has been triggered this turn */
-  triggered: boolean;
-  /** Whether artifact guts specifically was triggered (for caller to update combatState) */
-  artifactTriggered: boolean;
-}
-
-/**
- * Information about an entity's artifact guts passive.
- */
-interface ArtifactGutsInfo {
-  hasGuts: boolean;
-  healPercent: number;
-  source: string;
-}
-
-/**
- * Result of checking for lethal damage with guts.
- */
-interface LethalCheckResult {
-  /** Whether the entity survived */
-  survived: boolean;
-  /** New HP after guts (1 or healed amount) */
-  newHp: number;
-  /** Whether guts was triggered */
-  gutsTriggered: boolean;
-  /** Whether artifact guts specifically was triggered */
-  artifactGutsTriggered: boolean;
-  /** Log message if guts triggered */
-  log?: string;
-}
-
-/**
  * Result of executing the enemy's action phase.
  */
 interface EnemyActionResult {
@@ -132,6 +124,10 @@ interface EnemyActionResult {
   enemyDefeated: boolean;
   /** Updated guts context */
   gutsContext: GutsContext;
+  /** F2: engagement band after optional enemy move */
+  currentRange?: CombatRange;
+  enemyCurrentAp?: number;
+  enemyMoveUsedThisTurn?: boolean;
 }
 
 /**
@@ -263,91 +259,6 @@ export function processBuffTicks(
 }
 
 // ============================================================================
-// LETHAL DAMAGE CHECK
-// ============================================================================
-
-/**
- * Check if damage would be lethal and process guts.
- * Guts can come from either:
- * 1. Stat-based guts (gutsChance from stats, survives at 1 HP)
- * 2. Artifact guts (from equipment, may heal to a percentage)
- *
- * Priority: Stat-based guts is checked first. Artifact guts is only used
- * if stat-based fails AND artifact hasn't been used this combat.
- *
- * @param currentHp - Current HP before damage
- * @param incomingDamage - Damage that would be dealt
- * @param gutsChance - Percentage chance for stat-based guts
- * @param gutsContext - Current guts state for this turn
- * @param artifactGuts - Artifact guts info (if player has artifact with guts)
- * @param artifactGutsUsed - Whether artifact guts was already used this combat
- * @param maxHp - Max HP for calculating artifact guts heal
- */
-export function checkLethalDamage(
-  currentHp: number,
-  incomingDamage: number,
-  gutsChance: number,
-  gutsContext: GutsContext,
-  artifactGuts?: ArtifactGutsInfo,
-  artifactGutsUsed?: boolean,
-  maxHp?: number
-): LethalCheckResult {
-  const hpAfterDamage = currentHp - incomingDamage;
-
-  // Not lethal, no guts needed
-  if (hpAfterDamage > 0) {
-    return {
-      survived: true,
-      newHp: hpAfterDamage,
-      gutsTriggered: gutsContext.triggered,
-      artifactGutsTriggered: gutsContext.artifactTriggered
-    };
-  }
-
-  // Already used guts this turn
-  if (gutsContext.triggered) {
-    return {
-      survived: false,
-      newHp: hpAfterDamage,
-      gutsTriggered: true,
-      artifactGutsTriggered: gutsContext.artifactTriggered
-    };
-  }
-
-  // Try stat-based guts first
-  const statGutsResult = checkGuts(hpAfterDamage, incomingDamage, gutsChance);
-  if (statGutsResult.survived) {
-    return {
-      survived: true,
-      newHp: 1,
-      gutsTriggered: true,
-      artifactGutsTriggered: gutsContext.artifactTriggered,
-      log: `GUTS! You refuse to fall!`
-    };
-  }
-
-  // Try artifact guts if available and not used this combat
-  if (artifactGuts?.hasGuts && !artifactGutsUsed && maxHp) {
-    const healAmount = Math.floor(maxHp * (artifactGuts.healPercent / 100));
-    return {
-      survived: true,
-      newHp: Math.max(1, healAmount),
-      gutsTriggered: true,
-      artifactGutsTriggered: true,
-      log: `${artifactGuts.source} triggers GUTS! Restored to ${healAmount} HP!`
-    };
-  }
-
-  // All guts failed
-  return {
-    survived: false,
-    newHp: hpAfterDamage,
-    gutsTriggered: false,
-    artifactGutsTriggered: false
-  };
-}
-
-// ============================================================================
 // ENEMY ACTION EXECUTION
 // ============================================================================
 
@@ -419,20 +330,77 @@ export function executeEnemyAction(
     };
   }
 
-  // Normal enemy attack — honor telegraphed intent when still available (A-003)
-  const decision = selectEnemySkillDecision({ enemy, enemyStats, player, playerStats });
-  const selectedSkill = decision.skill;
-  if (!selectedSkill) {
-    logs.push(`${enemy.name} has no available skills!`);
+  // F2: refill enemy AP for this phase (same terrain pipeline as player)
+  let range = combatState?.currentRange ?? CombatRange.MEDIUM;
+  let enemyAp =
+    combatState?.enemyMaxAp && combatState.enemyMaxAp > 0
+      ? combatState.enemyMaxAp
+      : enemyStats.derived.actionPointsPerTurn;
+  // Apply terrain to enemy AP budget once if not already set on state
+  if (combatState && (!combatState.enemyMaxAp || combatState.enemyMaxAp <= 0)) {
+    let budget = enemyStats.derived.actionPointsPerTurn;
+    budget = applyRoomMovementCostToMaxAp(budget, combatState.terrain);
+    budget = applyMovementPenaltyToMaxAp(budget, combatState.locationTerrainMods);
+    enemyAp = budget;
+  }
+
+  // F2 AI: in-band skill → move+skill → move preferred + Guard
+  const plan = planEnemyAction({
+    enemy,
+    enemyStats,
+    player,
+    playerStats,
+    currentRange: range,
+    enemyAp,
+  });
+
+  let enemyMoveUsed = false;
+  if (plan.moveDirection) {
+    const { range: next, moved } = shiftRange(range, plan.moveDirection);
+    if (moved) {
+      range = next;
+      enemyAp = Math.max(0, enemyAp - VOLUNTARY_MOVE_AP_COST);
+      enemyMoveUsed = true;
+      logs.push(
+        `${enemy.name} ${plan.moveDirection === RangeMoveDirection.APPROACH ? 'closes in' : 'backs off'} → ${range}.`
+      );
+      void collectRangeReactions(RangeMoveTrigger.VOLUNTARY, true, false);
+    }
+  }
+
+  if (plan.guard || !plan.skill) {
+    logs.push(`${enemy.name} takes a Guard stance.`);
     return {
       player: updatedPlayer,
       enemy: updatedEnemy,
       logs,
       playerDefeated: false,
       enemyDefeated: false,
-      gutsContext: updatedGutsContext
+      gutsContext: updatedGutsContext,
+      currentRange: range,
+      enemyCurrentAp: enemyAp,
+      enemyMoveUsedThisTurn: enemyMoveUsed,
     };
   }
+
+  const selectedSkill = plan.skill;
+  const skillAp = getApCost(selectedSkill);
+  if (enemyAp < skillAp) {
+    logs.push(`${enemy.name} lacks AP for ${selectedSkill.name} — Guards.`);
+    return {
+      player: updatedPlayer,
+      enemy: updatedEnemy,
+      logs,
+      playerDefeated: false,
+      enemyDefeated: false,
+      gutsContext: updatedGutsContext,
+      currentRange: range,
+      enemyCurrentAp: enemyAp,
+      enemyMoveUsedThisTurn: enemyMoveUsed,
+    };
+  }
+  enemyAp -= skillAp;
+
   // Clear spent intent; next telegraph is set after the turn
   updatedEnemy.intendedSkillId = undefined;
   updatedEnemy.intendedSkillName = undefined;
@@ -474,38 +442,37 @@ export function executeEnemyAction(
       && (combatState.enemyFirstHitMultiplier ?? 1) > 1
     ) {
       ambushMult = combatState.enemyFirstHitMultiplier;
-    }
-    // Apply enemy damage multiplier from launch properties
-    let modifiedDamage = Math.floor(damageResult.finalDamage * LaunchProperties.ENEMY_DAMAGE_MULTIPLIER);
-    if (ambushMult > 1) {
-      modifiedDamage = Math.floor(modifiedDamage * ambushMult);
       logs.push(`Ambush strike! (×${ambushMult.toFixed(2)})`);
     }
 
     // T-064: location enemy_attack_bonus (fraction) from terrainEffects
     const atkBonus = combatState?.locationTerrainMods?.enemyAttackBonus ?? 0;
-    if (atkBonus !== 0) {
-      modifiedDamage = Math.floor(modifiedDamage * (1 + atkBonus));
-    }
 
-    // Apply mitigation (invuln → reflect → curse → shield)
-    const mitigation = applyMitigation(player.activeBuffs, modifiedDamage, 'You');
-    updatedPlayer.activeBuffs = mitigation.updatedBuffs;
+    // Pre-mitigation: launch mult → ambush → attack bonus (shared factory)
+    const preMitigationMultipliers = buildEnemyPreMitigationMults({
+      enemyDamageMultiplier: LaunchProperties.ENEMY_DAMAGE_MULTIPLIER,
+      ambushMult,
+      enemyAttackBonus: atkBonus !== 0 ? atkBonus : undefined,
+    });
 
-    // Artifact DAMAGE_REDUCTION (incl. below_half_hp) after buff mitigation
-    let mitigatedDamage = mitigation.finalDamage;
+    // Post-mitigation: artifact DR then posture defense (T-004)
     const drPercent = getDamageReductionPercent(player, playerStats.derived.maxHp);
-    if (drPercent !== 0 && mitigatedDamage > 0) {
-      mitigatedDamage = Math.max(0, Math.floor(mitigatedDamage * (1 - drPercent / 100)));
-    }
-
-    // Posture scales the post-mitigation damage the player actually takes, giving
-    // DEFENSIVE a real upside (T-004): inflict ×0.85 / take ×0.85 (tanky),
-    // AGGRESSIVE inflict ×1.15 / take ×1.15 (glass cannon), BALANCED neutral.
-    // Applied AFTER base mitigation/shields as an external posture modifier; the
-    // outgoing side is scaled symmetrically in PlayerTurnSystem via postureDamageMod.
     const postureMod = combatState ? postureDefenseMod(combatState.posture) : 1;
-    const incomingDamage = Math.floor(mitigatedDamage * postureMod);
+    const postMitigationMultipliers = buildPlayerDefensePostMults({
+      damageReductionPercent: drPercent !== 0 ? drPercent : undefined,
+      postureDefenseMod: postureMod,
+    });
+
+    // Shared hit pipeline: pre-mult → mitigation → post-mult
+    const hit = resolveSuccessfulHit({
+      rawDamage: damageResult.finalDamage,
+      preMitigationMultipliers,
+      defenderBuffs: updatedPlayer.activeBuffs,
+      defenderLabel: 'You',
+      postMitigationMultipliers,
+    });
+    updatedPlayer.activeBuffs = hit.updatedDefenderBuffs;
+    const incomingDamage = hit.finalDamage;
 
     // Check lethal damage
     const artifactGuts = checkGutsPassive(player);
@@ -525,8 +492,8 @@ export function executeEnemyAction(
 
     // Build log message
     let logMsg = `${enemy.name} uses ${selectedSkill.name} for ${incomingDamage} damage`;
-    if (mitigation.messages.length > 0) {
-      logMsg += ` [${mitigation.messages.join(', ')}]`;
+    if (hit.messages.length > 0) {
+      logMsg += ` [${hit.messages.join(', ')}]`;
     }
     if (damageResult.isCrit) logMsg += " CRITICAL!";
     if (damageResult.elementMultiplier > 1) logMsg += " SUPER EFFECTIVE!";
@@ -534,9 +501,9 @@ export function executeEnemyAction(
     logs.push(logMsg);
 
     // Handle reflection damage to enemy
-    if (mitigation.reflectedDamage > 0) {
-      updatedEnemy.currentHp -= mitigation.reflectedDamage;
-      logs.push(`Reflection deals ${mitigation.reflectedDamage} to ${enemy.name}!`);
+    if (hit.reflectedDamage > 0) {
+      updatedEnemy.currentHp -= hit.reflectedDamage;
+      logs.push(`Reflection deals ${hit.reflectedDamage} to ${enemy.name}!`);
 
       if (updatedEnemy.currentHp <= 0) {
         return {
@@ -654,7 +621,10 @@ export function executeEnemyAction(
     logs,
     playerDefeated,
     enemyDefeated,
-    gutsContext: updatedGutsContext
+    gutsContext: updatedGutsContext,
+    currentRange: range,
+    enemyCurrentAp: enemyAp,
+    enemyMoveUsedThisTurn: enemyMoveUsed,
   };
 }
 
@@ -705,6 +675,7 @@ export function processPostTurnResources(
  * @param terrain - Terrain definition
  * @param playerStats - Player stats for guts check
  * @param gutsContext - Current guts state for this turn
+ * @param artifactGutsUsed - Whether artifact guts was already used this combat
  */
 export function applyTerrainHazardsPhase(
   playerHp: number,
@@ -713,7 +684,8 @@ export function applyTerrainHazardsPhase(
   enemy: Enemy,
   terrain: TerrainDefinition,
   playerStats: CharacterStats,
-  gutsContext: GutsContext
+  gutsContext: GutsContext,
+  artifactGutsUsed?: boolean
 ): TerrainHazardPhaseResult {
   let newPlayerHp = playerHp;
   let newEnemyHp = enemyHp;
@@ -741,19 +713,28 @@ export function applyTerrainHazardsPhase(
     enemyDefeated = true;
   }
 
+  // Player died from hazard — SurvivalSystem (stat guts + artifact guts)
   if (newPlayerHp <= 0 && !enemyDefeated) {
-    if (!updatedGutsContext.triggered) {
-      const gutsResult = checkGuts(newPlayerHp, 0, playerStats.derived.gutsChance);
-      if (!gutsResult.survived) {
-        playerDefeated = true;
-      } else {
-        newPlayerHp = 1;
-        updatedGutsContext.triggered = true;
-        logs.push("GUTS! You survived the hazard!");
-      }
-    } else {
-      // Guts already used this turn, player dies
+    const artifactGuts = checkGutsPassive(player);
+    const lethalCheck = checkLethalDamage(
+      newPlayerHp,
+      0, // HP already reduced by hazard
+      playerStats.derived.gutsChance,
+      updatedGutsContext,
+      artifactGuts,
+      artifactGutsUsed,
+      playerStats.derived.maxHp
+    );
+
+    if (!lethalCheck.survived) {
       playerDefeated = true;
+    } else {
+      newPlayerHp = lethalCheck.newHp;
+      updatedGutsContext.triggered = lethalCheck.gutsTriggered;
+      updatedGutsContext.artifactTriggered = lethalCheck.artifactGutsTriggered;
+      if (lethalCheck.log) {
+        logs.push(lethalCheck.log);
+      }
     }
   }
 
@@ -780,7 +761,12 @@ function buildTurnResult(
   logs: string[],
   playerDefeated: boolean,
   enemyDefeated: boolean,
-  artifactGutsTriggered?: boolean
+  artifactGutsTriggered?: boolean,
+  f2?: {
+    currentRange?: CombatRange;
+    enemyCurrentAp?: number;
+    enemyMoveUsedThisTurn?: boolean;
+  }
 ): EnemyTurnResult {
   return {
     newPlayerHp: player.currentHp,
@@ -798,6 +784,9 @@ function buildTurnResult(
     intendedSkillId: enemy.intendedSkillId,
     intendedSkillName: enemy.intendedSkillName,
     intentReason: enemy.intentReason,
+    currentRange: f2?.currentRange,
+    enemyCurrentAp: f2?.enemyCurrentAp,
+    enemyMoveUsedThisTurn: f2?.enemyMoveUsedThisTurn,
   };
 }
 
@@ -1053,6 +1042,11 @@ export function processEnemyTurn(
   updatedEnemy = actionResult.enemy;
   logs.push(...actionResult.logs);
   gutsContext = actionResult.gutsContext;
+  const f2State = {
+    currentRange: actionResult.currentRange,
+    enemyCurrentAp: actionResult.enemyCurrentAp,
+    enemyMoveUsedThisTurn: actionResult.enemyMoveUsedThisTurn,
+  };
 
   // ============================================
   // Phase 4b: Tick enemy buff durations (after action opportunity)
@@ -1069,7 +1063,8 @@ export function processEnemyTurn(
       logs,
       actionResult.playerDefeated,
       actionResult.enemyDefeated,
-      gutsContext.artifactTriggered
+      gutsContext.artifactTriggered,
+      f2State
     );
   }
 
@@ -1094,25 +1089,35 @@ export function processEnemyTurn(
     currentCooldown: Math.max(0, s.currentCooldown - 1),
   }));
 
-  // A-003: pre-select next skill (1-turn telegraph) after CDs tick; log intent
+  // A-003 / F2: telegraph next skill at post-move band (honorIntent false)
   {
-    const nextDecision = selectEnemySkillDecision(
+    const nextPlan = planEnemyAction(
       {
         enemy: updatedEnemy,
         enemyStats,
         player: updatedPlayer,
         playerStats,
+        currentRange: f2State.currentRange ?? combatState?.currentRange,
+        enemyAp: enemyStats.derived.actionPointsPerTurn,
       },
       { honorIntent: false }
     );
-    if (nextDecision.skill) {
+    if (nextPlan.skill) {
       updatedEnemy = {
         ...updatedEnemy,
-        intendedSkillId: nextDecision.skill.id,
-        intendedSkillName: nextDecision.skill.name,
-        intentReason: nextDecision.reason,
+        intendedSkillId: nextPlan.skill.id,
+        intendedSkillName: nextPlan.skill.name,
+        intentReason: nextPlan.reason,
       };
-      logs.push(`${updatedEnemy.name} readies ${nextDecision.skill.name} next...`);
+      logs.push(`${updatedEnemy.name} readies ${nextPlan.skill.name} next...`);
+    } else if (nextPlan.guard) {
+      updatedEnemy = {
+        ...updatedEnemy,
+        intendedSkillId: undefined,
+        intendedSkillName: 'Guard',
+        intentReason: nextPlan.reason,
+      };
+      logs.push(`${updatedEnemy.name} readies Guard next...`);
     }
   }
 
@@ -1127,7 +1132,8 @@ export function processEnemyTurn(
       updatedEnemy,
       combatState.terrain,
       playerStats,
-      gutsContext
+      gutsContext,
+      combatState.artifactGutsUsed
     );
 
     updatedPlayer.currentHp = hazardResult.playerHp;
@@ -1171,7 +1177,8 @@ export function processEnemyTurn(
     logs,
     false,
     false,
-    gutsContext.artifactTriggered
+    gutsContext.artifactTriggered,
+    f2State
   );
 
   combatLog('turn', `=== ENEMY TURN END ===`, {

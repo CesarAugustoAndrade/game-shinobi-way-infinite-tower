@@ -75,7 +75,7 @@ import {
   PassiveBonuses
 } from '../types';
 import { ELEMENTAL_CYCLE } from '../constants';
-import { BALANCE } from '../config';
+import { BALANCE, CESAR_DAMAGE_CONSTANT } from '../config';
 import { LaunchProperties } from '../../config/featureFlags';
 import { percentChance, chance } from '../utils/rng';
 
@@ -277,88 +277,66 @@ export function calculateDerivedStats(
   equipmentBonuses: ItemStatBonus = {}
 ): DerivedStats {
   const F = STAT_FORMULAS;
-
-  // Use primary as-is. Equipment primaries are applied once upstream
-  // (getPlayerFullStats → applyEquipmentToPrimaryStats) so re-adding them
-  // here would double-count willpower/strength/etc. into maxHp and defenses.
   const effective = primary;
+  const defCap = F.PERCENT_DEF_CAP;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RESOURCE POOLS - HP and Chakra capacity
-  // ─────────────────────────────────────────────────────────────────────────
   const maxHp = F.HP_BASE + (effective.willpower * F.HP_PER_WILLPOWER) + (equipmentBonuses.flatHp || 0);
   const maxChakra = F.CHAKRA_BASE + (effective.chakra * F.CHAKRA_PER_CHAKRA) + (equipmentBonuses.flatChakra || 0);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // REGENERATION - Per-turn resource recovery
-  // HP regen scales with both max HP AND willpower (double scaling)
-  // Chakra regen is purely intelligence-based
-  // ─────────────────────────────────────────────────────────────────────────
-  const hpRegen = Math.floor(maxHp * F.HP_REGEN_PERCENT * (effective.willpower / BALANCE.HP_REGEN_WILLPOWER_DIVISOR));
-  const chakraRegen = Math.floor(effective.intelligence * F.CHAKRA_REGEN_PER_INT);
+  // HP regen: max(1, floor(maxHP × (0.01 + 0.04 × WILL/(WILL+10))))
+  const willRegenFactor =
+    F.HP_REGEN_BASE_FRACTION +
+    F.HP_REGEN_WILL_FRACTION * (effective.willpower / (effective.willpower + F.HP_REGEN_WILL_SOFT));
+  const hpRegen = Math.max(1, Math.floor(maxHp * willRegenFactor));
+  // Chakra regen: 1 + 2×INT
+  const chakraRegen = F.CHAKRA_REGEN_BASE + F.CHAKRA_REGEN_PER_INT * effective.intelligence;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // FLAT DEFENSE - Linear scaling, subtracts fixed damage amount
-  // Applied FIRST in damage calculation, capped at 60% of incoming damage
-  // ─────────────────────────────────────────────────────────────────────────
-  const physicalDefenseFlat = Math.floor(effective.strength * F.FLAT_PHYS_DEF_PER_STR) + (equipmentBonuses.flatPhysicalDef || 0);
-  const elementalDefenseFlat = Math.floor(effective.spirit * F.FLAT_ELEM_DEF_PER_SPIRIT) + (equipmentBonuses.flatElementalDef || 0);
-  const mentalDefenseFlat = Math.floor(effective.calmness * F.FLAT_MENTAL_DEF_PER_CALM) + (equipmentBonuses.flatMentalDef || 0);
+  const physicalDefenseFlat =
+    Math.floor(effective.strength * F.FLAT_PHYS_DEF_PER_STR) + (equipmentBonuses.flatPhysicalDef || 0);
+  const elementalDefenseFlat =
+    Math.floor(effective.spirit * F.FLAT_ELEM_DEF_PER_SPIRIT) + (equipmentBonuses.flatElementalDef || 0);
+  const mentalDefenseFlat =
+    Math.floor(effective.calmness * F.FLAT_MENTAL_DEF_PER_CALM) + (equipmentBonuses.flatMentalDef || 0);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // PERCENT DEFENSE - Diminishing returns formula: stat / (stat + SOFT_CAP)
-  // Applied SECOND after flat reduction, hard-capped at 75%
-  // Example: 50 strength with SOFT_CAP=100 → 50/(50+100) = 33% reduction
-  // ─────────────────────────────────────────────────────────────────────────
-  const physicalDefensePercent = Math.min(0.75,
-    (effective.strength / (effective.strength + F.PHYSICAL_DEF_SOFT_CAP)) + (equipmentBonuses.percentPhysicalDef || 0)
+  const physicalDefensePercent = Math.min(
+    defCap,
+    effective.strength / (effective.strength + F.PHYSICAL_DEF_SOFT_CAP) + (equipmentBonuses.percentPhysicalDef || 0)
   );
-  const elementalDefensePercent = Math.min(0.75,
-    (effective.spirit / (effective.spirit + F.ELEMENTAL_DEF_SOFT_CAP)) + (equipmentBonuses.percentElementalDef || 0)
+  const elementalDefensePercent = Math.min(
+    defCap,
+    effective.spirit / (effective.spirit + F.ELEMENTAL_DEF_SOFT_CAP) + (equipmentBonuses.percentElementalDef || 0)
   );
-  const mentalDefensePercent = Math.min(0.75,
-    (effective.calmness / (effective.calmness + F.MENTAL_DEF_SOFT_CAP)) + (equipmentBonuses.percentMentalDef || 0)
+  const mentalDefensePercent = Math.min(
+    defCap,
+    effective.calmness / (effective.calmness + F.MENTAL_DEF_SOFT_CAP) + (equipmentBonuses.percentMentalDef || 0)
   );
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // STATUS & SURVIVAL - Crowd control resistance and death prevention
-  // Both use diminishing returns formulas
-  // ─────────────────────────────────────────────────────────────────────────
-  const statusResistance = effective.calmness / (effective.calmness + F.STATUS_RESIST_SOFT_CAP);
-  const gutsChance = effective.willpower / (effective.willpower + F.GUTS_SOFT_CAP);
+  // Status resist: 60% × CAL/(CAL+12); Guts: 30% × WILL/(WILL+18)
+  const statusResistance =
+    F.STATUS_RESIST_SCALE * (effective.calmness / (effective.calmness + F.STATUS_RESIST_SOFT_CAP));
+  const gutsChance = F.GUTS_SCALE * (effective.willpower / (effective.willpower + F.GUTS_SOFT_CAP));
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // HIT RATES - Base accuracy before defender's evasion is applied
-  // In combat, defender's speed reduces these values
-  // ─────────────────────────────────────────────────────────────────────────
-  const meleeHitRate = F.BASE_HIT_CHANCE + (effective.speed * BALANCE.HIT_RATE_SCALING);
-  const rangedHitRate = F.BASE_HIT_CHANCE + (effective.accuracy * BALANCE.HIT_RATE_SCALING);
+  // Display-only attacker contribution (live impact includes defender SPEED)
+  const meleeHitRate = F.IMPACT_BASE + F.IMPACT_PER_DIFF * effective.speed;
+  const rangedHitRate = F.IMPACT_BASE + F.IMPACT_PER_DIFF * effective.accuracy;
+  const evasion = 0; // dual evasion roll removed
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // EVASION - Chance to completely avoid attacks (separate from miss)
-  // Uses diminishing returns, checked AFTER hit roll succeeds
-  // ─────────────────────────────────────────────────────────────────────────
-  const evasion = effective.speed / (effective.speed + F.EVASION_SOFT_CAP);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CRITICAL HITS - Chance and multiplier for bonus damage
-  // Ranged attacks get bonus crit damage from accuracy
-  // ─────────────────────────────────────────────────────────────────────────
-  const critChance = Math.min(75, F.BASE_CRIT_CHANCE + (effective.dexterity * F.CRIT_PER_DEX) + (equipmentBonuses.critChance || 0));
+  // Crit: 5% + 50%×DEX/(DEX+12), max 55%
+  const critFromDex = F.CRIT_SCALE * (effective.dexterity / (effective.dexterity + F.CRIT_SOFT_CAP));
+  const critChance = Math.min(
+    F.CRIT_CHANCE_CAP,
+    F.BASE_CRIT_CHANCE + critFromDex * 100 + (equipmentBonuses.critChance || 0)
+  );
   const critDamageMelee = F.BASE_CRIT_MULT + (equipmentBonuses.critDamage || 0);
-  const critDamageRanged = F.BASE_CRIT_MULT + (effective.accuracy * F.RANGED_CRIT_BONUS_PER_ACC) + (equipmentBonuses.critDamage || 0);
+  const critDamageRanged =
+    F.BASE_CRIT_MULT + (effective.accuracy * F.RANGED_CRIT_BONUS_PER_ACC) + (equipmentBonuses.critDamage || 0);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // INITIATIVE - Determines turn order in combat (higher = acts first)
-  // ─────────────────────────────────────────────────────────────────────────
-  const initiative = F.INIT_BASE + (effective.speed * F.INIT_PER_SPEED);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // ACTION POINTS - Per-turn AP budget for the deckbuilder economy (T-004)
-  // Faster shinobi play more cards per turn. Purely additive: this value is
-  // not yet consumed by the combat flow (wired up in a later phase).
-  // ─────────────────────────────────────────────────────────────────────────
-  const actionPointsPerTurn = LaunchProperties.AP_BASE + Math.floor(effective.speed / LaunchProperties.AP_PER_SPEED_DIV);
+  const initiative = F.INIT_BASE + effective.speed * F.INIT_PER_SPEED;
+  // AP: min(9, 3 + floor((SPEED−1)/2))
+  const actionPointsPerTurn = Math.min(
+    F.AP_MAX,
+    F.AP_BASE + Math.floor((Math.max(1, effective.speed) - 1) / F.AP_SPEED_STEP)
+  );
 
   return {
     maxHp,
@@ -396,14 +374,12 @@ export function aggregateEquipmentBonuses(equipment: Record<EquipmentSlot, Item 
   Object.entries(equipment).forEach(([slot, item]) => {
     if (!item || !item.stats) return;
 
-    // PRIMARY slot (SLOT_1) gets 50% stat bonus
-    const multiplier = slot === EquipmentSlot.SLOT_1 ? BALANCE.PRIMARY_SLOT_MULTIPLIER : 1.0;
-
+    // F1: primary gear is +1-scale; no SLOT_1 ×1.5 inflation
     const stats = item.stats;
     (Object.keys(stats) as Array<keyof ItemStatBonus>).forEach(key => {
       const value = stats[key];
       if (value !== undefined) {
-        bonuses[key] = (bonuses[key] || 0) + Math.floor(value * multiplier);
+        bonuses[key] = (bonuses[key] || 0) + value;
       }
     });
   });
@@ -436,34 +412,59 @@ export function applyEquipmentToPrimaryStats(
 // BUFF MODIFIER CALCULATOR
 // Applies active buff/debuff modifiers to primary stats
 // ============================================================================
+/**
+ * Apply buff/debuff as integer primary deltas (±1/±2 style).
+ * Effective stats never drop below 1.
+ */
 export function applyBuffsToPrimaryStats(
   baseStats: PrimaryAttributes,
   buffs: Buff[]
 ): PrimaryAttributes {
   const modified = { ...baseStats };
 
-  // Safely handle undefined or malformed buffs
   if (!buffs || !Array.isArray(buffs)) return modified;
 
   buffs.forEach(buff => {
-    // Skip undefined or malformed buffs
     if (!buff || !buff.effect) return;
 
     if (buff.effect.type === EffectType.BUFF || buff.effect.type === EffectType.DEBUFF) {
       const targetStat = buff.effect.targetStat;
-      const value = buff.effect.value || 0;
+      // Value is integer points; fractional legacy values are rounded
+      const raw = buff.effect.value || 0;
+      const points = Math.round(Math.abs(raw) < 1 && raw !== 0 ? raw * 10 : raw);
+      const delta = buff.effect.type === EffectType.BUFF ? points : -points;
 
       if (targetStat) {
         const statKey = targetStat.toLowerCase() as keyof PrimaryAttributes;
         if (statKey in modified) {
-          const multiplier = buff.effect.type === EffectType.BUFF ? (1 + value) : (1 - value);
-          modified[statKey] = Math.floor(modified[statKey] * multiplier);
+          modified[statKey] = Math.max(1, modified[statKey] + delta);
         }
       }
     }
   });
 
   return modified;
+}
+
+/** Resolve skill HP cost to a flat amount given current resources. */
+export function resolveHpCost(
+  skill: Skill,
+  currentHp: number,
+  _maxHp: number
+): number {
+  if (skill.mutualKo) return Math.max(0, currentHp);
+  return Math.max(0, skill.hpCost ?? 0);
+}
+
+/** True if actor can afford the skill's HP toll. */
+export function canAffordHpCost(
+  skill: Skill,
+  currentHp: number,
+  maxHp: number
+): boolean {
+  if (skill.mutualKo) return currentHp > 0;
+  const flat = resolveHpCost(skill, currentHp, maxHp);
+  return currentHp > flat;
 }
 
 // ============================================================================
@@ -497,18 +498,19 @@ export function getPlayerFullStats(player: Player): {
   derived.chakraRegen += passiveBonuses.chakraRegen;
   derived.hpRegen += passiveBonuses.hpRegen;
 
-  // 6. Apply passive defenseBonus to all percent defenses (soft-capped at 75%)
+  // 6. Apply passive defenseBonus to all percent defenses (cap 65%)
+  const defCap = STAT_FORMULAS.PERCENT_DEF_CAP;
   if (passiveBonuses.defenseBonus > 0) {
     derived.physicalDefensePercent = Math.min(
-      0.75,
+      defCap,
       derived.physicalDefensePercent + passiveBonuses.defenseBonus
     );
     derived.elementalDefensePercent = Math.min(
-      0.75,
+      defCap,
       derived.elementalDefensePercent + passiveBonuses.defenseBonus
     );
     derived.mentalDefensePercent = Math.min(
-      0.75,
+      defCap,
       derived.mentalDefensePercent + passiveBonuses.defenseBonus
     );
   }
@@ -676,37 +678,35 @@ export function calculateDamage(
   };
 
   // ========================================
-  // STEP 1: HIT/MISS CHECK
+  // STEP 1: SINGLE IMPACT CHECK (no separate evasion roll)
+  // impact = clamp(60, 98, 90 + 6×(atkStat − defender SPEED))
+  // MELEE uses SPEED; RANGED uses ACCURACY; AUTO always hits
   // ========================================
-  // forceHit skips both miss and evasion so previews / tests stay deterministic.
+  const F = STAT_FORMULAS;
   if (!opts.forceHit && skill.attackMethod !== AttackMethod.AUTO) {
-    let hitChance: number;
-
-    if (skill.attackMethod === AttackMethod.MELEE) {
-      hitChance = attackerDerived.meleeHitRate - (defenderPrimary.speed * BALANCE.EVASION_SCALING);
-    } else {
-      hitChance = attackerDerived.rangedHitRate - (defenderPrimary.speed * BALANCE.EVASION_SCALING);
-    }
-
-    hitChance = Math.max(30, Math.min(98, hitChance)); // Clamp 30-98%
+    const atkStat =
+      skill.attackMethod === AttackMethod.MELEE
+        ? attackerPrimary.speed
+        : attackerPrimary.accuracy;
+    const impact =
+      F.IMPACT_BASE + F.IMPACT_PER_DIFF * (atkStat - defenderPrimary.speed);
+    const hitChance = Math.max(F.IMPACT_MIN, Math.min(F.IMPACT_MAX, impact));
 
     if (!percentChance(hitChance)) {
       result.isMiss = true;
       return result;
     }
-
-    if (chance(defenderDerived.evasion)) {
-      result.isEvaded = true;
-      return result;
-    }
   }
+  result.isEvaded = false;
 
   // ========================================
-  // STEP 2: BASE DAMAGE CALCULATION
+  // STEP 2: BASE DAMAGE = baseDamage + scalingPerPoint × effectivePrimary
   // ========================================
   const scalingStatKey = skill.scalingStat.toLowerCase() as keyof PrimaryAttributes;
-  const scalingValue = attackerPrimary[scalingStatKey] || 10;
-  result.rawDamage = Math.floor(scalingValue * skill.damageMult);
+  const scalingValue = attackerPrimary[scalingStatKey] || 1;
+  const base = skill.baseDamage ?? 0;
+  const perPoint = skill.scalingPerPoint ?? 0;
+  result.rawDamage = Math.floor(base + perPoint * scalingValue);
 
   // ========================================
   // STEP 2b: PASSIVE DAMAGE BONUS
@@ -787,18 +787,24 @@ export function calculateDamage(
   const convertPct = Math.min(100, Math.max(0, opts.convertToElementalPercent || 0));
   const canConvert = convertPct > 0 && skill.damageType === DamageType.PHYSICAL;
 
-  // Min-1 chip only when the skill actually dealt damage. Utility/heal kits with
-  // damageMult 0 must not poke the enemy for 1 (was Math.max(1, 0) → 1).
+  // Min-1 chip only when the skill actually dealt damage. Utility kits with
+  // baseDamage 0 + scalingPerPoint 0 must not poke for 1.
   const floorDamage = (afterDefense: number): number => {
     const floored = Math.floor(afterDefense);
     if (result.rawDamage <= 0) return 0;
     return Math.max(1, floored);
   };
 
+  /** Temporary global ×2 — CONSTANTE CÉSAR; remove with CESAR_DAMAGE_CONSTANT. */
+  const applyCesar = (amount: number): number => {
+    if (amount <= 0) return amount;
+    return Math.floor(amount * CESAR_DAMAGE_CONSTANT);
+  };
+
   if (skill.damageType === DamageType.TRUE) {
     result.flatReduction = 0;
     result.percentReduction = 0;
-    result.finalDamage = floorDamage(result.rawDamage);
+    result.finalDamage = applyCesar(floorDamage(result.rawDamage));
     return result;
   }
 
@@ -812,7 +818,7 @@ export function calculateDamage(
     const elemSlice = applyDefenseSlice(elemRaw, elemDef.flat, elemDef.percent, skill.damageProperty);
     result.flatReduction = physSlice.flatReduction + elemSlice.flatReduction;
     result.percentReduction = physSlice.percentReduction + elemSlice.percentReduction;
-    result.finalDamage = floorDamage(physSlice.after + elemSlice.after);
+    result.finalDamage = applyCesar(floorDamage(physSlice.after + elemSlice.after));
     return result;
   }
 
@@ -821,7 +827,7 @@ export function calculateDamage(
   const slice = applyDefenseSlice(result.rawDamage, flatDef, percentDef, skill.damageProperty);
   result.flatReduction = slice.flatReduction;
   result.percentReduction = slice.percentReduction;
-  result.finalDamage = floorDamage(slice.after);
+  result.finalDamage = applyCesar(floorDamage(slice.after));
 
   return result;
 }
@@ -931,36 +937,100 @@ export function resistStatus(
 // ============================================================================
 // SKILL REQUIREMENT CHECK
 // ============================================================================
+/**
+ * Check whether a player may learn a skill.
+ *
+ * - Open learn: any skill without `requirements.clan` is available to all clans.
+ * - Clan hard-gate: if `requirements.clan` is set, only that clan may learn it.
+ * - Stats: `requirements.stats` (any PrimaryStat) plus legacy `intelligence`.
+ *
+ * @param skill - Skill to learn
+ * @param primaryStats - Player effective primary stats (or a partial with at least intelligence for legacy callers)
+ * @param playerLevel - Player level
+ * @param playerClan - Player clan string
+ */
 export function canLearnSkill(
   skill: Skill,
-  playerIntelligence: number,
+  primaryStats: Partial<PrimaryAttributes> | number,
   playerLevel: number,
   playerClan: string
 ): { canLearn: boolean; reason?: string } {
+  // Legacy overload: second arg was playerIntelligence: number
+  const stats: Record<string, number> =
+    typeof primaryStats === 'number'
+      ? { Intelligence: primaryStats, intelligence: primaryStats }
+      : Object.fromEntries(
+          Object.entries(primaryStats as object).filter(
+            ([, v]) => typeof v === 'number',
+          ) as [string, number][],
+        );
+
+  const getStat = (name: string): number => {
+    const direct = stats[name];
+    if (typeof direct === 'number') return direct;
+    // Case-insensitive / enum-value lookup
+    const hit = Object.entries(stats).find(
+      ([k]) => k.toLowerCase() === name.toLowerCase()
+    );
+    return typeof hit?.[1] === 'number' ? hit[1] : 0;
+  };
+
   if (!skill.requirements) {
     return { canLearn: true };
   }
 
   const req = skill.requirements;
 
-  if (req.intelligence && playerIntelligence < req.intelligence) {
-    return { 
-      canLearn: false, 
-      reason: `Requires ${req.intelligence} Intelligence (you have ${playerIntelligence})` 
+  const statAbbr = (name: string): string => {
+    const map: Record<string, string> = {
+      strength: 'STR',
+      willpower: 'WIL',
+      chakra: 'CHA',
+      spirit: 'SPI',
+      intelligence: 'INT',
+      calmness: 'CAL',
+      speed: 'SPD',
+      accuracy: 'ACC',
+      dexterity: 'DEX',
     };
+    return map[name.toLowerCase()] ?? name.substring(0, 3).toUpperCase();
+  };
+
+  if (req.stats) {
+    for (const [statKey, min] of Object.entries(req.stats)) {
+      if (min === undefined) continue;
+      const have = getStat(statKey);
+      if (have < min) {
+        return {
+          canLearn: false,
+          reason: `Req: ${min} ${statAbbr(statKey)} (You have ${Math.floor(have)})`,
+        };
+      }
+    }
+  }
+
+  // Legacy intelligence field (catalog migration)
+  if (req.intelligence !== undefined) {
+    const have = getStat('Intelligence') || getStat('intelligence');
+    if (have < req.intelligence) {
+      return {
+        canLearn: false,
+        reason: `Req: ${req.intelligence} INT (You have ${Math.floor(have)})`,
+      };
+    }
   }
 
   if (req.level && playerLevel < req.level) {
-    return { 
-      canLearn: false, 
-      reason: `Requires Level ${req.level}` 
+    return {
+      canLearn: false,
+      reason: `Req: Lv ${req.level}`,
     };
   }
 
   if (req.clan && req.clan !== playerClan) {
-    return { 
-      canLearn: false, 
-      reason: `Requires ${req.clan} bloodline` 
+    return {
+      canLearn: false,
+      reason: `Req: ${req.clan} bloodline`,
     };
   }
 
@@ -1008,7 +1078,8 @@ export function calculateDotDamage(
 
   // TRUE damage DoTs (like Poison or Amaterasu) bypass defense
   if (type === DamageType.TRUE) {
-    return dotValue;
+    // CONSTANTE CÉSAR — temporary global ×2; delete with CESAR_DAMAGE_CONSTANT
+    return Math.floor(dotValue * CESAR_DAMAGE_CONSTANT);
   }
 
   // Get appropriate defense
@@ -1034,7 +1105,9 @@ export function calculateDotDamage(
     damage -= Math.floor(damage * percentDef * BALANCE.DOT_PERCENT_DEFENSE_MULT);
   }
 
-  return Math.max(1, Math.floor(damage));
+  // CONSTANTE CÉSAR — temporary global ×2; delete with CESAR_DAMAGE_CONSTANT
+  const afterDef = Math.max(1, Math.floor(damage));
+  return Math.floor(afterDef * CESAR_DAMAGE_CONSTANT);
 }
 
 // ============================================================================

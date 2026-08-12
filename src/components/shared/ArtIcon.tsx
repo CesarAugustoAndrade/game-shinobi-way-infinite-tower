@@ -56,6 +56,8 @@ const ArtIcon: React.FC<ArtIconProps> = ({
     setImageError(false);
   }, [artIdentity, srcKey]);
 
+  const isCutout = Boolean(art.src?.endsWith('.png') || art.src?.includes('/cutouts/'));
+
   if (showImg && art.src) {
     return (
       <img
@@ -63,10 +65,10 @@ const ArtIcon: React.FC<ArtIconProps> = ({
         src={art.src}
         alt={label}
         title={label}
-        className={`${sizeClass} ${className}`.trim()}
+        className={`${sizeClass} ${isCutout ? 'art-icon--cutout' : ''} ${className}`.trim()}
         style={
           isFill
-            ? { width: '100%', height: '100%', objectFit: 'cover' }
+            ? { width: '100%', height: '100%', objectFit: isCutout ? 'contain' : 'cover' }
             : undefined
         }
         onError={() => setImageError(true)}

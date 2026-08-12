@@ -7,28 +7,13 @@ import {
   CharacterStats,
   ActionType,
   Posture,
+  type TerrainDefinition,
 } from '../../game/types';
 import Tooltip from '../shared/Tooltip';
 import { SkillCard } from './SkillCard';
 import { getApCost } from '../../game/constants/combatCards';
-import { previewDamage, resolvePassiveDamageBonus } from '../../game/systems/StatSystem';
-import {
-  getTotalDefenseBypass,
-  getCritDefenseBypass,
-  hasAllElementsPassive,
-  getConvertToElementalPercent,
-  applyClanTraitToDamageContext,
-} from '../../game/systems/EquipmentPassiveSystem';
-import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
-import { postureDamageMod } from '../../game/systems/PostureSystem';
-import {
-  skillLocationDamageMult,
-  applyEnemyDefenseBonus,
-  type LocationTerrainMods,
-} from '../../game/systems/LocationTerrainSystem';
-import { getTerrainElementAmplification } from '../../game/systems/CombatCalculationSystem';
-import type { TerrainDefinition } from '../../game/types';
-import { LaunchProperties } from '../../config/featureFlags';
+import type { LocationTerrainMods } from '../../game/systems/LocationTerrainSystem';
+import { previewSkillDamageForUi } from '../../game/systems/combatSkillViewModel';
 import { getElementEffectiveness } from '../../game/constants';
 import { getSkillArt } from '../../game/constants/artRegistry';
 import ArtIcon from '../shared/ArtIcon';
@@ -115,60 +100,23 @@ export const Hand: React.FC<HandProps> = ({
       player.currentChakra < skill.chakraCost;
     const hpShort = skill.hpCost > 0 && player.currentHp <= skill.hpCost;
 
-    // T-038: match live combat mods (clan traits T-031 + event flags T-034)
-    const clanCtx = applyClanTraitToDamageContext(
-      player,
-      playerStats.derived,
-      enemyStats.effectivePrimary,
-      enemyStats.derived,
-    );
-    const flagDmg = getEventFlagRunModifiers(player).damageBonus;
     const skillArt = getSkillArt(skill);
-    // previewDamage forces hit + non-crit so tooltips do not flicker miss/CRIT
-    const prediction = previewDamage(
-      playerStats.effectivePrimary,
-      clanCtx.attackerDerived,
-      clanCtx.defenderPrimary,
-      clanCtx.defenderDerived,
+    // Pure UI damage stack (clan traits, event flags, passives, first-hit,
+    // terrain, launch mult, posture) — forces hit + non-crit for stable preview.
+    const { predictedDamage, isSuperEffective } = previewSkillDamageForUi({
+      player,
+      playerStats,
+      enemy,
+      enemyStats,
       skill,
-      player.element,
-      enemy.element,
-      {
-        damageBonus:
-          resolvePassiveDamageBonus(playerStats.passiveBonuses, skill.element) + flagDmg,
-        defenseBypass: getTotalDefenseBypass(player),
-        critDefenseBypass: getCritDefenseBypass(player),
-        forceSuperEffective: hasAllElementsPassive(player),
-        convertToElementalPercent: getConvertToElementalPercent(player),
-      }
-    );
-
-    // Match PlayerTurnSystem post-calc mods: first-hit, room terrain amp,
-    // location terrain, launch mult, posture
-    let modified = prediction.finalDamage;
-    if (isFirstTurn && firstHitMultiplier > 1) {
-      modified = Math.floor(modified * firstHitMultiplier);
-    }
-    if (roomTerrain && player.element) {
-      const terrainAmp = getTerrainElementAmplification(roomTerrain, player.element);
-      if (terrainAmp > 1) {
-        modified = Math.floor(modified * terrainAmp);
-      }
-    }
-    if (locationTerrainMods) {
-      const locMult = skillLocationDamageMult(skill, locationTerrainMods);
-      if (locMult !== 1) {
-        modified = Math.floor(modified * locMult);
-      }
-      modified = applyEnemyDefenseBonus(modified, locationTerrainMods);
-    }
-    const predictedDamage = Math.floor(
-      Math.floor(modified * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER) *
-        postureDamageMod(posture)
-    );
+      posture,
+      isFirstTurn,
+      firstHitMultiplier,
+      locationTerrainMods,
+      roomTerrain,
+    });
 
     const effectiveness = getElementEffectiveness(skill.element, enemy.element);
-    const isSuperEffective = effectiveness > 1.0;
     const shortcutKey = HAND_SHORTCUTS[index];
 
     return (
@@ -191,11 +139,10 @@ export const Hand: React.FC<HandProps> = ({
                   <div className="combat-tooltip__subtitle">
                     <span className="combat-tooltip__tier">{skill.tier}</span>
                     <span className={
-                      skill.actionType === ActionType.SIDE ? 'combat-tooltip__action--side' :
                       skill.actionType === ActionType.TOGGLE ? 'combat-tooltip__action--toggle' :
-                      'combat-tooltip__action--main'
+                      'combat-tooltip__action--active'
                     }>
-                      {skill.actionType || ActionType.MAIN} · {apCost} AP
+                      {skill.actionType || ActionType.ACTIVE} · {apCost} AP
                     </span>
                   </div>
                 </div>
@@ -208,13 +155,36 @@ export const Hand: React.FC<HandProps> = ({
               <div className="combat-tooltip__description">{skill.description}</div>
             </div>
 
+            {(skill.stanceBonus || skill.stanceShift) && (
+              <div className="combat-tooltip__section">
+                <div className="combat-tooltip__section-title">Stance</div>
+                {skill.stanceBonus && (
+                  <div className="combat-tooltip__description">
+                    Match {skill.stanceBonus.posture}
+                    {skill.stanceBonus.damageMultBonus
+                      ? `: +${Math.round(skill.stanceBonus.damageMultBonus * 100)}% dmg`
+                      : ''}
+                    {skill.stanceBonus.apDiscount
+                      ? `${skill.stanceBonus.damageMultBonus ? ' · ' : ': '}-${skill.stanceBonus.apDiscount} AP`
+                      : ''}
+                    {skill.stanceBonus.posture === posture ? ' · active' : ''}
+                  </div>
+                )}
+                {skill.stanceShift && (
+                  <div className="combat-tooltip__description">
+                    On play → shift to {skill.stanceShift}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Strike force */}
             <div className="combat-tooltip__section">
               <div className="combat-tooltip__section-title">Force</div>
               <div className="combat-tooltip__damage-row">
                 <div className="combat-tooltip__scaling">
                   <span className={`combat-tooltip__scaling-value ${getStatColor(skill.scalingStat)}`}>
-                    {Math.round(skill.damageMult * 100)}% {formatScalingStat(skill.scalingStat)}
+                    {skill.baseDamage}+{skill.scalingPerPoint}/{formatScalingStat(skill.scalingStat)}
                   </span>
                   <span className="combat-tooltip__scaling-label">from</span>
                 </div>

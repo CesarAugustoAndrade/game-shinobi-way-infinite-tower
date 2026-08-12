@@ -31,10 +31,10 @@
 
 import {
   skillLocationDamageMult,
-  applyEnemyDefenseBonus,
   applyMovementPenaltyToMaxAp,
   applyRoomMovementCostToMaxAp,
 } from './LocationTerrainSystem';
+import { canAffordHpCost, resolveHpCost } from './StatSystem';
 import {
   Player,
   Enemy,
@@ -44,7 +44,16 @@ import {
   CharacterStats,
   ActionType,
   Posture,
+  RangeMoveDirection,
 } from '../types';
+import {
+  skillAllowedAt,
+  outOfRangeBlockReason,
+  shiftRange,
+  voluntaryMoveCost,
+  collectRangeReactions,
+} from './RangeSystem';
+import { RangeMoveTrigger } from '../types';
 import {
   calculateDamage,
   resolvePassiveDamageBonus,
@@ -55,10 +64,15 @@ import { logFlowCheckpoint, logDamage } from '../utils/combatDebug';
 import { LaunchProperties } from '../../config/featureFlags';
 import {
   generateId,
-  applyMitigation,
   getTerrainElementAmplification,
   getTerrainEvasionBonus,
 } from './CombatCalculationSystem';
+import {
+  applyDamageMultipliers,
+  applyEnemyDefenseBonusToDamage,
+  buildPlayerPreMitigationMults,
+  resolveSuccessfulHit,
+} from './SkillResolutionSystem';
 import {
   processPassivesOnHit,
   processPassivesOnTurnStart,
@@ -72,9 +86,13 @@ import {
 } from './EquipmentPassiveSystem';
 import { getEventFlagRunModifiers } from './EventSystem';
 import { getApCost } from '../constants/combatCards';
-import { postureDamageMod, stanceShiftFromSkill } from './PostureSystem';
+import {
+  postureDamageMod,
+  stanceBonusDamageMult,
+  stanceShiftFromSkill,
+} from './PostureSystem';
 import { drawNewTurnHand } from './DeckSystem';
-import { checkLethalDamage } from './EnemyTurnSystem';
+import { checkLethalDamage } from './SurvivalSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
 
 // ============================================================================
@@ -264,6 +282,72 @@ export function processUpkeep(
 }
 
 // ============================================================================
+// VOLUNTARY RANGE MOVE (F2)
+// ============================================================================
+
+export interface VoluntaryMoveResult {
+  success: boolean;
+  combatState: CombatState;
+  logMessage: string;
+  /** True when blocked (no AP, already moved, boundary). */
+  blocked: boolean;
+}
+
+/**
+ * Player voluntary move: one band, once per turn, base 1 AP (+ optional surcharge).
+ * Immutable CombatState update.
+ */
+export function voluntaryPlayerMove(
+  combatState: CombatState,
+  direction: RangeMoveDirection,
+  apSurcharge: number = 0
+): VoluntaryMoveResult {
+  if (combatState.playerMoveUsedThisTurn) {
+    return {
+      success: false,
+      blocked: true,
+      combatState,
+      logMessage: 'Already moved this turn.',
+    };
+  }
+  const cost = voluntaryMoveCost(apSurcharge);
+  if (combatState.currentAp < cost) {
+    return {
+      success: false,
+      blocked: true,
+      combatState,
+      logMessage: `Not enough AP to move (need ${cost}).`,
+    };
+  }
+  const { range, moved } = shiftRange(combatState.currentRange, direction);
+  if (!moved) {
+    return {
+      success: false,
+      blocked: true,
+      combatState,
+      logMessage: 'Cannot move further in that direction.',
+    };
+  }
+  // Empty reaction hooks (no content adapted this delivery)
+  void collectRangeReactions(RangeMoveTrigger.VOLUNTARY, moved, false);
+
+  return {
+    success: true,
+    blocked: false,
+    combatState: {
+      ...combatState,
+      currentRange: range,
+      currentAp: combatState.currentAp - cost,
+      playerMoveUsedThisTurn: true,
+    },
+    logMessage:
+      direction === RangeMoveDirection.APPROACH
+        ? `You close the gap → ${range}.`
+        : `You create distance → ${range}.`,
+  };
+}
+
+// ============================================================================
 // SKILL EXECUTION
 // ============================================================================
 
@@ -321,9 +405,29 @@ export function useSkill(
   const skipCost = Boolean(combatState?.skipFirstSkillCost);
   const effectiveChakraCost = skipCost ? 0 : skill.chakraCost;
 
+  // F2: range gate — distance only blocks, no damage modifiers
+  if (combatState?.currentRange && !skillAllowedAt(skill, combatState.currentRange)) {
+    return {
+      damageDealt: 0,
+      newEnemyHp: enemy.currentHp,
+      newPlayerHp: player.currentHp,
+      newPlayerChakra: player.currentChakra,
+      newEnemyBuffs: enemy.activeBuffs,
+      newPlayerBuffs: player.activeBuffs,
+      logMessage: outOfRangeBlockReason(skill, combatState.currentRange),
+      logType: 'danger',
+      enemyDefeated: false,
+      apCost: 0,
+    };
+  }
+
   // Resource check (chakra/HP and — when in the AP economy — Action Points).
   // Gate uses effectiveChakraCost so free-first works even at low chakra.
-  if (player.currentChakra < effectiveChakraCost || player.currentHp <= skill.hpCost) {
+  const playerMaxHp = playerStats?.derived?.maxHp ?? player.currentHp;
+  if (
+    player.currentChakra < effectiveChakraCost ||
+    !canAffordHpCost(skill, player.currentHp, playerMaxHp)
+  ) {
     return {
       damageDealt: 0,
       newEnemyHp: enemy.currentHp,
@@ -335,6 +439,23 @@ export function useSkill(
       logType: 'danger',
       enemyDefeated: false,
       apCost: 0
+    };
+  }
+
+  // Mutual KO (Reaper Death Seal): both actors defeated without damage pipeline.
+  if (skill.mutualKo) {
+    return {
+      damageDealt: enemy.currentHp,
+      newEnemyHp: 0,
+      newPlayerHp: 0,
+      newPlayerChakra: Math.max(0, player.currentChakra - effectiveChakraCost),
+      newEnemyBuffs: enemy.activeBuffs,
+      newPlayerBuffs: player.activeBuffs,
+      logMessage: `${skill.name}! Mutual seal — both fall.`,
+      logType: 'danger',
+      enemyDefeated: true,
+      playerDefeated: true,
+      apCost,
     };
   }
 
@@ -450,45 +571,59 @@ export function useSkill(
   } else if (damageResult.isEvaded) {
     logMsg = `You used ${skill.name} but ${enemy.name} EVADED!`;
   } else {
-    // Apply first hit multiplier from approach if on first turn
-    let modifiedDamage = damageResult.finalDamage;
-    let firstHitApplied = false;
-
-    if (combatState?.isFirstTurn && combatState.firstHitMultiplier > 1.0) {
-      modifiedDamage = Math.floor(modifiedDamage * combatState.firstHitMultiplier);
-      firstHitApplied = true;
-    }
-
-    // Apply terrain element amplification
+    // Successful hit — shared SkillResolution pipeline (order preserved):
+    // firstHit → terrainAmp → locSkill → enemyDef (additive-style) →
+    // PLAYER_DAMAGE_MULTIPLIER → posture → stance → mitigation
+    //
+    // enemyDef must stay BETWEEN early mults and late mults, so the builder
+    // is applied in two passes (same helper, split opts).
+    let terrainAmp: number | undefined;
     if (combatState?.terrain && player.element) {
-      const terrainAmp = getTerrainElementAmplification(combatState.terrain, player.element);
-      if (terrainAmp > 1.0) {
-        modifiedDamage = Math.floor(modifiedDamage * terrainAmp);
-      }
+      const amp = getTerrainElementAmplification(combatState.terrain, player.element);
+      if (amp > 1.0) terrainAmp = amp;
     }
 
-    // T-063: location terrain effects (water/fire/mental + enemy defense)
+    let locationSkillMult: number | undefined;
     if (combatState?.locationTerrainMods) {
       const locMult = skillLocationDamageMult(skill, combatState.locationTerrainMods);
-      if (locMult !== 1) {
-        modifiedDamage = Math.floor(modifiedDamage * locMult);
-      }
-      modifiedDamage = applyEnemyDefenseBonus(
-        modifiedDamage,
-        combatState.locationTerrainMods,
-      );
+      if (locMult !== 1) locationSkillMult = locMult;
     }
 
-    // Apply player damage multiplier from launch properties
-    modifiedDamage = Math.floor(modifiedDamage * LaunchProperties.PLAYER_DAMAGE_MULTIPLIER);
+    const firstHitApplied =
+      !!combatState?.isFirstTurn && (combatState.firstHitMultiplier ?? 1) > 1.0;
 
-    // T-004: light posture modifier on outgoing damage (base math untouched).
-    modifiedDamage = Math.floor(modifiedDamage * postureDamageMod(posture));
+    const earlyMults = buildPlayerPreMitigationMults({
+      isFirstTurn: combatState?.isFirstTurn,
+      firstHitMultiplier: combatState?.firstHitMultiplier,
+      terrainAmp,
+      locationSkillMult,
+    });
 
-    // Apply Mitigation Logic
-    const mitigation = applyMitigation(enemy.activeBuffs, modifiedDamage, enemy.name);
-    finalDamageToEnemy = mitigation.finalDamage;
-    newEnemyBuffs = mitigation.updatedBuffs;
+    const afterLoc = applyDamageMultipliers(damageResult.finalDamage, earlyMults);
+    const afterDef = applyEnemyDefenseBonusToDamage(
+      afterLoc,
+      combatState?.locationTerrainMods,
+    );
+
+    // Card-combat plan: stanceBonus match (multiplicative on final pre-mitigation dmg).
+    const stanceCardMult = stanceBonusDamageMult(skill, posture);
+    let stanceMatchNote = '';
+    if (stanceCardMult !== 1) {
+      stanceMatchNote = ` Stance match (${posture}): ×${stanceCardMult.toFixed(2)} dmg.`;
+    }
+
+    const hit = resolveSuccessfulHit({
+      rawDamage: afterDef,
+      preMitigationMultipliers: buildPlayerPreMitigationMults({
+        playerDamageMultiplier: LaunchProperties.PLAYER_DAMAGE_MULTIPLIER,
+        postureMod: postureDamageMod(posture),
+        stanceMult: stanceCardMult,
+      }),
+      defenderBuffs: enemy.activeBuffs,
+      defenderLabel: enemy.name,
+    });
+    finalDamageToEnemy = hit.finalDamage;
+    newEnemyBuffs = hit.updatedDefenderBuffs;
 
     // Check execute threshold (instant kill at low HP)
     const enemyMaxHp = enemyStats.derived.maxHp;
@@ -526,11 +661,11 @@ export function useSkill(
 
     // Handle Reflection — guts check if reflected damage would be lethal
     let reflectionGutsLog: string | undefined;
-    if (mitigation.reflectedDamage > 0) {
+    if (hit.reflectedDamage > 0) {
       const artifactGuts = checkGutsPassive(player);
       const lethalCheck = checkLethalDamage(
         newPlayerHp,
-        mitigation.reflectedDamage,
+        hit.reflectedDamage,
         playerStats.derived.gutsChance,
         { triggered: false, artifactTriggered: false },
         artifactGuts,
@@ -550,17 +685,20 @@ export function useSkill(
     } else {
       logMsg = `Used ${skill.name}`;
     }
+    if (stanceMatchNote) {
+      logMsg += stanceMatchNote;
+    }
     // Add execute message
     if (checkExecuteThreshold(player, enemy, enemyMaxHp) && enemy.currentHp <= enemyMaxHp * 0.2) {
       logMsg += " EXECUTE!";
     }
     if (skipCost) logMsg += " FREE!";
     if (firstHitApplied) logMsg += " AMBUSH!";
-    if (mitigation.messages.length > 0) {
-      logMsg += ` [${mitigation.messages.join(', ')}]`;
+    if (hit.messages.length > 0) {
+      logMsg += ` [${hit.messages.join(', ')}]`;
     }
-    if (mitigation.reflectedDamage > 0) {
-      logMsg += ` (Reflected ${mitigation.reflectedDamage}!)`;
+    if (hit.reflectedDamage > 0) {
+      logMsg += ` (Reflected ${hit.reflectedDamage}!)`;
     }
     if (reflectionGutsLog) {
       logMsg += ` ${reflectionGutsLog}`;

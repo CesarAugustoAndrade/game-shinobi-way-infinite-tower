@@ -5,8 +5,8 @@
  *   dedicated src → category/archetype fallback → emoji → mystery '?'
  *
  * Path convention (Vite public/):
- *   /assets/icons/{components|artifacts|locations|activities|clans|skills|enemies|events}/
- *   Painted: /assets/skill_*.png, /assets/enemy_*.png
+ *   /assets/icons/{components|artifacts|locations|activities|clans|enemies|ui}/
+ *   Painted: /assets/skills/skill_*.png, /assets/events/event_*.png, /assets/enemies/enemy_*.png (+ cutouts)
  */
 
 import { Clan, ComponentId, Item, Skill } from '../types';
@@ -35,7 +35,9 @@ export type ArtCategory =
   | 'clan'
   | 'skill'
   | 'enemy'
-  | 'event';
+  | 'event'
+  | 'approach'
+  | 'action';
 
 // ============================================================================
 // HELPERS
@@ -76,15 +78,15 @@ function entry(emoji: string, label: string, src?: string): ArtEntry {
 // ============================================================================
 
 const COMPONENTS: Record<string, ArtEntry> = {
-  [ComponentId.NINJA_STEEL]: entry('⚔️', 'Ninja Steel', iconPath('components', 'ninja_steel', 'jpg')),
-  [ComponentId.SPIRIT_TAG]: entry('📜', 'Spirit Tag', iconPath('components', 'spirit_tag', 'jpg')),
-  [ComponentId.CHAKRA_PILL]: entry('💊', 'Chakra Pill', iconPath('components', 'chakra_pill', 'jpg')),
-  [ComponentId.IRON_SAND]: entry('🛡️', 'Iron Sand', iconPath('components', 'iron_sand', 'jpg')),
-  [ComponentId.ANBU_MASK]: entry('🎭', 'ANBU Mask', iconPath('components', 'anbu_mask', 'jpg')),
-  [ComponentId.TRAINING_WEIGHTS]: entry('🏋️', 'Training Weights', iconPath('components', 'training_weights', 'jpg')),
-  [ComponentId.SWIFT_SANDALS]: entry('👟', 'Swift Sandals', iconPath('components', 'swift_sandals', 'jpg')),
-  [ComponentId.TACTICAL_SCROLL]: entry('🧠', 'Tactical Scroll', iconPath('components', 'tactical_scroll', 'jpg')),
-  [ComponentId.HASHIRAMA_CELL]: entry('🧬', 'Hashirama Cell', iconPath('components', 'hashirama_cell', 'jpg')),
+  [ComponentId.NINJA_STEEL]: entry('⚔️', 'Ninja Steel', iconPath('components/cutouts', 'ninja_steel', 'png')),
+  [ComponentId.SPIRIT_TAG]: entry('📜', 'Spirit Tag', iconPath('components/cutouts', 'spirit_tag', 'png')),
+  [ComponentId.CHAKRA_PILL]: entry('💊', 'Chakra Pill', iconPath('components/cutouts', 'chakra_pill', 'png')),
+  [ComponentId.IRON_SAND]: entry('🛡️', 'Iron Sand', iconPath('components/cutouts', 'iron_sand', 'png')),
+  [ComponentId.ANBU_MASK]: entry('🎭', 'ANBU Mask', iconPath('components/cutouts', 'anbu_mask', 'png')),
+  [ComponentId.TRAINING_WEIGHTS]: entry('🏋️', 'Training Weights', iconPath('components/cutouts', 'training_weights', 'png')),
+  [ComponentId.SWIFT_SANDALS]: entry('👟', 'Swift Sandals', iconPath('components/cutouts', 'swift_sandals', 'png')),
+  [ComponentId.TACTICAL_SCROLL]: entry('🧠', 'Tactical Scroll', iconPath('components/cutouts', 'tactical_scroll', 'png')),
+  [ComponentId.HASHIRAMA_CELL]: entry('🧬', 'Hashirama Cell', iconPath('components/cutouts', 'hashirama_cell', 'png')),
 };
 
 /** Artifact name → emoji (mirrors synthesis.ts; src from slug). */
@@ -139,7 +141,7 @@ const ARTIFACT_META: Array<{ name: string; emoji: string }> = [
 const ARTIFACTS: Record<string, ArtEntry> = Object.fromEntries(
   ARTIFACT_META.map(({ name, emoji }) => {
     const id = artSlug(name);
-    return [id, entry(emoji, name, iconPath('artifacts', id, 'jpg'))];
+    return [id, entry(emoji, name, iconPath('artifacts/cutouts', id, 'png'))];
   }),
 );
 
@@ -237,6 +239,21 @@ const EVENT_ENTRIES: Record<string, ArtEntry> = Object.fromEntries(
   EVENT_ART_MANIFEST.map((m) => [m.key, entry(m.emoji, m.label, m.src)]),
 );
 
+/** Pre-combat approach icons (Imagine UI set). Keys match ApproachType enum values lowercased. */
+const APPROACHES: Record<string, ArtEntry> = {
+  FRONTAL_ASSAULT: entry('⚔️', 'Frontal Assault', iconPath('approaches', 'frontal_assault', 'jpg')),
+  STEALTH_AMBUSH: entry('🗡️', 'Silent Strike', iconPath('approaches', 'silent_strike', 'jpg')),
+  GENJUTSU_SETUP: entry('🌀', 'Mind Trap', iconPath('approaches', 'mind_trap', 'jpg')),
+  ENVIRONMENTAL: entry('🪤', 'Terrain Trap', iconPath('approaches', 'terrain_trap', 'jpg')),
+  IRON_GUARD: entry('🛡️', 'Iron Guard', iconPath('approaches', 'iron_guard', 'jpg')),
+  SHADOW_BYPASS: entry('👤', 'Shadow Passage', iconPath('approaches', 'shadow_passage', 'jpg')),
+};
+
+const ACTIONS: Record<string, ArtEntry> = {
+  close_in: entry('⚡', 'Close In', '/assets/actions/action_close_in.png'),
+  back_off: entry('💨', 'Back Off', '/assets/actions/action_back_off.png'),
+};
+
 /** Flat registry: `category:id` → ArtEntry */
 export const ART_REGISTRY: Record<string, ArtEntry> = {
   ...Object.fromEntries(Object.entries(COMPONENTS).map(([id, e]) => [artKey('component', id), e])),
@@ -247,6 +264,8 @@ export const ART_REGISTRY: Record<string, ArtEntry> = {
   ...Object.fromEntries(Object.entries(SKILLS).map(([id, e]) => [artKey('skill', id), e])),
   ...ENEMY_ENTRIES,
   ...EVENT_ENTRIES,
+  ...Object.fromEntries(Object.entries(APPROACHES).map(([id, e]) => [artKey('approach', id), e])),
+  ...Object.fromEntries(Object.entries(ACTIONS).map(([id, e]) => [artKey('action', id), e])),
 };
 
 const MYSTERY: ArtEntry = { emoji: '❓', label: 'Unknown' };
@@ -307,6 +326,31 @@ export function getClanArt(clan: Clan): ArtEntry {
   return getArt(clanArtKey(clan));
 }
 
+/** Filesystem slug for hero / hero_cut painted plates (R1-201). */
+export function clanSlug(clan: Clan): string {
+  const key = clanArtKey(clan);
+  const slug = key.includes(':') ? key.slice(key.indexOf(':') + 1) : key;
+  return slug === 'unknown' ? 'uzumaki' : slug;
+}
+
+/**
+ * Full-plate hero portrait (`/assets/heroes/hero_<slug>.png`).
+ * Falls back to clan crest emoji when the file is missing (consumer onError).
+ */
+export function getHeroArt(clan: Clan): ArtEntry {
+  const crest = getClanArt(clan);
+  return entry(crest.emoji, crest.label ?? String(clan), `/assets/heroes/hero_${clanSlug(clan)}.png`);
+}
+
+/**
+ * Transparent hero cutout (`/assets/heroes/hero_cut_<slug>.png`).
+ * CharacterSelect prefers cutout → portrait → crest cascade.
+ */
+export function getHeroCutout(clan: Clan): ArtEntry {
+  const crest = getClanArt(clan);
+  return entry(crest.emoji, crest.label ?? String(clan), `/assets/heroes/hero_cut_${clanSlug(clan)}.png`);
+}
+
 /**
  * Runtime location ids are `location-<configId>-<timestamp>-<rand>` (RegionSystem).
  * Art keys are config ids only (`the_docks`, `gatos_compound`, …).
@@ -333,36 +377,57 @@ export function getComponentArt(componentId: ComponentId | string): ArtEntry {
   return getArt(artKey('component', componentId));
 }
 
+/** ApproachType enum value → art entry (Imagine icons). */
+export function getApproachArt(approachType: string): ArtEntry {
+  return getArt(artKey('approach', approachType));
+}
+
+export function getActionArt(actionId: string): ArtEntry {
+  return getArt(artKey('action', actionId));
+}
+
 export function getArtifactArt(name: string): ArtEntry {
   return getArt(artKey('artifact', artSlug(name)));
 }
 
+/** Convention install path for cinematic skill plates (16:9 painted PNGs). */
+export function skillArtPath(id: string): string {
+  return `/assets/skills/skill_${id}.png`;
+}
+
 /**
- * Resolve skill art (T-020).
- * Cascade: registry skill:<id> → skill.image field → skill.icon emoji → mystery.
- * After full catalog generation, every known skill id has a registry src.
+ * Resolve skill art (T-020 + full catalog plates).
+ * Cascade: registry skill:<id> (with src) → skill.image → convention skill_<id>.png
+ * → skill.icon emoji → mystery.
+ * Painted plates live at public/assets/skills/skill_<id>.png for every catalog id.
  */
 export function getSkillArt(
   skill: Pick<Skill, 'id' | 'name' | 'image' | 'icon'> | string,
 ): ArtEntry {
   const id = typeof skill === 'string' ? skill : skill.id;
   const registered = ART_REGISTRY[artKey('skill', id)];
-  if (registered) return registered;
+  if (registered?.src) return registered;
 
   if (typeof skill !== 'string') {
     if (skill.image) {
-      return { src: skill.image, emoji: skill.icon || '⚔️', label: skill.name };
+      return { src: skill.image, emoji: skill.icon || registered?.emoji || '⚔️', label: skill.name };
     }
-    if (skill.icon) {
-      return { emoji: skill.icon, label: skill.name };
-    }
-    return { ...MYSTERY, label: skill.name };
+    // Prefer on-disk painted plate over emoji-only registry stubs
+    return {
+      src: skillArtPath(id),
+      emoji: skill.icon || registered?.emoji || '⚔️',
+      label: skill.name,
+    };
   }
 
-  return MYSTERY;
+  if (registered) {
+    return { ...registered, src: skillArtPath(id) };
+  }
+
+  return { src: skillArtPath(id), emoji: '⚔️', label: id };
 }
 
-/** Skill ids still missing registry src (should be empty after T-020). */
+/** Skill ids still missing registry src (should be empty after full plate catalog). */
 export function listMissingSkillArt(): string[] {
   return SKILL_ART_MANIFEST.filter((m) => !m.src).map((m) => m.id);
 }
@@ -454,6 +519,58 @@ export function resolveEnemyImageSrc(opts: {
 }
 
 /**
+ * Derive transparent cutout path from a portrait URL (Combat + Elite poster).
+ *   /assets/enemies/enemy_foo.png  → /assets/cutouts/enemy_cut_foo.png
+ *   /assets/enemies/enemy_foo.jpg  → /assets/cutouts/enemy_cut_foo.png
+ *   /assets/cutouts/enemy_cut_x.*  → same path, extension normalized to .png
+ *   other paths → undefined
+ * Query strings are stripped. Callers may fall back to the green-key portrait if cutout 404s.
+ */
+export function deriveEnemyCutoutPath(portraitSrc?: string): string | undefined {
+  if (!portraitSrc) return undefined;
+  const path = portraitSrc.split('?')[0];
+  if (/^\/assets\/(cutouts\/)?enemy_cut_.+\.(png|jpe?g|webp)$/i.test(path)) {
+    return path
+      .replace(/^\/assets\/(cutouts\/)?/, '/assets/cutouts/')
+      .replace(/\.(jpe?g|webp)$/i, '.png');
+  }
+  const m = path.match(/^\/assets\/(enemies\/)?enemy_(?!cut_)(.+)\.(png|jpe?g|webp)$/i);
+  if (!m) return undefined;
+  return `/assets/cutouts/enemy_cut_${m[2]}.png`;
+}
+
+/**
+ * Prefer true-alpha cutout for UI posters (Elite Challenge, etc.).
+ * Falls back to registry portrait when no cutout path can be derived.
+ */
+export function resolveEnemyDisplayArt(opts: {
+  name?: string;
+  archetype?: string;
+  poolId?: string;
+  isBoss?: boolean;
+  /** Live combat sprite path (Enemy.image) when already assigned. */
+  image?: string | null;
+  label?: string;
+}): ArtEntry {
+  const base = getEnemyArt({
+    name: opts.name,
+    archetype: opts.archetype,
+    poolId: opts.poolId,
+    isBoss: opts.isBoss,
+  });
+  const portraitSrc = opts.image || base.src;
+  const cutoutSrc = deriveEnemyCutoutPath(portraitSrc);
+  const label = opts.label ?? opts.name ?? base.label ?? 'Enemy';
+  if (cutoutSrc) {
+    return { ...base, src: cutoutSrc, label };
+  }
+  if (portraitSrc) {
+    return { ...base, src: portraitSrc, label };
+  }
+  return { ...base, label };
+}
+
+/**
  * Event illustration cascade (T-021):
  * dedicated event:<id> → event:cat_<category> → emoji
  */
@@ -524,9 +641,9 @@ export const ART_BACKLOG_NOTES = {
     'clan:* (5)',
   ],
   T020_skills:
-    'skill:* (114) registered — 93 painted PNG faces under /assets/skill_*.png (WAVE12: no new paint; R1 clan loadout 35/35 ON_DISK; FREE_FIRST toggle parity + silence/empty-hand pass feedback; endgame 21 jpg held; WAVE9–11 cost/block/FloatingText held).',
+    'skill:* (116) registered — full cinematic 16:9 painted PNG faces under /assets/skills/skill_<id>.png (catalog docs/skill-art-prompts.md). getSkillArt falls back to skillArtPath(id). basic_atk → skill_basic_atk.png; heavy_kick + adamantine_chains in manifest.',
   T021_enemies_events:
-    'enemy: painted portraits + enemy_cut_* (WAVE15: archetype_tank shinobi regen; pool_mist_ninja plate-owner key; mist-keyword → pool_mist_ninja; WAVE14 residual 15 JPGs deleted + P0/P1 regen + 5 DEDICATE plates). Soft-share KEEP: job_ninja/shinobi→exhausted_shinobi; guard_dog→war_dog; hidden_guard→mist_ninja; assassin→hired_assassin. event: 11 dedicated painted plates + tazuna_road_mist reuses meet_tazuna.',
+    'enemy: painted portraits + enemy_cut_* (WAVE15: archetype_tank shinobi regen; pool_mist_ninja plate-owner key; mist-keyword → pool_mist_ninja; WAVE14 residual 15 JPGs deleted + P0/P1 regen + 5 DEDICATE plates). Soft-share KEEP: job_ninja/shinobi→exhausted_shinobi; guard_dog→war_dog; hidden_guard→mist_ninja; assassin→hired_assassin. event: 44 on-disk event_*.png plates wired painted-png (5 cat + 39 event/alias keys; residual R1 reuses meet_tazuna/caravan/intel/mist_ambush/shrine).',
   T_laminas_r1:
-    'All 14 R1 location slugs have location_ + lamina_mid_ + lamina_fg_ plates (A3 wave2 closed mid/fg residual). resolveLaminaPaths + LAMINA_ASSET_REV=r2wave2a3.',
+    'All 14 R1 location slugs have location_ + lamina_mid_ + lamina_fg_ plates (A3 wave2 closed mid/fg residual). resolveLaminaPaths + LAMINA_ASSET_REV=r5fire6.',
 } as const;

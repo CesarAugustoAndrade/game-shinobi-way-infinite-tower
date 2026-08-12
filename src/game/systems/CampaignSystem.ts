@@ -50,7 +50,8 @@ function makeId(): string {
 
 function rollStatBoon(): CampaignBoon {
   const stat = pick(STAT_POOL) ?? PrimaryStat.STRENGTH;
-  const amount = 2 + Math.floor(Math.random() * 2); // 2–3
+  // F1: boons are +1 on the small primary scale
+  const amount = 1;
   return {
     id: makeId(),
     kind: 'stat',
@@ -69,8 +70,8 @@ function rollItemBoon(): CampaignBoon {
     id: `boon-item-${makeId()}`,
     name: def.name,
     rarity: Rarity.COMMON,
-    stats: { [def.primaryStat]: def.baseValue },
-    value: def.baseValue * 15,
+    stats: { [def.primaryStat]: 1 },
+    value: 20,
     description: `${def.description} (Interlude boon)`,
     isComponent: true,
     componentId,

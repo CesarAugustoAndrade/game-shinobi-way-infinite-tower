@@ -26,7 +26,12 @@
       "Write(loop/LOOP-TOPICS.md)",
       "Write(loop/LOOP-STATE.md)",
       "Write(loop/RULES.md)",
-      "Write(loop/logs/**)"
+      "Write(loop/logs/**)",
+      "Bash(npm run lint:css:*)",
+      "Bash(npx vite build)",
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss:*)"
     ],
     "deny": [
       "Write(src/**/*.md)",

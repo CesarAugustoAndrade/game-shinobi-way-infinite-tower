@@ -1,0 +1,11 @@
+Inventory item icon, single subject only, no hands, no character, no scene.
+
+Training Weights — heavy ankle/leg weights favored by taijutsu specialists (Rock Lee style). Pair of thick dark metal cuff weights with leather straps and buckles, matte steel plates, worn scuffs from training, slight gravity heaviness in silhouette. Shinobi training gear, not modern gym dumbbells.
+
+Style: painted digital illustration, high quality, cel-shaded, hard black outlines, neo-retro seinen anime game icon, crisp readable silhouette at small UI size.
+
+Composition: centered pair of weights fills most of the square frame, slight angle, floating, no feet, no legs, no floor, no environment.
+
+Background: flat solid pure green screen background #00FF00, chroma key green, uniform, no gradient, no texture, no vignette.
+
+Exclude: photorealistic, 3D CGI, soft SSS, environment, floor, modern gym equipment, kettlebell branding, black background, pure black matte, transparent checkerboard, gradient background, watermark.

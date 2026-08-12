@@ -56,7 +56,7 @@ export function attemptEliteEscape(
     chance: totalChance,
     message: success
       ? `You slip away unnoticed! (Rolled ${roll} vs ${totalChance}%)`
-      : `The Guardian blocks your escape! (Rolled ${roll} vs ${totalChance}%)`
+      : `The elite cuts off your escape! (Rolled ${roll} vs ${totalChance}%)`
   };
 }
 

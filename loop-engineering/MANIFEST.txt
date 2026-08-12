@@ -1,0 +1,41 @@
+Loop Engineering package — file manifest
+Generated for WiFi shared folder
+
+COMMANDS (slash)
+  loop-init.md      Bootstrap project into the loop system
+  task-new.md       Create T-XXX task spec in backlog
+  task-dev.md       Full multi-agent development pipeline
+  task-verify.md    Verify an implemented task
+  soul-loop.md      Propose next work from SOUL.md
+  skill-new.md      Create a project skill
+  skill-evolve.md   Evolve skills from closed tasks
+  score.md          Score with anchored rubrics
+
+AGENTS
+  explorer.md       Map codebase / verify premises
+  planner.md        Design the implementation plan
+  implementer.md    Write the code
+  reviewer.md       Review (separate from maker)
+  verifier.md       Run verification gates
+  researcher.md     Focused research
+  auditor.md        Audit / ring-guard style checks
+  skill-curator.md  Harvest learnings into skills
+
+REFERENCES (skill-loop-engineering/references/)
+  dev-loop-system.md
+  ring-system.md
+  scaffolding.md
+  soul.md
+  ddd.md
+  scoring-and-calibration.md
+  skills-self-learning.md
+  subagents-and-worktrees.md
+
+TEMPLATES
+  CLAUDE-template.md
+  task-template.md
+  skills/domain-model/ (SKILL.md + RUBRIC.md)
+
+INSTALLERS
+  install.ps1 / install.sh
+  ../share-now.ps1  (admin: create SMB share)

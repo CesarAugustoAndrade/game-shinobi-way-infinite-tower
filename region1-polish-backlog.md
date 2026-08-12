@@ -441,3 +441,295 @@
 - **status**: done
 - **notes**: WAVES_ARC danger 7 boss Gato + art registry + STRONG_FIST kit
 
+
+---
+
+## Wave 14 — Opus 5 exploration pass (2026-07-27, agent `claude-opus5-r1`)
+
+> Re-opened after `out-of-scope.md` stamped the R1 ceiling: this pass ran 7 independent lenses with
+> adversarial (refute-by-default) verification. 13 findings survived. The four Roto items share ONE
+> root cause (R1-500) that is a **live P0 regression on `develop`**, so the ceiling did not hold and
+> the "blocker" exception in out-of-scope.md applies.
+
+### R1-500 — ROOT CAUSE: claim flags written inside setState updaters are read synchronously
+- **status**: done
+- **category**: Roto
+- **priority**: P0
+- **files**: src/hooks/useActivityHandlers.ts, src/hooks/useTreasureHandlers.ts, src/hooks/useInventoryHandlers.ts, src/App.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: 25 sites use `let claimed = false; setX(prev => { claimed = true; ... }); if (!claimed) return;`.
+  React only runs a setState updater synchronously via the eager-state bailout, which requires
+  `0 === fiber.lanes && (null === alternate || 0 === alternate.lanes)` (verified in
+  node_modules/react-dom/cjs/react-dom-client.development.js:9143-9146). `enqueueUpdate$1` sets
+  `fiber.lanes |= lane` AND `fiber.alternate.lanes |= lane`, so ANY prior setState in the same batch
+  defers every later updater. The flag stays false, the handler bails out early and skips the reward
+  grant — but the queued updater still commits the consumption. Net effect: **resource consumed,
+  reward never granted.** React 19.2.0 + StrictMode confirmed installed.
+- **done_when**: No handler decides control flow from a variable assigned inside a setState updater;
+  claim decisions come from a synchronous source (closure state or ref). tsc + full Vitest green.
+- **notes**: 2026-07-27 claude-opus5-r1 — DONE. **40 sites** fixed across two variants of the same root cause. The first scan only caught the primitive form (`let claimed = false`); a second scan found 15 more in an object form (`const box: { o: Outcome } = { o: 'noprev' }`) that a type annotation before `=` had hidden. Both are now zero repo-wide (verified by scanner). The object form was the more damaging half: because the outcome always read as the failure value, handlers ran their rollback (restore the listing / un-claim the chest / release the material claim / restore the drop) **while the queued updater still applied the mutation** — i.e. duplication exploits, not just dead actions. Notable: `useLocationCards.confirmLocationComplete` never called `executeLocationComplete`, so a completed location could not be left (P0 soft-lock); `handleTreasureHuntRewardClaim` lost the entire treasure-map payout; loot equip/store/craft/upgrade/forge/unequip/disassemble/drag all rolled back while applying. Fix shape: decide from the rendered value (closure state) before the write, or hoist the updater body into a function called eagerly against `player` and commit only on success — logic preserved verbatim. Verified: tsc clean, 475/475 Vitest, production build green, and a jsdom repro on the repo's own react@19.2.0 showing buy charges once (500->490, item in bag, logged once) with three further clicks changing nothing.
+
+### R1-501 — Merchant "Buy" is a silent no-op that deletes the listing
+- **status**: done
+- **category**: Roto
+- **priority**: P0
+- **files**: src/hooks/useActivityHandlers.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: `setIsProcessingLoot(true)` (:216) dirties the fiber before the `setMerchantItems`
+  claim updater (:226), so `stockClaimed` is ALWAYS false and the handler returns at :233. The item
+  disappears from the shop; no item, no ryo charged, no message. Deterministic, not a race. From 3d55294.
+- **done_when**: Buying deducts ryo, puts the item in the bag, logs the purchase, removes the listing.
+- **notes**: 2026-07-27 claude-opus5-r1 — stock claim now reads the rendered `merchantItems` (added to ActivityState) instead of a flag from inside the updater. Verified with a jsdom repro on the repo's own react@19.2.0: buy charges 10 ryo (500->490), item lands in bag, listing removed, logged once; a double re-click does NOT double-charge. tsc + 475 tests green.
+
+### R1-502 — Choosing an Interlude boon never advances to Region 2
+- **status**: done
+- **category**: Roto
+- **priority**: P0
+- **files**: src/App.tsx, src/scenes/menu/Interlude.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: `handleInterludeBoon` (App.tsx:762-805) reads `box.meta` / `box.healed` written inside
+  setState updaters. On a warmed fiber both are null, so it returns before `applyCampaignBoon` and
+  `setCampaignRegionIndex` — but the queued `setInterludeMeta` still nulls meta, so the orphan guard
+  (:946) dumps the player back on the cleared Land of Waves map. Region 2 unreachable. From 3d55294.
+- **done_when**: Defeating Gato then picking a boon applies the boon exactly once and enters Region 2.
+- **notes**: 2026-07-27 claude-opus5-r1 — handleInterludeBoon reads `interludeMeta`/`player` from the render closure and computes `applyCampaignBoon` once outside any updater (StrictMode double-invokes updaters, so applying inside risked a double-apply). Deps updated. tsc + 475 tests green.
+
+### R1-503 — Claiming a jutsu from the loot pile destroys the drop without learning it
+- **status**: done
+- **category**: Roto
+- **priority**: P1
+- **files**: src/App.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: App.tsx:1391-1400 — same root cause; returns before the learn/upgrade block at
+  :1405-1437 while the queued updater nulls `droppedSkill`. Blank-LOOT recovery then closes the screen.
+- **done_when**: Learn/Upgrade grants the jutsu exactly once and the pile clears normally.
+- **notes**: 2026-07-27 claude-opus5-r1 — removed the dead `claimed` re-check; learnSkill already guards synchronously on the rendered `droppedSkill` at the top of the handler. Consume is now an unconditional idempotent updater. tsc + 475 tests green.
+
+### R1-504 — Treasure chest claim marks it collected but grants nothing
+- **status**: done
+- **category**: Roto
+- **priority**: P1
+- **files**: src/hooks/useTreasureHandlers.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: useTreasureHandlers.ts:299-308 — same root cause; never reaches the setPlayer grant
+  at :315-335 while `collected: true` commits. The re-entry guard at :281 then blocks retry permanently.
+  The reveal charge at :244-253 has the same shape (chest reveals free).
+- **done_when**: Selecting a treasure choice grants the relic/ryo exactly once; reveal charges chakra once.
+- **notes**: 2026-07-27 claude-opus5-r1 — reveal and select both already guard on the rendered currentTreasure + treasureActionLockRef; removed the broken flag re-checks so the grant path is reached. tsc + 475 tests green.
+
+### R1-505 — Main Menu "Mission Rank" slider has zero effect on Region 1
+- **status**: open
+- **category**: Roto
+- **priority**: P1
+- **files**: src/App.tsx, src/game/systems/RegionSystem.ts, src/game/constants/regions/landOfWaves.ts
+- **claimed_by**: none
+- **description**: `bootstrapRegionMap` (App.tsx:637) passes `config.baseDifficulty` (hard-coded 40 at
+  landOfWaves.ts:505), never the player's `difficulty` state. The Infinite path (App.tsx:720) DOES use it.
+  Only treasure guardians read the slider (useTreasureHandlers.ts:398), so one run mixes two sources.
+- **done_when**: The chosen rank measurably changes R1 enemy scaling, from one difficulty source.
+- **notes**: Needs a balance decision — flagged for human review, deliberately NOT auto-fixed.
+
+### R1-506 — Internal event-flag ids leak into R1 choice cards ("Requires waves_mercy")
+- **status**: done
+- **category**: Confuso
+- **priority**: P1
+- **files**: src/game/constants/events/wavesArcEvents.ts, src/scenes/activities/Event.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: 17 choice descriptions embed raw flag keys (lines 553, 575, 597, 619, 848, 871, 1090,
+  1113, 1135, 1158, 1181, 1273, 1295, 1316, 1338, 1360, 1521), rendered verbatim at Event.tsx:319.
+  Gated choices are filtered out when unmet, so the clause only ever shows to players who already
+  satisfy it — debug-looking AND useless. Correct convention exists at line 825 ("Requires meeting Tazuna").
+- **done_when**: No player-visible string contains a raw snake_case flag id.
+- **notes**: 2026-07-27 claude-opus5-r1 — All 17 raw flag ids replaced with prose callbacks (Mercy shown in Wave, Ledger sabotaged, Bridge held, Tazuna met, ...). Written as callbacks rather than gates because EventSystem.checkEventFlags filters unmet choices, so the clause only ever renders to a player who already earned it. Scanner confirms 0 snake_case tokens left in any player-visible event string. Two replacements initially broke the build (apostrophes in "Traveler's"/"Manor's" terminated the single-quoted TS strings) — caught by tsc and rephrased.
+
+### R1-507 — Game Guide approach requirements contradict real thresholds
+- **status**: done
+- **category**: Confuso
+- **priority**: P1
+- **files**: src/game/constants/helpText.ts, src/game/constants/approaches.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: helpText.ts:254-260 vs approaches.ts — Silent Strike 12 vs 10, Mind Trap 15 vs 11,
+  Terrain Trap 14 vs 11 and +25% vs +20% XP, Shadow Passage 35 + Body Flicker vs 28 and no skill gate.
+  Iron Guard missing entirely (5 of 6 documented). Combat prints the true numbers, so it self-contradicts.
+- **done_when**: Guide matches approaches.ts exactly and lists all six.
+- **notes**: 2026-07-27 claude-opus5-r1 — helpText APPROACHES now matches approaches.ts exactly: Silent Strike 10 (was 12), Mind Trap 11 (was 15), Terrain Trap 11 and +20% XP (was 14 / +25%), Shadow Passage 28 with the Body Flicker gate removed (was 35 + skill). Iron Guard added — Willpower 10+, shield + WIL buff, +10% XP — so all six are documented. Confirmed no approach sets requiredSkill (it exists only in the checker).
+
+### R1-508 — Region-map cards read "No activities" for full locations
+- **status**: done
+- **category**: Confuso
+- **priority**: P2
+- **files**: src/game/systems/RegionSystem.ts, src/components/exploration/ActivityIcons.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: `getLocationActivities` (RegionSystem.ts:182-201) sets only amenity flags; combat/
+  event/treasure/scroll are structurally unreachable. Bandit Outpost and Sunken Ship therefore render
+  "No activities" beside a "Rooms 10+" / "Story Event" footer on the primary decision screen.
+- **done_when**: No real location card can read "No activities" while advertising rooms/story content.
+- **notes**: 2026-07-27 claude-opus5-r1 — Empty row now reads "No amenities confirmed" instead of "No activities". getLocationActivities can only ever set merchant/rest/training/infoGathering/eliteChallenge, so the old text was simply false — every site still generates combat, treasure and events.
+
+### R1-509 — Clipboard emoji (U+1F4CB) on every region-map card
+- **status**: done
+- **category**: Feo
+- **priority**: P2
+- **files**: src/components/exploration/ActivityIcons.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: Lines 40 and 52 emit `<span className="activity-icons__label">` with a clipboard emoji;
+  not hidden by CSS. Only colour OS emoji left on the R1 exploration spine (missed by R1-EMOJI-PASS-2).
+- **done_when**: No emoji in src/components/exploration/.
+- **notes**: 2026-07-27 claude-opus5-r1 — Removed the U+1F4CB span from both branches of ActivityIcons and deleted the now-dead .activity-icons__label CSS rule. Scanner confirms the only glyphs left in src/components/exploration/ are text dingbats (U+2605/2666/2726) consistent with the pixel-arcade chrome.
+
+### R1-510 — "You are here" badge missing on arrival at every location
+- **status**: done
+- **category**: Feo
+- **priority**: P2
+- **files**: src/game/systems/LocationSystem.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: LocationSystem.ts:1502-1505 clears `isCurrent` when `!isFirstFloor`, while :1541 makes
+  that same room current. `isFirstFloor = floor === 1` is never true in R1 (dangerToFloor yields >=14).
+- **done_when**: The current room shows its badge/glow on entering any R1 location.
+- **notes**: 2026-07-27 claude-opus5-r1 — LocationSystem now sets tier1Left.isCurrent = true on non-first floors (it is already that floor's currentRoomId). Previously both tier-1 rooms were cleared, and since dangerToFloor yields >= 14 no R1 floor is ever floor 1, so the badge never rendered. Accessibility and roomsVisited untouched; LocationSystem 25/25 green.
+
+### R1-511 — [R] reveal hotkey charges chakra on Treasure Hunter chambers
+- **status**: done
+- **category**: Roto
+- **priority**: P2
+- **files**: src/scenes/rewards/TreasureChoice.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: TreasureChoice.tsx:200-204 — the r/R branch is not gated on `isLockedChest` while every
+  other hotkey is, and the visible Unseal button only renders for locked chests. Chakra spent, nothing reveals.
+- **done_when**: R is a no-op on non-locked chests and never deducts chakra.
+- **notes**: 2026-07-27 claude-opus5-r1 — The r/R branch is now gated on isLockedChest, matching the visible "Unseal All [R]" button and the Space/F/D hotkeys. Pressing R on a Treasure Hunter chamber is a no-op and never deducts chakra.
+
+### R1-512 — Handbook difficulty table contradicts Main Menu bands
+- **status**: done
+- **category**: Confuso
+- **priority**: P2
+- **files**: src/game/constants/helpText.ts, src/scenes/menu/GameGuide.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: helpText.ts:164-169 ships four bands (D 0-29 / C 30-59 / B 60-84 / S 85-100) but
+  MainMenu.tsx:57-61 uses five (25/45/65/85) including Rank A. R1-007 fixed the menu, not the handbook.
+- **done_when**: Handbook lists D/C/B/A/S matching getRank thresholds.
+- **notes**: 2026-07-27 claude-opus5-r1 — DIFFICULTY_RANKS rewritten to five bands matching MainMenu.getRank (D 0-24 / C 25-44 / B 45-64 / A 65-84 / S 85-100). Added a red-500 case to getRankColorClass plus the two CSS rules, using the menu's own #ef4444 for A so the handbook and slider agree.
+
+### R1-513 — Raw hazard enum ("CHAKRA_DRAIN hazard") on every R1 exit room
+- **status**: done
+- **category**: Feo
+- **priority**: P2
+- **files**: src/components/combat/ApproachSelector.tsx, src/game/systems/LocationTerrainSystem.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: ApproachSelector.tsx:508 and LocationTerrainSystem.ts:307 interpolate the SCREAMING_SNAKE
+  union straight into player text. Every exit room is a BOSS_GATE, so R1 exposure is near-universal.
+- **done_when**: A shared label map renders hazard prose at both sites.
+- **notes**: 2026-07-27 claude-opus5-r1 — Added HAZARD_LABELS + getHazardLabel to constants/terrain.ts and used it at both sites (ApproachSelector and LocationTerrainSystem), so exit rooms read "Chakra drain hazard" instead of "CHAKRA_DRAIN hazard".
+
+---
+
+## Wave 15 — confirming pass (2026-07-27, agent `claude-opus5-r1`)
+
+> Ran after the Wave-14 backlog hit zero, using six DIFFERENT lenses (the first sweep's seven would
+> only re-find the same things) plus an adversarial regression check aimed at breaking the Wave-14
+> fixes. 6 findings survived verification, 4 were refuted. The regression lens caught a P0 that
+> Wave 14 itself introduced — which is exactly why it was included.
+
+### R1-514 — REGRESSION (mine): Wave-14 froze six equipment handlers on a null player
+- **status**: done
+- **category**: Roto
+- **priority**: P0
+- **files**: src/hooks/useInventoryHandlers.ts, src/hooks/useActivityHandlers.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: 922fa36 hoisted six updater bodies into eager functions reading the rendered
+  `player`, but left the useCallback dep arrays as `[setPlayer, addLog]`. Every one of those deps is
+  referentially stable forever (useState setters; `addLog` is `useCallback(..., [])` at App.tsx:286),
+  so each callback was memoized on App's FIRST render — where `player === null` (App.tsx:139). Every
+  `applyX(null)` hit its `if (!prev) { box.o = 'noprev'; return null; }` head, took the failure
+  branch, and returned. `'noprev'` is not `'full'`, so no log fired: **fully silent**. Dead handlers:
+  unequipToBag, startSynthesisEquipped, handleDisassembleEquipped, dragBagToEquip, dragEquipToBag,
+  swapEquipment — i.e. the whole equipment-management subsystem including every inventory drag.
+- **done_when**: The six dep arrays include `player`; each action applies and emits its log line.
+- **notes**: 2026-07-27 claude-opus5-r1 — Added `player` to the six arrays (:735, :792, :849, :916,
+  :985, :1019) and to `handleTrainingComplete` in useActivityHandlers (found by a repo-wide scan for
+  useCallbacks that read a bare `player` but omit it from deps — same mistake, same commit).
+  Verified empirically with a jsdom harness on the repo's own react@19.2.0 reproducing the exact
+  memoization shape: BROKEN deps -> `returned=false`, item still equipped, bag empty, **no logs**,
+  1 callback identity; FIXED deps -> `returned=true`, slot cleared, `bag0=sword`,
+  log "Moved Test Blade to bag.", 3 identities. tsc clean, 475/475 Vitest.
+  Verified the other Wave-14 dep edits are correct (handleInterludeBoon, handleIntelResultClose,
+  handleRestResultClose, buyItem, confirmLocationComplete, handleDiceResultContinue).
+
+### R1-515 — Exit-room Guardian spawns with currentHp above its own maxHp
+- **status**: done
+- **category**: Roto
+- **priority**: P1
+- **files**: src/game/systems/LocationSystem.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: LocationSystem.ts:1136-1137 (generateGuardian) hardcodes the pre-T-006 curve
+  `const hpBonus = enemy.primaryStats.willpower * 12 + 50; enemy.currentHp = hpBonus;` while the live
+  formula is HP_BASE 80 + willpower × 9 (types.ts:779-780, consumed at StatSystem.ts:289). This is the
+  ONLY site in the repo that overrides an enemy's currentHp; every other enemy derives it from
+  calculateDerivedStats. For willpower > 10, 12W+50 > 80+9W and nothing re-clamps it. Measured with
+  live constants: D2 278/251 (+11%), D4 542/449 (+21%), D7 Gato's Compound 1010/800 (+26%).
+  Combat.tsx:653-655 prints `currentHp / maxHp` literally and StatBar clamps its fill at 100%.
+  Every location's exit room is a BOSS_GATE guardian, so a first-time player meets ~5 of these.
+- **done_when**: generateGuardian derives currentHp from the live formula; sampling danger 1-7 at
+  baseDifficulty 40 gives currentHp === getEnemyFullStats(enemy).derived.maxHp every time.
+- **notes**: 2026-07-27 claude-opus5-r1 — generateGuardian now assigns `enemy.currentHp = getEnemyFullStats(enemy).derived.maxHp` instead of the hardcoded pre-T-006 curve, and the stale doc block was rewritten. Verified statically (the strongest available check here): the only `willpower * 12` left in src/ is inside the new explanatory comment, and enemy currentHp is now assigned in exactly three places repo-wide — EnemySystem:403, EnemySystem:536 and this one — all `derived.maxHp`, so currentHp === maxHp by construction. NOT exercised end-to-end: exit rooms come from the region-level branching generator, and the location generator I could drive in a harness produces no isExit/BOSS_GATE rooms. tsc + 475/475 + build green.
+
+### R1-516 — First region map can offer the same destination twice
+- **status**: done
+- **category**: Roto
+- **priority**: P1
+- **files**: src/game/systems/RegionSystem.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: `drawLocationCards` draws each card independently from the same weighted pool and
+  deliberately never removes a picked entry (RegionSystem.ts:1221, comment at :1242-1243). At 0%
+  progress getTierWeights is {low 0.80, mid 0.18, high 0.02} and only three R1 locations are
+  danger<=2, so ~78% of the draw weight sits on 3 entries. Measured over 4000 opening spreads:
+  duplicate among the two NAMED cards 21.8%, duplicate anywhere in the 3-card spread 52.8%.
+  RegionMap renders drawnCards verbatim with no dedupe, so the opening choice can read
+  "Fishing Village | Fishing Village".
+- **done_when**: One `drawLocationCards` call never returns the same locationId twice (dedupe
+  between picks, allowing repeats only once distinct candidates are exhausted); 4000-spread sample
+  reports 0% duplicates.
+- **notes**: 2026-07-27 claude-opus5-r1 — drawLocationCards now draws from a working copy and removes the picked locationId between picks, refilling only once every distinct candidate is used (so repeats remain possible when the pool is genuinely smaller than the card count). Verified empirically with a 4000-spread harness against the real modules: duplicates anywhere in the spread 52.8% -> **0.0%**, duplicates among the two named cards 21.8% -> **0.0%**.
+
+### R1-517 — Approach modal opens with focus on "Exit Room"
+- **status**: done
+- **category**: Confuso
+- **priority**: P1
+- **files**: src/components/combat/ApproachSelector.tsx
+- **claimed_by**: claude-opus5-r1
+- **description**: useFocusTrap focuses `focusables[0]` on mount, and the first focusable inside
+  `.approach-modal` is the header "Exit Room" button (ApproachSelector.tsx:325-336), rendered before
+  the close button and the approach grid. The modal has no Space/Enter handler of its own, and the two
+  screens the player just came through both teach "Space / Enter enter room". So the taught keypress
+  natively activates Exit Room -> "You leave the room without fighting."
+- **done_when**: Initial focus lands on the first available approach card (or the modal container),
+  not Exit Room; Space/Enter right after open no longer leaves the room.
+- **notes**: 2026-07-27 claude-opus5-r1 — useFocusTrap gained an optional third `initialFocusRef` parameter (backward compatible — the other 11 callers are untouched), and ApproachSelector passes a ref attached to the first *available* approach card. Initial focus no longer lands on the header "Exit Room" button, so the Space/Enter the player was just taught no longer leaves the room without fighting.
+
+### R1-518 — Player HP reads above max after unequipping Willpower gear
+- **status**: done
+- **category**: Confuso
+- **priority**: P2
+- **files**: src/hooks/useInventoryHandlers.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: maxHp derives from effective willpower including equipment (StatSystem.ts:289/488),
+  but no equipment mutation clamps currentHp — clamps exist only on combat/heal/event paths. LevelSystem
+  sets currentHp = maxHp on every level-up, so the player is routinely at exactly full HP, and SLOT_1
+  carries a 1.5x multiplier so even re-slotting drops effective willpower. HUD then reads e.g. "530 / 368".
+- **done_when**: After any equip/unequip/sell-equipped/slot-swap, currentHp is clamped to the new maxHp.
+- **notes**: 2026-07-27 claude-opus5-r1 — Added a single clamp effect in App keyed on playerStats.derived.maxHp/maxChakra. One choke point covers every equip/unequip/sell/slot-swap path (rather than patching ~9 call sites) and only ever clamps downward. Extended to chakra as well, which had the identical uncapped-derived-stat problem.
+
+### R1-519 — "Gato" spawns as a random trash mob inside Gato's Compound
+- **status**: done
+- **category**: Confuso
+- **priority**: P2
+- **files**: src/game/constants/regions/landOfWaves.ts
+- **claimed_by**: claude-opus5-r1
+- **description**: landOfWaves.ts:452 puts `'gato'` in GATOS_COMPOUND.enemyPool. EnemySystem only
+  filters empty strings, so the boss id is a normal NORMAL/ELITE draw; POOL_DISPLAY_NAMES maps it to
+  "Gato" and the art manifest gives it Gato's painted portrait, so a Chunin mook wears the boss's name
+  and face — and the guardian path can read "Guardian Gato". Danger-7 reserves "Gato" as the arc boss,
+  and the compound's story climax fights "Compound Elite Guard" / "Balcony Sniper". It is the only R1
+  pool containing a named-character id; the other 12 are generic roles.
+- **done_when**: No NORMAL/ELITE/Guardian encounter at the compound is named after the region boss.
+- **notes**: 2026-07-27 claude-opus5-r1 — Dropped 'gato' from GATOS_COMPOUND.enemyPool, leaving elite_guard/ronin/assassin, with a comment recording why. EnemySystem only filters empty strings from pools, so the boss id was a normal NORMAL/ELITE draw — mooks were named "Gato" and wore his painted portrait, and the exit guardian could read "Guardian Gato". The name is now reserved for the danger-7 arc boss.

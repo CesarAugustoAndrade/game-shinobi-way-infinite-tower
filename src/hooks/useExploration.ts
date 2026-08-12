@@ -9,27 +9,93 @@ import {
   isFloorComplete,
   clearRoomIfSpent,
 } from '../game/systems/LocationSystem';
-import { logRoomExit, logStateChange, logSyncWarning } from '../game/utils/explorationDebug';
+import {
+  logRoomExit,
+  logStateChange,
+  logSyncWarning,
+  logExplorationCheckpoint,
+} from '../game/utils/explorationDebug';
 import { CombatExplorationState } from './useCombatExplorationState';
 import { useActivityHandler, ActivitySceneSetters } from './useActivityHandler';
 import { useLocationCards, CompleteLocationOptions } from './useLocationCards';
 import { useRoomNavigation } from './useRoomNavigation';
+import { resolveExploreReturnState } from './exploreReturnState';
 
 // Re-export types for App.tsx compatibility
 export type { ActivitySceneSetters } from './useActivityHandler';
+// Re-export pure helper for callers that still import from this module
+export { resolveExploreReturnState } from './exploreReturnState';
 
 /**
- * Resolve a safe post-activity map state. Never returns EXPLORE (no UI).
- * Prefer LOCATION_EXPLORE when still inside a location; otherwise REGION_MAP.
+ * Resolve which floor/room the multi-activity chain timer should execute.
+ * Prefers the post-complete scheduled snapshot; never swaps to a lagging live
+ * ref that still has event incomplete when scheduled already completed it.
+ * If live is ahead on event completion (stale schedule from returnToMap), use live.
  */
-export function resolveExploreReturnState(
-  region: { currentLocationId: string | null } | null,
-  hasLocationFloor: boolean
-): GameState {
-  if (region?.currentLocationId && hasLocationFloor) {
-    return GameState.LOCATION_EXPLORE;
+function resolveActivityChainExec(
+  scheduledFloor: BranchingFloor,
+  chainRoomId: string,
+  liveFloor: BranchingFloor | null | undefined,
+  source: string,
+): { floor: BranchingFloor; room: BranchingRoom } | null {
+  const scheduledRoom =
+    scheduledFloor.rooms.find((r) => r.id === chainRoomId) ?? null;
+  if (!scheduledRoom) return null;
+
+  const liveRoom = liveFloor?.rooms.find((r) => r.id === chainRoomId) ?? null;
+  const scheduledEventDone =
+    !scheduledRoom.activities.event || scheduledRoom.activities.event.completed;
+  const liveEventDone =
+    !liveRoom?.activities.event || liveRoom.activities.event.completed;
+
+  // Default: post-complete / schedule snapshot (always prefer updatedFloor).
+  // Only take live when it is strictly ahead on event completion (stale schedule).
+  // Never swap to a lagging ref that still has event incomplete after complete.
+  let floorForExec = scheduledFloor;
+  let roomForExec = scheduledRoom;
+
+  if (liveRoom && liveFloor && !scheduledEventDone && liveEventDone) {
+    floorForExec = liveFloor;
+    roomForExec = liveRoom;
   }
-  return GameState.REGION_MAP;
+
+  const nextAct = getCurrentActivity(roomForExec);
+  if (!nextAct) return null;
+
+  const evt = roomForExec.activities.event;
+  const execEventIncomplete = Boolean(evt && !evt.completed);
+  const eventCompletedOnRoom = !evt || !!evt.completed;
+
+  // Never chain-open event when it is already completed on the exec floor
+  if (nextAct === 'event' && evt?.completed) {
+    logSyncWarning(`${source}: chain next is event but event already completed on exec floor`, {
+      roomId: chainRoomId,
+    });
+    return null;
+  }
+
+  // Expected complete (schedule snapshot) but exec would re-open incomplete event
+  if (scheduledEventDone && nextAct === 'event' && execEventIncomplete) {
+    logSyncWarning(
+      `${source}: chain would re-open incomplete event after expected complete`,
+      {
+        roomId: chainRoomId,
+        usedLive: floorForExec === liveFloor,
+        scheduledEventDone,
+        liveEventDone,
+      },
+    );
+    return null;
+  }
+
+  logExplorationCheckpoint(`chain timer fire (${source})`, {
+    nextActivity: nextAct,
+    roomId: chainRoomId,
+    eventCompletedOnRoom,
+    usedLive: floorForExec === liveFloor,
+  });
+
+  return { floor: floorForExec, room: roomForExec };
 }
 
 /**
@@ -45,6 +111,8 @@ export interface UseExplorationDeps {
   currentLocation: Location | null;
   activitySetters: ActivitySceneSetters;
   setEnemy: (enemy: Enemy | null) => void;
+  /** Manual combat: preferred approach → engage (no per-room modal) */
+  onEngageCombat?: (room: BranchingRoom, explicitEnemy?: Enemy | null) => void;
   // Auto-combat callbacks for when ENABLE_MANUAL_COMBAT is false
   onAutoCombat?: (room: BranchingRoom, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
   onAutoEliteCombat?: (room: BranchingRoom, enemy: Enemy, artifact: Item, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
@@ -126,6 +194,7 @@ export function useExploration(
     currentLocation,
     activitySetters,
     setEnemy,
+    onEngageCombat,
     onAutoCombat,
     onAutoEliteCombat,
     onRegionBossDefeated,
@@ -139,6 +208,9 @@ export function useExploration(
    * Shared with returnToMapActivityComplete; manual Enter Room cancels pending chain.
    */
   const activityChainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Latest location floor for activity-chain timer (avoid re-open from stale snapshot). */
+  const locationFloorRef = useRef(locationFloor);
+  locationFloorRef.current = locationFloor;
 
   const cancelActivityChain = useCallback(() => {
     if (activityChainTimerRef.current != null) {
@@ -174,6 +246,7 @@ export function useExploration(
     setShowApproachSelector,
     setCurrentIntel,
     currentIntel,
+    onEngageCombat,
     onAutoCombat,
     onAutoEliteCombat,
   });
@@ -285,9 +358,24 @@ export function useExploration(
           setSelectedBranchingRoom(null);
           setGameState(GameState.LOCATION_EXPLORE);
           logStateChange(gameState.toString(), 'LOCATION_EXPLORE', 'returnToMap - chain activity');
+          const chainRoomId = currentRoom.id;
+          const scheduledFloor = floor;
           activityChainTimerRef.current = setTimeout(() => {
             activityChainTimerRef.current = null;
-            executeRoomActivity(currentRoom, floor, setLocationFloor, GameState.LOCATION_EXPLORE);
+            const resolved = resolveActivityChainExec(
+              scheduledFloor,
+              chainRoomId,
+              locationFloorRef.current,
+              'returnToMap',
+            );
+            if (!resolved) return;
+
+            executeRoomActivity(
+              resolved.room,
+              resolved.floor,
+              setLocationFloor,
+              GameState.LOCATION_EXPLORE,
+            );
           }, 100);
           return;
         }
@@ -379,12 +467,23 @@ export function useExploration(
             'LOCATION_EXPLORE',
             'returnToMapActivityComplete - chain activity',
           );
-          const floorForChain = floorToCheck;
+          const chainRoomId = currentRoom.id;
+          // Post-complete floor snapshot (updatedFloor) — resolveActivityChainExec
+          // will not swap for a lagging ref that still has event.completed=false.
+          const scheduledFloor = floorToCheck;
           activityChainTimerRef.current = setTimeout(() => {
             activityChainTimerRef.current = null;
+            const resolved = resolveActivityChainExec(
+              scheduledFloor,
+              chainRoomId,
+              locationFloorRef.current,
+              'returnToMapActivityComplete',
+            );
+            if (!resolved) return;
+
             executeRoomActivity(
-              currentRoom,
-              floorForChain,
+              resolved.room,
+              resolved.floor,
               setLocationFloor,
               GameState.LOCATION_EXPLORE,
             );

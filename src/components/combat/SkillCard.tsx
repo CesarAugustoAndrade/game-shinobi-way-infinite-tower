@@ -89,9 +89,8 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   chakraShort = false,
   hpShort = false,
 }) => {
-  const actionType = skill.actionType || ActionType.MAIN;
+  const actionType = skill.actionType || ActionType.ACTIVE;
   const isPassive = actionType === ActionType.PASSIVE || showAsPassive;
-  const isSide = actionType === ActionType.SIDE;
   const isToggle = actionType === ActionType.TOGGLE;
   const isActive = skill.isActive || false;
 
@@ -115,10 +114,8 @@ export const SkillCard: React.FC<SkillCardProps> = ({
     } else if (isToggle) {
       classes.push('skill-card--toggle');
       if (isActive) classes.push('skill-card--active');
-    } else if (isSide) {
-      classes.push('skill-card--side');
     } else {
-      classes.push('skill-card--main');
+      classes.push('skill-card--active-type'); // ACTIVE playable face (not toggle-on state)
     }
 
     // State modifiers
@@ -145,8 +142,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
         ? { text: 'ACTIVE', className: 'skill-card__action-badge--toggle-active' }
         : { text: 'TOGGLE', className: 'skill-card__action-badge--toggle' };
     }
-    if (isSide) return { text: 'SIDE', className: 'skill-card__action-badge--side' };
-    return { text: 'MAIN', className: 'skill-card__action-badge--main' };
+    return { text: 'ACTIVE', className: 'skill-card__action-badge--active' };
   };
 
   const actionBadge = getActionBadge();

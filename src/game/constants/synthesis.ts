@@ -93,7 +93,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.SPIRIT_TAG, ComponentId.SPIRIT_TAG],
     passive: { type: PassiveEffectType.BURN, value: 5, duration: 3, triggerCondition: 'on_hit' },
     description: "Ancient sage writings. Elemental attacks apply Burn (5% max HP/turn).",
-    bonusStats: { spirit: 7 },
+    bonusStats: { spirit: 1 },
     icon: '📖',
   },
   {
@@ -129,7 +129,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.SPIRIT_TAG, ComponentId.SWIFT_SANDALS],
     passive: { type: PassiveEffectType.FREE_FIRST_SKILL },
     description: "Minato's mark. Teleport strike - first skill is instant and free.",
-    bonusStats: { speed: 3 },
+    bonusStats: { speed: 1 },
     icon: '⚡',
   },
   {
@@ -148,7 +148,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.CHAKRA_PILL, ComponentId.CHAKRA_PILL],
     passive: { type: PassiveEffectType.DAMAGE_REDUCTION, value: -20 }, // Takes MORE damage (penalty stays)
     description: "+35% damage dealt but take 20% more damage. Inner Gates unlocked.",
-    bonusStats: { strength: 10, speed: 7 },
+    bonusStats: { strength: 1 },
     icon: '🔥',
   },
   {
@@ -236,7 +236,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.ANBU_MASK, ComponentId.ANBU_MASK],
     passive: { type: PassiveEffectType.SEAL_CHANCE, value: 10, duration: 2 },
     description: "Genjutsu focus. 10% chance to Seal enemies for 2 turns.",
-    bonusStats: { calmness: 7 },
+    bonusStats: { calmness: 1 },
     icon: '👁️',
   },
   {
@@ -251,7 +251,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.ANBU_MASK, ComponentId.SWIFT_SANDALS],
     passive: { type: PassiveEffectType.COUNTER_ATTACK, value: 17 },
     description: "Training bell. 17% chance to counter-attack (Copy Ninja reflexes).",
-    bonusStats: { speed: 2 },
+    bonusStats: { speed: 1 },
     icon: '🔔',
   },
   {
@@ -270,7 +270,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.TRAINING_WEIGHTS, ComponentId.TRAINING_WEIGHTS],
     passive: { type: PassiveEffectType.FREE_FIRST_SKILL },
     description: "Rock Lee's ultimate form. First skill is instant with double crit chance.",
-    bonusStats: { critChance: 10, speed: 5 },
+    bonusStats: { critChance: 10, speed: 1 },
     icon: '💨',
   },
   {
@@ -296,7 +296,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.SWIFT_SANDALS, ComponentId.SWIFT_SANDALS],
     passive: { type: PassiveEffectType.FREE_FIRST_SKILL },
     description: "Minato's speed. First skill instant, +13% evasion for first turn.",
-    bonusStats: { speed: 8 },
+    bonusStats: { speed: 1 },
     icon: '⚡',
   },
   {
@@ -315,7 +315,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.TACTICAL_SCROLL, ComponentId.TACTICAL_SCROLL],
     passive: { type: PassiveEffectType.COOLDOWN_RESET_ON_KILL },
     description: "Master strategist's notes. All cooldowns reset on any kill.",
-    bonusStats: { intelligence: 7, chakra: 3 },
+    bonusStats: { intelligence: 1 },
     icon: '📚',
   },
 
@@ -327,7 +327,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.HASHIRAMA_CELL],
     passive: { type: PassiveEffectType.REGEN, value: 7, triggerCondition: 'turn_start' },
     description: "Vessel of the divine tree. Massive stats and 7% HP regen/turn.",
-    bonusStats: { willpower: 13, chakra: 13, strength: 7 },
+    bonusStats: { willpower: 1 },
     icon: '🌳',
   },
   {
@@ -335,7 +335,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.NINJA_STEEL],
     passive: { type: PassiveEffectType.LIFESTEAL, value: 13 },
     description: "Orochimaru's gift. +13% lifesteal but costs 5% HP per turn.",
-    bonusStats: { strength: 10, speed: 7 },
+    bonusStats: { strength: 1 },
     icon: '☯️',
   },
   {
@@ -343,7 +343,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.SPIRIT_TAG],
     passive: { type: PassiveEffectType.ALL_ELEMENTS },
     description: "Eyes of the Sage. All your attacks count as super-effective.",
-    bonusStats: { spirit: 8, intelligence: 5 },
+    bonusStats: { spirit: 1 },
     icon: '👁️',
   },
   {
@@ -351,7 +351,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.CHAKRA_PILL],
     passive: { type: PassiveEffectType.CHAKRA_RESTORE, value: 13, triggerCondition: 'turn_start' },
     description: "Endless chakra well. Restore 13 Chakra every turn.",
-    bonusStats: { chakra: 17 },
+    bonusStats: { chakra: 1 },
     icon: '💫',
   },
   {
@@ -359,7 +359,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.IRON_SAND],
     passive: { type: PassiveEffectType.SEAL_CHANCE, value: 20, duration: 2 },
     description: "Uzumaki sealing chains. 20% chance to bind enemies for 2 turns.",
-    bonusStats: { willpower: 10, calmness: 7 },
+    bonusStats: { willpower: 1 },
     icon: '⛓️',
   },
   {
@@ -367,7 +367,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.ANBU_MASK],
     passive: { type: PassiveEffectType.CLAN_TRAIT_UCHIHA },
     description: "Transplanted eye. Gain Uchiha crit bonuses and copy effects.",
-    bonusStats: { calmness: 7, dexterity: 7, critChance: 7 },
+    bonusStats: { calmness: 1, critChance: 7 },
     icon: '🔴',
   },
   {
@@ -375,7 +375,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.TRAINING_WEIGHTS],
     passive: { type: PassiveEffectType.CLAN_TRAIT_HYUGA },
     description: "All-seeing eyes. Gain Hyūga chakra disruption abilities.",
-    bonusStats: { dexterity: 8, accuracy: 5 },
+    bonusStats: { dexterity: 1 },
     icon: '⚪',
   },
   {
@@ -383,7 +383,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.TACTICAL_SCROLL],
     passive: { type: PassiveEffectType.CLAN_TRAIT_NARA },
     description: "Nara clan secrets. Enemies have reduced speed and evasion.",
-    bonusStats: { intelligence: 10, calmness: 5 },
+    bonusStats: { intelligence: 1 },
     icon: '🌑',
   },
   {
@@ -391,7 +391,7 @@ export const SYNTHESIS_RECIPES: ArtifactDefinition[] = [
     recipe: [ComponentId.HASHIRAMA_CELL, ComponentId.SWIFT_SANDALS],
     passive: { type: PassiveEffectType.CLAN_TRAIT_UZUMAKI },
     description: "Uzumaki life force. Massive HP pool and chakra reserves.",
-    bonusStats: { willpower: 13, chakra: 10, flatHp: 33 },
+    bonusStats: { willpower: 1, flatHp: 33 },
     icon: '🌀',
   },
 ];

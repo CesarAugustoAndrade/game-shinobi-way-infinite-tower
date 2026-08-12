@@ -76,11 +76,9 @@ describe('lootTheme (T-061)', () => {
     expect(applyLootThemeGoldMultiplier(100, null)).toBe(100);
   });
 
-  it('boosts equipmentFocus stats in weight mults', () => {
+  it('returns empty weight mults (equipmentFocus system removed)', () => {
     const mults = equipmentFocusWeightMultipliers(['speed', 'spirit']);
-    expect(mults[ComponentId.SWIFT_SANDALS]).toBe(1.4);
-    expect(mults[ComponentId.SPIRIT_TAG]).toBe(1.4);
-    expect(mults[ComponentId.NINJA_STEEL]).toBeUndefined();
+    expect(Object.keys(mults).length).toBe(0);
   });
 });
 
@@ -110,7 +108,8 @@ describe('upgradeComponent (2× Broken → Common)', () => {
     expect(result.item!.rarity).toBe(Rarity.COMMON);
     expect(result.item!.isComponent).toBe(true);
     expect(result.item!.componentId).toBe(ComponentId.CHAKRA_PILL);
-    expect(result.item!.stats.chakra).toBe(11);
+    // F1: Common stays +1 primary (not sum of broken rolls)
+    expect(result.item!.stats.chakra).toBe(1);
     expect(result.cost).toBeGreaterThan(0);
   });
 
@@ -251,6 +250,23 @@ describe('disassemble', () => {
     expect(component).not.toBeNull();
     // Returned value should be ~200 (50% of 400)
     expect(component!.value).toBe(200); // 400 * 0.5 = 200
+  });
+
+  it('always grants +1 primary on disassemble (F1 scale, not value/15)', () => {
+    const artifact = createMockArtifact(
+      [ComponentId.NINJA_STEEL, ComponentId.SPIRIT_TAG],
+      { strength: 20, spirit: 15 }
+    );
+    artifact.value = 750; // old path would have produced floor(375/15)=25
+
+    const component = disassemble(artifact);
+
+    expect(component).not.toBeNull();
+    if (!component) return;
+    const primaryKey = Object.keys(component.stats)[0] as keyof typeof component.stats;
+    expect(component.stats[primaryKey]).toBe(1);
+    // Sell value may still be 50% of artifact
+    expect(component.value).toBe(Math.floor(750 * 0.5));
   });
 });
 

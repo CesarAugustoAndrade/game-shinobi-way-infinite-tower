@@ -287,6 +287,12 @@ html {
   object-fit: cover;
 }
 
+.art-icon--cutout {
+  object-fit: contain !important;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.15));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
 .art-icon--emoji {
   display: inline-flex;
   align-items: center;

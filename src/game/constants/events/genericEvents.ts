@@ -31,6 +31,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               ryo: 80,
               hpChange: { percent: 20 },
               intelGain: 10,
+              heatDelta: 10,
               logMessage:
                 'Field rations, gauze, and cold coin. Someone provisioned for a mission that never finished.',
               logType: 'gain',
@@ -41,6 +42,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 40,
               intelGain: 5,
+              heatDelta: 10,
               logMessage: 'Half the crate is ruined by damp. You salvage what the rot left.',
               logType: 'info',
             },
@@ -57,6 +59,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             effects: {
               exp: 35,
               intelGain: 20,
+              heatDelta: 5,
               logMessage:
                 'The briefing is still readable: patrol routes, weapon caches, terrain notes — someone else\'s unfinished ledger.',
               logType: 'gain',
@@ -112,6 +115,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               upgradeTreasureQuality: true,
               exp: 50,
               intelGain: 25,
+              heatDelta: 10,
               logMessage: 'The map leads to an ancient cache! Your treasure-finding abilities have permanently improved!',
               logType: 'gain',
             },
@@ -122,6 +126,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               hpChange: { percent: -25 },
               ryo: 100,
               intelGain: 10,
+              heatDelta: 20,
               logMessage: 'The path was treacherous. You found some gold but sustained injuries.',
               logType: 'danger',
             },
@@ -147,6 +152,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 200,
               intelGain: 5,
+              heatDelta: 30,
               logMessage: 'A collector pays well for the mysterious map.',
               logType: 'loot',
             },
@@ -164,6 +170,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               exp: 75,
               statChanges: { intelligence: 1 },
               intelGain: 20,
+              heatDelta: 5,
               logMessage: 'The ancient symbols reveal secrets of the old world.',
               logType: 'gain',
             },
@@ -204,6 +211,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             effects: {
               addMerchantSlot: true,
               intelGain: 20,
+              heatDelta: 10,
               logMessage: 'You become part of their trade network! Merchants will now show you more items.',
               logType: 'gain',
             },
@@ -213,6 +221,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             effects: {
               ryo: 75,
               intelGain: 10,
+              heatDelta: 10,
               logMessage: 'The deal falls through, but they return part of your investment.',
               logType: 'info',
             },
@@ -230,6 +239,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               ryo: 100,
               exp: 25,
               intelGain: 10,
+              heatDelta: 20,
               logMessage: 'A profitable trade! You gained some gold and experience.',
               logType: 'loot',
             },
@@ -247,6 +257,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               ryo: 175,
               exp: 50,
               intelGain: 15,
+              heatDelta: 20,
               logMessage: 'Bandits attacked! You drove them off and earned a reward.',
               logType: 'gain',
             },
@@ -302,6 +313,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               hpChange: { percent: 50 },
               chakraChange: { percent: 50 },
               intelGain: 25,
+              heatDelta: 10,
               logMessage: 'The shrine glows! Divine blessing enhances your fortune permanently!',
               logType: 'gain',
             },
@@ -312,6 +324,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               statChanges: { spirit: 2, calmness: 2 },
               exp: 100,
               intelGain: 15,
+              heatDelta: 5,
               logMessage: 'The blessing empowers your spirit instead.',
               logType: 'gain',
             },
@@ -339,6 +352,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
               chakraChange: { percent: 30 },
               exp: 40,
               intelGain: 15,
+              heatDelta: 5,
               logMessage: 'A warm glow restores your vitality.',
               logType: 'gain',
             },
@@ -393,6 +407,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             weight: 100,
             effects: {
               intelGain: 25,
+              heatDelta: 5,
               logMessage: 'The informant provides detailed maps and patrol routes.',
               logType: 'gain',
             },
@@ -403,13 +418,14 @@ export const GENERIC_EVENTS: GameEvent[] = [
         label: 'Intimidate Them',
         description: 'HIGH RISK - Use force to extract information. Risky but free.',
         riskLevel: RiskLevel.HIGH,
-        requirements: { minStat: { stat: PrimaryStat.STRENGTH, value: 15 } },
+        requirements: { minStat: { stat: PrimaryStat.STRENGTH, value: 1 } },
         hintText: 'Strength can be persuasive...',
         outcomes: [
           {
             weight: 40,
             effects: {
               intelGain: 35,
+              heatDelta: 5,
               logMessage: 'They reveal everything they know in fear!',
               logType: 'gain',
             },
@@ -443,6 +459,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             weight: 60,
             effects: {
               intelGain: 20,
+              heatDelta: 5,
               logMessage: 'A fair exchange of intelligence.',
               logType: 'info',
             },
@@ -451,6 +468,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             weight: 40,
             effects: {
               intelGain: 15,
+              heatDelta: 5,
               logMessage: 'They hold back some details, but you learn useful things.',
               logType: 'info',
             },
@@ -461,13 +479,14 @@ export const GENERIC_EVENTS: GameEvent[] = [
         label: 'Observe Silently',
         description: 'MEDIUM RISK - Follow them and gather intel without interaction',
         riskLevel: RiskLevel.MEDIUM,
-        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 12 } },
+        requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Patience reveals secrets...',
         outcomes: [
           {
             weight: 50,
             effects: {
               intelGain: 30,
+              heatDelta: 5,
               logMessage: 'You shadow them undetected and learn their secrets.',
               logType: 'gain',
             },
@@ -476,6 +495,7 @@ export const GENERIC_EVENTS: GameEvent[] = [
             weight: 30,
             effects: {
               intelGain: 15,
+              heatDelta: 5,
               logMessage: 'You gather some intel before losing sight of them.',
               logType: 'info',
             },

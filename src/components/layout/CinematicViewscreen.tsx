@@ -6,25 +6,25 @@ interface CinematicViewscreenProps {
   /** Enemy portrait image path (fallback when no cutout exists). */
   enemyImage?: string;
   /**
-   * Transparent enemy cutout sprite path (e.g. /assets/enemy_cut_<id>.png).
+   * Transparent enemy cutout sprite path (e.g. /assets/cutouts/enemy_cut_<id>.png).
    * When provided, rendered WITHOUT the all-edges fade mask so the
    * pre-isolated ninja composites cleanly against the background.
    * Chakra aura drop-shadow is applied to cutout sprites only.
    *
-   * Path convention (Combat.tsx): portrait `/assets/enemy_<id>.png`
-   * → cutout `/assets/enemy_cut_<id>.png` via string replace.
+   * Path convention (Combat.tsx): portrait `/assets/enemies/enemy_<id>.png`
+   * → cutout `/assets/cutouts/enemy_cut_<id>.png` via string replace.
    * Generic for any NEW enemy_* A3 adds — no per-id hardcodes.
    * Skips paths already under enemy_cut_ (no double rewrite).
    * onError falls back to portrait; missing cut file = portrait mask.
    */
   enemyCutout?: string;
   /** Location biome background — Lámina 1 (lejana, opaca).
-   *  Path: /assets/location_<biomeSlug>.png
+   *  Path: /assets/locations/location_<biomeSlug>.png
    *  On load error the component falls back to the CSS gradient + scanlines. */
   backgroundImage?: string;
   /**
    * Optional Lámina 2 — middleground layer.
-   * Path convention: /assets/lamina_mid_<biomeSlug>.png  (1024×576, semi-transparent PNG)
+   * Path convention: /assets/lamina/lamina_mid_<biomeSlug>.png  (1024×576, semi-transparent PNG)
    * biomeSlug = getBiomeSlug(location.biome) from colorHelpers.
    * Rendered between background and gradient overlays with a medium parallax drift.
    * Silently hidden on load error; inert when prop is absent (no 404 emitted).
@@ -35,7 +35,7 @@ interface CinematicViewscreenProps {
   midgroundImage?: string;
   /**
    * Optional Lámina 3 — foreground layer (occludes the enemy sprite, z 11).
-   * Path convention: /assets/lamina_fg_<biomeSlug>.png  (1024×576, semi-transparent PNG)
+   * Path convention: /assets/lamina/lamina_fg_<biomeSlug>.png  (1024×576, semi-transparent PNG)
    * biomeSlug = getBiomeSlug(location.biome) from colorHelpers.
    * Rendered in FRONT of the enemy for occlusion depth (rocks, foliage at bottom edges).
    * Silently hidden on load error; inert when prop is absent.

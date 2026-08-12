@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import {
   GameState, Player, BranchingRoom, BranchingFloor, CharacterStats,
   Location, Item, GameEvent, Skill, Enemy, LogEntry,
-  TrainingActivity, ScrollDiscoveryActivity, TreasureActivity, TreasureHunt, TreasureType
+  TrainingActivity, ScrollDiscoveryActivity, TreasureActivity, TreasureHunt
 } from '../game/types';
 import { getCurrentActivity, completeActivity, clearRoomIfSpent } from '../game/systems/LocationSystem';
 import { getMerchantDiscount, applyWealthToRyo } from '../game/systems/ScalingSystem';
@@ -16,6 +16,7 @@ import {
   applyVisibilityToIntelGain,
   getLocationTerrainMods,
 } from '../game/systems/LocationTerrainSystem';
+import { bindEventSessionRoom } from '../game/session';
 
 /**
  * Activity scene data setters - passed from App.tsx
@@ -82,6 +83,10 @@ export interface ActivityHandlerDeps {
   setShowApproachSelector: React.Dispatch<React.SetStateAction<boolean>>;
   setCurrentIntel: React.Dispatch<React.SetStateAction<number>>;
   currentIntel: number;
+  /**
+   * Manual combat: apply preferred approach + start fight (no per-room approach modal).
+   */
+  onEngageCombat?: (room: BranchingRoom, explicitEnemy?: Enemy | null) => void;
   // Auto-combat callback for when ENABLE_MANUAL_COMBAT is false
   onAutoCombat?: (room: BranchingRoom, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
   // Auto-elite-combat callback for elite challenges when ENABLE_MANUAL_COMBAT is false
@@ -117,6 +122,7 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
     setShowApproachSelector,
     setCurrentIntel,
     currentIntel,
+    onEngageCombat,
     onAutoCombat,
     onAutoEliteCombat,
   } = deps;
@@ -173,17 +179,27 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
 
           // Check if manual combat is enabled
           if (FeatureFlags.ENABLE_MANUAL_COMBAT) {
-            logModalOpen('ApproachSelector', { roomId: currentRoom.id, enemy: currentRoom.activities.combat.enemy.name });
             setSelectedBranchingRoom(currentRoom);
-            setShowApproachSelector(true);
-            addLog(`Enemy spotted: ${currentRoom.activities.combat.enemy.name}. Choose your approach!`, 'info');
+            addLog(
+              `Enemy spotted: ${currentRoom.activities.combat.enemy.name}. Engaging with preferred approach...`,
+              'info',
+            );
+            if (onEngageCombat) {
+              onEngageCombat(currentRoom);
+            } else {
+              // Fallback: open preference picker if engage not wired
+              logModalOpen('ApproachSelector', { roomId: currentRoom.id, enemy: currentRoom.activities.combat.enemy.name });
+              setShowApproachSelector(true);
+            }
           } else {
             // Auto-combat mode
             if (onAutoCombat) {
               addLog(`Engaging ${currentRoom.activities.combat.enemy.name} in combat...`, 'info');
               onAutoCombat(currentRoom, updatedFloor, setFloor);
+            } else if (onEngageCombat) {
+              setSelectedBranchingRoom(currentRoom);
+              onEngageCombat(currentRoom);
             } else {
-              // Fallback to manual combat if callback not provided
               setSelectedBranchingRoom(currentRoom);
               setShowApproachSelector(true);
               addLog(`Enemy spotted: ${currentRoom.activities.combat.enemy.name}. Choose your approach!`, 'info');
@@ -209,12 +225,17 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
 
       case 'event':
         if (currentRoom.activities.event) {
-          logActivityStart(currentRoom.id, 'event', { eventId: currentRoom.activities.event.definition.id });
+          logActivityStart(currentRoom.id, 'event', {
+            roomId: currentRoom.id,
+            eventId: currentRoom.activities.event.definition.id,
+          });
           logStateChange(exploreState.toString(), 'EVENT', 'event activity');
           // Fresh event from a room — not reached via a chain.
           setCameFromChain(false);
           // Keep room identity for outcome close → completeActivity (must not rely only on currentRoomId)
           setSelectedBranchingRoom(currentRoom);
+          // Session roomId survives selection/currentRoomId drift under the outcome modal
+          bindEventSessionRoom(currentRoom.id);
           setActiveEvent(currentRoom.activities.event.definition);
           setGameState(GameState.EVENT);
         }
@@ -330,7 +351,12 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
           setCurrentTreasureHunt(updatedFloor.treasureHunt);
           setSelectedBranchingRoom(currentRoom);
 
-          addLog(`You discovered a ${treasure.type === TreasureType.LOCKED_CHEST ? 'mysterious chest' : 'treasure map fragment'}!`, 'loot');
+          addLog(
+            treasure.mapPieceAvailable
+              ? 'A sealed vault — open it for loot, or take a map piece.'
+              : 'A sealed vault waits. Break the seals with chakra.',
+            'loot',
+          );
 
           // Don't complete activity yet - completed when player makes selection
           setGameState(GameState.TREASURE);

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Item, EquipmentSlot, Rarity, DragData, RegionLootTheme } from '../../game/types';
-import { getSellPrice } from '../../game/systems/LootSystem';
 import { resolveItemArt } from '../../game/constants/artRegistry';
 import {
   itemMatchesEquipmentFocus,
@@ -17,6 +16,7 @@ import './inventory.css';
 interface EquipmentPanelProps {
   equipment: Record<EquipmentSlot, Item | null>;
   /** T-062: may return sell price for toast */
+  /** @deprecated Sell only at merchant */
   onSellEquipped?: (slot: EquipmentSlot, item: Item) => number | null | void;
   /** T-067: may return success boolean for toast */
   onUnequip?: (slot: EquipmentSlot, item: Item) => boolean | void;
@@ -32,14 +32,13 @@ interface EquipmentPanelProps {
 
 /** T-062/T-067/T-069: short equipment action toast */
 interface EquipActionToast {
-  kind: 'sell' | 'unequip' | 'disassemble';
+  kind: 'unequip' | 'disassemble';
   item: Item;
   detail: string;
 }
 
 const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
   equipment,
-  onSellEquipped,
   onUnequip,
   onDisassemble,
   onStartSynthesis,
@@ -94,14 +93,6 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
     setActiveMenu(activeMenu === slot ? null : slot);
   };
 
-  const handleSell = (slot: EquipmentSlot, item: Item) => {
-    const sold = onSellEquipped?.(slot, item);
-    setActiveMenu(null);
-    if (typeof sold === 'number' && sold >= 0) {
-      setActionToast({ kind: 'sell', item, detail: `+${sold} Ryō` });
-    }
-  };
-
   const handleUnequip = (slot: EquipmentSlot, item: Item) => {
     const ok = onUnequip?.(slot, item);
     setActiveMenu(null);
@@ -130,7 +121,6 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
   const renderEquip = (slot: EquipmentSlot) => {
     const item = equipment[slot];
     const isMenuOpen = activeMenu === slot;
-    const sellValue = item ? getSellPrice(item) : 0;
     const canUnequip = !!item;
     const canDisassemble = item && !item.isComponent && item.recipe;
     const isFocusItem = item ? itemMatchesEquipmentFocus(item, equipmentFocus) : false;
@@ -221,11 +211,10 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
             </div>
           ))}
         </div>
-        <div className="equipment-panel__tooltip-sell">Fence for {sellValue} Ryo</div>
         {canDisassemble && (
           <div className="equipment-panel__tooltip-disassemble">Can unmake (half returned)</div>
         )}
-        <div className="equipment-panel__tooltip-hint">Drag to shift · click to act</div>
+        <div className="equipment-panel__tooltip-hint">Drag to shift · click to act · sell at shop</div>
       </div>
     ) : (
       <div className="equipment-panel__tooltip-empty">A hollow groove — nothing worn here</div>
@@ -274,15 +263,6 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 
         {isMenuOpen && item && (
           <div className="equipment-panel__menu">
-            <button
-              type="button"
-              onClick={() => handleSell(slot, item)}
-              className="equipment-panel__menu-btn equipment-panel__menu-btn--sell"
-            >
-              <span>Sell</span>
-              <span className="equipment-panel__menu-price">+{sellValue} Ryo</span>
-            </button>
-
             {canUnequip && onUnequip && (
               <button
                 type="button"
@@ -334,15 +314,11 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
       {renderEquip(EquipmentSlot.SLOT_3)}
       {renderEquip(EquipmentSlot.SLOT_4)}
 
-      {/* T-062/T-067: sell / unequip toast (parity with bag) */}
+      {/* T-062/T-067: unequip / disassemble toast (parity with bag) */}
       {actionToast && (
         <div
           className={`bag-toast bag-toast--${
-            actionToast.kind === 'sell'
-              ? 'sell'
-              : actionToast.kind === 'disassemble'
-                ? 'sell'
-                : 'equip'
+            actionToast.kind === 'disassemble' ? 'sell' : 'equip'
           }`}
           role="status"
           onClick={() => setActionToast(null)}
@@ -355,11 +331,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
           />
           <div className="bag-toast__copy">
             <span className="bag-toast__label">
-              {actionToast.kind === 'sell'
-                ? 'Sold'
-                : actionToast.kind === 'disassemble'
-                  ? 'Disassembled'
-                  : 'Unequipped'}
+              {actionToast.kind === 'disassemble' ? 'Disassembled' : 'Unequipped'}
             </span>
             <span className="bag-toast__name">{actionToast.item.name}</span>
             <span className="bag-toast__detail">{actionToast.detail}</span>

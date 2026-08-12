@@ -1,0 +1,106 @@
+[
+  {
+    "id": "forbidden_scroll_library",
+    "file": "academyArcEvents.ts"
+  },
+  {
+    "id": "bullying_incident",
+    "file": "academyArcEvents.ts"
+  },
+  {
+    "id": "secret_training_ground",
+    "file": "academyArcEvents.ts"
+  },
+  {
+    "id": "bridge_worker_plea",
+    "file": "wavesArcEvents.ts"
+  },
+  {
+    "id": "mist_ambush_cache",
+    "file": "wavesArcEvents.ts"
+  },
+  {
+    "id": "tazuna_request",
+    "file": "wavesArcEvents.ts"
+  },
+  {
+    "id": "forest_death_trap",
+    "file": "examsArcEvents.ts"
+  },
+  {
+    "id": "rival_team_encounter",
+    "file": "examsArcEvents.ts"
+  },
+  {
+    "id": "giant_serpent_nest",
+    "file": "examsArcEvents.ts"
+  },
+  {
+    "id": "scroll_merchant",
+    "file": "examsArcEvents.ts"
+  },
+  {
+    "id": "sound_four_ritual",
+    "file": "rogueArcEvents.ts"
+  },
+  {
+    "id": "curse_mark_amplifier",
+    "file": "rogueArcEvents.ts"
+  },
+  {
+    "id": "valley_vision",
+    "file": "rogueArcEvents.ts"
+  },
+  {
+    "id": "orochimaru_experiment",
+    "file": "rogueArcEvents.ts"
+  },
+  {
+    "id": "orochimaru_experiment_result",
+    "file": "rogueArcEvents.ts"
+  },
+  {
+    "id": "white_zetsu_paranoia",
+    "file": "warArcEvents.ts"
+  },
+  {
+    "id": "bijuu_chakra_fragment",
+    "file": "warArcEvents.ts"
+  },
+  {
+    "id": "reanimated_envoy",
+    "file": "warArcEvents.ts"
+  },
+  {
+    "id": "reanimated_envoy_fate",
+    "file": "warArcEvents.ts"
+  },
+  {
+    "id": "envoy_gratitude_repaid",
+    "file": "warArcEvents.ts"
+  },
+  {
+    "id": "scavengers_field",
+    "file": "warArcEvents.ts"
+  },
+  {
+    "id": "abandoned_supply_cache",
+    "file": "genericEvents.ts"
+  },
+  {
+    "id": "ancient_treasure_map",
+    "file": "genericEvents.ts"
+  },
+  {
+    "id": "traveling_merchant_caravan",
+    "file": "genericEvents.ts"
+  },
+  {
+    "id": "hidden_shrine_blessing",
+    "file": "genericEvents.ts"
+  },
+  {
+    "id": "intelligence_network",
+    "file": "genericEvents.ts"
+  }
+]
