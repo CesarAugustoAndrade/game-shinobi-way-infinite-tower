@@ -447,6 +447,8 @@ export interface ModeInteraction {
   consumeAllCharges?: boolean;
   /** Additive damage mult per remaining charge before spend (Peacock = 0.15). */
   damagePerChargeBonus?: number;
+  /** Mode ON bonus also requires this enemy mark id (Twin Lion = chakra_point). */
+  requireMarkId?: string;
 }
 
 export interface ModeDefinition {

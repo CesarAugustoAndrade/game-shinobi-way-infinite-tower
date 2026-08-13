@@ -348,10 +348,12 @@ export const SKILLS_COMBAT_V1_NEW: Record<string, Skill> = {
     element: ElementType.PHYSICAL,
     penetration: 0.3,
     allowedRanges: [CombatRange.CLOSE],
-    modeInteraction: { modeId: 'byakugan', family: 'HYUGA', requireOn: true },
-    markEffects: [
-      { id: 'chakra_point', duration: 2, stacks: 1, consume: MarkConsumeTiming.IMPACT },
-    ],
+    modeInteraction: {
+      modeId: 'byakugan',
+      family: 'HYUGA',
+      requireMarkId: 'chakra_point',
+      damageMultBonus: 0.5,
+    },
     requirements: {
       stats: { [PrimaryStat.ACCURACY]: 3 },
       clan: Clan.HYUGA,

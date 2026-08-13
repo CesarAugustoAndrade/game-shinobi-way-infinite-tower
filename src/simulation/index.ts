@@ -48,6 +48,7 @@ import { printRasenganModePayoffProbe, runRasenganModePayoffProbe } from './Rase
 import { printSealingTagDrainProbe, runSealingTagDrainProbe } from './SealingTagDrainBalance';
 import { printUzumakiBarrageHitsProbe, runUzumakiBarrageHitsProbe } from './UzumakiBarrageHitsBalance';
 import { printMorningPeacockProbe, runMorningPeacockProbe } from './MorningPeacockBalance';
+import { printTwinLionFistsProbe, runTwinLionFistsProbe } from './TwinLionFistsBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -442,6 +443,7 @@ async function main() {
     printSealingTagDrainProbe(runSealingTagDrainProbe());
     printUzumakiBarrageHitsProbe(runUzumakiBarrageHitsProbe());
     printMorningPeacockProbe(runMorningPeacockProbe());
+    printTwinLionFistsProbe(runTwinLionFistsProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

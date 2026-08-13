@@ -241,6 +241,19 @@ function modeChargesOnBoard(board: ModeBoard, modeId: string): number {
   return current?.charges ?? 0;
 }
 
+function hasEnemyMark(marks: Mark[], markId: string): boolean {
+  return marks.some((mark) => mark.id === markId && mark.target === CombatActor.ENEMY);
+}
+
+/** StatSystem-style: outgoing *= (1 - defensePercent * (1 - pen)). Def 0 is identity. */
+function applySkillPenetration(
+  damage: number,
+  penetration: number,
+  defensePercent = 0,
+): number {
+  return Math.floor(damage * (1 - defensePercent * (1 - penetration)));
+}
+
 function applySupportMarks(state: ResolveSkillState, skill: Skill): ResolveSkillState {
   let marks = state.marks;
   for (const spec of skill.markEffects ?? []) {
@@ -454,7 +467,8 @@ export function resolveSkill(
         spentOk = false;
       }
     }
-    if (spentOk && (mi.damageMultBonus ?? 0) > 0) {
+    const markOk = !mi.requireMarkId || hasEnemyMark(next.marks, mi.requireMarkId);
+    if (spentOk && markOk && (mi.damageMultBonus ?? 0) > 0) {
       modeDamageBonus = mi.damageMultBonus ?? 0;
     }
     if (spentOk && (mi.damagePerChargeBonus ?? 0) > 0) {
@@ -537,6 +551,9 @@ export function resolveSkill(
     }
     if (modeDamageBonus > 0 && hitsLanded > 0) {
       damageDealt = Math.floor(damageDealt * (1 + modeDamageBonus));
+      if ((skill.penetration ?? 0) > 0) {
+        damageDealt = applySkillPenetration(damageDealt, skill.penetration ?? 0);
+      }
     }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {
