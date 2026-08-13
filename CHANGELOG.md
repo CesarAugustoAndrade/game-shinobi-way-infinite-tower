@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-007 resolveSkill:** pure SOUL commit orchestrator (`ResolveSkillSystem`) — validate → commit AP/CP/HP + `readyOnTurn` → attempt marks/charges → role dispatch → impact marks only if ≥1 hit. Invalid intents consume nothing.
 - **T-006 board wire:** posture deal/take ×1.20 / ×0.80; range reactions fire only on real band changes; FREE_FIRST waives first chakra only.
 - **T-005 Combat Modes:** pure state machine (activate / ascent / lateral / upkeep / charges) plus 8 v1 `ModeDefinition`s. Stun does not end Modes. Legacy toggles unchanged.
 - **T-004 Marks / Tactical Setup:** pure `MarkSystem` — add/list/stack, attempt vs impact consume, duration tick, multi-hit (once-per-card if ≥1 hit). Marks do not mutate Room Terrain.

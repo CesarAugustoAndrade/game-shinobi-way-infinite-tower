@@ -33,6 +33,7 @@ import {
   DEFAULT_CAMPAIGN_CONFIG,
   runCampaignSimulation,
 } from './CampaignSimulator';
+import { printResolveSkillProbe, runResolveSkillBalanceProbe } from './ResolveSkillBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -411,6 +412,9 @@ async function main() {
   }
 
   try {
+    const probeTrials = args.includes('--quick') || args.includes('-q') ? 200 : 400;
+    printResolveSkillProbe(runResolveSkillBalanceProbe(probeTrials));
+
     // Run simulation
     const output = await runFullSimulation(config, seed);
 

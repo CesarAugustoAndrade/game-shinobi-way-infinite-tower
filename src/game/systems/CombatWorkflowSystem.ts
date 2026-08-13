@@ -93,6 +93,13 @@ export type {
 } from './SkillResolutionSystem';
 export { canPlaySkill, getSkillBlockReason } from './skillPlayability';
 export type { SkillPlayContext, SkillBlockReason } from './skillPlayability';
+export { resolveSkill } from './ResolveSkillSystem';
+export type {
+  ResolveSkillIntent,
+  ResolveSkillPorts,
+  ResolveSkillResult,
+  ResolveSkillState,
+} from './ResolveSkillSystem';
 
 // Re-export from PlayerTurnSystem
 export { useSkill, processUpkeep, applyApproachEffects } from './PlayerTurnSystem';
