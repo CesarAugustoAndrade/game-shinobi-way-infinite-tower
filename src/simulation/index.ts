@@ -57,6 +57,7 @@ import { printModeFamilyReplaceProbe, runModeFamilyReplaceProbe } from './ModeFa
 import { printRotationKaitenProbe, runRotationKaitenProbe } from './RotationKaitenBalance';
 import { printDynamicEntryProbe, runDynamicEntryProbe } from './DynamicEntryBalance';
 import { printPrimaryLotusProbe, runPrimaryLotusProbe } from './PrimaryLotusBalance';
+import { printHiddenLotusProbe, runHiddenLotusProbe } from './HiddenLotusBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -460,6 +461,7 @@ async function main() {
     printRotationKaitenProbe(runRotationKaitenProbe());
     printDynamicEntryProbe(runDynamicEntryProbe());
     printPrimaryLotusProbe(runPrimaryLotusProbe());
+    printHiddenLotusProbe(runHiddenLotusProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
