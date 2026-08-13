@@ -440,6 +440,9 @@ export interface MarkSpec {
   stacks?: number;
   consume?: MarkConsumeTiming;
   trigger?: CombatTrigger;
+  /** Apply stacks once per landed hit (Air Palm Chakra Point). */
+  perHit?: boolean;
+  family?: MarkFamily;
 }
 
 export interface ModeInteraction {

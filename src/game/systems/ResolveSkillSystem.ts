@@ -262,16 +262,22 @@ function applySkillMarkEffects(
 ): ResolveSkillState {
   let marks = state.marks;
   for (const spec of skill.markEffects ?? []) {
-    if (spec.consume === MarkConsumeTiming.IMPACT && hitsLanded < 1) continue;
+    const applies = spec.perHit
+      ? hitsLanded
+      : spec.consume === MarkConsumeTiming.IMPACT && hitsLanded < 1
+        ? 0
+        : 1;
+    if (applies < 1) continue;
     const added = addMark(marks, {
       id: spec.id,
       sourceSkillId: skill.id,
       owner: CombatActor.PLAYER,
       target: CombatActor.ENEMY,
       duration: spec.duration,
-      stacks: spec.stacks ?? 1,
+      stacks: (spec.stacks ?? 1) * applies,
       consume: spec.consume,
       trigger: spec.trigger,
+      family: spec.family,
     });
     marks = added.marks;
   }
@@ -589,7 +595,6 @@ export function resolveSkill(
     if (markMult !== 1 && hitsLanded > 0) {
       damageDealt = Math.floor(damageDealt * markMult);
     }
-    next = applySkillMarkEffects(next, skill, hitsLanded);
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {
       perHitApplied = multi.perHitProcs;
@@ -600,6 +605,10 @@ export function resolveSkill(
     const afterImpact = consumeOnImpact(next.marks, CombatActor.ENEMY, hitsLanded);
     next = { ...next, marks: afterImpact.marks };
     impactSpent = afterImpact.spent;
+  }
+
+  if (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) {
+    next = applySkillMarkEffects(next, skill, hitsLanded);
   }
 
   const supportWeightEntries = applySupportWeightOnPlay(skill, {

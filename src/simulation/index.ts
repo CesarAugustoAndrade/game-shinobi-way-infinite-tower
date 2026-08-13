@@ -52,6 +52,7 @@ import { printTwinLionFistsProbe, runTwinLionFistsProbe } from './TwinLionFistsB
 import { printSideToolMarksMoveProbe, runSideToolMarksMoveProbe } from './SideToolMarksMoveBalance';
 import { printTripwireReactionProbe, runTripwireReactionProbe } from './TripwireReactionBalance';
 import { printChidoriSharingan3Probe, runChidoriSharingan3Probe } from './ChidoriSharingan3Balance';
+import { printAirPalmProbe, runAirPalmProbe } from './AirPalmBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -450,6 +451,7 @@ async function main() {
     printSideToolMarksMoveProbe(runSideToolMarksMoveProbe());
     printTripwireReactionProbe(runTripwireReactionProbe());
     printChidoriSharingan3Probe(runChidoriSharingan3Probe());
+    printAirPalmProbe(runAirPalmProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

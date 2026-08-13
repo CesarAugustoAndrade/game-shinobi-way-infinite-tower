@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-026 Air Palm:** SIDE chip plants a Chakra Point per landed hit and PUSHes 1 band. Misses plant nothing. Byakugan charges are never spent.
 - **T-025 Chidori:** ATTACK with Sharingan 3-Tomoe ON spends 2 charges at attempt and is legal at MEDIUM. OFF or 1 charge stays CLOSE-only with no Mode spend.
 - **T-024 Tripwire Perimeter:** first real enemy band change deals 8 damage and 60% Stun 1, then consumes the tripwire. No fire on a non-move or a player band change.
 - **T-023 SIDE tools:** Wire plants Off-Balance and PULLs 1; Blastback plants Exposed and PUSHes 1; Backstep retreats 1 without spending the voluntary move. Next Attack/SIDE reads Off-Balance +20% and Exposed +15% (ranged only).

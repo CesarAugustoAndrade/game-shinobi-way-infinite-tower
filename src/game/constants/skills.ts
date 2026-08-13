@@ -13,6 +13,8 @@ import {
   CardRole,
   SkillTag,
   CombatRange,
+  MarkConsumeTiming,
+  MarkFamily,
 } from '../types';
 import { SKILLS_COMBAT_V1_NEW } from './skillsCombatV1New';
 import { MODE_FAMILY } from './modes';
@@ -1190,8 +1192,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'air_palm',
     name: 'Air Palm',
     tier: SkillTier.ADVANCED,
-    description: 'Hyuga ranged technique. Fires a burst of chakra.',
+    description:
+      'Chip burst of Hyuga chakra. PUSH the foe 1 band after resolve. Each landed hit plants a Chakra Point (duration 2). Does not spend Byakugan charges.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
     apCost: 2,
     chakraCost: 4,
     hpCost: 0,
@@ -1204,6 +1208,17 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WIND,
+    markEffects: [
+      {
+        id: 'chakra_point',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.IMPACT,
+        perHit: true,
+        family: MarkFamily.STAT,
+      },
+    ],
+    bandMove: { kind: 'PUSH', steps: 1 },
     requirements: {
       stats: {
         [PrimaryStat.ACCURACY]: 2,
