@@ -144,9 +144,10 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   };
 
   const roleLabel = roleBadgeLabel(skill, { passiveDisplay: isPassive && !skill.cardRole });
+  const roleModifier = roleLabel === '—' ? 'unset' : roleLabel.toLowerCase();
   const actionBadge = {
     text: roleLabel,
-    className: `skill-card__action-badge--${roleLabel.toLowerCase()}`,
+    className: `skill-card__action-badge--${roleModifier}`,
   };
   const showMainRibbon = isMainAttackRibbon(skill.id, mainAttackId);
   const consumeWarning = chargeConsumeWarning(skill);
