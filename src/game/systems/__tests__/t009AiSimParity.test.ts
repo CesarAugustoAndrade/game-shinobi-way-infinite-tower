@@ -128,6 +128,7 @@ describe('T-009 metrics artifacts', () => {
   it('increments SOUL metrics, FREE_FIRST does not waive AP, CD reset does not ON/refill Modes', () => {
     let bag = emptySoulMetrics();
     bag = recordSoulMetric(bag, 'setupCompletion', 1);
+    bag = recordSoulMetric(bag, 'upkeepFailure', 1);
     const support = createMockSkill({
       id: 'cloak',
       cardRole: CardRole.SUPPORT,
@@ -150,6 +151,7 @@ describe('T-009 metrics artifacts', () => {
     );
     bag = applyResolveToMetrics(bag, resolved);
     expect(bag.setupCompletion).toBeGreaterThanOrEqual(2);
+    expect(bag.upkeepFailure).toBe(1);
     expect(bag.deadCardRate).toBe(0);
 
     expect(artifactsOncePerCard(0)).toBe(false);
