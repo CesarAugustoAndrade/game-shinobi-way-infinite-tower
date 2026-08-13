@@ -223,7 +223,6 @@ export const SKILLS_COMBAT_V1_NEW: Record<string, Skill> = {
     element: ElementType.MENTAL,
     allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM, CombatRange.LONG],
     modeInteraction: { consumeCharges: 1 },
-    effects: [{ type: EffectType.SILENCE, duration: 1, chance: 1 }],
   },
 
   TRIPWIRE_PERIMETER: {

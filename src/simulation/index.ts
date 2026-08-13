@@ -45,6 +45,7 @@ import { printModeWeightBonusesProbe, runModeWeightBonusesProbe } from './ModeWe
 import { printSupportNextDrawProbe, runSupportNextDrawProbe } from './SupportNextDrawBalance';
 import { printGatePrepDiscountProbe, runGatePrepDiscountProbe } from './GatePrepDiscountBalance';
 import { printRasenganModePayoffProbe, runRasenganModePayoffProbe } from './RasenganModePayoffBalance';
+import { printSealingTagDrainProbe, runSealingTagDrainProbe } from './SealingTagDrainBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -436,6 +437,7 @@ async function main() {
     printSupportNextDrawProbe(runSupportNextDrawProbe());
     printGatePrepDiscountProbe(runGatePrepDiscountProbe());
     printRasenganModePayoffProbe(runRasenganModePayoffProbe());
+    printSealingTagDrainProbe(runSealingTagDrainProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

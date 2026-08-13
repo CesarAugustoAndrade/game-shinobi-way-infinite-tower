@@ -331,6 +331,21 @@ export function drainCharges(
   return trySpendCharges(board, modeId, n, turnIndex);
 }
 
+/**
+ * First ON Mode: optional priority ids, else stable `instances` order.
+ */
+export function pickEnemyModeToDrain(
+  board: ModeBoard,
+  priority: readonly string[] = [],
+): string | null {
+  const on = onModes(board);
+  if (on.length === 0) return null;
+  for (const id of priority) {
+    if (on.some((mode) => mode.id === id)) return id;
+  }
+  return on[0].id;
+}
+
 export function applyModeUpkeep(
   board: ModeBoard,
   priority: readonly string[],

@@ -8,9 +8,11 @@
 
 import {
   ActionType,
+  Buff,
   CardRole,
   CombatActor,
   CombatRange,
+  EffectType,
   Mark,
   MarkConsumeTiming,
   ModeDefinition,
@@ -27,8 +29,11 @@ import {
 } from './CardContractSystem';
 import {
   activateMode,
+  drainCharges,
+  emptyModeBoard,
   lateralSwap,
   manualOff,
+  pickEnemyModeToDrain,
   trySpendCharges,
   type ModeBoard,
   type ModeOpResult,
@@ -81,6 +86,9 @@ export interface ResolveSkillState {
   modes: ModeBoard;
   skills: Skill[];
   playerBuffs: import('../types').Buff[];
+  enemyModes?: ModeBoard;
+  enemyBuffs?: Buff[];
+  enemyModeUpkeepPriority?: string[];
   enemyHp: number;
   skipFirstSkillCost?: boolean;
   playerMoveUsedThisTurn?: boolean;
@@ -190,6 +198,13 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
         }
       : undefined,
     pendingSupportWeights: state.pendingSupportWeights?.map((entry) => ({ ...entry })),
+    enemyModes: state.enemyModes
+      ? { instances: state.enemyModes.instances.map((mode) => ({ ...mode })) }
+      : undefined,
+    enemyBuffs: state.enemyBuffs?.map((buff) => ({ ...buff, effect: { ...buff.effect } })),
+    enemyModeUpkeepPriority: state.enemyModeUpkeepPriority
+      ? [...state.enemyModeUpkeepPriority]
+      : undefined,
   };
 }
 
@@ -232,6 +247,35 @@ function applySupportMarks(state: ResolveSkillState, skill: Skill): ResolveSkill
     marks = added.marks;
   }
   return { ...state, marks };
+}
+
+function isEnemyChargeDrainSupport(skill: Skill): boolean {
+  return (skill.modeInteraction?.consumeCharges ?? 0) > 0 && !skill.modeInteraction?.modeId;
+}
+
+function sealingSilenceBuff(sourceId: string): Buff {
+  return {
+    id: `silence-${sourceId}`,
+    name: 'Silence',
+    duration: 1,
+    effect: { type: EffectType.SILENCE, duration: 1, chance: 1 },
+    source: sourceId,
+  };
+}
+
+function applySealingTagXor(state: ResolveSkillState, skill: Skill): ResolveSkillState {
+  const board = state.enemyModes ?? emptyModeBoard();
+  const pick = pickEnemyModeToDrain(board, state.enemyModeUpkeepPriority ?? []);
+  if (pick) {
+    const drain = drainCharges(board, pick, skill.modeInteraction?.consumeCharges ?? 1, state.turnIndex);
+    if (drain.ok) {
+      return { ...state, enemyModes: drain.board };
+    }
+  }
+  return {
+    ...state,
+    enemyBuffs: [...(state.enemyBuffs ?? []), sealingSilenceBuff(skill.id)],
+  };
 }
 
 function discoverFilterFromSkill(
@@ -444,6 +488,9 @@ export function resolveSkill(
     }
   } else if (role === CardRole.SUPPORT) {
     next = applySupportMarks(next, skill);
+    if (isEnemyChargeDrainSupport(skill)) {
+      next = applySealingTagXor(next, skill);
+    }
     if (skill.discover) {
       next = applyDiscoverOffer(next, skill, intent, ports.rng ?? (() => 0));
     }
