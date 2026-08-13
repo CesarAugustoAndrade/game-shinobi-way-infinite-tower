@@ -30,12 +30,15 @@ import {
 } from './CardContractSystem';
 import {
   activateMode,
+  ascendMode,
+  classifyFamilyTransition,
   drainCharges,
   emptyModeBoard,
   lateralSwap,
   manualOff,
   pickEnemyModeToDrain,
   trySpendCharges,
+  type FamilyTransition,
   type ModeBoard,
   type ModeOpResult,
   type ModePools,
@@ -134,6 +137,13 @@ export interface ResolveSkillPorts {
     pools: ModePools,
     turn: number,
   ) => ModeOpResult;
+  ascendMode?: (
+    board: ModeBoard,
+    fromId: string,
+    toDef: ModeDefinition,
+    pools: ModePools,
+    turn: number,
+  ) => ModeOpResult;
   spendCharges?: (
     board: ModeBoard,
     modeId: string,
@@ -149,7 +159,8 @@ export type ResolveRejectReason =
   | 'passive'
   | Exclude<SkillBlockReason, null>
   | 'not-ready'
-  | 'mode-required';
+  | 'mode-required'
+  | 'mode-family';
 
 export type ResolveSkillResult =
   | {
@@ -223,6 +234,25 @@ function modePoolsFrom(pools: ResolveSkillPools): ModePools {
 
 function resolveModeId(skill: Skill): string {
   return skill.modeInteraction?.modeId ?? skill.id;
+}
+
+function targetModeDefinition(intent: ResolveSkillIntent): ModeDefinition | undefined {
+  return intent.replaceTo ?? getModeDefinition(resolveModeId(intent.skill));
+}
+
+function classifyModeIntent(intent: ResolveSkillIntent, state: ResolveSkillState): FamilyTransition | undefined {
+  const roleRes = resolveCardRole(intent.skill);
+  if (!roleRes.ok || roleRes.role !== CardRole.MODE) return undefined;
+  if (intent.modeOp === 'manual-off') return undefined;
+  const def = targetModeDefinition(intent);
+  if (!def) return undefined;
+  return classifyFamilyTransition(state.modes, def);
+}
+
+function isFamilyPay(classified: FamilyTransition | undefined): classified is
+  | { kind: 'ascent'; fromId: string }
+  | { kind: 'lateral'; fromId: string } {
+  return classified?.kind === 'ascent' || classified?.kind === 'lateral';
 }
 
 function isModeOnBoard(board: ModeBoard, modeId: string): boolean {
@@ -397,6 +427,12 @@ function validateIntent(
     return { ok: false, reason: 'passive' };
   }
 
+  const classified = classifyModeIntent(intent, state);
+  if (classified?.kind === 'reject-downgrade') {
+    return { ok: false, reason: 'mode-family' };
+  }
+  const familyPay = isFamilyPay(classified);
+
   const block = getSkillBlockReason({
     skill,
     currentChakra: state.pools.chakra,
@@ -409,11 +445,22 @@ function validateIntent(
     modeActivation: roleRes.role === CardRole.MODE && (intent.modeOp ?? 'activate') === 'activate',
     modeAlreadyOn:
       roleRes.role === CardRole.MODE &&
-      (intent.modeOp === 'manual-off' || intent.modeOp === 'family-replace'),
+      (intent.modeOp === 'manual-off' || intent.modeOp === 'family-replace' || familyPay),
     grantedRanges: modeGrantedRanges(skill, state.modes),
   });
-  if (block) {
+  if (block && !(familyPay && (block === 'ap' || block === 'chakra' || block === 'hp'))) {
     return { ok: false, reason: block };
+  }
+  if (familyPay) {
+    const def = targetModeDefinition(intent);
+    if (!def) return { ok: false, reason: 'mode-family' };
+    const dry =
+      classified.kind === 'ascent'
+        ? ascendMode(state.modes, classified.fromId, def, modePoolsFrom(state.pools), state.turnIndex)
+        : lateralSwap(state.modes, classified.fromId, def, modePoolsFrom(state.pools), state.turnIndex);
+    if (!dry.ok) {
+      return { ok: false, reason: dry.reason === 'cannot-afford' ? 'ap' : 'mode-family' };
+    }
   }
   if (!isSkillReadyOnTurn(skill.readyOnTurn, state.turnIndex)) {
     return { ok: false, reason: 'not-ready' };
@@ -442,10 +489,12 @@ export function resolveSkill(
   const { skill } = intent;
   const role = gate.role;
   let next = cloneState(original);
+  const classified = classifyModeIntent(intent, original);
+  const familyPay = isFamilyPay(classified);
 
-  const apCost = getApCost(skill);
-  const chakraCost = effectiveChakraCost(skill, next.skipFirstSkillCost);
-  const hpCost = skill.hpCost ?? 0;
+  const apCost = familyPay ? 0 : getApCost(skill);
+  const chakraCost = familyPay ? 0 : effectiveChakraCost(skill, next.skipFirstSkillCost);
+  const hpCost = familyPay ? 0 : skill.hpCost ?? 0;
   next = {
     ...next,
     pools: {
@@ -526,6 +575,7 @@ export function resolveSkill(
     const activate = ports.activateMode ?? activateMode;
     const off = ports.manualOff ?? manualOff;
     const replace = ports.familyReplace ?? lateralSwap;
+    const climb = ports.ascendMode ?? ascendMode;
     const lookup = ports.getModeDef ?? getModeDefinition;
     const modeId = resolveModeId(skill);
     const def = intent.replaceTo ?? lookup(modeId);
@@ -544,16 +594,25 @@ export function resolveSkill(
       const result = off(next.modes, modeId, modePoolsFrom(next.pools), next.turnIndex);
       modeActivations += 1;
       if (result.ok) next = { ...next, modes: result.board };
-    } else if (op === 'family-replace' && intent.replaceTo) {
-      const result = replace(
-        next.modes,
-        modeId,
-        intent.replaceTo,
-        modePoolsFrom(next.pools),
-        next.turnIndex,
-      );
+    } else if (isFamilyPay(classified) && def) {
+      const result =
+        classified.kind === 'ascent'
+          ? climb(next.modes, classified.fromId, def, modePoolsFrom(next.pools), next.turnIndex)
+          : replace(next.modes, classified.fromId, def, modePoolsFrom(next.pools), next.turnIndex);
       modeActivations += 1;
-      if (result.ok) next = { ...next, modes: result.board };
+      if (!result.ok) {
+        return reject(original, result.reason === 'cannot-afford' ? 'ap' : 'mode-family');
+      }
+      next = {
+        ...next,
+        modes: result.board,
+        pools: {
+          ...next.pools,
+          ap: result.pools.ap,
+          chakra: result.pools.chakra,
+          hp: result.pools.hp,
+        },
+      };
     } else {
       const result = activate(next.modes, stubDef, modePoolsFrom(next.pools), next.turnIndex);
       modeActivations += 1;

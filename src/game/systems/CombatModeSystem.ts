@@ -13,7 +13,7 @@ import {
   ModeRuntimeState,
   TypedCost,
 } from '../types';
-import { getModeDefinition } from '../constants/modes';
+import { getModeDefinition, MODE_FAMILY } from '../constants/modes';
 import {
   computeReadyOnTurn,
   HP_UPKEEP_FLOOR,
@@ -259,6 +259,31 @@ export function lateralSwap(
     pools: payCost(pools, toDef.activationCost),
     ended: [{ id: fromId, kind: ModeEndKind.FAMILY_REPLACE }],
   };
+}
+
+/** SOUL §8: Gate/Curse higher stage = ascent; Sharingan = lateral; never downgrade. */
+export type FamilyTransition =
+  | { kind: 'activate' }
+  | { kind: 'already-on' }
+  | { kind: 'ascent'; fromId: string }
+  | { kind: 'lateral'; fromId: string }
+  | { kind: 'reject-downgrade'; fromId: string };
+
+export function classifyFamilyTransition(board: ModeBoard, target: ModeDefinition): FamilyTransition {
+  const live = onModes(board);
+  if (live.some((mode) => mode.id === target.id)) return { kind: 'already-on' };
+  const sibling = live.find((mode) => mode.family === target.family && mode.id !== target.id);
+  if (!sibling) return { kind: 'activate' };
+  const fromStage = sibling.stage ?? getModeDefinition(sibling.id)?.stage ?? 0;
+  const toStage = target.stage ?? 0;
+  if (toStage <= fromStage) return { kind: 'reject-downgrade', fromId: sibling.id };
+  if (target.family === MODE_FAMILY.GATES || target.family === MODE_FAMILY.CURSE) {
+    return { kind: 'ascent', fromId: sibling.id };
+  }
+  if (target.family === MODE_FAMILY.SHARINGAN) {
+    return { kind: 'lateral', fromId: sibling.id };
+  }
+  return { kind: 'reject-downgrade', fromId: sibling.id };
 }
 
 /** Re-play while ON: pay AP only, start cooldown. */
