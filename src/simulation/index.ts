@@ -39,6 +39,7 @@ import { printAiSimParityProbe, runAiSimParityProbe } from './AiSimParityBalance
 import { printCombatUiHonestyProbe } from './CombatUiHonestyBalance';
 import { printModeSkillsReauthorProbe, runModeSkillsReauthorProbe } from './ModeSkillsReauthorBalance';
 import { printLiveTurnStartProbe, runLiveTurnStartProbe } from './LiveTurnStartBalance';
+import { printSkillConfigLiveProbe, runSkillConfigLiveProbe } from './SkillConfigLiveBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -424,6 +425,7 @@ async function main() {
     printCombatUiHonestyProbe();
     printModeSkillsReauthorProbe(runModeSkillsReauthorProbe());
     printLiveTurnStartProbe(runLiveTurnStartProbe());
+    printSkillConfigLiveProbe(runSkillConfigLiveProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

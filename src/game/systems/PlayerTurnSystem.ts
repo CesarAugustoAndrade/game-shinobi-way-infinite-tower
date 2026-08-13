@@ -98,6 +98,8 @@ import { checkLethalDamage } from './SurvivalSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
 import { runTurnStartClock } from './TurnClockSystem';
 import { getModeDefinition } from '../constants/modes';
+import { normalizeSkillConfig } from './SkillConfigLive';
+import type { WeightContext } from './DeckSystem';
 
 // ============================================================================
 // APPROACH EFFECTS
@@ -153,6 +155,21 @@ export function applyApproachEffects(
 // ============================================================================
 // UPKEEP PROCESSING
 // ============================================================================
+
+export function buildUpkeepWeightContext(
+  player: Player,
+  combatState: CombatState,
+): WeightContext {
+  const config = normalizeSkillConfig(player.skillConfig);
+  return {
+    posture: combatState.posture,
+    turnIndex: combatState.turnIndex,
+    mainAttackId: config.mainAttackId,
+    activeModeIds: (combatState.activeModes ?? [])
+      .filter((mode) => mode.state === ModeRuntimeState.ON || mode.state === undefined)
+      .map((mode) => mode.id),
+  };
+}
 
 function isBoardTrackedMode(skillId: string, boardIds: ReadonlySet<string>): boolean {
   return boardIds.has(skillId);
@@ -269,10 +286,13 @@ export function processUpkeep(
     combatState.playablePool.length > 0
       ? combatState.playablePool
       : buildDeck(updatedPlayer.skills);
+  const playerPriority = normalizeSkillConfig(updatedPlayer.skillConfig).modeUpkeepPriority;
   const priority =
     combatState.modeUpkeepPriority && combatState.modeUpkeepPriority.length > 0
       ? combatState.modeUpkeepPriority
-      : onModes.map((mode) => mode.id);
+      : playerPriority.length > 0
+        ? playerPriority
+        : onModes.map((mode) => mode.id);
 
   const clock = runTurnStartClock({
     turnIndex,
@@ -292,7 +312,7 @@ export function processUpkeep(
     snapshotDraw: () =>
       drawNewTurnHand(
         pool,
-        { posture: combatState.posture, turnIndex },
+        buildUpkeepWeightContext(updatedPlayer, combatState),
         LaunchProperties.HAND_SIZE,
         Math.random,
       ).hand,

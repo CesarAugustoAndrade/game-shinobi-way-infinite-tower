@@ -901,6 +901,11 @@ export interface Player {
   // Loadout - 4 generic equipment slots (synthesis system)
   equipment: Record<EquipmentSlot, Item | null>;
   skills: Skill[];
+  /**
+   * Out-of-combat Skill Config (T-013). Missing on old saves → treat as
+   * `{ mainAttackId: null, modeUpkeepPriority: [] }` then `ensureMainAttack`.
+   */
+  skillConfig?: SkillConfig;
   activeBuffs: Buff[];
 
   // Bag - 12 fixed slots for components and artifacts

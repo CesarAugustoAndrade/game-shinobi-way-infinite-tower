@@ -213,6 +213,7 @@ export const createMockPlayer = (overrides: Partial<Player> = {}): Player => ({
     [EquipmentSlot.SLOT_4]: null,
   },
   skills: [],
+  skillConfig: { mainAttackId: null, modeUpkeepPriority: [] },
   activeBuffs: [],
   bag: Array(MAX_BAG_SLOTS).fill(null),
   treasureQuality: TreasureQuality.BROKEN,

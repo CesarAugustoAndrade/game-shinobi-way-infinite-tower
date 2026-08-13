@@ -15,9 +15,11 @@ import {
   MAX_MERCHANT_SLOTS,
   Buff,
   EffectType,
+  GameState,
 } from '../types';
 import { SKILLS } from '../constants/skills';
 import { pick, generateId } from '../utils/rng';
+import { applyLearnSkill } from './SkillConfigLive';
 
 export type EventEffectHandler = (
   player: Player,
@@ -127,7 +129,7 @@ const applyGrantSkill: EventEffectHandler = (player, effects) => {
 
   const granted = Object.values(SKILLS).find((s) => s.id === effects.grantSkillById);
   if (granted && !player.skills.some((s) => s.id === granted.id)) {
-    return { ...player, skills: [...player.skills, { ...granted, level: 1 }] };
+    return applyLearnSkill(player, { ...granted, level: 1 }, GameState.EVENT).player;
   }
   return player;
 };

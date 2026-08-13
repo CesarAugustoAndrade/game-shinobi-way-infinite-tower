@@ -25,6 +25,7 @@ import {
   drawHand,
 } from '../game/systems/CombatWorkflowSystem';
 import { voluntaryPlayerMove } from '../game/systems/PlayerTurnSystem';
+import { bootstrapPlayerSkillConfig, normalizeSkillConfig } from '../game/systems/SkillConfigLive';
 import {
   resolveInitialRange,
   skillAllowedAt,
@@ -621,10 +622,17 @@ export function useCombat({
       // T-082: room movementCost (footing) then T-067 location movement_penalty
       maxAp = applyRoomMovementCostToMaxAp(maxAp, terrain ?? null);
       maxAp = applyMovementPenaltyToMaxAp(maxAp, locationTerrainMods ?? null);
+      const boot = bootstrapPlayerSkillConfig(preparedPlayer, Math.random);
+      preparedPlayer = boot.player;
+      if (boot.notified) {
+        addLog(`Main Attack designated: ${preparedPlayer.skillConfig?.mainAttackId}`, 'info');
+        setPlayer(preparedPlayer);
+      }
       const playablePool = buildDeck(preparedPlayer.skills);
       newCombatState.maxAp = maxAp;
       newCombatState.posture = openingPosture;
       newCombatState.playablePool = playablePool;
+      newCombatState.modeUpkeepPriority = normalizeSkillConfig(preparedPlayer.skillConfig).modeUpkeepPriority;
 
       // F2/F3: seed engagement band from approach + enemy preferred + heat bias
       const initialRange = resolveInitialRange({
@@ -661,7 +669,11 @@ export function useCombat({
         // Player opens: draw hand now and skip the first upkeep redraw.
         const opening = drawHand(
           playablePool,
-          { posture: openingPosture, turnIndex: newCombatState.turnIndex },
+          {
+            posture: openingPosture,
+            turnIndex: newCombatState.turnIndex,
+            mainAttackId: normalizeSkillConfig(preparedPlayer.skillConfig).mainAttackId,
+          },
           LaunchProperties.HAND_SIZE,
           Math.random,
         );
