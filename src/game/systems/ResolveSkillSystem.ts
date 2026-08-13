@@ -326,6 +326,7 @@ function skillForcedMove(skill: Skill): { kind: 'PUSH' | 'PULL' } | undefined {
   const spec = skill.bandMove;
   if (!spec) return undefined;
   if (spec.kind === 'SELF_RETREAT') return { kind: 'PUSH' };
+  if (spec.kind === 'SELF_APPROACH') return { kind: 'PULL' };
   return { kind: spec.kind };
 }
 

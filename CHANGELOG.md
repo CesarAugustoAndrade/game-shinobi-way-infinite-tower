@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-029 Dynamic Entry:** SIDE flying kick legal at MEDIUM or CLOSE. Closes to CLOSE after play. Gate charges stay intact.
 - **T-028 Rotation:** requires Byakugan ON, spends 1 charge, and plants a self shield (50) + reflect (60%) for 1 duration. OFF rejects with no consume.
 - **T-027 Mode family:** playing a higher-stage Gate/Curse Mode while the lower is ON is ascent (charges +1, SOUL costs). Sharingan 2→3 is lateral (transfer, no +1). Downgrade rejects and consumes nothing.
 - **T-026 Air Palm:** SIDE chip plants a Chakra Point per landed hit and PUSHes 1 band. Misses plant nothing. Byakugan charges are never spent.

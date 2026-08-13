@@ -427,7 +427,7 @@ export interface DiscoverSpec {
 }
 
 /** Forced engagement shift authored on a skill (T-023 SIDE tools). */
-export type BandMoveKind = 'PULL' | 'PUSH' | 'SELF_RETREAT';
+export type BandMoveKind = 'PULL' | 'PUSH' | 'SELF_RETREAT' | 'SELF_APPROACH';
 
 export interface BandMoveSpec {
   kind: BandMoveKind;

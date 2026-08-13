@@ -299,8 +299,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'dynamic_entry',
     name: 'Dynamic Entry',
     tier: SkillTier.BASIC,
-    description: 'A powerful flying kick! Guaranteed first strike with high crit chance.',
+    description:
+      'Flying kick legal at MEDIUM or CLOSE. After play, closes to CLOSE. Does not spend Gate charges.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
     apCost: 2,
     stanceShift: Posture.AGGRESSIVE,  // committing rush drops you into an aggressive stance
     stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
@@ -315,7 +317,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    critBonus: 20
+    critBonus: 20,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.CLOSE],
+    bandMove: { kind: 'SELF_APPROACH', steps: 1 },
   },
 
   RISING_WIND: {

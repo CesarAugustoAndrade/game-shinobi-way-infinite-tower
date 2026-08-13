@@ -55,6 +55,7 @@ import { printChidoriSharingan3Probe, runChidoriSharingan3Probe } from './Chidor
 import { printAirPalmProbe, runAirPalmProbe } from './AirPalmBalance';
 import { printModeFamilyReplaceProbe, runModeFamilyReplaceProbe } from './ModeFamilyReplaceBalance';
 import { printRotationKaitenProbe, runRotationKaitenProbe } from './RotationKaitenBalance';
+import { printDynamicEntryProbe, runDynamicEntryProbe } from './DynamicEntryBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -456,6 +457,7 @@ async function main() {
     printAirPalmProbe(runAirPalmProbe());
     printModeFamilyReplaceProbe(runModeFamilyReplaceProbe());
     printRotationKaitenProbe(runRotationKaitenProbe());
+    printDynamicEntryProbe(runDynamicEntryProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
