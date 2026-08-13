@@ -443,6 +443,8 @@ export interface MarkSpec {
   /** Apply stacks once per landed hit (Air Palm Chakra Point). */
   perHit?: boolean;
   family?: MarkFamily;
+  /** Default enemy (T-023/T-026). Rotation shield/reflect uses self. */
+  targetActor?: 'self' | 'enemy';
 }
 
 export interface ModeInteraction {

@@ -54,6 +54,7 @@ import { printTripwireReactionProbe, runTripwireReactionProbe } from './Tripwire
 import { printChidoriSharingan3Probe, runChidoriSharingan3Probe } from './ChidoriSharingan3Balance';
 import { printAirPalmProbe, runAirPalmProbe } from './AirPalmBalance';
 import { printModeFamilyReplaceProbe, runModeFamilyReplaceProbe } from './ModeFamilyReplaceBalance';
+import { printRotationKaitenProbe, runRotationKaitenProbe } from './RotationKaitenBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -454,6 +455,7 @@ async function main() {
     printChidoriSharingan3Probe(runChidoriSharingan3Probe());
     printAirPalmProbe(runAirPalmProbe());
     printModeFamilyReplaceProbe(runModeFamilyReplaceProbe());
+    printRotationKaitenProbe(runRotationKaitenProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

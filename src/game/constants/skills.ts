@@ -1344,8 +1344,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'kaiten',
     name: '8 Trigrams Rotation',
     tier: SkillTier.HIDDEN,
-    description: 'Expels chakra while spinning to repel attacks. Reflects damage.',
+    description:
+      'Requires Byakugan ON. Spend 1 charge to plant a self shield (50) and reflect (60%) for 1 duration. Does not deal damage.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 1,
     stanceShift: Posture.DEFENSIVE,  // the spinning guard locks you into a defensive stance
     stanceBonus: { posture: Posture.DEFENSIVE, damageMultBonus: 0.15 },
@@ -1353,7 +1355,6 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     hpCost: 0,
     cooldown: 4,
     currentCooldown: 0,
-    // Defensive utility: reflection/shield; chip budget left at 0 for card category
     baseDamage: 0,
     scalingPerPoint: 0,
     scalingStat: PrimaryStat.CALMNESS,
@@ -1361,11 +1362,28 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
+    modeInteraction: {
+      modeId: 'byakugan',
+      family: MODE_FAMILY.HYUGA,
+      requireOn: true,
+      consumeCharges: 1,
+    },
+    markEffects: [
+      {
+        id: 'rotation_shield',
+        duration: 1,
+        stacks: 50,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+      },
+      {
+        id: 'rotation_reflect',
+        duration: 1,
+        stacks: 60,
+        targetActor: 'self',
+      },
+    ],
     requirements: { clan: Clan.HYUGA },
-    effects: [
-      { type: EffectType.REFLECTION, value: 0.6, duration: 1, chance: 1.0 },
-      { type: EffectType.SHIELD, value: 50, duration: 1, chance: 1.0 }
-    ]
   },
 
   BYAKUGAN: {

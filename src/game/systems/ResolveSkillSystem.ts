@@ -302,7 +302,7 @@ function applySkillMarkEffects(
       id: spec.id,
       sourceSkillId: skill.id,
       owner: CombatActor.PLAYER,
-      target: CombatActor.ENEMY,
+      target: spec.targetActor === 'self' ? CombatActor.PLAYER : CombatActor.ENEMY,
       duration: spec.duration,
       stacks: (spec.stacks ?? 1) * applies,
       consume: spec.consume,
@@ -535,7 +535,7 @@ export function resolveSkill(
   } else if (
     autoModeOn &&
     mi?.modeId &&
-    (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK)
+    (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK || role === CardRole.SUPPORT)
   ) {
     let spentOk = true;
     const spendN = mi.consumeAllCharges ? remainingCharges : (mi.consumeCharges ?? 0);
