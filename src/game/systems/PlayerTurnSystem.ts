@@ -11,10 +11,9 @@
  * ## PLAYER TURN ORDER
  *
  * 1. Upkeep Phase (processUpkeep):
- *    - Deduct toggle skill upkeep costs
- *    - Auto-deactivate toggles if insufficient resources
- *    - Apply passive skill regeneration
- *    - Apply artifact turn-start passives
+ *    - SOUL clock: Mode upkeep → regen → snapshot draw → mark duration
+ *    - Untracked legacy toggles still pay CP upkeep (not board Modes)
+ *    - Apply passive/artifact regen after Mode upkeep (never funds it)
  *
  * 2. Action Phase (useSkill):
  *    - Resource validation (chakra, HP costs)
@@ -45,6 +44,9 @@ import {
   ActionType,
   Posture,
   RangeMoveDirection,
+  ModeRuntimeState,
+  ActiveModeRuntime,
+  TypedCost,
 } from '../types';
 import {
   skillAllowedAt,
@@ -94,6 +96,8 @@ import {
 import { buildDeck, drawNewTurnHand } from './DeckSystem';
 import { checkLethalDamage } from './SurvivalSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
+import { runTurnStartClock } from './TurnClockSystem';
+import { getModeDefinition } from '../constants/modes';
 
 // ============================================================================
 // APPROACH EFFECTS
@@ -150,20 +154,48 @@ export function applyApproachEffects(
 // UPKEEP PROCESSING
 // ============================================================================
 
+function isBoardTrackedMode(skillId: string, boardIds: ReadonlySet<string>): boolean {
+  return boardIds.has(skillId);
+}
+
+function modeCostsForBoard(modes: readonly ActiveModeRuntime[]): Record<string, TypedCost> {
+  const costs: Record<string, TypedCost> = {};
+  for (const mode of modes) {
+    const def = getModeDefinition(mode.id);
+    if (def) {
+      costs[mode.id] = def.upkeep;
+    }
+  }
+  return costs;
+}
+
+function persistModeBoard(
+  parked: readonly ActiveModeRuntime[],
+  remainingOn: readonly ActiveModeRuntime[],
+  endedIds: readonly string[],
+): ActiveModeRuntime[] {
+  const cooling: ActiveModeRuntime[] = endedIds.map((id) => {
+    const def = getModeDefinition(id);
+    return {
+      id,
+      family: def?.family ?? '',
+      charges: 0,
+      cooldown: def?.cooldown ?? 0,
+      state: ModeRuntimeState.COOLDOWN,
+      stage: def?.stage,
+    };
+  });
+  return [
+    ...parked.map((mode) => ({ ...mode })),
+    ...remainingOn.map((mode) => ({ ...mode, state: ModeRuntimeState.ON })),
+    ...cooling,
+  ];
+}
+
 /**
- * Process upkeep phase at the start of player's turn.
- * - Deducts toggle skill upkeep costs (chakra or HP)
- * - Auto-deactivates toggles if player can't afford upkeep
- * - Applies passive skill regeneration bonuses
- * - Applies artifact turn-start passives (regen, chakra restore)
- * - T-004: restores the Action Point budget and deals a fresh, posture-weighted
- *   hand for the new turn (the previous hand is recycled into the discard).
- *
- * @param player - Current player state
- * @param playerStats - Calculated player stats
- * @param combatState - Current combat state (deck/discard/hand/posture)
- * @param enemy - Current enemy (optional, for artifact passives)
- * @returns Updated player state, logs and the new-turn AP/hand economy
+ * Process upkeep phase at the start of player's turn (SOUL phases 01–04).
+ * Board Modes pay via `runTurnStartClock` (upkeep before regen). Untracked
+ * legacy toggles still pay chakra upkeep. AP restore stays adjacent, not inside Mode upkeep.
  */
 export function processUpkeep(
   player: Player,
@@ -174,103 +206,113 @@ export function processUpkeep(
   let updatedPlayer = { ...player };
   const logs: string[] = [];
   const togglesDeactivated: string[] = [];
+  const turnIndex = combatState.turnIndex ?? 1;
+  const board = combatState.activeModes ?? [];
+  const onModes = board.filter(
+    (mode) => mode.state === ModeRuntimeState.ON || mode.state === undefined,
+  );
+  const parked = board.filter(
+    (mode) => mode.state !== undefined && mode.state !== ModeRuntimeState.ON,
+  );
+  const boardIds = new Set(onModes.map((mode) => mode.id));
 
-  // Process toggle upkeep costs
+  // Legacy toggle CP upkeep — skip rows the Mode board already tracks.
   updatedPlayer.skills = updatedPlayer.skills.map(skill => {
     if (!skill.isToggle || !skill.isActive) return skill;
+    if (isBoardTrackedMode(skill.id, boardIds)) return skill;
 
     const upkeepCost = skill.upkeepCost || 0;
     if (upkeepCost <= 0) return skill;
 
-    // Check if player can afford upkeep
     if (updatedPlayer.currentChakra >= upkeepCost) {
-      // Pay upkeep cost
       updatedPlayer.currentChakra -= upkeepCost;
       logs.push(`${skill.name} upkeep: -${upkeepCost} CP`);
       return skill;
-    } else {
-      // Cannot afford - deactivate toggle
-      logs.push(`${skill.name} deactivated (insufficient chakra)`);
-      togglesDeactivated.push(skill.name);
-
-      // Remove buffs from this toggle
-      updatedPlayer.activeBuffs = updatedPlayer.activeBuffs.filter(
-        buff => buff.source !== skill.name
-      );
-
-      return { ...skill, isActive: false };
     }
+    logs.push(`${skill.name} deactivated (insufficient chakra)`);
+    togglesDeactivated.push(skill.name);
+    updatedPlayer.activeBuffs = updatedPlayer.activeBuffs.filter(
+      buff => buff.source !== skill.name
+    );
+    return { ...skill, isActive: false };
   });
 
-  // Apply passive skill regeneration
+  let regenChakra = 0;
+  let regenHp = 0;
   const passiveSkills = updatedPlayer.skills.filter(
     s => s.actionType === ActionType.PASSIVE && s.passiveEffect?.regenBonus
   );
-
   for (const skill of passiveSkills) {
     const regen = skill.passiveEffect?.regenBonus;
     if (regen?.hp && regen.hp > 0) {
-      const healAmount = Math.min(regen.hp, playerStats.derived.maxHp - updatedPlayer.currentHp);
-      if (healAmount > 0) {
-        updatedPlayer.currentHp += healAmount;
-        logs.push(`${skill.name}: +${healAmount} HP`);
-      }
+      regenHp += regen.hp;
+      logs.push(`${skill.name}: +${regen.hp} HP`);
     }
     if (regen?.chakra && regen.chakra > 0) {
-      const chakraAmount = Math.min(regen.chakra, playerStats.derived.maxChakra - updatedPlayer.currentChakra);
-      if (chakraAmount > 0) {
-        updatedPlayer.currentChakra += chakraAmount;
-        logs.push(`${skill.name}: +${chakraAmount} CP`);
-      }
+      regenChakra += regen.chakra;
+      logs.push(`${skill.name}: +${regen.chakra} CP`);
     }
   }
 
-  // Apply artifact turn-start passives (REGEN, CHAKRA_RESTORE)
   if (enemy) {
     const turnStartResult = processPassivesOnTurnStart(
       updatedPlayer,
       enemy,
       playerStats.derived.maxHp
     );
-
-    // Apply regen from artifact passives
-    if (turnStartResult.healToPlayer > 0) {
-      const healAmount = Math.min(turnStartResult.healToPlayer, playerStats.derived.maxHp - updatedPlayer.currentHp);
-      if (healAmount > 0) {
-        updatedPlayer.currentHp += healAmount;
-      }
-    }
-
-    // Apply chakra restore from artifact passives
-    if (turnStartResult.chakraRestored > 0) {
-      const chakraAmount = Math.min(turnStartResult.chakraRestored, playerStats.derived.maxChakra - updatedPlayer.currentChakra);
-      if (chakraAmount > 0) {
-        updatedPlayer.currentChakra += chakraAmount;
-      }
-    }
-
-    // Add artifact passive logs
+    regenHp += turnStartResult.healToPlayer;
+    regenChakra += turnStartResult.chakraRestored;
     logs.push(...turnStartResult.logs);
   }
 
-  // T-004: restore the AP budget and deal a fresh, posture-weighted hand. The
-  // previous hand (whatever was left unplayed) recycles into the discard pile.
-  // T-082/T-067: re-apply room movementCost then location movement_penalty each turn.
+  const pool =
+    combatState.playablePool.length > 0
+      ? combatState.playablePool
+      : buildDeck(updatedPlayer.skills);
+  const priority =
+    combatState.modeUpkeepPriority && combatState.modeUpkeepPriority.length > 0
+      ? combatState.modeUpkeepPriority
+      : onModes.map((mode) => mode.id);
+
+  const clock = runTurnStartClock({
+    turnIndex,
+    chakra: updatedPlayer.currentChakra,
+    hp: updatedPlayer.currentHp,
+    regen: {
+      chakra: regenChakra,
+      hp: regenHp,
+      maxChakra: playerStats.derived.maxChakra,
+      maxHp: playerStats.derived.maxHp,
+    },
+    modes: onModes,
+    modeCosts: modeCostsForBoard(onModes),
+    modeUpkeepPriority: priority,
+    marks: combatState.marks ?? [],
+    hand: combatState.hand,
+    snapshotDraw: () =>
+      drawNewTurnHand(
+        pool,
+        { posture: combatState.posture, turnIndex },
+        LaunchProperties.HAND_SIZE,
+        Math.random,
+      ).hand,
+  });
+
+  updatedPlayer = {
+    ...updatedPlayer,
+    currentChakra: clock.chakra,
+    currentHp: clock.hp,
+  };
+
+  for (const ended of clock.endedModes) {
+    logs.push(`${ended.id} Mode ended (insufficient upkeep)`);
+  }
+
   let maxAp = applyRoomMovementCostToMaxAp(
     playerStats.derived.actionPointsPerTurn,
     combatState.terrain,
   );
   maxAp = applyMovementPenaltyToMaxAp(maxAp, combatState.locationTerrainMods);
-  const pool =
-    combatState.playablePool.length > 0
-      ? combatState.playablePool
-      : buildDeck(updatedPlayer.skills);
-  const { hand } = drawNewTurnHand(
-    pool,
-    { posture: combatState.posture, turnIndex: combatState.turnIndex },
-    LaunchProperties.HAND_SIZE,
-    Math.random,
-  );
 
   return {
     player: updatedPlayer,
@@ -278,7 +320,14 @@ export function processUpkeep(
     togglesDeactivated,
     currentAp: maxAp,
     maxAp,
-    hand,
+    hand: clock.hand,
+    turnIndex: clock.turnIndex,
+    activeModes: persistModeBoard(
+      parked,
+      clock.modes,
+      clock.endedModes.map((ended) => ended.id),
+    ),
+    marks: clock.marks,
   };
 }
 

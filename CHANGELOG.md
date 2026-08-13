@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-012 live turn start:** `processUpkeep` runs SOUL clock (Mode upkeep → regen → draw 4 → mark tick). Board Modes no longer self-fund from same-turn regen; HP upkeep cannot drop the player below 1. Legacy untracked toggles unchanged.
 - **T-011 Mode skill reauthor:** seven existing Mode-class catalog rows (`sharingan_2`, `byakugan`, `shadow_clone`, `gate_of_life`, `gate_of_limit`, `curse_mark_1`, `curse_mark_2`) now match SOUL §8 costs / charges / `cardRole: MODE`. Legacy % toggle buffs removed. `sharingan_3` untouched.
 - **T-010 combat UI honesty:** cardRole badges (SUPPORT/MODE/SIDE/ATTACK), Main ribbon, Modes + Setup panels, honest base/enhanced preview, red Mode-charge warning.
 - **T-009 AI/sim parity:** enemy scoring has a setup/mark term (no weighted hand); sim commit aliases `resolveSkill`; SOUL metric bag + cooldown-reset that does not refill Modes.

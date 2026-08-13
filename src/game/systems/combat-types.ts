@@ -100,6 +100,8 @@ export interface CombatState {
   turnIndex?: number;
   activeModes?: ActiveModeRuntime[];
   marks?: Mark[];
+  /** Skill Config upkeep order. Empty = stable order of active Mode ids. */
+  modeUpkeepPriority?: string[];
 }
 
 // ============================================================================
@@ -157,6 +159,9 @@ export interface UpkeepResult {
   maxAp: number;
   /** Freshly drawn hand for the new turn. */
   hand: Skill[];
+  turnIndex: number;
+  activeModes: ActiveModeRuntime[];
+  marks: Mark[];
 }
 
 /**
