@@ -56,9 +56,23 @@ export function skillAllowedRanges(skill: Skill): CombatRange[] {
   return defaultsForAttackMethod(skill.attackMethod);
 }
 
+/** Base allowed bands plus optional Mode-granted extras (Chidori MEDIUM). */
+export function effectiveAllowedRanges(
+  skill: Skill,
+  granted: readonly CombatRange[] = [],
+): CombatRange[] {
+  const base = skillAllowedRanges(skill);
+  if (granted.length === 0) return [...base];
+  return [...new Set([...base, ...granted])];
+}
+
 /** True if skill may be cast at the current band. */
-export function skillAllowedAt(skill: Skill, range: CombatRange): boolean {
-  return skillAllowedRanges(skill).includes(range);
+export function skillAllowedAt(
+  skill: Skill,
+  range: CombatRange,
+  granted: readonly CombatRange[] = [],
+): boolean {
+  return effectiveAllowedRanges(skill, granted).includes(range);
 }
 
 /** Human label for UI. */

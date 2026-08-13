@@ -293,6 +293,14 @@ function skillForcedMove(skill: Skill): { kind: 'PUSH' | 'PULL' } | undefined {
   return { kind: spec.kind };
 }
 
+function modeGrantedRanges(skill: Skill, board: ModeBoard): CombatRange[] {
+  const mi = skill.modeInteraction;
+  if (!mi?.modeId || !mi.grantRanges?.length) return [];
+  const need = mi.consumeCharges ?? 1;
+  if (modeChargesOnBoard(board, mi.modeId) < need) return [];
+  return [...mi.grantRanges];
+}
+
 function isEnemyChargeDrainSupport(skill: Skill): boolean {
   return (skill.modeInteraction?.consumeCharges ?? 0) > 0 && !skill.modeInteraction?.modeId;
 }
@@ -396,6 +404,7 @@ function validateIntent(
     modeAlreadyOn:
       roleRes.role === CardRole.MODE &&
       (intent.modeOp === 'manual-off' || intent.modeOp === 'family-replace'),
+    grantedRanges: modeGrantedRanges(skill, state.modes),
   });
   if (block) {
     return { ok: false, reason: block };

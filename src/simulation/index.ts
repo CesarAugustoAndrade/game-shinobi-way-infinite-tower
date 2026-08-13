@@ -51,6 +51,7 @@ import { printMorningPeacockProbe, runMorningPeacockProbe } from './MorningPeaco
 import { printTwinLionFistsProbe, runTwinLionFistsProbe } from './TwinLionFistsBalance';
 import { printSideToolMarksMoveProbe, runSideToolMarksMoveProbe } from './SideToolMarksMoveBalance';
 import { printTripwireReactionProbe, runTripwireReactionProbe } from './TripwireReactionBalance';
+import { printChidoriSharingan3Probe, runChidoriSharingan3Probe } from './ChidoriSharingan3Balance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -448,6 +449,7 @@ async function main() {
     printTwinLionFistsProbe(runTwinLionFistsProbe());
     printSideToolMarksMoveProbe(runSideToolMarksMoveProbe());
     printTripwireReactionProbe(runTripwireReactionProbe());
+    printChidoriSharingan3Probe(runChidoriSharingan3Probe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

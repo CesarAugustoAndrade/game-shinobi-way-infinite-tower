@@ -457,6 +457,8 @@ export interface ModeInteraction {
   damagePerChargeBonus?: number;
   /** Mode ON bonus also requires this enemy mark id (Twin Lion = chakra_point). */
   requireMarkId?: string;
+  /** Extra legal bands while Mode is ON and consumeCharges can be paid (Chidori MEDIUM). */
+  grantRanges?: CombatRange[];
 }
 
 export interface ModeDefinition {

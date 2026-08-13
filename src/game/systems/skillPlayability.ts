@@ -31,6 +31,8 @@ export interface SkillPlayContext {
   modeActivation?: boolean;
   /** Mode already ON: band changes do not force Mode off / block for range. */
   modeAlreadyOn?: boolean;
+  /** Extra bands granted while a Mode payoff is live (Chidori + Sharingan 3). */
+  grantedRanges?: readonly CombatRange[];
 }
 
 /**
@@ -89,7 +91,7 @@ export function getSkillBlockReason(ctx: SkillPlayContext): SkillBlockReason {
   if (ctx.currentRange !== undefined && !ctx.modeAlreadyOn) {
     const inRange = ctx.modeActivation
       ? canActivateModeAt(skill.allowedRanges, ctx.currentRange)
-      : skillAllowedAt(skill, ctx.currentRange);
+      : skillAllowedAt(skill, ctx.currentRange, ctx.grantedRanges);
     if (!inRange) return 'range';
   }
 

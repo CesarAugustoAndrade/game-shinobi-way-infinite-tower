@@ -12,6 +12,7 @@ import {
   Clan,
   CardRole,
   SkillTag,
+  CombatRange,
 } from '../types';
 import { SKILLS_COMBAT_V1_NEW } from './skillsCombatV1New';
 import { MODE_FAMILY } from './modes';
@@ -2242,8 +2243,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'chidori',
     name: 'Chidori',
     tier: SkillTier.HIDDEN,
-    description: 'A crackling assassination technique. High speed thrust that deals PIERCING elemental damage.',
+    description:
+      'A crackling assassination thrust. With Sharingan 3-Tomoe ON, spend 2 charges at attempt and may be used at MEDIUM. Without the Mode, CLOSE only and no charge spend.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
     apCost: 2,
     chakraCost: 7,
     hpCost: 0,
@@ -2257,6 +2260,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.LIGHTNING,
+    modeInteraction: {
+      modeId: 'sharingan_3',
+      family: MODE_FAMILY.SHARINGAN,
+      consumeCharges: 2,
+      grantRanges: [CombatRange.MEDIUM],
+    },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
