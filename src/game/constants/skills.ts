@@ -9,9 +9,13 @@ import {
   ActionType,
   EffectType,
   Posture,
-  Clan
+  Clan,
+  CardRole,
+  SkillTag,
 } from '../types';
 import { SKILLS_COMBAT_V1_NEW } from './skillsCombatV1New';
+import { MODE_FAMILY } from './modes';
+import { defaultBaseWeight } from '../systems/CardContractSystem';
 
 // ============================================================================
 // SKILLS DATABASE (classic 116 + T-008 v1 twelve)
@@ -1344,12 +1348,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'byakugan',
     name: 'Byakugan',
     tier: SkillTier.HIDDEN,
-    description: 'The All-Seeing White Eye. Drastically improves Accuracy and Crit Chance.',
-    actionType: ActionType.TOGGLE,  // Toggle ability
+    description:
+      'Combat Mode: 4 charges. Activate 2 AP + 4 CP; upkeep 4 CP; CD 4. Hyuga identity — CP Marks and penetration routes. Range checked only on activate.',
+    actionType: ActionType.TOGGLE,
+    cardRole: CardRole.MODE,
+    tags: [SkillTag.MODE, SkillTag.HYUGA],
+    baseWeight: defaultBaseWeight(),
     apCost: 2,
-    chakraCost: 3,
+    chakraCost: 4,
     hpCost: 0,
-    cooldown: 5,
+    cooldown: 4,
     currentCooldown: 0,
     baseDamage: 0,
     scalingPerPoint: 0,
@@ -1360,11 +1368,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     element: ElementType.PHYSICAL,
     requirements: { clan: Clan.HYUGA },
     isToggle: true,
-    upkeepCost: 5,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.ACCURACY, value: 0.4, duration: -1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.DEXTERITY, value: 0.3, duration: -1, chance: 1.0 }
-    ]
+    upkeepCost: 4,
+    modeInteraction: { modeId: 'byakugan', family: MODE_FAMILY.HYUGA },
+    effects: [],
   },
 
   GENTLE_FIST: {
@@ -1398,12 +1404,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'sharingan_2',
     name: 'Sharingan (2-Tomoe)',
     tier: SkillTier.ADVANCED,
-    description: 'Visual prowess that perceives attack trajectories. Toggle: Increases Speed and Dexterity.',
-    actionType: ActionType.TOGGLE,  // Toggle ability
+    description:
+      'Combat Mode: 3 charges. Activate 2 AP + 4 CP; upkeep 4 CP; CD 4. Katon + lectura. Lateral to Sharingan 3-Tomoe transfers charges without refill.',
+    actionType: ActionType.TOGGLE,
+    cardRole: CardRole.MODE,
+    tags: [SkillTag.MODE, SkillTag.NINJUTSU, SkillTag.UCHIHA, SkillTag.FIRE],
+    baseWeight: defaultBaseWeight(),
     apCost: 2,
-    chakraCost: 3,
+    chakraCost: 4,
     hpCost: 0,
-    cooldown: 5,
+    cooldown: 4,
     currentCooldown: 0,
     baseDamage: 0,
     scalingPerPoint: 0,
@@ -1420,11 +1430,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       clan: Clan.UCHIHA,
     },
     isToggle: true,
-    upkeepCost: 5,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.3, duration: -1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.DEXTERITY, value: 0.25, duration: -1, chance: 1.0 }
-    ]
+    upkeepCost: 4,
+    modeInteraction: { modeId: 'sharingan_2', family: MODE_FAMILY.SHARINGAN },
+    effects: [],
   },
 
   WATER_PRISON: {
@@ -1950,11 +1958,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'curse_mark_1',
     name: 'Curse Mark Stage 1',
     tier: SkillTier.HIDDEN,
-    description: 'Toggle: +40% STR, +30% SPD. Costs HP to activate and upkeep.',
+    description:
+      'Combat Mode: 3 charges. Activate 2 AP + 12 HP; upkeep 5 HP; CD 5. Curse stage I. Ends on payoff, manual off, zero charges, or failed upkeep.',
     actionType: ActionType.TOGGLE,
+    cardRole: CardRole.MODE,
+    tags: [SkillTag.MODE],
+    baseWeight: defaultBaseWeight(),
     apCost: 2,
     chakraCost: 0,
-    hpCost: 15,
+    hpCost: 12,
     cooldown: 5,
     currentCooldown: 0,
     baseDamage: 0,
@@ -1971,11 +1983,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       },
     },
     isToggle: true,
-    upkeepCost: 5,  // HP cost per turn
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.4, duration: -1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.3, duration: -1, chance: 1.0 }
-    ]
+    upkeepCost: 5,
+    modeInteraction: { modeId: 'curse_mark_1', family: MODE_FAMILY.CURSE },
+    effects: [],
   },
 
   // ==========================================
@@ -2154,15 +2164,18 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'shadow_clone',
     name: 'Shadow Clone Jutsu',
     tier: SkillTier.HIDDEN,
-    description: 'Creates solid clones to overwhelm the enemy. Massive stat buffs but deals NO direct damage.',
-    actionType: ActionType.ACTIVE,
-    apCost: 1,
-    chakraCost: 8,
+    description:
+      'Combat Mode: 3 charges. Activate 2 AP + 12 CP; upkeep 2 CP; CD 5. Clone resource — Rasengan weight +4 while ON. Deals no direct damage.',
+    actionType: ActionType.TOGGLE,
+    cardRole: CardRole.MODE,
+    tags: [SkillTag.MODE, SkillTag.NINJUTSU],
+    baseWeight: defaultBaseWeight(),
+    apCost: 2,
+    chakraCost: 12,
     hpCost: 0,
-    cooldown: 6,
+    cooldown: 5,
     currentCooldown: 0,
     baseDamage: 0,
-
     scalingPerPoint: 0,
     scalingStat: PrimaryStat.CHAKRA,
     damageType: DamageType.PHYSICAL,
@@ -2175,10 +2188,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.CHAKRA]: 3,
       },
     },
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.6, duration: 3, chance: 1.0 },  // BUFFED: Was 0.5
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.4, duration: 3, chance: 1.0 }  // BUFFED: Was 0.3
-    ]
+    isToggle: true,
+    upkeepCost: 2,
+    modeInteraction: { modeId: 'shadow_clone', family: MODE_FAMILY.CLONES },
+    effects: [],
   },
 
   PRIMARY_LOTUS: {
@@ -2526,9 +2539,47 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'gate_of_life',
     name: 'Gate of Life (3rd Gate)',
     tier: SkillTier.FORBIDDEN,
-    description: 'Open the 3rd gate. +80% STR, +60% SPD. Heavy HP cost.',
+    description:
+      'Combat Mode: 3 charges. Activate 3 AP + 15 HP; upkeep 8 HP; CD 6. Gate stage 3 — ascent to Gate of Limit. Payoff routes, not a percent toggle.',
     actionType: ActionType.TOGGLE,
-    apCost: 2,
+    cardRole: CardRole.MODE,
+    tags: [SkillTag.MODE, SkillTag.TAIJUTSU, SkillTag.LEE],
+    baseWeight: defaultBaseWeight(),
+    apCost: 3,
+    chakraCost: 0,
+    hpCost: 15,
+    cooldown: 6,
+    currentCooldown: 0,
+    baseDamage: 0,
+    scalingPerPoint: 0,
+    scalingStat: PrimaryStat.WILLPOWER,
+    damageType: DamageType.PHYSICAL,
+    damageProperty: DamageProperty.NORMAL,
+    attackMethod: AttackMethod.AUTO,
+    element: ElementType.PHYSICAL,
+    requirements: {
+      stats: {
+        [PrimaryStat.STRENGTH]: 5,
+        [PrimaryStat.WILLPOWER]: 5,
+      },
+    },
+    isToggle: true,
+    upkeepCost: 8,
+    modeInteraction: { modeId: 'gate_of_life', family: MODE_FAMILY.GATES },
+    effects: [],
+  },
+
+  CURSE_MARK_2: {
+    id: 'curse_mark_2',
+    name: 'Curse Mark Stage 2',
+    tier: SkillTier.FORBIDDEN,
+    description:
+      'Combat Mode: 4 charges. Activate 3 AP + 25 HP; upkeep 10 HP; CD 6. Curse stage II — ascent from Stage 1. Charge-spent attack routes, not a percent toggle.',
+    actionType: ActionType.TOGGLE,
+    cardRole: CardRole.MODE,
+    tags: [SkillTag.MODE],
+    baseWeight: defaultBaseWeight(),
+    apCost: 3,
     chakraCost: 0,
     hpCost: 25,
     cooldown: 6,
@@ -2542,49 +2593,14 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     element: ElementType.PHYSICAL,
     requirements: {
       stats: {
-        [PrimaryStat.STRENGTH]: 5,
-        [PrimaryStat.WILLPOWER]: 5,
-      },
-    },
-    isToggle: true,
-    upkeepCost: 10,  // HP cost per turn
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.8, duration: -1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.6, duration: -1, chance: 1.0 }
-    ]
-  },
-
-  CURSE_MARK_2: {
-    id: 'curse_mark_2',
-    name: 'Curse Mark Stage 2',
-    tier: SkillTier.FORBIDDEN,
-    description: 'Full transformation. +80% STR/SPD/SPI. Heavy HP cost.',
-    actionType: ActionType.TOGGLE,
-    apCost: 2,
-    chakraCost: 0,
-    hpCost: 30,
-    cooldown: 6,
-    currentCooldown: 0,
-    baseDamage: 0,
-    scalingPerPoint: 0,
-    scalingStat: PrimaryStat.WILLPOWER,
-    damageType: DamageType.PHYSICAL,
-    damageProperty: DamageProperty.NORMAL,
-    attackMethod: AttackMethod.AUTO,
-    element: ElementType.PHYSICAL,
-    requirements: {
-      stats: {
         [PrimaryStat.WILLPOWER]: 5,
         [PrimaryStat.STRENGTH]: 5,
       },
     },
     isToggle: true,
-    upkeepCost: 10,  // HP cost per turn
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.8, duration: -1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.8, duration: -1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPIRIT, value: 0.8, duration: -1, chance: 1.0 }
-    ]
+    upkeepCost: 10,
+    modeInteraction: { modeId: 'curse_mark_2', family: MODE_FAMILY.CURSE },
+    effects: [],
   },
 
   // ==========================================
@@ -2863,12 +2879,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'gate_of_limit',
     name: 'Gate of Limit (5th Gate)',
     tier: SkillTier.KINJUTSU,
-    description: 'Open the 5th gate. +150% STR/SPD but bleed 20/turn.',
-    actionType: ActionType.ACTIVE,
-    apCost: 2,
+    description:
+      'Combat Mode: 4 charges. Activate 4 AP + 35 HP; upkeep 12 HP; CD 8. Gate stage 5 — Hidden Lotus / Morning Peacock payoff. Not a percent toggle.',
+    actionType: ActionType.TOGGLE,
+    cardRole: CardRole.MODE,
+    tags: [SkillTag.MODE, SkillTag.TAIJUTSU, SkillTag.LEE],
+    baseWeight: defaultBaseWeight(),
+    apCost: 4,
     chakraCost: 0,
-    hpCost: 40,
-    cooldown: 99,
+    hpCost: 35,
+    cooldown: 8,
     currentCooldown: 0,
     baseDamage: 0,
     scalingPerPoint: 0,
@@ -2884,11 +2904,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.WILLPOWER]: 7,
       },
     },
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 1.5, duration: 5, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 1.5, duration: 5, chance: 1.0 },
-      { type: EffectType.BLEED, value: 20, duration: 5, chance: 1.0, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL }
-    ]
+    isToggle: true,
+    upkeepCost: 12,
+    modeInteraction: { modeId: 'gate_of_limit', family: MODE_FAMILY.GATES },
+    effects: [],
   },
 
   SHUKAKU_ARM: {
