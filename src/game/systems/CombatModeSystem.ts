@@ -19,6 +19,7 @@ import {
   HP_UPKEEP_FLOOR,
   resolveModeUpkeep,
 } from './TurnClockSystem';
+import { discountedGateActivationCost, isGateHpDiscountEligible } from './GatePrepDiscountSystem';
 
 export interface ModeBoard {
   instances: ActiveModeRuntime[];
@@ -42,12 +43,18 @@ export type ModeFailReason =
   | 'unknown-mode'
   | 'insufficient-charges';
 
+export interface ModeActivateOpts {
+  gateHpDiscount?: boolean;
+}
+
 export interface ModeOpResult {
   ok: boolean;
   board: ModeBoard;
   pools: ModePools;
   reason?: ModeFailReason;
   ended?: { id: string; kind: ModeEndKind }[];
+  /** Remaining Gate Prep HP discount after this op (echo; undefined if unused). */
+  gateHpDiscount?: boolean;
 }
 
 export function emptyModeBoard(): ModeBoard {
@@ -134,26 +141,57 @@ export function activateMode(
   def: ModeDefinition,
   pools: ModePools,
   turnIndex: number,
+  opts?: ModeActivateOpts,
 ): ModeOpResult {
+  const armed = Boolean(opts?.gateHpDiscount);
+  const echo = (remaining: boolean): Pick<ModeOpResult, 'gateHpDiscount'> =>
+    opts !== undefined ? { gateHpDiscount: remaining } : {};
   if (coolingOf(board, def.id, turnIndex)) {
-    return { ok: false, board: cloneBoard(board), pools: clonePools(pools), reason: 'not-ready' };
+    return {
+      ok: false,
+      board: cloneBoard(board),
+      pools: clonePools(pools),
+      reason: 'not-ready',
+      ...echo(armed),
+    };
   }
   if (onModes(board).some((mode) => mode.id === def.id)) {
-    return { ok: false, board: cloneBoard(board), pools: clonePools(pools), reason: 'already-on' };
+    return {
+      ok: false,
+      board: cloneBoard(board),
+      pools: clonePools(pools),
+      reason: 'already-on',
+      ...echo(armed),
+    };
   }
   if (onModes(board).some((mode) => mode.family === def.family)) {
-    return { ok: false, board: cloneBoard(board), pools: clonePools(pools), reason: 'same-family' };
+    return {
+      ok: false,
+      board: cloneBoard(board),
+      pools: clonePools(pools),
+      reason: 'same-family',
+      ...echo(armed),
+    };
   }
-  const fail = canAffordActivation(pools, def.activationCost);
+  const applyDiscount = armed && isGateHpDiscountEligible(def);
+  const cost = discountedGateActivationCost(def, applyDiscount);
+  const fail = canAffordActivation(pools, cost);
   if (fail) {
-    return { ok: false, board: cloneBoard(board), pools: clonePools(pools), reason: fail };
+    return {
+      ok: false,
+      board: cloneBoard(board),
+      pools: clonePools(pools),
+      reason: fail,
+      ...echo(armed),
+    };
   }
-  const paid = payCost(pools, def.activationCost);
+  const paid = payCost(pools, cost);
   const withoutOld = replaceInstance(board, (mode) => mode.id === def.id, []);
   return {
     ok: true,
     board: { instances: [...withoutOld.instances, toOn(def, def.maxCharges)] },
     pools: paid,
+    ...echo(applyDiscount ? false : armed),
   };
 }
 
