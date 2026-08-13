@@ -408,6 +408,7 @@ export function resolveSkill(
   const mi = skill.modeInteraction;
   const autoModeOn = Boolean(mi?.modeId && isModeOnBoard(next.modes, mi.modeId));
   let modeDamageBonus = 0;
+  let modeBonusHits = 0;
   if (intent.modeCharges && intent.modeCharges.n > 0) {
     const spend = (ports.spendCharges ?? trySpendCharges)(
       next.modes,
@@ -439,6 +440,9 @@ export function resolveSkill(
     }
     if (spentOk && (mi.damageMultBonus ?? 0) > 0) {
       modeDamageBonus = mi.damageMultBonus ?? 0;
+    }
+    if (spentOk && (mi.bonusHits ?? 0) > 0) {
+      modeBonusHits = mi.bonusHits ?? 0;
     }
   }
 
@@ -505,7 +509,8 @@ export function resolveSkill(
           damage: Math.max(0, skill.baseDamage) + bonus,
         };
       });
-    const multi = resolveMultiHit({ hitCount: skill.hitCount, perHit: Boolean(skill.perHitEffects?.length) }, rollHit);
+    const hitCount = (skill.hitCount ?? 1) + modeBonusHits;
+    const multi = resolveMultiHit({ hitCount, perHit: Boolean(skill.perHitEffects?.length) }, rollHit);
     hitsLanded = multi.hitsLanded;
     damageDealt = multi.totalDamage;
     if (intent.enhanced && hitsLanded > 0 && !ports.rollHit) {

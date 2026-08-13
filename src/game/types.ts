@@ -441,6 +441,8 @@ export interface ModeInteraction {
   requireOn?: boolean;
   /** Additive damage mult when that Mode is ON (Rasengan clones = 0.5). */
   damageMultBonus?: number;
+  /** Extra independent hits when that Mode is ON and consume succeeds (Barrage = 2). */
+  bonusHits?: number;
 }
 
 export interface ModeDefinition {

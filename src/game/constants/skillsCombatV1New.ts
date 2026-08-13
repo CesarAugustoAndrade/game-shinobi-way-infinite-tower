@@ -314,7 +314,12 @@ export const SKILLS_COMBAT_V1_NEW: Record<string, Skill> = {
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
     allowedRanges: [CombatRange.CLOSE],
-    modeInteraction: { modeId: 'shadow_clone', family: 'CLONES', consumeCharges: 1 },
+    modeInteraction: {
+      modeId: 'shadow_clone',
+      family: 'CLONES',
+      consumeCharges: 1,
+      bonusHits: 2,
+    },
     requirements: { clan: Clan.UZUMAKI },
   },
 
