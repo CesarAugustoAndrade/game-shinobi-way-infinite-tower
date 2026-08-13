@@ -387,6 +387,8 @@ export const SKILLS_COMBAT_V1_NEW: Record<string, Skill> = {
       family: 'GATES',
       requireOn: true,
       consumeCharges: 4,
+      consumeAllCharges: true,
+      damagePerChargeBonus: 0.15,
     },
     requirements: {
       stats: { [PrimaryStat.STRENGTH]: 4, [PrimaryStat.SPEED]: 4 },

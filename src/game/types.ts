@@ -443,6 +443,10 @@ export interface ModeInteraction {
   damageMultBonus?: number;
   /** Extra independent hits when that Mode is ON and consume succeeds (Barrage = 2). */
   bonusHits?: number;
+  /** Spend every remaining charge of modeId at attempt (Peacock). */
+  consumeAllCharges?: boolean;
+  /** Additive damage mult per remaining charge before spend (Peacock = 0.15). */
+  damagePerChargeBonus?: number;
 }
 
 export interface ModeDefinition {

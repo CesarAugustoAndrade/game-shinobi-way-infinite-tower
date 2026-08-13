@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-021 Morning Peacock:** require Gate of Limit ON (else reject, consume nothing). +15% damage per remaining charge on the 6-hit total; consume all charges and close the Gate.
 - **T-020 Uzumaki Barrage hits:** Shadow Clones ON spends 1 charge and rolls 5 hits (3+2). OFF stays 3. No Rasengan-style damage %.
 - **T-019 Sealing Tag xor:** drain 1 charge from the first ON enemy Mode, or Silence 1 if none. Unconditional Silence packaging removed.
 - **T-018 Rasengan Mode payoff:** Rasengan is ATTACK with Shadow Clones ON +50% damage and 1 charge at attempt. OFF stays base. No caller `enhanced` flag required.

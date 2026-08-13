@@ -147,7 +147,8 @@ export type ResolveRejectReason =
   | 'incomplete-authoring'
   | 'passive'
   | Exclude<SkillBlockReason, null>
-  | 'not-ready';
+  | 'not-ready'
+  | 'mode-required';
 
 export type ResolveSkillResult =
   | {
@@ -229,6 +230,15 @@ function isModeOnBoard(board: ModeBoard, modeId: string): boolean {
       mode.id === modeId &&
       (mode.state === ModeRuntimeState.ON || mode.state === undefined),
   );
+}
+
+function modeChargesOnBoard(board: ModeBoard, modeId: string): number {
+  const current = board.instances.find(
+    (mode) =>
+      mode.id === modeId &&
+      (mode.state === ModeRuntimeState.ON || mode.state === undefined),
+  );
+  return current?.charges ?? 0;
 }
 
 function applySupportMarks(state: ResolveSkillState, skill: Skill): ResolveSkillState {
@@ -359,6 +369,10 @@ function validateIntent(
   if (!isSkillReadyOnTurn(skill.readyOnTurn, state.turnIndex)) {
     return { ok: false, reason: 'not-ready' };
   }
+  const mi = skill.modeInteraction;
+  if (mi?.requireOn && mi.modeId && modeChargesOnBoard(state.modes, mi.modeId) <= 0) {
+    return { ok: false, reason: 'mode-required' };
+  }
   return { ok: true, role: roleRes.role };
 }
 
@@ -407,6 +421,7 @@ export function resolveSkill(
 
   const mi = skill.modeInteraction;
   const autoModeOn = Boolean(mi?.modeId && isModeOnBoard(next.modes, mi.modeId));
+  const remainingCharges = mi?.modeId ? modeChargesOnBoard(next.modes, mi.modeId) : 0;
   let modeDamageBonus = 0;
   let modeBonusHits = 0;
   if (intent.modeCharges && intent.modeCharges.n > 0) {
@@ -425,11 +440,12 @@ export function resolveSkill(
     (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK)
   ) {
     let spentOk = true;
-    if ((mi.consumeCharges ?? 0) > 0) {
+    const spendN = mi.consumeAllCharges ? remainingCharges : (mi.consumeCharges ?? 0);
+    if (spendN > 0) {
       const spend = (ports.spendCharges ?? trySpendCharges)(
         next.modes,
         mi.modeId,
-        mi.consumeCharges ?? 0,
+        spendN,
         next.turnIndex,
       );
       if (spend.ok) {
@@ -440,6 +456,9 @@ export function resolveSkill(
     }
     if (spentOk && (mi.damageMultBonus ?? 0) > 0) {
       modeDamageBonus = mi.damageMultBonus ?? 0;
+    }
+    if (spentOk && (mi.damagePerChargeBonus ?? 0) > 0) {
+      modeDamageBonus += remainingCharges * (mi.damagePerChargeBonus ?? 0);
     }
     if (spentOk && (mi.bonusHits ?? 0) > 0) {
       modeBonusHits = mi.bonusHits ?? 0;
