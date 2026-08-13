@@ -14,6 +14,7 @@ import {
   Mark,
   MarkConsumeTiming,
   ModeDefinition,
+  ModeRuntimeState,
   Posture,
   RangeReactionDef,
   Skill,
@@ -207,6 +208,14 @@ function resolveModeId(skill: Skill): string {
   return skill.modeInteraction?.modeId ?? skill.id;
 }
 
+function isModeOnBoard(board: ModeBoard, modeId: string): boolean {
+  return board.instances.some(
+    (mode) =>
+      mode.id === modeId &&
+      (mode.state === ModeRuntimeState.ON || mode.state === undefined),
+  );
+}
+
 function applySupportMarks(state: ResolveSkillState, skill: Skill): ResolveSkillState {
   let marks = state.marks;
   for (const spec of skill.markEffects ?? []) {
@@ -352,6 +361,9 @@ export function resolveSkill(
   const afterAttempt = consumeOnAttempt(next.marks, CombatActor.PLAYER);
   next = { ...next, marks: afterAttempt.marks };
 
+  const mi = skill.modeInteraction;
+  const autoModeOn = Boolean(mi?.modeId && isModeOnBoard(next.modes, mi.modeId));
+  let modeDamageBonus = 0;
   if (intent.modeCharges && intent.modeCharges.n > 0) {
     const spend = (ports.spendCharges ?? trySpendCharges)(
       next.modes,
@@ -361,6 +373,28 @@ export function resolveSkill(
     );
     if (spend.ok) {
       next = { ...next, modes: spend.board };
+    }
+  } else if (
+    autoModeOn &&
+    mi?.modeId &&
+    (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK)
+  ) {
+    let spentOk = true;
+    if ((mi.consumeCharges ?? 0) > 0) {
+      const spend = (ports.spendCharges ?? trySpendCharges)(
+        next.modes,
+        mi.modeId,
+        mi.consumeCharges ?? 0,
+        next.turnIndex,
+      );
+      if (spend.ok) {
+        next = { ...next, modes: spend.board };
+      } else {
+        spentOk = false;
+      }
+    }
+    if (spentOk && (mi.damageMultBonus ?? 0) > 0) {
+      modeDamageBonus = mi.damageMultBonus ?? 0;
     }
   }
 
@@ -429,6 +463,9 @@ export function resolveSkill(
     damageDealt = multi.totalDamage;
     if (intent.enhanced && hitsLanded > 0 && !ports.rollHit) {
       damageDealt += Math.floor(Math.max(0, skill.baseDamage) * 0.5) * hitsLanded;
+    }
+    if (modeDamageBonus > 0 && hitsLanded > 0) {
+      damageDealt = Math.floor(damageDealt * (1 + modeDamageBonus));
     }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {

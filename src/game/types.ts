@@ -439,6 +439,8 @@ export interface ModeInteraction {
   family?: string;
   consumeCharges?: number;
   requireOn?: boolean;
+  /** Additive damage mult when that Mode is ON (Rasengan clones = 0.5). */
+  damageMultBonus?: number;
 }
 
 export interface ModeDefinition {

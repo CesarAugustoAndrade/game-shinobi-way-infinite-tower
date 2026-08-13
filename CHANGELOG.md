@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-018 Rasengan Mode payoff:** Rasengan is ATTACK with Shadow Clones ON +50% damage and 1 charge at attempt. OFF stays base. No caller `enhanced` flag required.
 - **T-017 Gate Prep HP discount:** next Gate Mode activation pays `Math.floor(HP/2)` (Life 15→7, Limit 35→17). Failed or non-Gate activations do not consume the one-shot flag.
 - **T-016 next-draw support weights:** Chakra Control Drill enqueues Main Attack +2 and Gate Prep enqueues Gate +3 for one consume/`supportBonuses` snapshot. Second consume is empty.
 - **T-015 Mode weight bonuses:** Shadow Clone ON adds Rasengan draw weight +4 via `weightModifiers` + `buildModeWeightBonuses` into live `processUpkeep` draw context.

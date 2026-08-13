@@ -1216,8 +1216,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'rasengan',
     name: 'Rasengan',
     tier: SkillTier.ADVANCED,
-    description: 'A swirling sphere of pure wind chakra that grinds into the target. PIERCING damage ignores flat defense.',
+    description:
+      'A swirling sphere of pure wind chakra that grinds into the target. PIERCING. Base viable; with Shadow Clones ON: +50% damage and consume 1 charge at attempt.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
+    modeInteraction: {
+      modeId: 'shadow_clone',
+      family: MODE_FAMILY.CLONES,
+      consumeCharges: 1,
+      damageMultBonus: 0.5,
+    },
     apCost: 2,
     stanceShift: Posture.AGGRESSIVE,  // an all-in signature strike commits you to the offensive
     stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
