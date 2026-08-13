@@ -49,6 +49,7 @@ import { printSealingTagDrainProbe, runSealingTagDrainProbe } from './SealingTag
 import { printUzumakiBarrageHitsProbe, runUzumakiBarrageHitsProbe } from './UzumakiBarrageHitsBalance';
 import { printMorningPeacockProbe, runMorningPeacockProbe } from './MorningPeacockBalance';
 import { printTwinLionFistsProbe, runTwinLionFistsProbe } from './TwinLionFistsBalance';
+import { printSideToolMarksMoveProbe, runSideToolMarksMoveProbe } from './SideToolMarksMoveBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -444,6 +445,7 @@ async function main() {
     printUzumakiBarrageHitsProbe(runUzumakiBarrageHitsProbe());
     printMorningPeacockProbe(runMorningPeacockProbe());
     printTwinLionFistsProbe(runTwinLionFistsProbe());
+    printSideToolMarksMoveProbe(runSideToolMarksMoveProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

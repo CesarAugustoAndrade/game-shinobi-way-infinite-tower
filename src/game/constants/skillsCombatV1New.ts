@@ -142,6 +142,7 @@ export const SKILLS_COMBAT_V1_NEW: Record<string, Skill> = {
     markEffects: [
       { id: 'off_balance', duration: 1, stacks: 1, consume: MarkConsumeTiming.ATTEMPT },
     ],
+    bandMove: { kind: 'PULL', steps: 1 },
   },
 
   EXPLOSIVE_KUNAI_BLASTBACK: {
@@ -171,6 +172,7 @@ export const SKILLS_COMBAT_V1_NEW: Record<string, Skill> = {
     markEffects: [
       { id: 'exposed', duration: 1, stacks: 1, consume: MarkConsumeTiming.ATTEMPT },
     ],
+    bandMove: { kind: 'PUSH', steps: 1 },
   },
 
   BACKSTEP_SHURIKEN: {
@@ -197,6 +199,7 @@ export const SKILLS_COMBAT_V1_NEW: Record<string, Skill> = {
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
     allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM, CombatRange.LONG],
+    bandMove: { kind: 'SELF_RETREAT', steps: 1 },
   },
 
   SEALING_TAG_CHAKRA_LOCK: {

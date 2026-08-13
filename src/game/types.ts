@@ -426,6 +426,14 @@ export interface DiscoverSpec {
   element?: ElementType;
 }
 
+/** Forced engagement shift authored on a skill (T-023 SIDE tools). */
+export type BandMoveKind = 'PULL' | 'PUSH' | 'SELF_RETREAT';
+
+export interface BandMoveSpec {
+  kind: BandMoveKind;
+  steps?: number;
+}
+
 export interface MarkSpec {
   id: string;
   duration: number;
@@ -766,6 +774,8 @@ export interface Skill {
   hitCount?: number;
   discover?: DiscoverSpec;
   markEffects?: MarkSpec[];
+  /** Forced band shift after resolve (Wire PULL / Blastback PUSH / Backstep retreat). */
+  bandMove?: BandMoveSpec;
   modeInteraction?: ModeInteraction;
   perHitEffects?: EffectDefinition[];
 

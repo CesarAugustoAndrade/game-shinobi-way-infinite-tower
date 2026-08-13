@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-023 SIDE tools:** Wire plants Off-Balance and PULLs 1; Blastback plants Exposed and PUSHes 1; Backstep retreats 1 without spending the voluntary move. Next Attack/SIDE reads Off-Balance +20% and Exposed +15% (ranged only).
 - **T-022 Twin Lion Fists:** Byakugan ON + enemy Chakra Point → +50% on the 2-hit total and 30% pen; consume CP on ≥1 hit. Miss keeps CP. Playable at base without setup (no Byakugan charge spend).
 - **T-021 Morning Peacock:** require Gate of Limit ON (else reject, consume nothing). +15% damage per remaining charge on the 6-hit total; consume all charges and close the Gate.
 - **T-020 Uzumaki Barrage hits:** Shadow Clones ON spends 1 charge and rolls 5 hits (3+2). OFF stays 3. No Rasengan-style damage %.

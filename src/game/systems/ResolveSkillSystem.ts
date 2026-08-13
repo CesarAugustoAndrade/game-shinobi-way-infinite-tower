@@ -8,6 +8,7 @@
 
 import {
   ActionType,
+  AttackMethod,
   Buff,
   CardRole,
   CombatActor,
@@ -254,9 +255,14 @@ function applySkillPenetration(
   return Math.floor(damage * (1 - defensePercent * (1 - penetration)));
 }
 
-function applySupportMarks(state: ResolveSkillState, skill: Skill): ResolveSkillState {
+function applySkillMarkEffects(
+  state: ResolveSkillState,
+  skill: Skill,
+  hitsLanded = 1,
+): ResolveSkillState {
   let marks = state.marks;
   for (const spec of skill.markEffects ?? []) {
+    if (spec.consume === MarkConsumeTiming.IMPACT && hitsLanded < 1) continue;
     const added = addMark(marks, {
       id: spec.id,
       sourceSkillId: skill.id,
@@ -270,6 +276,21 @@ function applySupportMarks(state: ResolveSkillState, skill: Skill): ResolveSkill
     marks = added.marks;
   }
   return { ...state, marks };
+}
+
+function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
+  const ids = new Set(spent.map((mark) => mark.id));
+  let mult = 1;
+  if (ids.has('off_balance')) mult *= 1.2;
+  if (ids.has('exposed') && skill.attackMethod === AttackMethod.RANGED) mult *= 1.15;
+  return mult;
+}
+
+function skillForcedMove(skill: Skill): { kind: 'PUSH' | 'PULL' } | undefined {
+  const spec = skill.bandMove;
+  if (!spec) return undefined;
+  if (spec.kind === 'SELF_RETREAT') return { kind: 'PUSH' };
+  return { kind: spec.kind };
 }
 
 function isEnemyChargeDrainSupport(skill: Skill): boolean {
@@ -524,7 +545,7 @@ export function resolveSkill(
       if (result.ok) next = { ...next, modes: result.board };
     }
   } else if (role === CardRole.SUPPORT) {
-    next = applySupportMarks(next, skill);
+    next = applySkillMarkEffects(next, skill);
     if (isEnemyChargeDrainSupport(skill)) {
       next = applySealingTagXor(next, skill);
     }
@@ -555,6 +576,11 @@ export function resolveSkill(
         damageDealt = applySkillPenetration(damageDealt, skill.penetration ?? 0);
       }
     }
+    const markMult = markDamageMultiplier(afterAttempt.spent, skill);
+    if (markMult !== 1 && hitsLanded > 0) {
+      damageDealt = Math.floor(damageDealt * markMult);
+    }
+    next = applySkillMarkEffects(next, skill, hitsLanded);
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {
       perHitApplied = multi.perHitProcs;
@@ -581,19 +607,27 @@ export function resolveSkill(
   }
 
   let reactions: RangeReactionDef[] = [];
-  if (intent.movement) {
-    const moved = resolveForcedMove(
-      next.range,
-      intent.movement.kind,
-      next.playerMoveUsedThisTurn ?? false,
-      next.reactionSources ?? [],
-    );
+  const movement = intent.movement ?? skillForcedMove(skill);
+  if (movement) {
+    const steps = Math.max(1, skill.bandMove?.steps ?? 1);
+    let range = next.range;
+    let voluntary = next.playerMoveUsedThisTurn ?? false;
+    for (let i = 0; i < steps; i += 1) {
+      const moved = resolveForcedMove(
+        range,
+        movement.kind,
+        voluntary,
+        next.reactionSources ?? [],
+      );
+      range = moved.range;
+      voluntary = moved.playerMoveUsedThisTurn;
+      reactions = moved.reactions;
+    }
     next = {
       ...next,
-      range: moved.range,
-      playerMoveUsedThisTurn: moved.playerMoveUsedThisTurn,
+      range,
+      playerMoveUsedThisTurn: voluntary,
     };
-    reactions = moved.reactions;
   }
 
   return {
