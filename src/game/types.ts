@@ -452,6 +452,8 @@ export interface ModeInteraction {
   family?: string;
   consumeCharges?: number;
   requireOn?: boolean;
+  /** Require any ON Mode of this family (Primary Lotus = GATES, Life or Limit). */
+  requireFamily?: string;
   /** Additive damage mult when that Mode is ON (Rasengan clones = 0.5). */
   damageMultBonus?: number;
   /** Extra independent hits when that Mode is ON and consume succeeds (Barrage = 2). */

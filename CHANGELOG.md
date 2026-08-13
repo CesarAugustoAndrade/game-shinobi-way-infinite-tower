@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-030 Primary Lotus:** ATTACK 3×7 requires any GATES Mode ON. +15% per remaining charge; consume-all closes that Gate. Works on Gate of Life or Gate of Limit.
 - **T-029 Dynamic Entry:** SIDE flying kick legal at MEDIUM or CLOSE. Closes to CLOSE after play. Gate charges stay intact.
 - **T-028 Rotation:** requires Byakugan ON, spends 1 charge, and plants a self shield (50) + reflect (60%) for 1 duration. OFF rejects with no consume.
 - **T-027 Mode family:** playing a higher-stage Gate/Curse Mode while the lower is ON is ascent (charges +1, SOUL costs). Sharingan 2→3 is lateral (transfer, no +1). Downgrade rejects and consumes nothing.

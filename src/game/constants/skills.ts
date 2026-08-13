@@ -2250,21 +2250,31 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'primary_lotus',
     name: 'Primary Lotus',
     tier: SkillTier.HIDDEN,
-    description: 'A forbidden technique unlocking the body\'s limits. Devastating PIERCING physical damage at the cost of HP.',
+    description:
+      'Requires a Gate Mode ON. 3×7; +15% per remaining charge. Consumes all charges and closes the Gate at attempt.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    apCost: 5,
     chakraCost: 0,
-    hpCost: 15,  // T-006 B.2: 25→15 — the self-damage was disproportionately punishing the squishy Speed Demon (low HP) that leans on this skill
-    cooldown: 4,
+    hpCost: 15,
+    cooldown: 5,
     currentCooldown: 0,
-    baseDamage: 15,
-
+    baseDamage: 7,
+    hitCount: 3,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.STRENGTH,
     damageType: DamageType.PHYSICAL,
-    damageProperty: DamageProperty.PIERCING, // Ignores flat phys def
+    damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE],
+    modeInteraction: {
+      family: MODE_FAMILY.GATES,
+      requireFamily: MODE_FAMILY.GATES,
+      requireOn: true,
+      consumeAllCharges: true,
+      damagePerChargeBonus: 0.15,
+    },
     requirements: {
       stats: {
         [PrimaryStat.STRENGTH]: 3,
@@ -2273,13 +2283,6 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     },
     stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     image: '/assets/skills/skill_primary_lotus.png',
-    effects: [{
-      type: EffectType.BUFF,
-      targetStat: PrimaryStat.STRENGTH,
-      value: 0.3,
-      duration: 2,
-      chance: 1.0
-    }]
   },
 
   CHIDORI: {

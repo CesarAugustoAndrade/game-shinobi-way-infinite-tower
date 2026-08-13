@@ -272,6 +272,19 @@ function modeChargesOnBoard(board: ModeBoard, modeId: string): number {
   return current?.charges ?? 0;
 }
 
+/** Fixed modeId, else the ON instance matching requireFamily / family. */
+function bindLiveModeId(board: ModeBoard, mi?: Skill['modeInteraction']): string | undefined {
+  if (!mi) return undefined;
+  if (mi.modeId) return mi.modeId;
+  const family = mi.requireFamily ?? mi.family;
+  if (!family) return undefined;
+  return board.instances.find(
+    (mode) =>
+      mode.family === family &&
+      (mode.state === ModeRuntimeState.ON || mode.state === undefined),
+  )?.id;
+}
+
 function hasEnemyMark(marks: Mark[], markId: string): boolean {
   return marks.some((mark) => mark.id === markId && mark.target === CombatActor.ENEMY);
 }
@@ -467,8 +480,11 @@ function validateIntent(
     return { ok: false, reason: 'not-ready' };
   }
   const mi = skill.modeInteraction;
-  if (mi?.requireOn && mi.modeId && modeChargesOnBoard(state.modes, mi.modeId) <= 0) {
-    return { ok: false, reason: 'mode-required' };
+  if (mi?.requireOn) {
+    const boundId = bindLiveModeId(state.modes, mi);
+    if (!boundId || modeChargesOnBoard(state.modes, boundId) <= 0) {
+      return { ok: false, reason: 'mode-required' };
+    }
   }
   return { ok: true, role: roleRes.role };
 }
@@ -519,8 +535,9 @@ export function resolveSkill(
   next = { ...next, marks: afterAttempt.marks };
 
   const mi = skill.modeInteraction;
-  const autoModeOn = Boolean(mi?.modeId && isModeOnBoard(next.modes, mi.modeId));
-  const remainingCharges = mi?.modeId ? modeChargesOnBoard(next.modes, mi.modeId) : 0;
+  const boundModeId = bindLiveModeId(next.modes, mi);
+  const autoModeOn = Boolean(boundModeId && isModeOnBoard(next.modes, boundModeId));
+  const remainingCharges = boundModeId ? modeChargesOnBoard(next.modes, boundModeId) : 0;
   let modeDamageBonus = 0;
   let modeBonusHits = 0;
   if (intent.modeCharges && intent.modeCharges.n > 0) {
@@ -535,15 +552,15 @@ export function resolveSkill(
     }
   } else if (
     autoModeOn &&
-    mi?.modeId &&
+    boundModeId &&
     (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK || role === CardRole.SUPPORT)
   ) {
     let spentOk = true;
-    const spendN = mi.consumeAllCharges ? remainingCharges : (mi.consumeCharges ?? 0);
+    const spendN = mi?.consumeAllCharges ? remainingCharges : (mi?.consumeCharges ?? 0);
     if (spendN > 0) {
       const spend = (ports.spendCharges ?? trySpendCharges)(
         next.modes,
-        mi.modeId,
+        boundModeId,
         spendN,
         next.turnIndex,
       );
@@ -553,15 +570,15 @@ export function resolveSkill(
         spentOk = false;
       }
     }
-    const markOk = !mi.requireMarkId || hasEnemyMark(next.marks, mi.requireMarkId);
-    if (spentOk && markOk && (mi.damageMultBonus ?? 0) > 0) {
-      modeDamageBonus = mi.damageMultBonus ?? 0;
+    const markOk = !mi?.requireMarkId || hasEnemyMark(next.marks, mi.requireMarkId);
+    if (spentOk && markOk && (mi?.damageMultBonus ?? 0) > 0) {
+      modeDamageBonus = mi?.damageMultBonus ?? 0;
     }
-    if (spentOk && (mi.damagePerChargeBonus ?? 0) > 0) {
-      modeDamageBonus += remainingCharges * (mi.damagePerChargeBonus ?? 0);
+    if (spentOk && (mi?.damagePerChargeBonus ?? 0) > 0) {
+      modeDamageBonus += remainingCharges * (mi?.damagePerChargeBonus ?? 0);
     }
-    if (spentOk && (mi.bonusHits ?? 0) > 0) {
-      modeBonusHits = mi.bonusHits ?? 0;
+    if (spentOk && (mi?.bonusHits ?? 0) > 0) {
+      modeBonusHits = mi?.bonusHits ?? 0;
     }
   }
 
