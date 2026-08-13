@@ -11,11 +11,12 @@ import {
   Posture,
   Clan
 } from '../types';
+import { SKILLS_COMBAT_V1_NEW } from './skillsCombatV1New';
 
 // ============================================================================
-// SKILLS DATABASE
+// SKILLS DATABASE (classic 116 + T-008 v1 twelve)
 // ============================================================================
-export const SKILLS: Record<string, Skill> = {
+const SKILLS_CLASSIC: Record<string, Skill> = {
   // ==========================================
   // ACADEMY / BASIC UTILITY
   // ==========================================
@@ -3147,3 +3148,10 @@ export const SKILLS: Record<string, Skill> = {
     },
   }
 };
+
+export const SKILLS: Record<string, Skill> = {
+  ...SKILLS_CLASSIC,
+  ...SKILLS_COMBAT_V1_NEW,
+};
+
+export const SKILLS_CLASSIC_COUNT = Object.keys(SKILLS_CLASSIC).length;

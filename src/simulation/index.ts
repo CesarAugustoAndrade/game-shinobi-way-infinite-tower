@@ -34,6 +34,7 @@ import {
   runCampaignSimulation,
 } from './CampaignSimulator';
 import { printResolveSkillProbe, runResolveSkillBalanceProbe } from './ResolveSkillBalance';
+import { printCatalogV1Probe, runCatalogV1Probe } from './CatalogV1Balance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -414,6 +415,7 @@ async function main() {
   try {
     const probeTrials = args.includes('--quick') || args.includes('-q') ? 200 : 400;
     printResolveSkillProbe(runResolveSkillBalanceProbe(probeTrials));
+    printCatalogV1Probe(runCatalogV1Probe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

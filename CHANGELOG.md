@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-008 twelve v1 techniques:** catalog +12 (7 universal vendor-eligible, 5 clan-gated). None in academy starters. Roles/costs match SOUL §12.
 - **T-007 resolveSkill:** pure SOUL commit orchestrator (`ResolveSkillSystem`) — validate → commit AP/CP/HP + `readyOnTurn` → attempt marks/charges → role dispatch → impact marks only if ≥1 hit. Invalid intents consume nothing.
 - **T-006 board wire:** posture deal/take ×1.20 / ×0.80; range reactions fire only on real band changes; FREE_FIRST waives first chakra only.
 - **T-005 Combat Modes:** pure state machine (activate / ascent / lateral / upkeep / charges) plus 8 v1 `ModeDefinition`s. Stun does not end Modes. Legacy toggles unchanged.

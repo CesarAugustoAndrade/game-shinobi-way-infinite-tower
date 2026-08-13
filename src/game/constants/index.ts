@@ -222,22 +222,24 @@ export const CLAN_START_LOADOUT: Record<Clan, ClanLoadout> = {
 export const CLAN_FAVORITE_SKILLS: Record<Clan, readonly string[]> = {
   [Clan.UZUMAKI]: [
     'basic_medical', 'bunshin', 'shadow_clone', 'rasengan', 'rasenshuriken',
-    'adamantine_chains', 'brace', 'focused_breathing',
+    'adamantine_chains', 'brace', 'focused_breathing', 'uzumaki_barrage',
   ],
   [Clan.UCHIHA]: [
     'phoenix_flower', 'fireball', 'chidori', 'sharingan_predict',
-    'sharingan_2', 'fire_affinity', 'amaterasu',
+    'sharingan_2', 'sharingan_3', 'fire_affinity', 'amaterasu',
   ],
   [Clan.HYUGA]: [
     'gentle_fist', 'air_palm', 'kaiten', '64_palms', 'byakugan',
-    'byakugan_scan', 'analyze',
+    'byakugan_scan', 'analyze', 'twin_lion_fists',
   ],
   [Clan.LEE]: [
     'leaf_whirlwind', 'dynamic_entry', 'heavy_kick', 'primary_lotus',
     'hidden_lotus', 'gate_of_life', 'gate_prep', 'gate_of_limit', 'dancing_leaf',
+    'morning_peacock',
   ],
   [Clan.YAMANAKA]: [
     'analyze', 'kai', 'hell_viewing', 'mind_transfer', 'mind_destruction',
+    'mind_reading',
   ],
 };
 
@@ -266,36 +268,36 @@ export const CLAN_LEVEL_SKILL_POOL: Record<Clan, Record<number, readonly string[
     1: ['basic_medical', 'bunshin', 'brace'],
     2: ['shadow_clone', 'focused_breathing', 'adamantine_chains'],
     3: ['rasengan', 'chakra_reserves', 'basic_medical'],
-    4: ['rasenshuriken', 'adamantine_chains', 'shadow_clone'],
-    5: ['rasenshuriken', 'rasengan', 'adamantine_chains'],
+    4: ['rasenshuriken', 'adamantine_chains', 'uzumaki_barrage'],
+    5: ['rasenshuriken', 'uzumaki_barrage', 'adamantine_chains'],
   },
   [Clan.UCHIHA]: {
     1: ['phoenix_flower', 'fireball', 'fire_affinity'],
     2: ['chidori', 'sharingan_predict', 'phoenix_flower'],
     3: ['sharingan_2', 'chidori', 'fireball'],
-    4: ['amaterasu', 'sharingan_2', 'sharingan_predict'],
-    5: ['amaterasu', 'chidori', 'fireball'],
+    4: ['amaterasu', 'sharingan_3', 'sharingan_predict'],
+    5: ['amaterasu', 'sharingan_3', 'chidori'],
   },
   [Clan.HYUGA]: {
     1: ['gentle_fist', 'air_palm', 'analyze'],
     2: ['byakugan', 'gentle_fist', 'byakugan_scan'],
     3: ['kaiten', '64_palms', 'air_palm'],
-    4: ['64_palms', 'kaiten', 'byakugan'],
-    5: ['64_palms', 'kaiten', 'byakugan_scan'],
+    4: ['64_palms', 'kaiten', 'twin_lion_fists'],
+    5: ['twin_lion_fists', 'kaiten', '64_palms'],
   },
   [Clan.LEE]: {
     1: ['leaf_whirlwind', 'dynamic_entry', 'heavy_kick'],
     2: ['dancing_leaf', 'primary_lotus', 'leaf_whirlwind'],
     3: ['gate_prep', 'primary_lotus', 'dynamic_entry'],
-    4: ['hidden_lotus', 'gate_of_life', 'gate_prep'],
-    5: ['gate_of_limit', 'hidden_lotus', 'gate_of_life'],
+    4: ['hidden_lotus', 'gate_of_life', 'morning_peacock'],
+    5: ['morning_peacock', 'gate_of_limit', 'hidden_lotus'],
   },
   [Clan.YAMANAKA]: {
     1: ['analyze', 'kai', 'hell_viewing'],
     2: ['mind_transfer', 'kai', 'analyze'],
     3: ['mind_destruction', 'mind_transfer', 'hell_viewing'],
-    4: ['mind_destruction', 'mind_transfer', 'kai'],
-    5: ['mind_destruction', 'hell_viewing', 'mind_transfer'],
+    4: ['mind_destruction', 'mind_reading', 'kai'],
+    5: ['mind_reading', 'hell_viewing', 'mind_transfer'],
   },
 };
 
