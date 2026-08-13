@@ -1383,6 +1383,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         targetActor: 'self',
       },
     ],
+    // Non-normative for pure resolve (SUPPORT does not apply effects[]).
+    // Kept so getCardCategory still reads SHIELD/REFLECTION as defensive.
+    effects: [
+      { type: EffectType.REFLECTION, value: 0.6, duration: 1, chance: 1.0 },
+      { type: EffectType.SHIELD, value: 50, duration: 1, chance: 1.0 },
+    ],
     requirements: { clan: Clan.HYUGA },
   },
 
