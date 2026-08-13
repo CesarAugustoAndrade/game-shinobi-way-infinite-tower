@@ -14,6 +14,7 @@ import {
   Mark,
   MarkConsumeTiming,
   ModeDefinition,
+  Posture,
   RangeReactionDef,
   Skill,
 } from '../types';
@@ -46,12 +47,24 @@ import {
   type SkillBlockReason,
 } from './skillPlayability';
 import { isSkillReadyOnTurn, markSkillUsedOnTurn } from './TurnClockSystem';
+import {
+  discoverThree,
+  snapshotSkill,
+  type DiscoverFilter,
+  type HandSnapshot,
+  type WeightContext,
+} from './DeckSystem';
 
 export interface ResolveSkillPools {
   ap: number;
   chakra: number;
   hp: number;
   maxHp: number;
+}
+
+export interface PendingDiscover {
+  candidates: HandSnapshot[];
+  sourceId: string;
 }
 
 export interface ResolveSkillState {
@@ -66,6 +79,9 @@ export interface ResolveSkillState {
   skipFirstSkillCost?: boolean;
   playerMoveUsedThisTurn?: boolean;
   reactionSources?: readonly RangeReactionDef[];
+  hand?: Skill[];
+  playablePool?: Skill[];
+  pendingDiscover?: PendingDiscover;
 }
 
 export interface ResolveSkillIntent {
@@ -76,6 +92,8 @@ export interface ResolveSkillIntent {
   replaceTo?: ModeDefinition;
   movement?: { kind: 'PUSH' | 'PULL' };
   enhanced?: boolean;
+  discoverFilter?: DiscoverFilter;
+  weightContext?: WeightContext;
 }
 
 export interface ResolveSkillPorts {
@@ -134,6 +152,7 @@ export type ResolveSkillResult =
       perHitApplied: number;
       oncePerCardFired: boolean;
       reactions: RangeReactionDef[];
+      pendingDiscover?: PendingDiscover;
     };
 
 function cloneState(state: ResolveSkillState): ResolveSkillState {
@@ -151,6 +170,18 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
     skipFirstSkillCost: state.skipFirstSkillCost,
     playerMoveUsedThisTurn: state.playerMoveUsedThisTurn,
     reactionSources: state.reactionSources?.map((entry) => ({ ...entry })),
+    hand: state.hand?.map((skill) => ({ ...skill })),
+    playablePool: state.playablePool?.map((skill) => ({ ...skill })),
+    pendingDiscover: state.pendingDiscover
+      ? {
+          sourceId: state.pendingDiscover.sourceId,
+          candidates: state.pendingDiscover.candidates.map((entry) => ({
+            ...entry,
+            skill: { ...entry.skill },
+            reasons: [...entry.reasons],
+          })),
+        }
+      : undefined,
   };
 }
 
@@ -185,6 +216,46 @@ function applySupportMarks(state: ResolveSkillState, skill: Skill): ResolveSkill
     marks = added.marks;
   }
   return { ...state, marks };
+}
+
+function discoverFilterFromSkill(
+  skill: Skill,
+  intentFilter?: DiscoverFilter,
+): DiscoverFilter | undefined {
+  const spec = skill.discover;
+  if (!spec && !intentFilter) return undefined;
+  return {
+    tag: intentFilter?.tag ?? spec?.tag,
+    element: intentFilter?.element ?? spec?.element,
+    predicate: intentFilter?.predicate,
+  };
+}
+
+function applyDiscoverOffer(
+  state: ResolveSkillState,
+  skill: Skill,
+  intent: ResolveSkillIntent,
+  rng: () => number,
+): ResolveSkillState {
+  const hand = (state.hand ?? []).filter((card) => card.id !== skill.id);
+  const pool = state.playablePool ?? state.skills;
+  const ctx: WeightContext = intent.weightContext ?? { posture: Posture.BALANCED, turnIndex: state.turnIndex };
+  const offer = discoverThree({
+    pool,
+    hand,
+    sourceId: skill.id,
+    filter: discoverFilterFromSkill(skill, intent.discoverFilter),
+    ctx,
+    rng,
+  });
+  return {
+    ...state,
+    hand,
+    pendingDiscover: {
+      sourceId: skill.id,
+      candidates: offer.candidates,
+    },
+  };
 }
 
 function validateIntent(
@@ -332,6 +403,9 @@ export function resolveSkill(
     }
   } else if (role === CardRole.SUPPORT) {
     next = applySupportMarks(next, skill);
+    if (skill.discover) {
+      next = applyDiscoverOffer(next, skill, intent, ports.rng ?? (() => 0));
+    }
   } else {
     const rollHit =
       ports.rollHit ??
@@ -389,6 +463,33 @@ export function resolveSkill(
     perHitApplied,
     oncePerCardFired: hitsLanded >= 1,
     reactions,
+    pendingDiscover: next.pendingDiscover,
+  };
+}
+
+export function commitDiscoverChoice(
+  state: ResolveSkillState,
+  chosenSkillId: string,
+): { state: ResolveSkillState; inserted: HandSnapshot | null; refused: boolean } {
+  const pending = state.pendingDiscover;
+  if (!pending) {
+    return { state: cloneState(state), inserted: null, refused: true };
+  }
+  const match = pending.candidates.find((entry) => entry.skill.id === chosenSkillId);
+  if (!match) {
+    return { state: cloneState(state), inserted: null, refused: true };
+  }
+  const ctx: WeightContext = { posture: Posture.BALANCED, turnIndex: state.turnIndex };
+  const snapshot = snapshotSkill(match.skill, ctx);
+  const next = cloneState(state);
+  return {
+    state: {
+      ...next,
+      hand: [...(next.hand ?? []), snapshot.skill],
+      pendingDiscover: undefined,
+    },
+    inserted: snapshot,
+    refused: false,
   };
 }
 
