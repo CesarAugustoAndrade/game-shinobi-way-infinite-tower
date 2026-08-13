@@ -8,11 +8,18 @@
 
 import {
   CombatActor,
+  CombatRange,
   Mark,
   MarkConsumeTiming,
   MarkFamily,
+  RangeMoveDirection,
   TerrainDefinition,
 } from '../types';
+import { shiftRange } from './RangeSystem';
+
+export const TRIPWIRE_MARK_ID = 'tripwire';
+export const TRIPWIRE_DAMAGE = 8;
+export const TRIPWIRE_STUN_CHANCE = 0.6;
 
 export type TacticalSetup = readonly Mark[];
 
@@ -132,6 +139,87 @@ export function resolveHardControlSkips(setup: TacticalSetup): number {
   if (control.length === 0) return 0;
   const totalStacks = control.reduce((sum, mark) => sum + mark.stacks, 0);
   return Math.min(1, totalStacks);
+}
+
+export type TripwireMover = 'enemy' | 'player';
+
+export interface TripwireFireInput {
+  marks: TacticalSetup;
+  moved: boolean;
+  mover: TripwireMover;
+  enemyHp: number;
+  rng?: () => number;
+}
+
+export interface TripwireFireResult {
+  marks: Mark[];
+  enemyHp: number;
+  damageDealt: number;
+  stunned: boolean;
+  fired: boolean;
+}
+
+function cloneSetup(setup: TacticalSetup): Mark[] {
+  return setup.map(cloneMark);
+}
+
+function tripwireStunMark(sourceSkillId: string): Mark {
+  return {
+    id: 'stun',
+    sourceSkillId,
+    owner: CombatActor.PLAYER,
+    target: CombatActor.ENEMY,
+    duration: 1,
+    stacks: 1,
+    family: MarkFamily.HARD_CONTROL,
+    consume: MarkConsumeTiming.NONE,
+  };
+}
+
+/**
+ * First real enemy band change consumes one `tripwire` mark: 8 chip + 60% Stun 1.
+ * Player moves and non-moves leave marks and HP unchanged.
+ */
+export function fireTripwireOnEnemyMove(input: TripwireFireInput): TripwireFireResult {
+  const marks = cloneSetup(input.marks);
+  if (!input.moved || input.mover !== 'enemy') {
+    return { marks, enemyHp: input.enemyHp, damageDealt: 0, stunned: false, fired: false };
+  }
+  const idx = marks.findIndex((mark) => mark.id === TRIPWIRE_MARK_ID);
+  if (idx < 0) {
+    return { marks, enemyHp: input.enemyHp, damageDealt: 0, stunned: false, fired: false };
+  }
+  const tripwire = marks[idx];
+  const remaining = marks.filter((_, i) => i !== idx);
+  const stunned = (input.rng?.() ?? 1) < TRIPWIRE_STUN_CHANCE;
+  const nextMarks = stunned
+    ? addMark(remaining, tripwireStunMark(tripwire.sourceSkillId)).marks
+    : remaining;
+  const enemyHp = Math.max(0, input.enemyHp - TRIPWIRE_DAMAGE);
+  return {
+    marks: nextMarks,
+    enemyHp,
+    damageDealt: TRIPWIRE_DAMAGE,
+    stunned,
+    fired: true,
+  };
+}
+
+/** Thin test/sim surface: shift enemy band, then fire tripwire if the band changed. */
+export function applyEnemyBandChange(
+  input: { marks: TacticalSetup; range: CombatRange; enemyHp: number },
+  direction: RangeMoveDirection,
+  rng?: () => number,
+): TripwireFireResult & { range: CombatRange; moved: boolean } {
+  const shifted = shiftRange(input.range, direction);
+  const fired = fireTripwireOnEnemyMove({
+    marks: input.marks,
+    moved: shifted.moved,
+    mover: 'enemy',
+    enemyHp: input.enemyHp,
+    rng,
+  });
+  return { ...fired, range: shifted.range, moved: shifted.moved };
 }
 
 export interface HitRoll {

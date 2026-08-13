@@ -50,6 +50,7 @@ import { printUzumakiBarrageHitsProbe, runUzumakiBarrageHitsProbe } from './Uzum
 import { printMorningPeacockProbe, runMorningPeacockProbe } from './MorningPeacockBalance';
 import { printTwinLionFistsProbe, runTwinLionFistsProbe } from './TwinLionFistsBalance';
 import { printSideToolMarksMoveProbe, runSideToolMarksMoveProbe } from './SideToolMarksMoveBalance';
+import { printTripwireReactionProbe, runTripwireReactionProbe } from './TripwireReactionBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -446,6 +447,7 @@ async function main() {
     printMorningPeacockProbe(runMorningPeacockProbe());
     printTwinLionFistsProbe(runTwinLionFistsProbe());
     printSideToolMarksMoveProbe(runSideToolMarksMoveProbe());
+    printTripwireReactionProbe(runTripwireReactionProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
