@@ -119,7 +119,7 @@ export const MODE_DEFINITIONS: Record<string, ModeDefinition> = {
     activationCost: { ap: 2, chakra: 12 },
     upkeep: { chakra: 2 },
     cooldown: 5,
-    weightModifiers: [],
+    weightModifiers: [{ skillId: 'rasengan', delta: 4 }],
     enhancements: [{ targetScope: TargetScope.ATTACK, note: 'Rasengan weight +4' }],
     endClauses: [...standardEnds],
   }),

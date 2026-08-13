@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-015 Mode weight bonuses:** Shadow Clone ON adds Rasengan draw weight +4 via `weightModifiers` + `buildModeWeightBonuses` into live `processUpkeep` draw context.
 - **T-014 Discover 3 resolve:** successful Discover SUPPORT frees its hand slot and offers ≤3 weighted candidates via `discoverThree`. `commitDiscoverChoice` inserts the pick (CD entries stay disabled). Non-discover SUPPORT unchanged.
 - **T-013 Skill Config live:** `Player.skillConfig` stores Main + Mode upkeep priority. `ensureMainAttack` on new-run/combat start; learn does not steal Main; forget reassigns. Combat lock. Draw/upkeep receive `mainAttackId`.
 - **T-012 live turn start:** `processUpkeep` runs SOUL clock (Mode upkeep → regen → draw 4 → mark tick). Board Modes no longer self-fund from same-turn regen; HP upkeep cannot drop the player below 1. Legacy untracked toggles unchanged.

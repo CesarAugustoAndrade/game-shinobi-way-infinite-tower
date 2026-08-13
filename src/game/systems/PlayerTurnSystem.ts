@@ -100,6 +100,7 @@ import { runTurnStartClock } from './TurnClockSystem';
 import { getModeDefinition } from '../constants/modes';
 import { normalizeSkillConfig } from './SkillConfigLive';
 import type { WeightContext } from './DeckSystem';
+import { buildModeWeightBonuses } from './ModeWeightSystem';
 
 // ============================================================================
 // APPROACH EFFECTS
@@ -161,13 +162,15 @@ export function buildUpkeepWeightContext(
   combatState: CombatState,
 ): WeightContext {
   const config = normalizeSkillConfig(player.skillConfig);
+  const activeModes = combatState.activeModes ?? [];
   return {
     posture: combatState.posture,
     turnIndex: combatState.turnIndex,
     mainAttackId: config.mainAttackId,
-    activeModeIds: (combatState.activeModes ?? [])
+    activeModeIds: activeModes
       .filter((mode) => mode.state === ModeRuntimeState.ON || mode.state === undefined)
       .map((mode) => mode.id),
+    modeBonuses: buildModeWeightBonuses(activeModes),
   };
 }
 
