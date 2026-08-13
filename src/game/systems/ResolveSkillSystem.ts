@@ -54,6 +54,11 @@ import {
   type HandSnapshot,
   type WeightContext,
 } from './DeckSystem';
+import {
+  applySupportWeightOnPlay,
+  enqueueSupportWeightBonuses,
+  type PendingSupportWeight,
+} from './SupportWeightSystem';
 
 export interface ResolveSkillPools {
   ap: number;
@@ -82,6 +87,7 @@ export interface ResolveSkillState {
   hand?: Skill[];
   playablePool?: Skill[];
   pendingDiscover?: PendingDiscover;
+  pendingSupportWeights?: PendingSupportWeight[];
 }
 
 export interface ResolveSkillIntent {
@@ -182,6 +188,7 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
           })),
         }
       : undefined,
+    pendingSupportWeights: state.pendingSupportWeights?.map((entry) => ({ ...entry })),
   };
 }
 
@@ -433,6 +440,19 @@ export function resolveSkill(
     const afterImpact = consumeOnImpact(next.marks, CombatActor.ENEMY, hitsLanded);
     next = { ...next, marks: afterImpact.marks };
     impactSpent = afterImpact.spent;
+  }
+
+  const supportWeightEntries = applySupportWeightOnPlay(skill, {
+    mainAttackId: intent.weightContext?.mainAttackId,
+  });
+  if (supportWeightEntries.length > 0) {
+    next = {
+      ...next,
+      pendingSupportWeights: enqueueSupportWeightBonuses(
+        next.pendingSupportWeights ?? [],
+        supportWeightEntries,
+      ),
+    };
   }
 
   let reactions: RangeReactionDef[] = [];

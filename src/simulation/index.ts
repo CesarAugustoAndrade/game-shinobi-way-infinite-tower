@@ -42,6 +42,7 @@ import { printLiveTurnStartProbe, runLiveTurnStartProbe } from './LiveTurnStartB
 import { printSkillConfigLiveProbe, runSkillConfigLiveProbe } from './SkillConfigLiveBalance';
 import { printDiscoverResolveProbe, runDiscoverResolveProbe } from './DiscoverResolveBalance';
 import { printModeWeightBonusesProbe, runModeWeightBonusesProbe } from './ModeWeightBonusesBalance';
+import { printSupportNextDrawProbe, runSupportNextDrawProbe } from './SupportNextDrawBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -430,6 +431,7 @@ async function main() {
     printSkillConfigLiveProbe(runSkillConfigLiveProbe());
     printDiscoverResolveProbe(runDiscoverResolveProbe());
     printModeWeightBonusesProbe(runModeWeightBonusesProbe());
+    printSupportNextDrawProbe(runSupportNextDrawProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
