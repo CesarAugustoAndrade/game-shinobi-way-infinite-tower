@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-010 combat UI honesty:** cardRole badges (SUPPORT/MODE/SIDE/ATTACK), Main ribbon, Modes + Setup panels, honest base/enhanced preview, red Mode-charge warning.
 - **T-009 AI/sim parity:** enemy scoring has a setup/mark term (no weighted hand); sim commit aliases `resolveSkill`; SOUL metric bag + cooldown-reset that does not refill Modes.
 - **T-008 twelve v1 techniques:** catalog +12 (7 universal vendor-eligible, 5 clan-gated). None in academy starters. Roles/costs match SOUL §12.
 - **T-007 resolveSkill:** pure SOUL commit orchestrator (`ResolveSkillSystem`) — validate → commit AP/CP/HP + `readyOnTurn` → attempt marks/charges → role dispatch → impact marks only if ≥1 hit. Invalid intents consume nothing.

@@ -13,6 +13,8 @@ import {
   CharacterStats,
   Posture,
   TerrainDefinition,
+  CardRole,
+  ActionType,
 } from '../types';
 import { getApCost } from '../constants/combatCards';
 import { getElementEffectiveness } from '../constants';
@@ -225,4 +227,48 @@ export function buildSkillCardViewModel(
     apCost: getApCost(playCtx.skill),
     effectiveChakraCost: playCtx.skipFirstSkillCost ? 0 : playCtx.skill.chakraCost,
   };
+}
+
+export type RoleBadgeLabel = 'SUPPORT' | 'MODE' | 'SIDE' | 'ATTACK' | 'PASSIVE' | '—';
+
+/** Face badge from authored cardRole. Never inferred from damage. */
+export function roleBadgeLabel(skill: Pick<Skill, 'cardRole' | 'actionType'>, opts?: { passiveDisplay?: boolean }): RoleBadgeLabel {
+  if (opts?.passiveDisplay) return 'PASSIVE';
+  if (skill.cardRole === CardRole.SUPPORT) return 'SUPPORT';
+  if (skill.cardRole === CardRole.MODE) return 'MODE';
+  if (skill.cardRole === CardRole.SIDE_ATTACK) return 'SIDE';
+  if (skill.cardRole === CardRole.ATTACK) return 'ATTACK';
+  if (skill.actionType === ActionType.PASSIVE) return 'PASSIVE';
+  return '—';
+}
+
+export function isMainAttackRibbon(skillId: string, mainAttackId?: string | null): boolean {
+  return Boolean(mainAttackId) && skillId === mainAttackId;
+}
+
+export interface PreviewSource {
+  name: string;
+  bonus: number;
+}
+
+export interface HonestyPreview {
+  base: number;
+  enhanced: number | null;
+  sources: PreviewSource[];
+}
+
+/** Enhanced shown only when at least one named source has a non-zero bonus. */
+export function buildHonestyPreview(base: number, sources: readonly PreviewSource[] = []): HonestyPreview {
+  const active = sources.filter((source) => source.bonus !== 0);
+  if (active.length === 0) {
+    return { base, enhanced: null, sources: [] };
+  }
+  const enhanced = Math.max(0, Math.floor(base + active.reduce((sum, source) => sum + source.bonus, 0)));
+  return { base, enhanced, sources: [...active] };
+}
+
+export function chargeConsumeWarning(skill: Pick<Skill, 'modeInteraction'>): string | null {
+  const n = skill.modeInteraction?.consumeCharges;
+  if (!n || n <= 0) return null;
+  return `Consumes ${n} Mode charge${n === 1 ? '' : 's'}`;
 }

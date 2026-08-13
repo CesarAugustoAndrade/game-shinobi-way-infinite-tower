@@ -679,3 +679,30 @@
   font-weight: 900;
   color: var(--sw-text-muted);
 }
+
+.skill-card__main-ribbon {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.25rem;
+  z-index: 4;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #1a1208;
+  background: #e2b14a;
+  border: 1px solid #050608;
+}
+
+.skill-card__consume-warning {
+  color: #e24a4a;
+  font-weight: 700;
+  font-size: 0.62rem;
+}
+
+.skill-card__action-badge--support { background: #2a4a6a; }
+.skill-card__action-badge--mode { background: #5a3a7a; }
+.skill-card__action-badge--side { background: #4a5a2a; }
+.skill-card__action-badge--attack { background: #7a2a2a; }
+.skill-card__action-badge--— { background: #3a3a3a; }

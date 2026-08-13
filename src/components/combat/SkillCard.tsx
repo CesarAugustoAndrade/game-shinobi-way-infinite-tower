@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { Skill, DamageType, ActionType, ElementType } from '../../game/types';
 import { getSkillArt } from '../../game/constants/artRegistry';
 import { getEffectIcon } from '../../game/utils/tooltipFormatters';
+import {
+  chargeConsumeWarning,
+  isMainAttackRibbon,
+  roleBadgeLabel,
+} from '../../game/systems/combatSkillViewModel';
+import { formatCombatRange } from '../../game/systems/RangeSystem';
 import './SkillCard.css';
 
 interface SkillCardProps {
@@ -27,6 +33,8 @@ interface SkillCardProps {
   chakraShort?: boolean;
   /** Player cannot currently afford HP toll (display-only short signal). */
   hpShort?: boolean;
+  /** Skill Config Main Attack id — shows ribbon when it matches. */
+  mainAttackId?: string | null;
 }
 
 /** BEM element-tint modifier from ElementType / string. */
@@ -88,6 +96,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   freeChakra = false,
   chakraShort = false,
   hpShort = false,
+  mainAttackId = null,
 }) => {
   const actionType = skill.actionType || ActionType.ACTIVE;
   const isPassive = actionType === ActionType.PASSIVE || showAsPassive;
@@ -134,18 +143,13 @@ export const SkillCard: React.FC<SkillCardProps> = ({
     return classes.join(' ');
   };
 
-  // Get action type badge config (category only — turn economy is AP, not MAIN/SIDE rules)
-  const getActionBadge = () => {
-    if (isPassive) return { text: 'PASSIVE', className: 'skill-card__action-badge--passive' };
-    if (isToggle) {
-      return isActive
-        ? { text: 'ACTIVE', className: 'skill-card__action-badge--toggle-active' }
-        : { text: 'TOGGLE', className: 'skill-card__action-badge--toggle' };
-    }
-    return { text: 'ACTIVE', className: 'skill-card__action-badge--active' };
+  const roleLabel = roleBadgeLabel(skill, { passiveDisplay: isPassive && !skill.cardRole });
+  const actionBadge = {
+    text: roleLabel,
+    className: `skill-card__action-badge--${roleLabel.toLowerCase()}`,
   };
-
-  const actionBadge = getActionBadge();
+  const showMainRibbon = isMainAttackRibbon(skill.id, mainAttackId);
+  const consumeWarning = chargeConsumeWarning(skill);
   const effectivelyUsable = !isPassive && canUse;
   const resolvedAp = apCost ?? 0;
   const channel = damageChannel(skill.damageType);
@@ -164,6 +168,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({
           : skill.name
       }
       aria-disabled={!effectivelyUsable}
+      data-block-reason={!effectivelyUsable && blockReason ? blockReason : undefined}
       data-element={skill.element}
       data-damage-type={skill.damageType}
       data-free-chakra={freeChakra ? 'true' : undefined}
@@ -171,6 +176,11 @@ export const SkillCard: React.FC<SkillCardProps> = ({
       {/* Keyboard Shortcut Badge */}
       {shortcutKey && (
         <div className="skill-card__shortcut">{shortcutKey}</div>
+      )}
+      {showMainRibbon && (
+        <div className="skill-card__main-ribbon" data-testid="main-attack-ribbon">
+          Main
+        </div>
       )}
 
       {/* Background art — Imagine src, emoji if missing/404 (T-029) */}
@@ -201,6 +211,17 @@ export const SkillCard: React.FC<SkillCardProps> = ({
               <span className={`skill-card__damage-type skill-card__damage-type--${channel}`}>
                 {skill.damageType.charAt(0)} · {skill.element}
               </span>
+              {skill.hitCount && skill.hitCount > 1 && (
+                <span className="skill-card__hits">{skill.hitCount} hits</span>
+              )}
+              {skill.allowedRanges && skill.allowedRanges.length > 0 && (
+                <span className="skill-card__range">
+                  {skill.allowedRanges.map((band) => formatCombatRange(band)).join('/')}
+                </span>
+              )}
+              {skill.currentCooldown > 0 && (
+                <span className="skill-card__cd">CD {skill.currentCooldown}</span>
+              )}
             </div>
           </div>
           <div className="skill-card__badges">
@@ -254,7 +275,10 @@ export const SkillCard: React.FC<SkillCardProps> = ({
             )}
             {/* Action Type Badge */}
             {actionBadge && (
-              <div className={`skill-card__action-badge ${actionBadge.className}`}>
+              <div
+                className={`skill-card__action-badge ${actionBadge.className}`}
+                data-testid="skill-role-badge"
+              >
                 <span className="skill-card__action-badge-text">{actionBadge.text}</span>
               </div>
             )}
@@ -303,6 +327,11 @@ export const SkillCard: React.FC<SkillCardProps> = ({
               {isToggle && skill.upkeepCost && skill.upkeepCost > 0 && (
                 <span className="skill-card__cost--upkeep" title="Chakra upkeep per turn">
                   {skill.upkeepCost} CP/t
+                </span>
+              )}
+              {consumeWarning && (
+                <span className="skill-card__consume-warning" data-testid="consume-warning">
+                  {consumeWarning}
                 </span>
               )}
               {primaryEffect && (

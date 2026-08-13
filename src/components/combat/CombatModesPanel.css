@@ -1,0 +1,30 @@
+.combat-modes-panel,
+.tactical-setup-panel,
+.skill-config-inspector {
+  padding: 0.4rem 0.55rem;
+  background: #121820;
+  border: 1px solid #2a3340;
+  color: #d8dde4;
+  font-size: 0.72rem;
+}
+
+.combat-modes-panel__title,
+.tactical-setup-panel__title,
+.skill-config-inspector__title {
+  margin: 0 0 0.3rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.combat-modes-panel__row,
+.tactical-setup-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.2rem;
+}
+
+.skill-config-inspector__weight {
+  margin-top: 0.35rem;
+}
