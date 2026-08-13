@@ -27,6 +27,7 @@ import {
   EffectType,
   CombatRange,
   RangeMoveDirection,
+  CardRole,
 } from '../types';
 import {
   skillAllowedAt,
@@ -40,6 +41,14 @@ import { getApCost } from '../constants/combatCards';
 /**
  * Context provided to the AI for decision making
  */
+/** Optional SOUL board snapshot. When set, scoring is deterministic (no Math.random). */
+export interface CombatTacticalSnapshot {
+  /** Prefer applying/spending setup (Marks) over raw damage. */
+  setupPressure?: boolean;
+  marksOnFoe?: number;
+  modeOn?: boolean;
+}
+
 export interface AIContext {
   enemy: Enemy;
   enemyStats: CharacterStats;
@@ -49,6 +58,67 @@ export interface AIContext {
   currentRange?: CombatRange;
   /** F2: enemy AP available this phase */
   enemyAp?: number;
+  tactical?: CombatTacticalSnapshot;
+}
+
+export function isSetupSkill(skill: Skill): boolean {
+  if (skill.cardRole === CardRole.SUPPORT || skill.cardRole === CardRole.MODE) {
+    return true;
+  }
+  return Boolean(skill.markEffects && skill.markEffects.length > 0);
+}
+
+/**
+ * Pure score for one skill. No weighted hand. Setup term is non-DPS.
+ */
+export function scoreEnemySkill(skill: Skill, context: AIContext): { score: number; reason: string } {
+  const { enemy, enemyStats, player, playerStats, tactical } = context;
+  let score = 50;
+  let reason = 'default';
+  const enemyHpPercent = enemy.currentHp / enemyStats.derived.maxHp;
+  const playerHpPercent = player.currentHp / playerStats.derived.maxHp;
+
+  if (hasHealEffect(skill) && enemyHpPercent < 0.3) {
+    score += 60;
+    reason = 'self-heal at low HP';
+  }
+  if (hasSelfBuffEffect(skill) && enemyHpPercent > 0.4) {
+    score += 25;
+    reason = 'self-buff while healthy';
+  }
+  const estimatedDmg = estimateDamage(skill, enemyStats);
+  if (playerHpPercent < 0.2 && estimatedDmg >= player.currentHp) {
+    score += 50;
+    reason = 'finish low HP player';
+  }
+  if (
+    playerHpPercent < 0.5 &&
+    playerHpPercent >= 0.2 &&
+    (skill.baseDamage ?? 0) + (skill.scalingPerPoint ?? 0) * 3 > 1.5
+  ) {
+    score += 20;
+    reason = 'high damage on wounded player';
+  }
+  if (hasDebuffEffect(skill) && playerHpPercent > 0.5) {
+    score += 30;
+    reason = 'debuff healthy player';
+  }
+  if (skill.cooldown >= 3) {
+    score += 10;
+    reason = reason === 'default' ? 'use powerful cooldown skill' : reason;
+  }
+  if (skill.element === enemy.element) score += 5;
+
+  if (tactical?.setupPressure && isSetupSkill(skill)) {
+    score += 80;
+    reason = 'setup / mark pressure';
+  }
+
+  if (!tactical) {
+    score += Math.random() * 15;
+  }
+
+  return { score, reason };
 }
 
 /** Planned enemy action for one skill/turn (F2 range + AP). */
@@ -220,44 +290,11 @@ export function planEnemyAction(
     if (!skillAllowedAt(skill, plan.afterRange)) continue;
     if (!canAfford(skill, needMove)) continue;
 
-    let score = 50;
-    let reason = 'default';
-    const enemyHpPercent = enemy.currentHp / enemyStats.derived.maxHp;
-    const playerHpPercent = player.currentHp / playerStats.derived.maxHp;
-
-    if (hasHealEffect(skill) && enemyHpPercent < 0.3) {
-      score += 60;
-      reason = 'self-heal at low HP';
-    }
-    if (hasSelfBuffEffect(skill) && enemyHpPercent > 0.4) {
-      score += 25;
-      reason = 'self-buff while healthy';
-    }
-    const estimatedDmg = estimateDamage(skill, enemyStats);
-    if (playerHpPercent < 0.2 && estimatedDmg >= player.currentHp) {
-      score += 50;
-      reason = 'finish low HP player';
-    }
-    if (
-      playerHpPercent < 0.5 &&
-      playerHpPercent >= 0.2 &&
-      (skill.baseDamage ?? 0) + (skill.scalingPerPoint ?? 0) * 3 > 1.5
-    ) {
-      score += 20;
-      reason = 'high damage on wounded player';
-    }
-    if (hasDebuffEffect(skill) && playerHpPercent > 0.5) {
-      score += 30;
-      reason = 'debuff healthy player';
-    }
-    if (skill.cooldown >= 3) {
-      score += 10;
-      reason = reason === 'default' ? 'use powerful cooldown skill' : reason;
-    }
-    if (skill.element === enemy.element) score += 5;
+    const scored = scoreEnemySkill(skill, context);
+    let score = scored.score;
+    let reason = scored.reason;
     // Prefer no-move when equal
     if (!needMove) score += 8;
-    score += Math.random() * 15;
 
     candidates.push({
       skill,

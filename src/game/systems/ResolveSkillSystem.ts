@@ -391,3 +391,6 @@ export function resolveSkill(
     reactions,
   };
 }
+
+/** Sim / auto-combat commit — same function as live SOUL resolve (T-009). */
+export const commitSimPlayerSkill = resolveSkill;

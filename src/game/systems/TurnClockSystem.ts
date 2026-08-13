@@ -9,6 +9,7 @@
 import {
   ActiveModeRuntime,
   Mark,
+  ModeRuntimeState,
   Skill,
   TypedCost,
 } from '../types';
@@ -71,6 +72,26 @@ export function resetCombatFrontier(frontier: CombatFrontier): CombatFrontier {
     })),
     modes: [],
     marks: clearMarks(frontier.marks),
+  };
+}
+
+/**
+ * Cooldown-reset style effect: skills ready; Modes stay off; charges not refilled.
+ * Does not activate a Mode.
+ */
+export function resetCooldownsKeepModesOff(frontier: CombatFrontier): CombatFrontier {
+  return {
+    skills: frontier.skills.map((skill) => ({
+      ...skill,
+      currentCooldown: 0,
+      readyOnTurn: 0,
+    })),
+    modes: frontier.modes.map((mode) => ({
+      ...mode,
+      charges: 0,
+      state: ModeRuntimeState.COOLDOWN,
+    })),
+    marks: frontier.marks.map((mark) => ({ ...mark })),
   };
 }
 
