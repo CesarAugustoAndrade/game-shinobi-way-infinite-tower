@@ -127,21 +127,30 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'phoenix_flower',
     name: 'Phoenix Flower',
     tier: SkillTier.BASIC,
-    description: 'Volleys of small fireballs. Chance to burn.',
+    description:
+      '3-hit fire volley 3×5. Burn 4×2 on impact. Legal at MEDIUM or LONG. Main-eligible Uchiha Attack. With Sharingan 2-Tomoe ON: +40% damage and consume 1 charge at attempt.',
     actionType: ActionType.ACTIVE,
-    apCost: 1,
+    cardRole: CardRole.ATTACK,
+    apCost: 2,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 2,
     currentCooldown: 0,
-    baseDamage: 14,
-
+    baseDamage: 5,
+    hitCount: 3,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.FIRE,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    modeInteraction: {
+      modeId: 'sharingan_2',
+      family: MODE_FAMILY.SHARINGAN,
+      consumeCharges: 1,
+      damageMultBonus: 0.4,
+    },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 1,
@@ -151,9 +160,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.15 },
     effects: [{
       type: EffectType.BURN,
-      value: 10,
+      value: 4,
       duration: 2,
-      chance: 0.5,
+      chance: 1.0,
       damageType: DamageType.ELEMENTAL,
       damageProperty: DamageProperty.NORMAL
     }]
