@@ -464,6 +464,14 @@ export interface ModeInteraction {
   damagePerChargeBonus?: number;
   /** Mode ON bonus also requires this enemy mark id (Twin Lion = chakra_point). */
   requireMarkId?: string;
+  /** When set with requireMarkId, enhance+spend only if enemy stacks ≥ this (64 Palms = 2). */
+  minMarkStacks?: number;
+  /** Additive damage mult per enemy requireMarkId stack (64 Palms = 0.1). */
+  damagePerMarkStackBonus?: number;
+  /** Cap on damagePerMarkStackBonus * stacks (64 Palms = 0.4). */
+  damageMarkStackCap?: number;
+  /** After ≥1 hit, remove all remaining requireMarkId enemy stacks (64 Palms). */
+  consumeAllMatchingMarks?: boolean;
   /** Extra legal bands while Mode is ON and consumeCharges can be paid (Chidori MEDIUM). */
   grantRanges?: CombatRange[];
 }

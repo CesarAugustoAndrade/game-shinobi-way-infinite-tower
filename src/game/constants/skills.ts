@@ -1969,31 +1969,41 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: '64_palms',
     name: '8 Trigrams 64 Palms',
     tier: SkillTier.HIDDEN,
-    description: 'Hyuga ultimate technique. TRUE damage that drains chakra and debuffs all stats.',
+    description:
+      '8×3 at CLOSE. With Byakugan ON and ≥2 Chakra Points: +10% per stack (cap 40%), spend 1 charge, 30% pen, consume CP on impact. Miss keeps marks.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    apCost: 4,
     chakraCost: 7,
     hpCost: 0,
     cooldown: 5,
     currentCooldown: 0,
-    baseDamage: 25,
-    scalingPerPoint: 8,
+    baseDamage: 3,
+    hitCount: 8,
+    scalingPerPoint: 3,
     scalingStat: PrimaryStat.ACCURACY,
-    damageType: DamageType.TRUE,
-    damageProperty: DamageProperty.NORMAL,
+    damageType: DamageType.PHYSICAL,
+    damageProperty: DamageProperty.PIERCING,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
+    penetration: 0.3,
+    allowedRanges: [CombatRange.CLOSE],
+    modeInteraction: {
+      modeId: 'byakugan',
+      family: MODE_FAMILY.HYUGA,
+      consumeCharges: 1,
+      requireMarkId: 'chakra_point',
+      minMarkStacks: 2,
+      damagePerMarkStackBonus: 0.1,
+      damageMarkStackCap: 0.4,
+      consumeAllMatchingMarks: true,
+    },
     requirements: {
       stats: {
         [PrimaryStat.ACCURACY]: 3,
       },
       clan: Clan.HYUGA,
     },
-    effects: [
-      { type: EffectType.CHAKRA_DRAIN, value: 40, duration: 1, chance: 1.0 },
-      { type: EffectType.DEBUFF, targetStat: PrimaryStat.STRENGTH, value: 0.3, duration: 3, chance: 1.0 },
-      { type: EffectType.DEBUFF, targetStat: PrimaryStat.SPEED, value: 0.3, duration: 3, chance: 1.0 }
-    ]
   },
 
   SAND_BURIAL: {

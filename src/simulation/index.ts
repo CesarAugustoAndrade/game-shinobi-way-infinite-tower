@@ -61,6 +61,7 @@ import { printHiddenLotusProbe, runHiddenLotusProbe } from './HiddenLotusBalance
 import { printFireballProbe, runFireballProbe } from './FireballBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
+import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -468,6 +469,7 @@ async function main() {
     printFireballProbe(runFireballProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
+    printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

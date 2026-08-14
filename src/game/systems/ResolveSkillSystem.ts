@@ -289,6 +289,14 @@ function hasEnemyMark(marks: Mark[], markId: string): boolean {
   return marks.some((mark) => mark.id === markId && mark.target === CombatActor.ENEMY);
 }
 
+function enemyMarkStacks(marks: readonly Mark[], markId: string): number {
+  return marks.reduce(
+    (sum, mark) =>
+      mark.id === markId && mark.target === CombatActor.ENEMY ? sum + mark.stacks : sum,
+    0,
+  );
+}
+
 /** StatSystem-style: outgoing *= (1 - defensePercent * (1 - pen)). Def 0 is identity. */
 function applySkillPenetration(
   damage: number,
@@ -555,9 +563,15 @@ export function resolveSkill(
     boundModeId &&
     (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK || role === CardRole.SUPPORT)
   ) {
+    const markStacks = mi?.requireMarkId ? enemyMarkStacks(next.marks, mi.requireMarkId) : 0;
+    const markOk =
+      !mi?.requireMarkId ||
+      (mi.minMarkStacks != null
+        ? markStacks >= mi.minMarkStacks
+        : hasEnemyMark(next.marks, mi.requireMarkId));
     let spentOk = true;
     const spendN = mi?.consumeAllCharges ? remainingCharges : (mi?.consumeCharges ?? 0);
-    if (spendN > 0) {
+    if (spendN > 0 && markOk) {
       const spend = (ports.spendCharges ?? trySpendCharges)(
         next.modes,
         boundModeId,
@@ -570,9 +584,12 @@ export function resolveSkill(
         spentOk = false;
       }
     }
-    const markOk = !mi?.requireMarkId || hasEnemyMark(next.marks, mi.requireMarkId);
     if (spentOk && markOk && (mi?.damageMultBonus ?? 0) > 0) {
       modeDamageBonus = mi?.damageMultBonus ?? 0;
+    }
+    if (spentOk && markOk && (mi?.damagePerMarkStackBonus ?? 0) > 0) {
+      const cap = mi?.damageMarkStackCap ?? Number.POSITIVE_INFINITY;
+      modeDamageBonus += Math.min(cap, (mi?.damagePerMarkStackBonus ?? 0) * markStacks);
     }
     if (spentOk && (mi?.damagePerChargeBonus ?? 0) > 0) {
       modeDamageBonus += remainingCharges * (mi?.damagePerChargeBonus ?? 0);
@@ -682,6 +699,14 @@ export function resolveSkill(
     const afterImpact = consumeOnImpact(next.marks, CombatActor.ENEMY, hitsLanded);
     next = { ...next, marks: afterImpact.marks };
     impactSpent = afterImpact.spent;
+    if (mi?.consumeAllMatchingMarks && mi.requireMarkId) {
+      next = {
+        ...next,
+        marks: next.marks.filter(
+          (mark) => !(mark.id === mi.requireMarkId && mark.target === CombatActor.ENEMY),
+        ),
+      };
+    }
   }
 
   if (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) {
