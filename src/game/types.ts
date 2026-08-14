@@ -786,6 +786,17 @@ export interface ControlConfusionSpec {
   enemyDuration: number;
 }
 
+/**
+ * ATTACK Setup-bucket mark read (T-042 Mind Destruction). Independent of Mode ON.
+ * When the enemy has `markId` (any stacks ≥1), multiply damage by (1 + damageMultBonus).
+ * `consume` defaults false — lectura unless explicitly declared.
+ */
+export interface SetupReadSpec {
+  markId: string;
+  damageMultBonus: number;
+  consume?: boolean;
+}
+
 export interface Skill {
   id: string;
   name: string;
@@ -821,8 +832,14 @@ export interface Skill {
   controlStun?: ControlStunSpec;
   /**
    * SUPPORT Confusion (T-041). `rng() < chance` → enemy CONFUSION `enemyDuration`.
+   * ATTACK (T-042) uses the same helper only when ≥1 hit lands.
    */
   controlConfusion?: ControlConfusionSpec;
+  /**
+   * ATTACK Setup-bucket mark read (T-042). Independent of Mode ON.
+   * `consume` default false — lectura unless explicitly declared.
+   */
+  setupRead?: SetupReadSpec;
 
   // DECKBUILDER / AP ECONOMY (T-004)
   // Prefer explicit apCost on every playable skill; fallback in combatCards.ts.

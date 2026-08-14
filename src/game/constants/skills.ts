@@ -1608,9 +1608,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'mind_destruction',
     name: 'Mind Body Disturbance',
     tier: SkillTier.ADVANCED,
-    description: 'Sends chakra into the opponent\'s nervous system to confuse their movement. MENTAL damage, causes confusion.',
+    description:
+      '15 mental. 65% Confusion 2. If Read Mind is active: +50% Setup damage (does not consume the reading). No Mode.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    apCost: 3,
     chakraCost: 6,
     hpCost: 0,
     cooldown: 4,
@@ -1623,13 +1625,14 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.PIERCING, // Pierces mental flat def
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    controlConfusion: { chance: 0.65, enemyDuration: 2 },
+    setupRead: { markId: 'read_mind', damageMultBonus: 0.5, consume: false },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.CALMNESS]: 2,
       },
     },
-    effects: [{ type: EffectType.CONFUSION, duration: 3, chance: 1.0 }],
     image: '/assets/skills/skill_mind_body_disturbing.png'
   },
 

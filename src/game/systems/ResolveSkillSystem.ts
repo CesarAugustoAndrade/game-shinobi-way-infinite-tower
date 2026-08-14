@@ -765,6 +765,10 @@ export function resolveSkill(
     if (markMult !== 1 && hitsLanded > 0) {
       damageDealt = Math.floor(damageDealt * markMult);
     }
+    const setup = skill.setupRead;
+    if (setup && hitsLanded > 0 && hasEnemyMark(next.marks, setup.markId)) {
+      damageDealt = Math.floor(damageDealt * (1 + setup.damageMultBonus));
+    }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {
       perHitApplied = multi.perHitProcs;
@@ -783,6 +787,23 @@ export function resolveSkill(
         ),
       };
     }
+    if (skill.setupRead?.consume === true) {
+      const consumeId = skill.setupRead.markId;
+      next = {
+        ...next,
+        marks: next.marks.filter(
+          (mark) => !(mark.id === consumeId && mark.target === CombatActor.ENEMY),
+        ),
+      };
+    }
+  }
+
+  if (
+    (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) &&
+    hitsLanded >= 1 &&
+    skill.controlConfusion
+  ) {
+    next = resolveConfusionSupport(skill, next, ports.rng ?? (() => 0));
   }
 
   if (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) {

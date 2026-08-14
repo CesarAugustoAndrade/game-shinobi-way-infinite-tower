@@ -68,6 +68,7 @@ import { printSmokeBombProbe, runSmokeBombProbe } from './SmokeBombBalance';
 import { printSharinganPredictProbe, runSharinganPredictProbe } from './SharinganPredictBalance';
 import { printGatePrepSupportProbe, runGatePrepSupportProbe } from './GatePrepSupportBalance';
 import { printFalseSurroundingsProbe, runFalseSurroundingsProbe } from './FalseSurroundingsBalance';
+import { printMindDestructionProbe, runMindDestructionProbe } from './MindDestructionBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -482,6 +483,7 @@ async function main() {
     printSharinganPredictProbe(runSharinganPredictProbe());
     printGatePrepSupportProbe(runGatePrepSupportProbe());
     printFalseSurroundingsProbe(runFalseSurroundingsProbe());
+    printMindDestructionProbe(runMindDestructionProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
