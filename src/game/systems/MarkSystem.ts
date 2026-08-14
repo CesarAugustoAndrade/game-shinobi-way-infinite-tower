@@ -108,6 +108,28 @@ export function consumeOnAttempt(
   );
 }
 
+/**
+ * Next enemy offensive under Fear: ×(1 − stacks/100) once, then strip the mark.
+ * Live EnemyTurn wiring is optional; this is the R0 contract (T-037).
+ */
+export function applyFearOutgoing(
+  damage: number,
+  marks: readonly Mark[],
+): { damage: number; marks: Mark[]; consumed: boolean } {
+  const fear = marks.find((mark) => mark.id === 'fear' && mark.target === CombatActor.ENEMY);
+  if (!fear) {
+    return { damage, marks: marks.map((mark) => ({ ...mark })), consumed: false };
+  }
+  const pct = (fear.stacks ?? 20) / 100;
+  return {
+    damage: Math.floor(damage * (1 - pct)),
+    marks: marks
+      .filter((mark) => !(mark.id === 'fear' && mark.target === CombatActor.ENEMY))
+      .map((mark) => ({ ...mark })),
+    consumed: true,
+  };
+}
+
 /** IMPACT marks on the target spent only when ≥1 hit landed. */
 export function consumeOnImpact(
   setup: TacticalSetup,

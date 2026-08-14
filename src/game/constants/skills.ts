@@ -1561,34 +1561,38 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'hell_viewing',
     name: 'Hell Viewing Technique',
     tier: SkillTier.ADVANCED,
-    description: 'A Genjutsu that reveals the target\'s worst fears. MENTAL damage bypasses physical defense, resisted by Calmness.',
+    description:
+      '18 mental. Plants Fear 1: the next enemy action deals −20% damage. No Mode required.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
     apCost: 2,
     chakraCost: 6,
     hpCost: 0,
     cooldown: 4,
     currentCooldown: 0,
     baseDamage: 18,
-
     scalingPerPoint: 4,
     scalingStat: PrimaryStat.CALMNESS,
-    damageType: DamageType.MENTAL, // Uses Mental Defense!
+    damageType: DamageType.MENTAL,
     damageProperty: DamageProperty.NORMAL,
-    attackMethod: AttackMethod.AUTO, // Genjutsu auto-hits
+    attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    markEffects: [
+      {
+        id: 'fear',
+        duration: 1,
+        stacks: 20,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+        perHit: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.CALMNESS]: 2,
       },
     },
-    effects: [{
-      type: EffectType.DEBUFF,
-      targetStat: PrimaryStat.STRENGTH,
-      value: 0.3,
-      duration: 3,
-      chance: 1.0
-    }]
   },
 
   MIND_DESTRUCTION: {
