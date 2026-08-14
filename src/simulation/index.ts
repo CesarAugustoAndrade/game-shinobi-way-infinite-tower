@@ -76,6 +76,7 @@ import { printKaiProbe, runKaiProbe } from './KaiBalance';
 import { printAnalyzeProbe, runAnalyzeProbe } from './AnalyzeBalance';
 import { printKunaiSlashProbe, runKunaiSlashProbe } from './KunaiSlashBalance';
 import { printKunaiThrowProbe, runKunaiThrowProbe } from './KunaiThrowBalance';
+import { printFeintStrikeProbe, runFeintStrikeProbe } from './FeintStrikeBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -498,6 +499,7 @@ async function main() {
     printAnalyzeProbe(runAnalyzeProbe());
     printKunaiSlashProbe(runKunaiSlashProbe());
     printKunaiThrowProbe(runKunaiThrowProbe());
+    printFeintStrikeProbe(runFeintStrikeProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

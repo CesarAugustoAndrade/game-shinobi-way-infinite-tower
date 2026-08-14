@@ -437,9 +437,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'feint_strike',
     name: 'Feint Strike',
     tier: SkillTier.BASIC,
-    description: 'A deceptive attack that cannot be evaded.',
+    description: '7 AUTO at CLOSE. Feint 2: next ATTACK gains +15 impact. SIDE setup chip.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PHYSICAL],
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -449,8 +451,19 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     scalingStat: PrimaryStat.DEXTERITY,
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
-    attackMethod: AttackMethod.AUTO,  // Cannot be evaded
-    element: ElementType.PHYSICAL
+    attackMethod: AttackMethod.AUTO,
+    element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE],
+    markEffects: [
+      {
+        id: 'feint',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   COUNTER_STANCE: {

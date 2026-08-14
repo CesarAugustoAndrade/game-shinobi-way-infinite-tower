@@ -701,7 +701,11 @@ export function resolveSkill(
     ? consumeOnAttempt(
         next.marks,
         CombatActor.PLAYER,
-        (mark) => mark.id !== 'lotus_opening' || isGatesFinisher(skill),
+        (mark) => {
+          if (mark.id === 'lotus_opening') return isGatesFinisher(skill);
+          if (mark.id === 'feint') return role === CardRole.ATTACK;
+          return true;
+        },
       )
     : { marks: next.marks, spent: [] as Mark[] };
   next = { ...next, marks: afterAttempt.marks };
@@ -883,6 +887,9 @@ export function resolveSkill(
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'shunshin_dex')) {
       damageDealt +=
         skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
+    }
+    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'feint')) {
+      damageDealt += 15;
     }
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'lotus_opening')) {
       damageDealt = Math.floor(damageDealt * 1.25);
