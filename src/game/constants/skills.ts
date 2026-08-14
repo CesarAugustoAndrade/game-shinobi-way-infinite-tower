@@ -1311,23 +1311,31 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'fireball',
     name: 'Katon: Great Fireball',
     tier: SkillTier.ADVANCED,
-    description: 'A massive, searing projectile of flame. Leaves the target burning.',
+    description:
+      'Base Fireball 17 + Burn 5×2. Legal at MEDIUM or LONG. With Sharingan 2-Tomoe ON: +50% damage and consume 1 charge at attempt.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
-    stanceShift: Posture.AGGRESSIVE,  // unleashing a fire nuke pushes you onto the attack
+    cardRole: CardRole.ATTACK,
+    apCost: 3,
+    stanceShift: Posture.AGGRESSIVE,
     stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     chakraCost: 6,
     hpCost: 0,
     cooldown: 3,
     currentCooldown: 0,
-    baseDamage: 15,
-
+    baseDamage: 17,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.FIRE,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    modeInteraction: {
+      modeId: 'sharingan_2',
+      family: MODE_FAMILY.SHARINGAN,
+      consumeCharges: 1,
+      damageMultBonus: 0.5,
+    },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
@@ -1336,9 +1344,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     },
     effects: [{
       type: EffectType.BURN,
-      value: 15,
-      duration: 3,
-      chance: 0.8,
+      value: 5,
+      duration: 2,
+      chance: 1.0,
       damageType: DamageType.ELEMENTAL,
       damageProperty: DamageProperty.NORMAL
     }]
