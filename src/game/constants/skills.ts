@@ -1480,8 +1480,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'gentle_fist',
     name: 'Gentle Fist',
     tier: SkillTier.ADVANCED,
-    description: 'Precise strikes to chakra points. True damage + Chakra Drain.',
+    description:
+      '12 damage at CLOSE. Hyuga Main. With Byakugan ON: spend 1 charge, +40%. On hit, consume up to 2 Chakra Points: +10% and drain 4 enemy chakra each.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
     apCost: 2,
     chakraCost: 4,
     hpCost: 0,
@@ -1495,12 +1497,24 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE],
+    modeInteraction: {
+      modeId: 'byakugan',
+      family: MODE_FAMILY.HYUGA,
+      consumeCharges: 1,
+      damageMultBonus: 0.4,
+    },
+    impactMarkConsume: {
+      markId: 'chakra_point',
+      maxStacks: 2,
+      damageMultPerStack: 0.1,
+      drainChakraPerStack: 4,
+    },
     requirements: {
       stats: {
         [PrimaryStat.ACCURACY]: 2,
       },
     },
-    effects: [{ type: EffectType.CHAKRA_DRAIN, value: 20, duration: 1, chance: 1.0 }]
   },
 
   SHARINGAN_2TOMOE: {

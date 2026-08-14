@@ -98,6 +98,8 @@ export interface ResolveSkillState {
   enemyBuffs?: Buff[];
   enemyModeUpkeepPriority?: string[];
   enemyHp: number;
+  /** Optional enemy chakra pool (T-045 Gentle Fist drain). */
+  enemyChakra?: number;
   skipFirstSkillCost?: boolean;
   playerMoveUsedThisTurn?: boolean;
   reactionSources?: readonly RangeReactionDef[];
@@ -201,6 +203,7 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
     skills: state.skills.map((skill) => ({ ...skill })),
     playerBuffs: state.playerBuffs.map((buff) => ({ ...buff })),
     enemyHp: state.enemyHp,
+    enemyChakra: state.enemyChakra,
     skipFirstSkillCost: state.skipFirstSkillCost,
     playerMoveUsedThisTurn: state.playerMoveUsedThisTurn,
     reactionSources: state.reactionSources?.map((entry) => ({ ...entry })),
@@ -302,6 +305,30 @@ function enemyMarkStacks(marks: readonly Mark[], markId: string): number {
       mark.id === markId && mark.target === CombatActor.ENEMY ? sum + mark.stacks : sum,
     0,
   );
+}
+
+/** Consume up to `maxStacks` of an enemy mark. Remaining stacks stay. */
+function consumeEnemyMarkStacks(
+  marks: readonly Mark[],
+  markId: string,
+  maxStacks: number,
+): { marks: Mark[]; consumed: number } {
+  let remaining = Math.max(0, maxStacks);
+  let consumed = 0;
+  const next: Mark[] = [];
+  for (const mark of marks) {
+    if (remaining <= 0 || mark.id !== markId || mark.target !== CombatActor.ENEMY) {
+      next.push({ ...mark });
+      continue;
+    }
+    const take = Math.min(mark.stacks, remaining);
+    remaining -= take;
+    consumed += take;
+    if (mark.stacks - take > 0) {
+      next.push({ ...mark, stacks: mark.stacks - take });
+    }
+  }
+  return { marks: next, consumed };
 }
 
 /** StatSystem-style: outgoing *= (1 - defensePercent * (1 - pen)). Def 0 is identity. */
@@ -770,9 +797,16 @@ export function resolveSkill(
     if (intent.enhanced && hitsLanded > 0 && !ports.rollHit) {
       damageDealt += Math.floor(Math.max(0, skill.baseDamage) * 0.5) * hitsLanded;
     }
-    if (modeDamageBonus > 0 && hitsLanded > 0) {
-      damageDealt = Math.floor(damageDealt * (1 + modeDamageBonus));
-      if ((skill.penetration ?? 0) > 0) {
+    const impactSpec = skill.impactMarkConsume;
+    const cpStacksConsumed =
+      impactSpec && hitsLanded > 0
+        ? Math.min(impactSpec.maxStacks, enemyMarkStacks(next.marks, impactSpec.markId))
+        : 0;
+    if (hitsLanded > 0 && (modeDamageBonus > 0 || cpStacksConsumed > 0)) {
+      const modeMult = 1 + modeDamageBonus;
+      const cpMult = 1 + (impactSpec?.damageMultPerStack ?? 0) * cpStacksConsumed;
+      damageDealt = Math.floor(damageDealt * modeMult * cpMult);
+      if (modeDamageBonus > 0 && (skill.penetration ?? 0) > 0) {
         damageDealt = applySkillPenetration(damageDealt, skill.penetration ?? 0);
       }
     }
@@ -798,9 +832,29 @@ export function resolveSkill(
   }
 
   if (hitsLanded >= 1) {
-    const afterImpact = consumeOnImpact(next.marks, CombatActor.ENEMY, hitsLanded);
-    next = { ...next, marks: afterImpact.marks };
+    const skipImpactId = skill.impactMarkConsume?.markId;
+    const impactPool = skipImpactId
+      ? next.marks.filter((mark) => mark.id !== skipImpactId)
+      : next.marks;
+    const reserved = skipImpactId
+      ? next.marks.filter((mark) => mark.id === skipImpactId)
+      : [];
+    const afterImpact = consumeOnImpact(impactPool, CombatActor.ENEMY, hitsLanded);
+    next = { ...next, marks: [...afterImpact.marks, ...reserved.map((mark) => ({ ...mark }))] };
     impactSpent = afterImpact.spent;
+    if (skill.impactMarkConsume) {
+      const taken = consumeEnemyMarkStacks(
+        next.marks,
+        skill.impactMarkConsume.markId,
+        skill.impactMarkConsume.maxStacks,
+      );
+      const drain = (skill.impactMarkConsume.drainChakraPerStack ?? 0) * taken.consumed;
+      next = {
+        ...next,
+        marks: taken.marks,
+        enemyChakra: Math.max(0, (next.enemyChakra ?? 0) - drain),
+      };
+    }
     if (mi?.consumeAllMatchingMarks && mi.requireMarkId) {
       next = {
         ...next,

@@ -71,6 +71,7 @@ import { printFalseSurroundingsProbe, runFalseSurroundingsProbe } from './FalseS
 import { printMindDestructionProbe, runMindDestructionProbe } from './MindDestructionBalance';
 import { printShunshinProbe, runShunshinProbe } from './ShunshinBalance';
 import { printDancingLeafProbe, runDancingLeafProbe } from './DancingLeafBalance';
+import { printGentleFistProbe, runGentleFistProbe } from './GentleFistBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -488,6 +489,7 @@ async function main() {
     printMindDestructionProbe(runMindDestructionProbe());
     printShunshinProbe(runShunshinProbe());
     printDancingLeafProbe(runDancingLeafProbe());
+    printGentleFistProbe(runGentleFistProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

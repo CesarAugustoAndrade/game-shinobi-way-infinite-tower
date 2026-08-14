@@ -823,6 +823,16 @@ export interface Skill {
   nextDrawMentalAttackBonus?: number;
   /** One-shot next-draw skillId weights (T-044 Dancing Leaf = LOTUS +2). */
   nextDrawSkillBonuses?: { skillId: string; delta: number }[];
+  /**
+   * ATTACK impact consume of an enemy mark, capped (T-045 Gentle Fist: ≤2 CP).
+   * Applied only on ≥1 hit. Distinct from consumeAllMatchingMarks.
+   */
+  impactMarkConsume?: {
+    markId: string;
+    maxStacks: number;
+    damageMultPerStack: number;
+    drainChakraPerStack?: number;
+  };
   /** Forced band shift after resolve (Wire PULL / Blastback PUSH / Backstep retreat). */
   bandMove?: BandMoveSpec;
   modeInteraction?: ModeInteraction;

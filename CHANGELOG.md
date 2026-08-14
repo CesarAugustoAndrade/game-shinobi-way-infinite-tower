@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-045 Gentle Fist:** ATTACK AP2/CP4/CD2 CLOSE 12. Byakugan ON: spend 1 charge +40%. On hit, consume up to 2 Chakra Points (+10% and drain 4 each). CHAKRA_DRAIN 20% packaging removed.
 - **T-044 Dancing Leaf:** SUPPORT AP1/CP1/CD3. Snaps to CLOSE without spending the manual move. Lotus Opening 2: +25% next GATES finisher. LOTUS weight +2 next draw. STR/DEX % packaging removed.
 - **T-043 Shunshin:** SUPPORT AP1/CP4/CD3. One chosen band step without spending the manual move. Next Offensive +1 DEX (`shunshin_dex` ATTEMPT). SPEED +40% packaging removed.
 - **T-042 Mind Destruction:** ATTACK AP3/CP6/CD4. 15 mental + 65% Confusion 2. Enemy Read Mind → +50% Setup damage without consuming the mark. No Mode.
