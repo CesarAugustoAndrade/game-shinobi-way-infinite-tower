@@ -273,8 +273,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'kai',
     name: 'Release',
     tier: SkillTier.BASIC,
-    description: 'Disrupts chakra flow to break illusions. Boosts Genjutsu Resistance.',
+    description:
+      'Cleanse player Confusion and Silence plus one hostile MENTAL mark. If anything is removed, recover 3 CP.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 1,
     stanceShift: Posture.BALANCED,  // releasing the technique re-centers your stance
     stanceBonus: { posture: Posture.BALANCED, apDiscount: 1 },
@@ -289,7 +291,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.CALMNESS, value: 0.5, duration: 3, chance: 1.0 }]
+    supportCleanse: {
+      confusion: true,
+      silence: true,
+      oneHostileMentalMark: true,
+      refundChakra: 3,
+    },
   },
 
   // ==========================================

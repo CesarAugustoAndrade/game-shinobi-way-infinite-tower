@@ -77,9 +77,11 @@ export function getSkillBlockReason(ctx: SkillPlayContext): SkillBlockReason {
   }
 
   // Silence keys off base chakraCost — FREE_FIRST does not waive the silence gate.
+  // Kai (supportCleanse.silence) must remain playable so Release can strip Silence.
   if (
     activeBuffs.some((b) => b?.effect?.type === EffectType.SILENCE) &&
-    skill.chakraCost > 0
+    skill.chakraCost > 0 &&
+    !skill.supportCleanse?.silence
   ) {
     return 'silence';
   }

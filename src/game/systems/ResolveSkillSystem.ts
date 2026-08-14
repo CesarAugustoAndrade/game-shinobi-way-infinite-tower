@@ -16,6 +16,7 @@ import {
   EffectType,
   Mark,
   MarkConsumeTiming,
+  MarkFamily,
   ModeDefinition,
   PrimaryStat,
   ModeRuntimeState,
@@ -424,6 +425,47 @@ function confusionControlBuff(sourceId: string, duration: number): Buff {
   };
 }
 
+/** Player-targeted mental/control marks Kai may strip (one, first match). */
+export const KAI_HOSTILE_MENTAL_MARK_IDS: readonly string[] = ['mental_bind', 'fear'];
+
+function isHostileMentalMark(mark: Mark): boolean {
+  if (mark.target !== CombatActor.PLAYER) return false;
+  if (KAI_HOSTILE_MENTAL_MARK_IDS.includes(mark.id)) return true;
+  return mark.family === MarkFamily.HARD_CONTROL;
+}
+
+function resolveSupportCleanse(skill: Skill, state: ResolveSkillState): ResolveSkillState {
+  const spec = skill.supportCleanse;
+  if (!spec) return state;
+  let removed = false;
+  let playerBuffs = [...(state.playerBuffs ?? [])];
+  if (spec.confusion) {
+    const next = playerBuffs.filter((buff) => buff.effect.type !== EffectType.CONFUSION);
+    if (next.length !== playerBuffs.length) removed = true;
+    playerBuffs = next;
+  }
+  if (spec.silence) {
+    const next = playerBuffs.filter((buff) => buff.effect.type !== EffectType.SILENCE);
+    if (next.length !== playerBuffs.length) removed = true;
+    playerBuffs = next;
+  }
+  let marks = state.marks.map((mark) => ({ ...mark }));
+  if (spec.oneHostileMentalMark) {
+    const idx = marks.findIndex(isHostileMentalMark);
+    if (idx >= 0) {
+      marks = marks.filter((_, i) => i !== idx);
+      removed = true;
+    }
+  }
+  const refund = removed ? (spec.refundChakra ?? 0) : 0;
+  return {
+    ...state,
+    playerBuffs,
+    marks,
+    pools: refund > 0 ? { ...state.pools, chakra: state.pools.chakra + refund } : { ...state.pools },
+  };
+}
+
 /** SUPPORT Confusion: rng() < chance → enemy Confusion. Fail applies nothing. */
 function resolveConfusionSupport(
   skill: Skill,
@@ -771,6 +813,9 @@ export function resolveSkill(
     }
     if (skill.controlConfusion) {
       next = resolveConfusionSupport(skill, next, ports.rng ?? (() => 0));
+    }
+    if (skill.supportCleanse) {
+      next = resolveSupportCleanse(skill, next);
     }
     if ((mi?.restoreCharges ?? 0) > 0) {
       const boundId = bindLiveModeId(next.modes, mi);

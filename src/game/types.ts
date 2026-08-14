@@ -852,6 +852,16 @@ export interface Skill {
    * `consume` default false — lectura unless explicitly declared.
    */
   setupRead?: SetupReadSpec;
+  /**
+   * SUPPORT cleanse (T-046 Kai). Strip player Confusion/Silence and one hostile
+   * MENTAL mark; refund `refundChakra` if anything was removed.
+   */
+  supportCleanse?: {
+    confusion?: boolean;
+    silence?: boolean;
+    oneHostileMentalMark?: boolean;
+    refundChakra?: number;
+  };
 
   // DECKBUILDER / AP ECONOMY (T-004)
   // Prefer explicit apCost on every playable skill; fallback in combatCards.ts.
