@@ -346,6 +346,31 @@ export function trySpendCharges(
   };
 }
 
+/** Restore charges on an ON Mode. Never exceeds maxCharges. Does not revive COOLDOWN. */
+export function tryRestoreCharges(
+  board: ModeBoard,
+  modeId: string,
+  n: number,
+): ModeOpResult {
+  const current = onModes(board).find((mode) => mode.id === modeId);
+  const def = getModeDefinition(modeId);
+  if (!current || !def) {
+    return { ok: false, board: cloneBoard(board), pools: { ap: 0, chakra: 0, hp: 0 }, reason: 'not-on' };
+  }
+  const nextCharges = Math.min(def.maxCharges, current.charges + Math.max(0, n));
+  return {
+    ok: true,
+    board: {
+      instances: board.instances.map((mode) =>
+        mode.id === modeId && (mode.state === ModeRuntimeState.ON || mode.state === undefined)
+          ? { ...mode, charges: nextCharges }
+          : { ...mode },
+      ),
+    },
+    pools: { ap: 0, chakra: 0, hp: 0 },
+  };
+}
+
 /** Explicit charge drain can end an enemy Mode. */
 export function drainCharges(
   board: ModeBoard,

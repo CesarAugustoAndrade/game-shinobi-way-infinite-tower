@@ -2117,8 +2117,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'sharingan_predict',
     name: 'Sharingan: Predict',
     tier: SkillTier.HIDDEN,
-    description: 'See enemy\'s next move. +25% Evasion.',
+    description:
+      'Requires Sharingan ON. Read Window 1: next enemy offensive −30 impact. Restore 1 charge without overcap.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 1,
     chakraCost: 3,
     hpCost: 0,
@@ -2131,6 +2133,21 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    modeInteraction: {
+      family: MODE_FAMILY.SHARINGAN,
+      requireFamily: MODE_FAMILY.SHARINGAN,
+      requireOn: true,
+      restoreCharges: 1,
+    },
+    markEffects: [
+      {
+        id: 'read_window',
+        duration: 1,
+        stacks: 30,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
@@ -2138,7 +2155,6 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       },
       clan: Clan.UCHIHA,
     },
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.25, duration: 2, chance: 1.0 }]
   },
 
   BYAKUGAN_SCAN: {

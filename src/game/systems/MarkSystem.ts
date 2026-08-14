@@ -109,6 +109,28 @@ export function consumeOnAttempt(
 }
 
 /**
+ * Next enemy offensive under Read Window: subtract stacks (default 30) once, then strip.
+ * Live EnemyTurn wiring is optional; this is the R0 contract (T-039).
+ */
+export function applyReadWindowOutgoing(
+  damage: number,
+  marks: readonly Mark[],
+): { damage: number; marks: Mark[]; consumed: boolean } {
+  const window = marks.find((mark) => mark.id === 'read_window' && mark.target === CombatActor.ENEMY);
+  if (!window) {
+    return { damage, marks: marks.map((mark) => ({ ...mark })), consumed: false };
+  }
+  const cut = window.stacks ?? 30;
+  return {
+    damage: Math.max(0, damage - cut),
+    marks: marks
+      .filter((mark) => !(mark.id === 'read_window' && mark.target === CombatActor.ENEMY))
+      .map((mark) => ({ ...mark })),
+    consumed: true,
+  };
+}
+
+/**
  * First enemy offensive under Smoke: subtract stacks (default 25) once, then strip.
  * Live EnemyTurn wiring is optional; this is the R0 contract (T-038).
  */

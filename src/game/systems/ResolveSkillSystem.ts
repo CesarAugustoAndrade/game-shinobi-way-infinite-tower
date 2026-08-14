@@ -37,6 +37,7 @@ import {
   lateralSwap,
   manualOff,
   pickEnemyModeToDrain,
+  tryRestoreCharges,
   trySpendCharges,
   type FamilyTransition,
   type ModeBoard,
@@ -693,6 +694,13 @@ export function resolveSkill(
     }
     if (skill.controlStun) {
       next = resolveControlSupport(skill, next, ports.rng ?? (() => 0));
+    }
+    if ((mi?.restoreCharges ?? 0) > 0) {
+      const boundId = bindLiveModeId(next.modes, mi);
+      if (boundId) {
+        const restored = tryRestoreCharges(next.modes, boundId, mi?.restoreCharges ?? 0);
+        if (restored.ok) next = { ...next, modes: restored.board };
+      }
     }
   } else {
     const rollHit =

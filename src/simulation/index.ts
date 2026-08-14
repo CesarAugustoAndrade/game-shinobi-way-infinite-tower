@@ -65,6 +65,7 @@ import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPal
 import { printMindTransferProbe, runMindTransferProbe } from './MindTransferBalance';
 import { printHellViewingProbe, runHellViewingProbe } from './HellViewingBalance';
 import { printSmokeBombProbe, runSmokeBombProbe } from './SmokeBombBalance';
+import { printSharinganPredictProbe, runSharinganPredictProbe } from './SharinganPredictBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -476,6 +477,7 @@ async function main() {
     printMindTransferProbe(runMindTransferProbe());
     printHellViewingProbe(runHellViewingProbe());
     printSmokeBombProbe(runSmokeBombProbe());
+    printSharinganPredictProbe(runSharinganPredictProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

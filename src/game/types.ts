@@ -451,6 +451,8 @@ export interface ModeInteraction {
   modeId?: string;
   family?: string;
   consumeCharges?: number;
+  /** Restore n charges on the bound ON Mode (Predict). Never overcaps. */
+  restoreCharges?: number;
   requireOn?: boolean;
   /** Require any ON Mode of this family (Primary Lotus = GATES, Life or Limit). */
   requireFamily?: string;
