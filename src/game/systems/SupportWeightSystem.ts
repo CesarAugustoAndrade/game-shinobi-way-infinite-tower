@@ -8,6 +8,8 @@ import { CardRole } from '../types';
 export interface PendingSupportWeight {
   skillId?: string;
   role?: CardRole;
+  /** T-041: one-shot MENTAL ATTACK weight. */
+  kind?: 'mental-attack';
   delta: number;
 }
 
@@ -31,10 +33,12 @@ export function consumeSupportWeightBonuses(
 ): {
   bonuses: Readonly<Record<string, number>>;
   roleBonuses: Readonly<Partial<Record<CardRole, number>>>;
+  mentalAttackBonus: number;
   bag: PendingSupportWeight[];
 } {
   const bonuses: Record<string, number> = {};
   const roleBonuses: Partial<Record<CardRole, number>> = {};
+  let mentalAttackBonus = 0;
   for (const entry of bag) {
     if (entry.skillId) {
       bonuses[entry.skillId] = (bonuses[entry.skillId] ?? 0) + entry.delta;
@@ -42,8 +46,11 @@ export function consumeSupportWeightBonuses(
     if (entry.role) {
       roleBonuses[entry.role] = (roleBonuses[entry.role] ?? 0) + entry.delta;
     }
+    if (entry.kind === 'mental-attack') {
+      mentalAttackBonus += entry.delta;
+    }
   }
-  return { bonuses, roleBonuses, bag: [] };
+  return { bonuses, roleBonuses, mentalAttackBonus, bag: [] };
 }
 
 /**
@@ -51,9 +58,16 @@ export function consumeSupportWeightBonuses(
  * Does not mutate skill.baseWeight.
  */
 export function applySupportWeightOnPlay(
-  skill: { id: string; nextDrawRoleBonus?: { role: CardRole; delta: number } },
+  skill: {
+    id: string;
+    nextDrawRoleBonus?: { role: CardRole; delta: number };
+    nextDrawMentalAttackBonus?: number;
+  },
   ctx: SupportWeightPlayContext = {},
 ): PendingSupportWeight[] {
+  if (skill.nextDrawMentalAttackBonus) {
+    return [{ kind: 'mental-attack', delta: skill.nextDrawMentalAttackBonus }];
+  }
   if (skill.nextDrawRoleBonus) {
     return [{ role: skill.nextDrawRoleBonus.role, delta: skill.nextDrawRoleBonus.delta }];
   }

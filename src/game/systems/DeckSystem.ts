@@ -9,7 +9,7 @@
  * Injected `rng` — live callers pass Math.random.
  */
 
-import { ActionType, CardRole, ElementType, Posture, Skill, SkillTag } from '../types';
+import { ActionType, CardRole, DamageType, ElementType, Posture, Skill, SkillTag } from '../types';
 import { LaunchProperties } from '../../config/featureFlags';
 import { defaultBaseWeight, resolveCardRole, type RoleAuthoringMap } from './CardContractSystem';
 import { isSkillReadyOnTurn } from './TurnClockSystem';
@@ -25,6 +25,8 @@ export interface WeightContext {
   supportBonuses?: Readonly<Record<string, number>>;
   /** One-shot next-draw bonuses by cardRole (T-038 Smoke SIDE +1). */
   supportRoleBonuses?: Readonly<Partial<Record<CardRole, number>>>;
+  /** One-shot next-draw bonus for ATTACK + MENTAL damageType (T-041). */
+  supportMentalAttackBonus?: number;
   authoringMap?: RoleAuthoringMap;
 }
 
@@ -94,12 +96,23 @@ export function effectiveWeight(skill: Skill, ctx: WeightContext): number {
   const modeBonus = ctx.modeBonuses?.[skill.id] ?? 0;
   const supportBonus = ctx.supportBonuses?.[skill.id] ?? 0;
   const roleSupportBonus = role ? (ctx.supportRoleBonuses?.[role] ?? 0) : 0;
+  const mentalAttackBonus =
+    role === CardRole.ATTACK && skill.damageType === DamageType.MENTAL
+      ? (ctx.supportMentalAttackBonus ?? 0)
+      : 0;
   const activeSelf =
     role === CardRole.MODE && (ctx.activeModeIds ?? []).includes(skill.id) ? 1 : 0;
   const cooldownPenalty = isOnCooldown(skill, ctx) ? 1 : 0;
   return Math.max(
     1,
-    base + postureBonus + modeBonus + supportBonus + roleSupportBonus - activeSelf - cooldownPenalty,
+    base +
+      postureBonus +
+      modeBonus +
+      supportBonus +
+      roleSupportBonus +
+      mentalAttackBonus -
+      activeSelf -
+      cooldownPenalty,
   );
 }
 

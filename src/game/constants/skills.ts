@@ -2505,8 +2505,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'false_surroundings',
     name: 'False Surroundings',
     tier: SkillTier.HIDDEN,
-    description: 'Alters the perception of the environment. MENTAL damage with high confusion chance.',
+    description:
+      '75% Confusion 2 and Read Mind 2. MENTAL ATTACK weight +1 next draw. No Terrain. No Mode.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.GENJUTSU, SkillTag.MENTAL],
     apCost: 2,
     chakraCost: 8,
     hpCost: 0,
@@ -2519,13 +2522,22 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    controlConfusion: { chance: 0.75, enemyDuration: 2 },
+    nextDrawMentalAttackBonus: 1,
+    markEffects: [
+      {
+        id: 'read_mind',
+        duration: 2,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
         [PrimaryStat.CALMNESS]: 3,
       },
     },
-    effects: [{ type: EffectType.CONFUSION, duration: 3, chance: 0.8 }]
   },
 
   TEMPLE_NIRVANA: {

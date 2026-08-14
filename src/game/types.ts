@@ -780,6 +780,12 @@ export interface ControlStunSpec {
   failSelfDuration: number;
 }
 
+/** SUPPORT control roll (False Surroundings): chance enemy Confusion; no fail self. */
+export interface ControlConfusionSpec {
+  chance: number;
+  enemyDuration: number;
+}
+
 export interface Skill {
   id: string;
   name: string;
@@ -802,6 +808,8 @@ export interface Skill {
   markEffects?: MarkSpec[];
   /** One-shot next-draw role weight (T-038 Smoke = SIDE_ATTACK +1). */
   nextDrawRoleBonus?: { role: CardRole; delta: number };
+  /** One-shot next-draw MENTAL ATTACK weight (T-041 False Surroundings). */
+  nextDrawMentalAttackBonus?: number;
   /** Forced band shift after resolve (Wire PULL / Blastback PUSH / Backstep retreat). */
   bandMove?: BandMoveSpec;
   modeInteraction?: ModeInteraction;
@@ -811,6 +819,10 @@ export interface Skill {
    * `rng() < chance` → enemy STUN `enemyDuration`; else self STUN `failSelfDuration`.
    */
   controlStun?: ControlStunSpec;
+  /**
+   * SUPPORT Confusion (T-041). `rng() < chance` → enemy CONFUSION `enemyDuration`.
+   */
+  controlConfusion?: ControlConfusionSpec;
 
   // DECKBUILDER / AP ECONOMY (T-004)
   // Prefer explicit apCost on every playable skill; fallback in combatCards.ts.

@@ -379,6 +379,33 @@ function stunControlBuff(sourceId: string, duration: number, side: 'enemy' | 'se
   };
 }
 
+function confusionControlBuff(sourceId: string, duration: number): Buff {
+  return {
+    id: `confusion-${sourceId}`,
+    name: 'Confusion',
+    duration,
+    effect: { type: EffectType.CONFUSION, duration, chance: 1 },
+    source: sourceId,
+  };
+}
+
+/** SUPPORT Confusion: rng() < chance → enemy Confusion. Fail applies nothing. */
+function resolveConfusionSupport(
+  skill: Skill,
+  state: ResolveSkillState,
+  rng: () => number,
+): ResolveSkillState {
+  const spec = skill.controlConfusion;
+  if (!spec) return state;
+  if (rng() < spec.chance) {
+    return {
+      ...state,
+      enemyBuffs: [...(state.enemyBuffs ?? []), confusionControlBuff(skill.id, spec.enemyDuration)],
+    };
+  }
+  return state;
+}
+
 /** SUPPORT control: rng() < chance → enemy stun; else self stun. Never deals damage. */
 function resolveControlSupport(
   skill: Skill,
@@ -699,6 +726,9 @@ export function resolveSkill(
     }
     if (skill.controlStun) {
       next = resolveControlSupport(skill, next, ports.rng ?? (() => 0));
+    }
+    if (skill.controlConfusion) {
+      next = resolveConfusionSupport(skill, next, ports.rng ?? (() => 0));
     }
     if ((mi?.restoreCharges ?? 0) > 0) {
       const boundId = bindLiveModeId(next.modes, mi);
