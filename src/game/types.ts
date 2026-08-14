@@ -821,6 +821,8 @@ export interface Skill {
   nextDrawRoleBonus?: { role: CardRole; delta: number };
   /** One-shot next-draw MENTAL ATTACK weight (T-041 False Surroundings). */
   nextDrawMentalAttackBonus?: number;
+  /** One-shot next-draw skillId weights (T-044 Dancing Leaf = LOTUS +2). */
+  nextDrawSkillBonuses?: { skillId: string; delta: number }[];
   /** Forced band shift after resolve (Wire PULL / Blastback PUSH / Backstep retreat). */
   bandMove?: BandMoveSpec;
   modeInteraction?: ModeInteraction;

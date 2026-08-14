@@ -24,7 +24,7 @@ import {
   Skill,
 } from '../types';
 import { getApCost } from '../constants/combatCards';
-import { getModeDefinition } from '../constants/modes';
+import { getModeDefinition, MODE_FAMILY } from '../constants/modes';
 import {
   isHandPlayableRole,
   resolveCardRole,
@@ -350,6 +350,13 @@ function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   return mult;
 }
 
+function isGatesFinisher(skill: Skill): boolean {
+  const mi = skill.modeInteraction;
+  if (!mi) return false;
+  const family = mi.requireFamily ?? mi.family;
+  return family === MODE_FAMILY.GATES && (mi.consumeAllCharges === true || Boolean(mi.requireOn));
+}
+
 function skillForcedMove(skill: Skill): { kind: 'PUSH' | 'PULL' } | undefined {
   const spec = skill.bandMove;
   if (!spec) return undefined;
@@ -605,7 +612,11 @@ export function resolveSkill(
 
   const isOffensive = role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK;
   const afterAttempt = isOffensive
-    ? consumeOnAttempt(next.marks, CombatActor.PLAYER)
+    ? consumeOnAttempt(
+        next.marks,
+        CombatActor.PLAYER,
+        (mark) => mark.id !== 'lotus_opening' || isGatesFinisher(skill),
+      )
     : { marks: next.marks, spent: [] as Mark[] };
   next = { ...next, marks: afterAttempt.marks };
 
@@ -776,6 +787,9 @@ export function resolveSkill(
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'shunshin_dex')) {
       damageDealt +=
         skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
+    }
+    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'lotus_opening')) {
+      damageDealt = Math.floor(damageDealt * 1.25);
     }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {

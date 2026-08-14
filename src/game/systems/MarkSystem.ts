@@ -101,10 +101,12 @@ function spendMarks(
 export function consumeOnAttempt(
   setup: TacticalSetup,
   actor: CombatActor,
+  allow: (mark: Mark) => boolean = () => true,
 ): { marks: Mark[]; spent: Mark[] } {
   return spendMarks(
     setup,
-    (mark) => mark.owner === actor && mark.consume === MarkConsumeTiming.ATTEMPT,
+    (mark) =>
+      mark.owner === actor && mark.consume === MarkConsumeTiming.ATTEMPT && allow(mark),
   );
 }
 

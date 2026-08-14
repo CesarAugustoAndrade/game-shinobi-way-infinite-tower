@@ -472,8 +472,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'dancing_leaf',
     name: 'Shadow of Dancing Leaf',
     tier: SkillTier.BASIC,
-    description: 'Position behind target for devastating follow-up.',
+    description:
+      'Snap to CLOSE without spending the manual move. Lotus Opening 2: +25% next GATES finisher. LOTUS weight +2 next draw.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 1,
     chakraCost: 1,
     hpCost: 0,
@@ -486,10 +488,21 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.5, duration: 1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.DEXTERITY, value: 0.3, duration: 1, chance: 1.0 }
-    ]
+    bandMove: { kind: 'SELF_APPROACH', steps: 2 },
+    nextDrawSkillBonuses: [
+      { skillId: 'primary_lotus', delta: 2 },
+      { skillId: 'hidden_lotus', delta: 2 },
+    ],
+    markEffects: [
+      {
+        id: 'lotus_opening',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   FOCUSED_BREATHING: {

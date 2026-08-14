@@ -62,9 +62,16 @@ export function applySupportWeightOnPlay(
     id: string;
     nextDrawRoleBonus?: { role: CardRole; delta: number };
     nextDrawMentalAttackBonus?: number;
+    nextDrawSkillBonuses?: { skillId: string; delta: number }[];
   },
   ctx: SupportWeightPlayContext = {},
 ): PendingSupportWeight[] {
+  if (skill.nextDrawSkillBonuses?.length) {
+    return skill.nextDrawSkillBonuses.map((entry) => ({
+      skillId: entry.skillId,
+      delta: entry.delta,
+    }));
+  }
   if (skill.nextDrawMentalAttackBonus) {
     return [{ kind: 'mental-attack', delta: skill.nextDrawMentalAttackBonus }];
   }
