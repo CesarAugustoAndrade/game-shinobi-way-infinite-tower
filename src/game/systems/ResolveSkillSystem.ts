@@ -363,6 +363,36 @@ function isEnemyChargeDrainSupport(skill: Skill): boolean {
   return (skill.modeInteraction?.consumeCharges ?? 0) > 0 && !skill.modeInteraction?.modeId;
 }
 
+function stunControlBuff(sourceId: string, duration: number, side: 'enemy' | 'self'): Buff {
+  return {
+    id: `stun-${side}-${sourceId}`,
+    name: 'Stun',
+    duration,
+    effect: { type: EffectType.STUN, duration, chance: 1 },
+    source: sourceId,
+  };
+}
+
+/** SUPPORT control: rng() < chance → enemy stun; else self stun. Never deals damage. */
+function resolveControlSupport(
+  skill: Skill,
+  state: ResolveSkillState,
+  rng: () => number,
+): ResolveSkillState {
+  const spec = skill.controlStun;
+  if (!spec) return state;
+  if (rng() < spec.chance) {
+    return {
+      ...state,
+      enemyBuffs: [...(state.enemyBuffs ?? []), stunControlBuff(skill.id, spec.enemyDuration, 'enemy')],
+    };
+  }
+  return {
+    ...state,
+    playerBuffs: [...state.playerBuffs, stunControlBuff(skill.id, spec.failSelfDuration, 'self')],
+  };
+}
+
 function sealingSilenceBuff(sourceId: string): Buff {
   return {
     id: `silence-${sourceId}`,
@@ -660,6 +690,9 @@ export function resolveSkill(
     }
     if (skill.discover) {
       next = applyDiscoverOffer(next, skill, intent, ports.rng ?? (() => 0));
+    }
+    if (skill.controlStun) {
+      next = resolveControlSupport(skill, next, ports.rng ?? (() => 0));
     }
   } else {
     const rollHit =

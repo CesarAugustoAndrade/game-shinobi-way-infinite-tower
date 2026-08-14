@@ -1850,8 +1850,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'mind_transfer',
     name: 'Mind Transfer Jutsu',
     tier: SkillTier.ADVANCED,
-    description: 'Yamanaka mind control. 70% stun for 2 turns. Miss = self stun.',
+    description:
+      '70% Stun 2 on the enemy. On fail, self-Stun 1. No damage. No Mode required.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 2,
     chakraCost: 7,
     hpCost: 0,
@@ -1864,6 +1866,7 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    controlStun: { chance: 0.7, enemyDuration: 2, failSelfDuration: 1 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
@@ -1871,7 +1874,7 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       },
       clan: Clan.YAMANAKA,
     },
-    effects: [{ type: EffectType.STUN, duration: 2, chance: 0.7 }]
+    effects: [{ type: EffectType.STUN, duration: 2, chance: 0.7 }],
   },
 
   SHADOW_POSSESSION: {

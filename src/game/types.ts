@@ -771,6 +771,13 @@ export type HpCostSpec =
   | { kind: 'percentMax'; value: number }
   | { kind: 'all' };
 
+/** SUPPORT control roll (Mind Transfer): success enemy stun / fail self stun. */
+export interface ControlStunSpec {
+  chance: number;
+  enemyDuration: number;
+  failSelfDuration: number;
+}
+
 export interface Skill {
   id: string;
   name: string;
@@ -795,6 +802,11 @@ export interface Skill {
   bandMove?: BandMoveSpec;
   modeInteraction?: ModeInteraction;
   perHitEffects?: EffectDefinition[];
+  /**
+   * SUPPORT control stun (T-036 Mind Transfer).
+   * `rng() < chance` → enemy STUN `enemyDuration`; else self STUN `failSelfDuration`.
+   */
+  controlStun?: ControlStunSpec;
 
   // DECKBUILDER / AP ECONOMY (T-004)
   // Prefer explicit apCost on every playable skill; fallback in combatCards.ts.

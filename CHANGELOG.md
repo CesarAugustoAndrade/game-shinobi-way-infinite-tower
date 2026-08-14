@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-036 Mind Transfer:** SUPPORT 70% Stun 2. On fail, self-Stun 1. No damage. No Mode required.
 - **T-035 64 Palms:** ATTACK 8×3 at CLOSE. With Byakugan + ≥2 Chakra Points: +10%/stack (cap 40%), spend 1 charge, 30% pen, consume CP on impact. Miss keeps marks.
 - **T-034 Chidori Stream:** ATTACK 18 at CLOSE. Base legal without Mode. Sharingan 3-Tomoe ON: +40% and spend 1 charge. Stun 60%×1.
 - **T-033 Phoenix Flower:** ATTACK 3×5 at MEDIUM/LONG. Base legal without Mode. Sharingan 2-Tomoe ON: +40% and spend 1 charge. Burn 4×2 on impact.
