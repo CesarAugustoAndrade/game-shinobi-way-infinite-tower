@@ -73,6 +73,7 @@ import { printShunshinProbe, runShunshinProbe } from './ShunshinBalance';
 import { printDancingLeafProbe, runDancingLeafProbe } from './DancingLeafBalance';
 import { printGentleFistProbe, runGentleFistProbe } from './GentleFistBalance';
 import { printKaiProbe, runKaiProbe } from './KaiBalance';
+import { printAnalyzeProbe, runAnalyzeProbe } from './AnalyzeBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -492,6 +493,7 @@ async function main() {
     printDancingLeafProbe(runDancingLeafProbe());
     printGentleFistProbe(runGentleFistProbe());
     printKaiProbe(runKaiProbe());
+    printAnalyzeProbe(runAnalyzeProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

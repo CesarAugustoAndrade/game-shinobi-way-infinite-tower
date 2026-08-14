@@ -854,8 +854,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'analyze',
     name: 'Analyze Enemy',
     tier: SkillTier.BASIC,
-    description: 'Study the enemy for weaknesses. Increases damage dealt.',
+    description:
+      'Discover 3 ATTACK techniques that share a tag with your Main. Studied 2: the chosen ATTACK ignores 20% defense.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.MENTAL, SkillTag.DISCOVER],
     apCost: 1,
     stanceShift: Posture.BALANCED,
     stanceBonus: { posture: Posture.BALANCED, apDiscount: 1 },
@@ -870,7 +873,7 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.15, duration: 3, chance: 1.0 }]
+    discover: { count: 3, matchMainAttackTags: true },
   },
 
   BRACE: {

@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-047 Analyze:** SUPPORT AP1/CD5. Discover 3 ATTACK that share a tag with Main. Studied 2: chosen ATTACK ignores 20% defense. STR +15% packaging removed.
 - **T-046 Kai:** SUPPORT AP1/CP3/CD2. Cleanses player Confusion, Silence, and one hostile MENTAL mark. Refunds 3 CP if anything was removed. CALMNESS +50% packaging removed.
 - **T-045 Gentle Fist:** ATTACK AP2/CP4/CD2 CLOSE 12. Byakugan ON: spend 1 charge +40%. On hit, consume up to 2 Chakra Points (+10% and drain 4 each). CHAKRA_DRAIN 20% packaging removed.
 - **T-044 Dancing Leaf:** SUPPORT AP1/CP1/CD3. Snaps to CLOSE without spending the manual move. Lotus Opening 2: +25% next GATES finisher. LOTUS weight +2 next draw. STR/DEX % packaging removed.

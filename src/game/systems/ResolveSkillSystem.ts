@@ -101,6 +101,8 @@ export interface ResolveSkillState {
   enemyHp: number;
   /** Optional enemy chakra pool (T-045 Gentle Fist drain). */
   enemyChakra?: number;
+  /** Optional enemy % defense for penetration fixtures (T-047 Studied). */
+  enemyDefensePercent?: number;
   skipFirstSkillCost?: boolean;
   playerMoveUsedThisTurn?: boolean;
   reactionSources?: readonly RangeReactionDef[];
@@ -205,6 +207,7 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
     playerBuffs: state.playerBuffs.map((buff) => ({ ...buff })),
     enemyHp: state.enemyHp,
     enemyChakra: state.enemyChakra,
+    enemyDefensePercent: state.enemyDefensePercent,
     skipFirstSkillCost: state.skipFirstSkillCost,
     playerMoveUsedThisTurn: state.playerMoveUsedThisTurn,
     reactionSources: state.reactionSources?.map((entry) => ({ ...entry })),
@@ -530,14 +533,28 @@ function applySealingTagXor(state: ResolveSkillState, skill: Skill): ResolveSkil
 
 function discoverFilterFromSkill(
   skill: Skill,
-  intentFilter?: DiscoverFilter,
+  state: ResolveSkillState,
+  intent: ResolveSkillIntent,
 ): DiscoverFilter | undefined {
   const spec = skill.discover;
+  const intentFilter = intent.discoverFilter;
   if (!spec && !intentFilter) return undefined;
+  let predicate = intentFilter?.predicate;
+  if (spec?.matchMainAttackTags) {
+    const mainId = intent.weightContext?.mainAttackId;
+    const lookup = [...(state.playablePool ?? []), ...state.skills];
+    const main = lookup.find((entry) => entry.id === mainId);
+    const mainTags = new Set(main?.tags ?? []);
+    predicate = (candidate) => {
+      if (candidate.cardRole !== CardRole.ATTACK) return false;
+      if (mainTags.size === 0) return false;
+      return (candidate.tags ?? []).some((tag) => mainTags.has(tag));
+    };
+  }
   return {
     tag: intentFilter?.tag ?? spec?.tag,
     element: intentFilter?.element ?? spec?.element,
-    predicate: intentFilter?.predicate,
+    predicate,
   };
 }
 
@@ -554,7 +571,7 @@ function applyDiscoverOffer(
     pool,
     hand,
     sourceId: skill.id,
-    filter: discoverFilterFromSkill(skill, intent.discoverFilter),
+    filter: discoverFilterFromSkill(skill, state, intent),
     ctx,
     rng,
   });
@@ -870,6 +887,17 @@ export function resolveSkill(
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'lotus_opening')) {
       damageDealt = Math.floor(damageDealt * 1.25);
     }
+    const studied = next.marks.find(
+      (mark) =>
+        mark.id === 'studied' &&
+        mark.target === CombatActor.PLAYER &&
+        mark.boundSkillId === skill.id,
+    );
+    const defensePercent = next.enemyDefensePercent ?? 0;
+    if (hitsLanded > 0 && (studied || defensePercent > 0)) {
+      const pen = studied ? Math.max(0.2, skill.penetration ?? 0) : (skill.penetration ?? 0);
+      damageDealt = applySkillPenetration(damageDealt, pen, defensePercent);
+    }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {
       perHitApplied = multi.perHitProcs;
@@ -1002,9 +1030,30 @@ export function commitDiscoverChoice(
   const ctx: WeightContext = { posture: Posture.BALANCED, turnIndex: state.turnIndex };
   const snapshot = snapshotSkill(match.skill, ctx);
   const next = cloneState(state);
+  const source = [...next.skills, ...(next.playablePool ?? [])].find(
+    (entry) => entry.id === pending.sourceId,
+  );
+  let marks = next.marks;
+  if (source?.discover?.matchMainAttackTags) {
+    marks = [
+      ...marks,
+      {
+        id: 'studied',
+        sourceSkillId: pending.sourceId,
+        owner: CombatActor.PLAYER,
+        target: CombatActor.PLAYER,
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.NONE,
+        family: MarkFamily.STAT,
+        boundSkillId: chosenSkillId,
+      },
+    ];
+  }
   return {
     state: {
       ...next,
+      marks,
       hand: [...(next.hand ?? []), snapshot.skill],
       pendingDiscover: undefined,
     },

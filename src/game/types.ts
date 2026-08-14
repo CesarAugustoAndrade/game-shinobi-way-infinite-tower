@@ -424,6 +424,8 @@ export interface DiscoverSpec {
   count: number;
   tag?: SkillTag;
   element?: ElementType;
+  /** T-047 Analyze: ATTACK that shares ≥1 tag with designated Main. */
+  matchMainAttackTags?: boolean;
 }
 
 /** Forced engagement shift authored on a skill (T-023 SIDE tools). */
@@ -521,6 +523,8 @@ export interface Mark {
   family?: MarkFamily;
   trigger?: CombatTrigger;
   consume?: MarkConsumeTiming;
+  /** T-047 Studied: ATTACK id that receives 20% pen while the mark lasts. */
+  boundSkillId?: string;
 }
 
 /**
