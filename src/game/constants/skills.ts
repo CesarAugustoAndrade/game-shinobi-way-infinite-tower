@@ -541,9 +541,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'kunai_slash',
     name: 'Kunai Slash',
     tier: SkillTier.BASIC,
-    description: 'A quick slash with a kunai. Chance to cause bleeding.',
+    description: '8 damage at CLOSE. Bleed 3 for 2 opportunities. SIDE tool chip.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TOOL, SkillTag.WEAPON, SkillTag.PHYSICAL],
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -555,7 +557,17 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.BLEED, value: 5, duration: 2, chance: 0.25, damageType: DamageType.PHYSICAL, damageProperty: DamageProperty.NORMAL }]
+    allowedRanges: [CombatRange.CLOSE],
+    markEffects: [
+      {
+        id: 'bleed',
+        duration: 2,
+        stacks: 3,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        perHit: true,
+      },
+    ],
   },
 
   KUNAI_THROW: {
