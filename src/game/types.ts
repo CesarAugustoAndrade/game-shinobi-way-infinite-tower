@@ -798,6 +798,8 @@ export interface Skill {
   hitCount?: number;
   discover?: DiscoverSpec;
   markEffects?: MarkSpec[];
+  /** One-shot next-draw role weight (T-038 Smoke = SIDE_ATTACK +1). */
+  nextDrawRoleBonus?: { role: CardRole; delta: number };
   /** Forced band shift after resolve (Wire PULL / Blastback PUSH / Backstep retreat). */
   bandMove?: BandMoveSpec;
   modeInteraction?: ModeInteraction;

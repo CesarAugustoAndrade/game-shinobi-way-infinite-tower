@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-038 Smoke Bomb:** SUPPORT plants Smoke 2 (−25 first enemy offensive) and SIDE weight +1 next draw. No Terrain change.
 - **T-037 Hell Viewing:** ATTACK 18 mental. Plants Fear 1 (−20% next enemy action). No Mode. STR −30% packaging removed.
 - **T-036 Mind Transfer:** SUPPORT 70% Stun 2. On fail, self-Stun 1. No damage. No Mode required.
 - **T-035 64 Palms:** ATTACK 8×3 at CLOSE. With Byakugan + ≥2 Chakra Points: +10%/stack (cap 40%), spend 1 charge, 30% pen, consume CP on impact. Miss keeps marks.

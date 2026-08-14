@@ -1,10 +1,13 @@
 /**
- * SupportWeightSystem — one-shot next-draw support bonuses (T-016).
- * SkillId path only. No React. No Math.random.
+ * SupportWeightSystem — one-shot next-draw support bonuses (T-016 / T-038).
+ * SkillId and optional cardRole entries. No React. No Math.random.
  */
 
+import { CardRole } from '../types';
+
 export interface PendingSupportWeight {
-  skillId: string;
+  skillId?: string;
+  role?: CardRole;
   delta: number;
 }
 
@@ -25,12 +28,22 @@ export function enqueueSupportWeightBonuses(
 
 export function consumeSupportWeightBonuses(
   bag: readonly PendingSupportWeight[],
-): { bonuses: Readonly<Record<string, number>>; bag: PendingSupportWeight[] } {
+): {
+  bonuses: Readonly<Record<string, number>>;
+  roleBonuses: Readonly<Partial<Record<CardRole, number>>>;
+  bag: PendingSupportWeight[];
+} {
   const bonuses: Record<string, number> = {};
+  const roleBonuses: Partial<Record<CardRole, number>> = {};
   for (const entry of bag) {
-    bonuses[entry.skillId] = (bonuses[entry.skillId] ?? 0) + entry.delta;
+    if (entry.skillId) {
+      bonuses[entry.skillId] = (bonuses[entry.skillId] ?? 0) + entry.delta;
+    }
+    if (entry.role) {
+      roleBonuses[entry.role] = (roleBonuses[entry.role] ?? 0) + entry.delta;
+    }
   }
-  return { bonuses, bag: [] };
+  return { bonuses, roleBonuses, bag: [] };
 }
 
 /**
@@ -38,9 +51,12 @@ export function consumeSupportWeightBonuses(
  * Does not mutate skill.baseWeight.
  */
 export function applySupportWeightOnPlay(
-  skill: { id: string },
+  skill: { id: string; nextDrawRoleBonus?: { role: CardRole; delta: number } },
   ctx: SupportWeightPlayContext = {},
 ): PendingSupportWeight[] {
+  if (skill.nextDrawRoleBonus) {
+    return [{ role: skill.nextDrawRoleBonus.role, delta: skill.nextDrawRoleBonus.delta }];
+  }
   if (skill.id === CHAKRA_CONTROL_DRILL_ID) {
     const main = ctx.mainAttackId;
     if (!main) return [];

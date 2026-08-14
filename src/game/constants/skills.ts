@@ -768,8 +768,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'smoke_bomb',
     name: 'Smoke Bomb',
     tier: SkillTier.BASIC,
-    description: 'Create a smoke screen for evasion boost and enemy accuracy reduction.',
+    description:
+      'Smoke 2: first enemy offensive −25 impact. SIDE weight +1 on the next draw. Does not change Terrain.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.TOOL],
     apCost: 1,
     chakraCost: 0,
     hpCost: 0,
@@ -782,10 +785,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.35, duration: 2, chance: 1.0 },
-      { type: EffectType.DEBUFF, targetStat: PrimaryStat.ACCURACY, value: 0.2, duration: 2, chance: 1.0 }
-    ]
+    nextDrawRoleBonus: { role: CardRole.SIDE_ATTACK, delta: 1 },
+    markEffects: [
+      {
+        id: 'smoke',
+        duration: 2,
+        stacks: 25,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
   },
 
   FLASH_BOMB: {

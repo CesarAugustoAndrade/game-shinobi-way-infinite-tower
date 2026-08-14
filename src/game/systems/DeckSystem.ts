@@ -23,6 +23,8 @@ export interface WeightContext {
   activeModeIds?: readonly string[];
   modeBonuses?: Readonly<Record<string, number>>;
   supportBonuses?: Readonly<Record<string, number>>;
+  /** One-shot next-draw bonuses by cardRole (T-038 Smoke SIDE +1). */
+  supportRoleBonuses?: Readonly<Partial<Record<CardRole, number>>>;
   authoringMap?: RoleAuthoringMap;
 }
 
@@ -91,10 +93,14 @@ export function effectiveWeight(skill: Skill, ctx: WeightContext): number {
   const postureBonus = postureBonusForRole(role, ctx.posture);
   const modeBonus = ctx.modeBonuses?.[skill.id] ?? 0;
   const supportBonus = ctx.supportBonuses?.[skill.id] ?? 0;
+  const roleSupportBonus = role ? (ctx.supportRoleBonuses?.[role] ?? 0) : 0;
   const activeSelf =
     role === CardRole.MODE && (ctx.activeModeIds ?? []).includes(skill.id) ? 1 : 0;
   const cooldownPenalty = isOnCooldown(skill, ctx) ? 1 : 0;
-  return Math.max(1, base + postureBonus + modeBonus + supportBonus - activeSelf - cooldownPenalty);
+  return Math.max(
+    1,
+    base + postureBonus + modeBonus + supportBonus + roleSupportBonus - activeSelf - cooldownPenalty,
+  );
 }
 
 export function snapshotSkill(skill: Skill, ctx: WeightContext): HandSnapshot {

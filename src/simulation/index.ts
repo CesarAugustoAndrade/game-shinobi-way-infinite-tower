@@ -64,6 +64,7 @@ import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamB
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
 import { printMindTransferProbe, runMindTransferProbe } from './MindTransferBalance';
 import { printHellViewingProbe, runHellViewingProbe } from './HellViewingBalance';
+import { printSmokeBombProbe, runSmokeBombProbe } from './SmokeBombBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -474,6 +475,7 @@ async function main() {
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());
     printMindTransferProbe(runMindTransferProbe());
     printHellViewingProbe(runHellViewingProbe());
+    printSmokeBombProbe(runSmokeBombProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

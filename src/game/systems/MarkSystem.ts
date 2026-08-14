@@ -109,6 +109,28 @@ export function consumeOnAttempt(
 }
 
 /**
+ * First enemy offensive under Smoke: subtract stacks (default 25) once, then strip.
+ * Live EnemyTurn wiring is optional; this is the R0 contract (T-038).
+ */
+export function applySmokeOutgoing(
+  damage: number,
+  marks: readonly Mark[],
+): { damage: number; marks: Mark[]; consumed: boolean } {
+  const smoke = marks.find((mark) => mark.id === 'smoke' && mark.target === CombatActor.ENEMY);
+  if (!smoke) {
+    return { damage, marks: marks.map((mark) => ({ ...mark })), consumed: false };
+  }
+  const cut = smoke.stacks ?? 25;
+  return {
+    damage: Math.max(0, damage - cut),
+    marks: marks
+      .filter((mark) => !(mark.id === 'smoke' && mark.target === CombatActor.ENEMY))
+      .map((mark) => ({ ...mark })),
+    consumed: true,
+  };
+}
+
+/**
  * Next enemy offensive under Fear: ×(1 − stacks/100) once, then strip the mark.
  * Live EnemyTurn wiring is optional; this is the R0 contract (T-037).
  */
