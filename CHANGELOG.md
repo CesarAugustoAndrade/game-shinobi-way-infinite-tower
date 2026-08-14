@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-043 Shunshin:** SUPPORT AP1/CP4/CD3. One chosen band step without spending the manual move. Next Offensive +1 DEX (`shunshin_dex` ATTEMPT). SPEED +40% packaging removed.
 - **T-042 Mind Destruction:** ATTACK AP3/CP6/CD4. 15 mental + 65% Confusion 2. Enemy Read Mind → +50% Setup damage without consuming the mark. No Mode.
 - **T-041 False Surroundings:** SUPPORT 75% Confusion 2 + Read Mind 2. MENTAL ATTACK weight +1 next draw. No Terrain.
 - **T-040 Gate Prep:** SUPPORT pays 15 HP. Arms next GATES HP activation −50% and Gate Mode weight +3 next draw.

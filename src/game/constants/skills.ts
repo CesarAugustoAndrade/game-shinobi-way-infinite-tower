@@ -240,8 +240,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'shunshin',
     name: 'Body Flicker',
     tier: SkillTier.BASIC,
-    description: 'High-speed movement to close gaps. Greatly boosts Initiative.',
+    description:
+      'Move one chosen band without spending the manual move. Next Offensive Skill gets +1 DEX. ANY range.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 1,
     chakraCost: 4,
     hpCost: 0,
@@ -249,12 +251,22 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     currentCooldown: 0,
     baseDamage: 0,
     scalingPerPoint: 0,
-    scalingStat: PrimaryStat.SPEED,
+    scalingStat: PrimaryStat.DEXTERITY,
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.4, duration: 2, chance: 1.0 }]
+    bandMove: { kind: 'SELF_APPROACH', steps: 1 },
+    markEffects: [
+      {
+        id: 'shunshin_dex',
+        duration: 1,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   KAI: {

@@ -17,6 +17,7 @@ import {
   Mark,
   MarkConsumeTiming,
   ModeDefinition,
+  PrimaryStat,
   ModeRuntimeState,
   Posture,
   RangeReactionDef,
@@ -602,7 +603,10 @@ export function resolveSkill(
     };
   }
 
-  const afterAttempt = consumeOnAttempt(next.marks, CombatActor.PLAYER);
+  const isOffensive = role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK;
+  const afterAttempt = isOffensive
+    ? consumeOnAttempt(next.marks, CombatActor.PLAYER)
+    : { marks: next.marks, spent: [] as Mark[] };
   next = { ...next, marks: afterAttempt.marks };
 
   const mi = skill.modeInteraction;
@@ -768,6 +772,10 @@ export function resolveSkill(
     const setup = skill.setupRead;
     if (setup && hitsLanded > 0 && hasEnemyMark(next.marks, setup.markId)) {
       damageDealt = Math.floor(damageDealt * (1 + setup.damageMultBonus));
+    }
+    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'shunshin_dex')) {
+      damageDealt +=
+        skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
     }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {

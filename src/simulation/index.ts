@@ -69,6 +69,7 @@ import { printSharinganPredictProbe, runSharinganPredictProbe } from './Sharinga
 import { printGatePrepSupportProbe, runGatePrepSupportProbe } from './GatePrepSupportBalance';
 import { printFalseSurroundingsProbe, runFalseSurroundingsProbe } from './FalseSurroundingsBalance';
 import { printMindDestructionProbe, runMindDestructionProbe } from './MindDestructionBalance';
+import { printShunshinProbe, runShunshinProbe } from './ShunshinBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -484,6 +485,7 @@ async function main() {
     printGatePrepSupportProbe(runGatePrepSupportProbe());
     printFalseSurroundingsProbe(runFalseSurroundingsProbe());
     printMindDestructionProbe(runMindDestructionProbe());
+    printShunshinProbe(runShunshinProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
