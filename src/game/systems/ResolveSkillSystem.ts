@@ -68,8 +68,10 @@ import {
 import {
   applySupportWeightOnPlay,
   enqueueSupportWeightBonuses,
+  GATE_PREP_ID,
   type PendingSupportWeight,
 } from './SupportWeightSystem';
+import { onGatePrepPlayed } from './GatePrepDiscountSystem';
 
 export interface ResolveSkillPools {
   ap: number;
@@ -102,6 +104,8 @@ export interface ResolveSkillState {
   playablePool?: Skill[];
   pendingDiscover?: PendingDiscover;
   pendingSupportWeights?: PendingSupportWeight[];
+  /** T-017 one-shot next Gate HP activation −50% (armed by Gate Prep play). */
+  pendingGateHpDiscount?: boolean;
 }
 
 export interface ResolveSkillIntent {
@@ -212,6 +216,7 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
         }
       : undefined,
     pendingSupportWeights: state.pendingSupportWeights?.map((entry) => ({ ...entry })),
+    pendingGateHpDiscount: state.pendingGateHpDiscount,
     enemyModes: state.enemyModes
       ? { instances: state.enemyModes.instances.map((mode) => ({ ...mode })) }
       : undefined,
@@ -765,6 +770,9 @@ export function resolveSkill(
         supportWeightEntries,
       ),
     };
+  }
+  if (skill.id === GATE_PREP_ID) {
+    next = { ...next, pendingGateHpDiscount: onGatePrepPlayed().pending };
   }
 
   let reactions: RangeReactionDef[] = [];

@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-040 Gate Prep:** SUPPORT pays 15 HP. Arms next GATES HP activation −50% and Gate Mode weight +3 next draw.
 - **T-039 Sharingan Predict:** SUPPORT requires Sharingan ON. Plants Read Window 1 (−30 next enemy offensive) and restores 1 charge without overcap.
 - **T-038 Smoke Bomb:** SUPPORT plants Smoke 2 (−25 first enemy offensive) and SIDE weight +1 next draw. No Terrain change.
 - **T-037 Hell Viewing:** ATTACK 18 mental. Plants Fear 1 (−20% next enemy action). No Mode. STR −30% packaging removed.

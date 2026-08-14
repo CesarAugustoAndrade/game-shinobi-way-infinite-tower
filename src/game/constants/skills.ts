@@ -2788,8 +2788,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'gate_prep',
     name: 'Gate Release Prep',
     tier: SkillTier.FORBIDDEN,
-    description: 'Prepare for gate opening. Next gate activation: -50% HP cost.',
+    description:
+      'Pays 15 HP. Next GATES Mode HP activation −50% (one-shot). Gate Mode weight +3 on the next draw.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.TAIJUTSU, SkillTag.LEE],
     apCost: 1,
     chakraCost: 0,
     hpCost: 15,
@@ -2808,7 +2811,6 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.STRENGTH]: 5,
       },
     },
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.5, duration: 2, chance: 1.0 }]
   },
 
   KILLING_INTENT: {
