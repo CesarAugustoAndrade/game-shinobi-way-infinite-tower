@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-049 Kunai Throw:** SIDE AP1/CD1 7 at MEDIUM/LONG. On hit, TOOL weight +1 next draw. AP2 untagged packaging removed.
 - **T-048 Kunai Slash:** SIDE AP1/CD1 CLOSE 8. Bleed 3 for 2 opportunities on hit. AP2 / 25% Bleed 5 packaging removed.
 - **T-047 Analyze:** SUPPORT AP1/CD5. Discover 3 ATTACK that share a tag with Main. Studied 2: chosen ATTACK ignores 20% defense. STR +15% packaging removed.
 - **T-046 Kai:** SUPPORT AP1/CP3/CD2. Cleanses player Confusion, Silence, and one hostile MENTAL mark. Refunds 3 CP if anything was removed. CALMNESS +50% packaging removed.

@@ -3,13 +3,14 @@
  * SkillId and optional cardRole entries. No React. No Math.random.
  */
 
-import { CardRole } from '../types';
+import { CardRole, SkillTag } from '../types';
 
 export interface PendingSupportWeight {
   skillId?: string;
   role?: CardRole;
   /** T-041: one-shot MENTAL ATTACK weight. */
-  kind?: 'mental-attack';
+  kind?: 'mental-attack' | 'tag';
+  tag?: SkillTag;
   delta: number;
 }
 
@@ -19,6 +20,8 @@ export const GATE_PREP_TARGET_IDS = ['gate_of_life', 'gate_of_limit'] as const;
 
 export interface SupportWeightPlayContext {
   mainAttackId?: string | null;
+  /** T-049: tag bonuses enqueue only when ≥1 hit. */
+  hitsLanded?: number;
 }
 
 export function enqueueSupportWeightBonuses(
@@ -34,10 +37,12 @@ export function consumeSupportWeightBonuses(
   bonuses: Readonly<Record<string, number>>;
   roleBonuses: Readonly<Partial<Record<CardRole, number>>>;
   mentalAttackBonus: number;
+  tagBonuses: Readonly<Partial<Record<SkillTag, number>>>;
   bag: PendingSupportWeight[];
 } {
   const bonuses: Record<string, number> = {};
   const roleBonuses: Partial<Record<CardRole, number>> = {};
+  const tagBonuses: Partial<Record<SkillTag, number>> = {};
   let mentalAttackBonus = 0;
   for (const entry of bag) {
     if (entry.skillId) {
@@ -49,8 +54,11 @@ export function consumeSupportWeightBonuses(
     if (entry.kind === 'mental-attack') {
       mentalAttackBonus += entry.delta;
     }
+    if (entry.kind === 'tag' && entry.tag) {
+      tagBonuses[entry.tag] = (tagBonuses[entry.tag] ?? 0) + entry.delta;
+    }
   }
-  return { bonuses, roleBonuses, mentalAttackBonus, bag: [] };
+  return { bonuses, roleBonuses, mentalAttackBonus, tagBonuses, bag: [] };
 }
 
 /**
@@ -63,9 +71,13 @@ export function applySupportWeightOnPlay(
     nextDrawRoleBonus?: { role: CardRole; delta: number };
     nextDrawMentalAttackBonus?: number;
     nextDrawSkillBonuses?: { skillId: string; delta: number }[];
+    nextDrawTagBonus?: { tag: SkillTag; delta: number };
   },
   ctx: SupportWeightPlayContext = {},
 ): PendingSupportWeight[] {
+  if (skill.nextDrawTagBonus && (ctx.hitsLanded ?? 0) >= 1) {
+    return [{ kind: 'tag', tag: skill.nextDrawTagBonus.tag, delta: skill.nextDrawTagBonus.delta }];
+  }
   if (skill.nextDrawSkillBonuses?.length) {
     return skill.nextDrawSkillBonuses.map((entry) => ({
       skillId: entry.skillId,

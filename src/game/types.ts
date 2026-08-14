@@ -827,6 +827,8 @@ export interface Skill {
   nextDrawMentalAttackBonus?: number;
   /** One-shot next-draw skillId weights (T-044 Dancing Leaf = LOTUS +2). */
   nextDrawSkillBonuses?: { skillId: string; delta: number }[];
+  /** One-shot next-draw tag weight (T-049 Kunai Throw = TOOL +1 on hit). */
+  nextDrawTagBonus?: { tag: SkillTag; delta: number };
   /**
    * ATTACK impact consume of an enemy mark, capped (T-045 Gentle Fist: ≤2 CP).
    * Applied only on ≥1 hit. Distinct from consumeAllMatchingMarks.

@@ -574,9 +574,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'kunai_throw',
     name: 'Kunai Throw',
     tier: SkillTier.BASIC,
-    description: 'Throw a kunai at the enemy. Basic ranged attack.',
+    description:
+      '7 damage at MEDIUM or LONG. On hit, TOOL weight +1 next draw. SIDE tool chip.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TOOL, SkillTag.WEAPON, SkillTag.PHYSICAL],
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -587,7 +590,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
-    element: ElementType.PHYSICAL
+    element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    nextDrawTagBonus: { tag: SkillTag.TOOL, delta: 1 },
   },
 
   SHURIKEN_BARRAGE: {

@@ -961,6 +961,7 @@ export function resolveSkill(
 
   const supportWeightEntries = applySupportWeightOnPlay(skill, {
     mainAttackId: intent.weightContext?.mainAttackId,
+    hitsLanded,
   });
   if (supportWeightEntries.length > 0) {
     next = {

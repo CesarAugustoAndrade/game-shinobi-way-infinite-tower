@@ -27,6 +27,8 @@ export interface WeightContext {
   supportRoleBonuses?: Readonly<Partial<Record<CardRole, number>>>;
   /** One-shot next-draw bonus for ATTACK + MENTAL damageType (T-041). */
   supportMentalAttackBonus?: number;
+  /** One-shot next-draw bonuses by SkillTag (T-049 TOOL +1). */
+  supportTagBonuses?: Readonly<Partial<Record<SkillTag, number>>>;
   authoringMap?: RoleAuthoringMap;
 }
 
@@ -100,6 +102,10 @@ export function effectiveWeight(skill: Skill, ctx: WeightContext): number {
     role === CardRole.ATTACK && skill.damageType === DamageType.MENTAL
       ? (ctx.supportMentalAttackBonus ?? 0)
       : 0;
+  const tagBonus = (skill.tags ?? []).reduce(
+    (sum, tag) => sum + (ctx.supportTagBonuses?.[tag] ?? 0),
+    0,
+  );
   const activeSelf =
     role === CardRole.MODE && (ctx.activeModeIds ?? []).includes(skill.id) ? 1 : 0;
   const cooldownPenalty = isOnCooldown(skill, ctx) ? 1 : 0;
@@ -110,7 +116,8 @@ export function effectiveWeight(skill: Skill, ctx: WeightContext): number {
       modeBonus +
       supportBonus +
       roleSupportBonus +
-      mentalAttackBonus -
+      mentalAttackBonus +
+      tagBonus -
       activeSelf -
       cooldownPenalty,
   );
