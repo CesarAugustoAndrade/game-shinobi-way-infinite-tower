@@ -77,6 +77,7 @@ import { printAnalyzeProbe, runAnalyzeProbe } from './AnalyzeBalance';
 import { printKunaiSlashProbe, runKunaiSlashProbe } from './KunaiSlashBalance';
 import { printKunaiThrowProbe, runKunaiThrowProbe } from './KunaiThrowBalance';
 import { printFeintStrikeProbe, runFeintStrikeProbe } from './FeintStrikeBalance';
+import { printLeafWhirlwindProbe, runLeafWhirlwindProbe } from './LeafWhirlwindBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -500,6 +501,7 @@ async function main() {
     printKunaiSlashProbe(runKunaiSlashProbe());
     printKunaiThrowProbe(runKunaiThrowProbe());
     printFeintStrikeProbe(runFeintStrikeProbe());
+    printLeafWhirlwindProbe(runLeafWhirlwindProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

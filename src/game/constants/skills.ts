@@ -306,8 +306,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'leaf_whirlwind',
     name: 'Leaf Whirlwind',
     tier: SkillTier.BASIC,
-    description: 'A spinning kick that disrupts enemy accuracy.',
+    description: '14 dmg at CLOSE. On hit, enemy −1 SPD for 2. ATTACK kick.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PHYSICAL],
     apCost: 2,
     chakraCost: 0,
     hpCost: 0,
@@ -320,7 +322,17 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.DEBUFF, targetStat: PrimaryStat.ACCURACY, value: 0.15, duration: 2, chance: 0.3 }]
+    allowedRanges: [CombatRange.CLOSE],
+    markEffects: [
+      {
+        id: 'spd_down',
+        duration: 2,
+        stacks: 1,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+        perHit: true,
+      },
+    ],
   },
 
   DYNAMIC_ENTRY: {
