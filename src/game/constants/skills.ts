@@ -2344,9 +2344,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'chidori_stream',
     name: 'Chidori Stream',
     tier: SkillTier.HIDDEN,
-    description: 'Releases lightning chakra in all directions, paralyzing nearby foes.',
+    description:
+      'Base 18 + 60% Stun 1 at CLOSE. With Sharingan 3-Tomoe ON: +40% damage and consume 1 charge at attempt.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    apCost: 4,
     chakraCost: 7,
     hpCost: 0,
     cooldown: 4,
@@ -2356,15 +2358,22 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
-    attackMethod: AttackMethod.AUTO, // AoE effect
+    attackMethod: AttackMethod.MELEE,
     element: ElementType.LIGHTNING,
+    allowedRanges: [CombatRange.CLOSE],
+    modeInteraction: {
+      modeId: 'sharingan_3',
+      family: MODE_FAMILY.SHARINGAN,
+      consumeCharges: 1,
+      damageMultBonus: 0.4,
+    },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
         [PrimaryStat.SPIRIT]: 3,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.8 }]
+    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.6 }],
   },
 
   SAND_COFFIN: {

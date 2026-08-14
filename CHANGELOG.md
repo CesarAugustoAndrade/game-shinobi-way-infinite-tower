@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-034 Chidori Stream:** ATTACK 18 at CLOSE. Base legal without Mode. Sharingan 3-Tomoe ON: +40% and spend 1 charge. Stun 60%×1.
 - **T-033 Phoenix Flower:** ATTACK 3×5 at MEDIUM/LONG. Base legal without Mode. Sharingan 2-Tomoe ON: +40% and spend 1 charge. Burn 4×2 on impact.
 - **T-032 Great Fireball:** ATTACK 17 at MEDIUM/LONG. Base legal without Mode. Sharingan 2-Tomoe ON: +50% and spend 1 charge. Burn 5×2.
 - **T-031 Hidden Lotus:** ATTACK 5×6 requires Gate of Limit ON. +15% per remaining charge; consume-all closes the Gate; plants self-Vulnerable 30% for 2 durations.
