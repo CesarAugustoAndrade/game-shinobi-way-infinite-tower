@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-060 Wire Trap:** SUPPORT AP1/CP1/CD4 plants enemy Wire Trap 2. Next ATTACK hit +20%, Bleed 5×2, consume. Miss/SIDE leave the trap. Self STR +20% / 40% Bleed 8 packaging removed.
 - **T-059 Sword Slash:** ATTACK AP2/CD1 CLOSE 10. On hit, Bleed 4 for 2 via `markEffects`. BLEED 7@30% packaging removed.
 - **T-058 Senbon:** SIDE AP1/CD1 MEDIUM/LONG 7. 35% Silence 1 on hit via `impactSilence`. AP2 / 50% unused `effects[]` packaging removed.
 - **T-057 Strong Fist:** ATTACK AP2/CD1 CLOSE 2×5 independent hits. Single-10 / 75% combo flavor packaging removed.

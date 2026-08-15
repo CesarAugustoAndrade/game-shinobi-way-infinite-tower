@@ -86,6 +86,7 @@ import { printExplosiveTagProbe, runExplosiveTagProbe } from './ExplosiveTagBala
 import { printStrongFistProbe, runStrongFistProbe } from './StrongFistBalance';
 import { printSenbonProbe, runSenbonProbe } from './SenbonBalance';
 import { printSwordSlashProbe, runSwordSlashProbe } from './SwordSlashBalance';
+import { printWireSetupProbe, runWireSetupProbe } from './WireSetupBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -518,6 +519,7 @@ async function main() {
     printStrongFistProbe(runStrongFistProbe());
     printSenbonProbe(runSenbonProbe());
     printSwordSlashProbe(runSwordSlashProbe());
+    printWireSetupProbe(runWireSetupProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

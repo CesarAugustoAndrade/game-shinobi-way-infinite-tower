@@ -375,6 +375,8 @@ function applySkillMarkEffects(
 
 const LAUNCHED_SETUP_MULT = 1.2;
 const GUARD_BREAK_PEN = 0.15;
+const WIRE_TRAP_ID = 'wire_trap';
+const WIRE_TRAP_MULT = 1.2;
 
 function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   const ids = new Set(spent.map((mark) => mark.id));
@@ -937,6 +939,13 @@ export function resolveSkill(
     if (setup && hitsLanded > 0 && hasEnemyMark(next.marks, setup.markId)) {
       damageDealt = Math.floor(damageDealt * (1 + setup.damageMultBonus));
     }
+    if (
+      role === CardRole.ATTACK &&
+      hitsLanded > 0 &&
+      hasEnemyMark(next.marks, WIRE_TRAP_ID)
+    ) {
+      damageDealt = Math.floor(damageDealt * WIRE_TRAP_MULT);
+    }
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'shunshin_dex')) {
       damageDealt +=
         skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
@@ -975,12 +984,12 @@ export function resolveSkill(
 
   if (hitsLanded >= 1) {
     const skipImpactId = skill.impactMarkConsume?.markId;
-    const impactPool = skipImpactId
-      ? next.marks.filter((mark) => mark.id !== skipImpactId)
-      : next.marks;
-    const reserved = skipImpactId
-      ? next.marks.filter((mark) => mark.id === skipImpactId)
-      : [];
+    const impactPool = next.marks.filter(
+      (mark) => mark.id !== skipImpactId && mark.id !== WIRE_TRAP_ID,
+    );
+    const reserved = next.marks.filter(
+      (mark) => mark.id === skipImpactId || mark.id === WIRE_TRAP_ID,
+    );
     const afterImpact = consumeOnImpact(impactPool, CombatActor.ENEMY, hitsLanded);
     next = { ...next, marks: [...afterImpact.marks, ...reserved.map((mark) => ({ ...mark }))] };
     impactSpent = afterImpact.spent;
@@ -1013,6 +1022,21 @@ export function resolveSkill(
           (mark) => !(mark.id === consumeId && mark.target === CombatActor.ENEMY),
         ),
       };
+    }
+    if (role === CardRole.ATTACK && hasEnemyMark(next.marks, WIRE_TRAP_ID)) {
+      const withoutTrap = next.marks.filter(
+        (mark) => !(mark.id === WIRE_TRAP_ID && mark.target === CombatActor.ENEMY),
+      );
+      const planted = addMark(withoutTrap, {
+        id: 'bleed',
+        sourceSkillId: skill.id,
+        owner: CombatActor.PLAYER,
+        target: CombatActor.ENEMY,
+        duration: 2,
+        stacks: 5,
+        family: MarkFamily.DOT,
+      });
+      next = { ...next, marks: planted.marks };
     }
   }
 

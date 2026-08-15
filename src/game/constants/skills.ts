@@ -860,10 +860,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'wire_setup',
     name: 'Ninja Tool: Wire Trap',
     tier: SkillTier.BASIC,
-    description: 'Set up wire traps. Next attack deals +20% damage and causes bleed.',
+    description:
+      'Wire Trap 2 on the enemy. Next ATTACK +20%. On hit, Bleed 5 for 2 and consume the trap.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.TOOL, SkillTag.WEAPON, SkillTag.MARK],
     apCost: 1,
-    stanceShift: Posture.DEFENSIVE,
     chakraCost: 1,
     hpCost: 0,
     cooldown: 4,
@@ -875,10 +877,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.2, duration: 1, chance: 1.0 },
-      { type: EffectType.BLEED, value: 8, duration: 2, chance: 0.4, damageType: DamageType.PHYSICAL, damageProperty: DamageProperty.NORMAL }
-    ]
+    markEffects: [
+      {
+        id: 'wire_trap',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.IMPACT,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
   },
 
   POISON_COAT: {
