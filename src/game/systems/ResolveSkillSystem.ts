@@ -365,7 +365,7 @@ function applySkillMarkEffects(
   for (const spec of skill.markEffects ?? []) {
     const applies = spec.perHit
       ? hitsLanded
-      : spec.consume === MarkConsumeTiming.IMPACT && hitsLanded < 1
+      : (spec.consume === MarkConsumeTiming.IMPACT || spec.requireHit) && hitsLanded < 1
         ? 0
         : 1;
     if (applies < 1) continue;
@@ -386,6 +386,7 @@ function applySkillMarkEffects(
 }
 
 const LAUNCHED_SETUP_MULT = 1.2;
+const BARRAGE_SETUP_MULT = 1.1;
 const GUARD_BREAK_PEN = 0.15;
 const WIRE_TRAP_ID = 'wire_trap';
 const WIRE_TRAP_MULT = 1.2;
@@ -400,6 +401,7 @@ function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   if (ids.has('off_balance')) mult *= 1.2;
   if (ids.has('exposed') && skill.attackMethod === AttackMethod.RANGED) mult *= 1.15;
   if (ids.has('launched') && skill.attackMethod === AttackMethod.MELEE) mult *= LAUNCHED_SETUP_MULT;
+  if (ids.has('barrage_setup')) mult *= BARRAGE_SETUP_MULT;
   return mult;
 }
 
@@ -800,6 +802,7 @@ export function resolveSkill(
         (mark) => {
           if (mark.id === 'lotus_opening') return isGatesFinisher(skill);
           if (mark.id === 'feint') return role === CardRole.ATTACK;
+          if (mark.id === 'barrage_setup') return role === CardRole.ATTACK;
           if (mark.id === 'aim') return role === CardRole.ATTACK;
           if (mark.id === 'cloaked') return role === CardRole.ATTACK;
           if (mark.id === 'guard_break') return role === CardRole.ATTACK;

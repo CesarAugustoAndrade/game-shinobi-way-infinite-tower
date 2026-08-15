@@ -446,6 +446,8 @@ export interface MarkSpec {
   trigger?: CombatTrigger;
   /** Apply stacks once per landed hit (Air Palm Chakra Point). */
   perHit?: boolean;
+  /** Plant once only if hitsLanded ≥ 1 (T-069 Barrage setup). */
+  requireHit?: boolean;
   family?: MarkFamily;
   /** Default enemy (T-023/T-026). Rotation shield/reflect uses self. */
   targetActor?: 'self' | 'enemy';

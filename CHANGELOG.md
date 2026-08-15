@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-069 Shuriken Barrage:** SIDE AP2/CP1/CD2 deals 3×3 at MEDIUM/LONG. On hit, next ATTACK +10% Setup. Single-6 “40% each” packaging removed.
 - **T-068 Basic Medical:** SUPPORT AP2/CP5/CD5 heals 25 HP and removes one Poison or Bleed. Mute HEAL 25 effects[] packaging removed.
 - **T-067 Focused Breathing:** SUPPORT AP1/CP0/CD2 grants +8 CP and arms a one-shot next CP Mode upkeep −2. CHAKRA_REGEN 10 packaging removed.
 - **T-066 Flash Bomb:** SUPPORT AP1/CP0/CD4 plants enemy Blinded 1 (−2 ACC, stacks 2). ACC −40%×2 @50% packaging removed.
