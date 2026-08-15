@@ -752,9 +752,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'explosive_tag',
     name: 'Explosive Tag',
     tier: SkillTier.BASIC,
-    description: 'Throw an explosive tag. Fire element damage.',
+    description: '11 damage at CLOSE or MEDIUM. PUSH the foe 1 band on impact.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TOOL, SkillTag.FIRE],
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -765,7 +767,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
-    element: ElementType.FIRE
+    element: ElementType.FIRE,
+    allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM],
+    bandMove: { kind: 'PUSH', steps: 1, requireHit: true },
   },
 
   EXPLOSIVE_BARRAGE: {

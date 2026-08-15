@@ -434,6 +434,8 @@ export type BandMoveKind = 'PULL' | 'PUSH' | 'SELF_RETREAT' | 'SELF_APPROACH';
 export interface BandMoveSpec {
   kind: BandMoveKind;
   steps?: number;
+  /** Skip authored forced move unless ≥1 hit landed (T-056 Explosive Tag). */
+  requireHit?: boolean;
 }
 
 export interface MarkSpec {

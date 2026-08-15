@@ -1027,7 +1027,8 @@ export function resolveSkill(
   }
 
   let reactions: RangeReactionDef[] = [];
-  const movement = intent.movement ?? skillForcedMove(skill);
+  const skipAuthoredMove = Boolean(skill.bandMove?.requireHit) && hitsLanded < 1;
+  const movement = intent.movement ?? (skipAuthoredMove ? undefined : skillForcedMove(skill));
   if (movement) {
     const steps = Math.max(1, skill.bandMove?.steps ?? 1);
     let range = next.range;

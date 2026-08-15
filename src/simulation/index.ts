@@ -82,6 +82,7 @@ import { printRisingWindProbe, runRisingWindProbe } from './RisingWindBalance';
 import { printShurikenProbe, runShurikenProbe } from './ShurikenBalance';
 import { printElbowStrikeProbe, runElbowStrikeProbe } from './ElbowStrikeBalance';
 import { printSweepingKickProbe, runSweepingKickProbe } from './SweepingKickBalance';
+import { printExplosiveTagProbe, runExplosiveTagProbe } from './ExplosiveTagBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -510,6 +511,7 @@ async function main() {
     printShurikenProbe(runShurikenProbe());
     printElbowStrikeProbe(runElbowStrikeProbe());
     printSweepingKickProbe(runSweepingKickProbe());
+    printExplosiveTagProbe(runExplosiveTagProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
