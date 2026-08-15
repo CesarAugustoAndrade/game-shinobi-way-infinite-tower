@@ -412,21 +412,25 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'strong_fist',
     name: 'Strong Fist Combo',
     tier: SkillTier.BASIC,
-    description: 'A rapid two-hit combo at 75% damage each.',
+    description:
+      '2×5 independent hits at CLOSE. On-hit effects once per card if ≥1 hit.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PHYSICAL, SkillTag.MULTI_HIT],
     apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
     currentCooldown: 0,
-    baseDamage: 10,
-
+    baseDamage: 5,
+    hitCount: 2,
     scalingPerPoint: 2,
     scalingStat: PrimaryStat.STRENGTH,
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
-    element: ElementType.PHYSICAL
+    element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE],
   },
 
   SWEEPING_KICK: {
