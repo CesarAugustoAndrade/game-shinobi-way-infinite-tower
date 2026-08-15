@@ -303,6 +303,10 @@ function hasEnemyMark(marks: Mark[], markId: string): boolean {
   return marks.some((mark) => mark.id === markId && mark.target === CombatActor.ENEMY);
 }
 
+function hasPlayerMark(marks: Mark[], markId: string): boolean {
+  return marks.some((mark) => mark.id === markId && mark.target === CombatActor.PLAYER);
+}
+
 function enemyMarkStacks(marks: readonly Mark[], markId: string): number {
   return marks.reduce(
     (sum, mark) =>
@@ -377,6 +381,7 @@ const LAUNCHED_SETUP_MULT = 1.2;
 const GUARD_BREAK_PEN = 0.15;
 const WIRE_TRAP_ID = 'wire_trap';
 const WIRE_TRAP_MULT = 1.2;
+const COATED_ID = 'coated';
 
 function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   const ids = new Set(spent.map((mark) => mark.id));
@@ -1033,6 +1038,24 @@ export function resolveSkill(
         owner: CombatActor.PLAYER,
         target: CombatActor.ENEMY,
         duration: 2,
+        stacks: 5,
+        family: MarkFamily.DOT,
+      });
+      next = { ...next, marks: planted.marks };
+    }
+    if (
+      (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) &&
+      hasPlayerMark(next.marks, COATED_ID)
+    ) {
+      const withoutCoat = next.marks.filter(
+        (mark) => !(mark.id === COATED_ID && mark.target === CombatActor.PLAYER),
+      );
+      const planted = addMark(withoutCoat, {
+        id: 'poison',
+        sourceSkillId: skill.id,
+        owner: CombatActor.PLAYER,
+        target: CombatActor.ENEMY,
+        duration: 3,
         stacks: 5,
         family: MarkFamily.DOT,
       });

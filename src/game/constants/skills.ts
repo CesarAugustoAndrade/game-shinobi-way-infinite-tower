@@ -893,8 +893,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'poison_coat',
     name: 'Poison Coat',
     tier: SkillTier.BASIC,
-    description: 'Coat weapon with poison. Next attack applies poison.',
+    description:
+      'Coated 2 on self. Next Offensive on hit applies Poison 5 for 3 and consumes the coat.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.TOOL, SkillTag.MARK],
     apCost: 1,
     chakraCost: 1,
     hpCost: 0,
@@ -907,7 +910,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.POISON, value: 8, duration: 3, chance: 1.0, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL }]
+    markEffects: [
+      {
+        id: 'coated',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.IMPACT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   // ==========================================
