@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-055 Sweeping Kick:** SIDE AP1/CD2 CLOSE 7. 40% Stun 1 on hit. Unused AP2 `effects[]` stun packaging now resolves via `impactStun`.
 - **T-054 Elbow Strike:** SIDE AP1/CD1 CLOSE 8. Plants Guard Break 2: next ATTACK ignores 15% defense. PIERCING packaging removed.
 - **T-053 Shuriken:** SIDE AP1/CD1 11 at MEDIUM/LONG. Plants Aim 2: next ATTACK +1 ACC. critBonus 25 packaging removed.
 - **T-052 Leaf Rising Wind:** SIDE AP1/CD2 CLOSE 8. Plants Launched 2: next MELEE ATTACK +20% setup. STR +25% packaging removed.

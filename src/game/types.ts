@@ -790,6 +790,12 @@ export interface ControlConfusionSpec {
   enemyDuration: number;
 }
 
+/** Offensive impact stun (T-055 Sweeping Kick): on ≥1 hit, rng < chance → enemy STUN. No fail-self. */
+export interface ImpactStunSpec {
+  chance: number;
+  duration: number;
+}
+
 /**
  * ATTACK Setup-bucket mark read (T-042 Mind Destruction). Independent of Mode ON.
  * When the enemy has `markId` (any stacks ≥1), multiply damage by (1 + damageMultBonus).
@@ -853,6 +859,11 @@ export interface Skill {
    * ATTACK (T-042) uses the same helper only when ≥1 hit lands.
    */
   controlConfusion?: ControlConfusionSpec;
+  /**
+   * SIDE/ATTACK impact stun (T-055). Applied only when hitsLanded ≥ 1.
+   * `rng() < chance` → enemy STUN `duration`. No self-stun on fail.
+   */
+  impactStun?: ImpactStunSpec;
   /**
    * ATTACK Setup-bucket mark read (T-042). Independent of Mode ON.
    * `consume` default false — lectura unless explicitly declared.

@@ -433,9 +433,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'sweeping_kick',
     name: 'Sweeping Kick',
     tier: SkillTier.BASIC,
-    description: 'A low sweep with a chance to stun.',
+    description: '7 dmg at CLOSE. 40% Stun 1 on hit. SIDE control chip.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PHYSICAL],
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -447,7 +449,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.4 }]
+    allowedRanges: [CombatRange.CLOSE],
+    impactStun: { chance: 0.4, duration: 1 },
+    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.4 }],
   },
 
   ELBOW_STRIKE: {

@@ -490,6 +490,23 @@ function resolveConfusionSupport(
   return state;
 }
 
+/** SIDE/ATTACK impact stun: rng() < chance → enemy stun. No self-stun. */
+function resolveImpactStun(
+  skill: Skill,
+  state: ResolveSkillState,
+  rng: () => number,
+): ResolveSkillState {
+  const spec = skill.impactStun;
+  if (!spec) return state;
+  if (rng() < spec.chance) {
+    return {
+      ...state,
+      enemyBuffs: [...(state.enemyBuffs ?? []), stunControlBuff(skill.id, spec.duration, 'enemy')],
+    };
+  }
+  return state;
+}
+
 /** SUPPORT control: rng() < chance → enemy stun; else self stun. Never deals damage. */
 function resolveControlSupport(
   skill: Skill,
@@ -978,6 +995,14 @@ export function resolveSkill(
     skill.controlConfusion
   ) {
     next = resolveConfusionSupport(skill, next, ports.rng ?? (() => 0));
+  }
+
+  if (
+    (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) &&
+    hitsLanded >= 1 &&
+    skill.impactStun
+  ) {
+    next = resolveImpactStun(skill, next, ports.rng ?? (() => 0));
   }
 
   if (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) {
