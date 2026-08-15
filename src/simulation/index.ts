@@ -84,6 +84,7 @@ import { printElbowStrikeProbe, runElbowStrikeProbe } from './ElbowStrikeBalance
 import { printSweepingKickProbe, runSweepingKickProbe } from './SweepingKickBalance';
 import { printExplosiveTagProbe, runExplosiveTagProbe } from './ExplosiveTagBalance';
 import { printStrongFistProbe, runStrongFistProbe } from './StrongFistBalance';
+import { printSenbonProbe, runSenbonProbe } from './SenbonBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -514,6 +515,7 @@ async function main() {
     printSweepingKickProbe(runSweepingKickProbe());
     printExplosiveTagProbe(runExplosiveTagProbe());
     printStrongFistProbe(runStrongFistProbe());
+    printSenbonProbe(runSenbonProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

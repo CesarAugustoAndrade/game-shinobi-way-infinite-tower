@@ -507,6 +507,33 @@ function resolveImpactStun(
   return state;
 }
 
+function silenceControlBuff(sourceId: string, duration: number): Buff {
+  return {
+    id: `silence-${sourceId}`,
+    name: 'Silence',
+    duration,
+    effect: { type: EffectType.SILENCE, duration, chance: 1 },
+    source: sourceId,
+  };
+}
+
+/** SIDE/ATTACK impact silence: rng() < chance → enemy silence. Does not end Modes. */
+function resolveImpactSilence(
+  skill: Skill,
+  state: ResolveSkillState,
+  rng: () => number,
+): ResolveSkillState {
+  const spec = skill.impactSilence;
+  if (!spec) return state;
+  if (rng() < spec.chance) {
+    return {
+      ...state,
+      enemyBuffs: [...(state.enemyBuffs ?? []), silenceControlBuff(skill.id, spec.duration)],
+    };
+  }
+  return state;
+}
+
 /** SUPPORT control: rng() < chance → enemy stun; else self stun. Never deals damage. */
 function resolveControlSupport(
   skill: Skill,
@@ -1003,6 +1030,14 @@ export function resolveSkill(
     skill.impactStun
   ) {
     next = resolveImpactStun(skill, next, ports.rng ?? (() => 0));
+  }
+
+  if (
+    (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) &&
+    hitsLanded >= 1 &&
+    skill.impactSilence
+  ) {
+    next = resolveImpactSilence(skill, next, ports.rng ?? (() => 0));
   }
 
   if (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) {

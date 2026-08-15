@@ -798,6 +798,12 @@ export interface ImpactStunSpec {
   duration: number;
 }
 
+/** Offensive impact silence (T-058 Senbon): on ≥1 hit, rng < chance → enemy SILENCE. */
+export interface ImpactSilenceSpec {
+  chance: number;
+  duration: number;
+}
+
 /**
  * ATTACK Setup-bucket mark read (T-042 Mind Destruction). Independent of Mode ON.
  * When the enemy has `markId` (any stacks ≥1), multiply damage by (1 + damageMultBonus).
@@ -866,6 +872,11 @@ export interface Skill {
    * `rng() < chance` → enemy STUN `duration`. No self-stun on fail.
    */
   impactStun?: ImpactStunSpec;
+  /**
+   * SIDE/ATTACK impact silence (T-058). Applied only when hitsLanded ≥ 1.
+   * `rng() < chance` → enemy SILENCE `duration`. Does not end Modes.
+   */
+  impactSilence?: ImpactSilenceSpec;
   /**
    * ATTACK Setup-bucket mark read (T-042). Independent of Mode ON.
    * `consume` default false — lectura unless explicitly declared.

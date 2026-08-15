@@ -713,9 +713,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'senbon',
     name: 'Senbon Needle',
     tier: SkillTier.BASIC,
-    description: 'A precise needle throw. High chance to silence.',
+    description: '7 damage at MEDIUM or LONG. 35% Silence 1 on hit. SIDE needle.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TOOL, SkillTag.WEAPON, SkillTag.PHYSICAL],
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -727,7 +729,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.SILENCE, duration: 1, chance: 0.5 }]
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    impactSilence: { chance: 0.35, duration: 1 },
+    effects: [{ type: EffectType.SILENCE, duration: 1, chance: 0.35 }],
   },
 
   SENBON_RAIN: {

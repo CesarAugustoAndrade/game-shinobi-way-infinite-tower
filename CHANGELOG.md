@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-058 Senbon:** SIDE AP1/CD1 MEDIUM/LONG 7. 35% Silence 1 on hit via `impactSilence`. AP2 / 50% unused `effects[]` packaging removed.
 - **T-057 Strong Fist:** ATTACK AP2/CD1 CLOSE 2×5 independent hits. Single-10 / 75% combo flavor packaging removed.
 - **T-056 Explosive Tag:** SIDE AP1/CD2 CLOSE/MEDIUM 11 FIRE. PUSH 1 on hit (`bandMove.requireHit`); miss stays put. AP2 unmarked fire packaging removed.
 - **T-055 Sweeping Kick:** SIDE AP1/CD2 CLOSE 7. 40% Stun 1 on hit. Unused AP2 `effects[]` stun packaging now resolves via `impactStun`.
