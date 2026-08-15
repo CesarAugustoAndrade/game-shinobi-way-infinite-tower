@@ -80,6 +80,7 @@ import { printFeintStrikeProbe, runFeintStrikeProbe } from './FeintStrikeBalance
 import { printLeafWhirlwindProbe, runLeafWhirlwindProbe } from './LeafWhirlwindBalance';
 import { printRisingWindProbe, runRisingWindProbe } from './RisingWindBalance';
 import { printShurikenProbe, runShurikenProbe } from './ShurikenBalance';
+import { printElbowStrikeProbe, runElbowStrikeProbe } from './ElbowStrikeBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -506,6 +507,7 @@ async function main() {
     printLeafWhirlwindProbe(runLeafWhirlwindProbe());
     printRisingWindProbe(runRisingWindProbe());
     printShurikenProbe(runShurikenProbe());
+    printElbowStrikeProbe(runElbowStrikeProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

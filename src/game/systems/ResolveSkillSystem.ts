@@ -374,6 +374,7 @@ function applySkillMarkEffects(
 }
 
 const LAUNCHED_SETUP_MULT = 1.2;
+const GUARD_BREAK_PEN = 0.15;
 
 function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   const ids = new Set(spent.map((mark) => mark.id));
@@ -708,6 +709,7 @@ export function resolveSkill(
           if (mark.id === 'lotus_opening') return isGatesFinisher(skill);
           if (mark.id === 'feint') return role === CardRole.ATTACK;
           if (mark.id === 'aim') return role === CardRole.ATTACK;
+          if (mark.id === 'guard_break') return role === CardRole.ATTACK;
           if (mark.id === 'launched') {
             return role === CardRole.ATTACK && skill.attackMethod === AttackMethod.MELEE;
           }
@@ -911,9 +913,14 @@ export function resolveSkill(
         mark.target === CombatActor.PLAYER &&
         mark.boundSkillId === skill.id,
     );
+    const spentGuard = afterAttempt.spent.some((mark) => mark.id === 'guard_break');
     const defensePercent = next.enemyDefensePercent ?? 0;
-    if (hitsLanded > 0 && (studied || defensePercent > 0)) {
-      const pen = studied ? Math.max(0.2, skill.penetration ?? 0) : (skill.penetration ?? 0);
+    if (hitsLanded > 0 && (studied || spentGuard || defensePercent > 0)) {
+      const pen = Math.max(
+        studied ? 0.2 : 0,
+        spentGuard ? GUARD_BREAK_PEN : 0,
+        skill.penetration ?? 0,
+      );
       damageDealt = applySkillPenetration(damageDealt, pen, defensePercent);
     }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };

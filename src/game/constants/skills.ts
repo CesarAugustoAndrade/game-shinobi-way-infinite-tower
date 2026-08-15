@@ -454,9 +454,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'elbow_strike',
     name: 'Elbow Strike',
     tier: SkillTier.BASIC,
-    description: 'A close-range elbow strike that ignores flat defense.',
+    description: '8 dmg at CLOSE. Guard Break 2: next ATTACK ignores 15% defense. SIDE chip.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PHYSICAL],
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 1,
@@ -465,9 +467,21 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     scalingPerPoint: 2,
     scalingStat: PrimaryStat.STRENGTH,
     damageType: DamageType.PHYSICAL,
-    damageProperty: DamageProperty.PIERCING,
+    damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
-    element: ElementType.PHYSICAL
+    element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE],
+    markEffects: [
+      {
+        id: 'guard_break',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+        perHit: true,
+      },
+    ],
   },
 
   FEINT_STRIKE: {

@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-054 Elbow Strike:** SIDE AP1/CD1 CLOSE 8. Plants Guard Break 2: next ATTACK ignores 15% defense. PIERCING packaging removed.
 - **T-053 Shuriken:** SIDE AP1/CD1 11 at MEDIUM/LONG. Plants Aim 2: next ATTACK +1 ACC. critBonus 25 packaging removed.
 - **T-052 Leaf Rising Wind:** SIDE AP1/CD2 CLOSE 8. Plants Launched 2: next MELEE ATTACK +20% setup. STR +25% packaging removed.
 - **T-051 Leaf Whirlwind:** ATTACK AP2/CD2 CLOSE 14. On hit, enemy −1 SPD for 2. ACC −15%@30% packaging removed.
