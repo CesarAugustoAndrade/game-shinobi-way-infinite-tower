@@ -805,8 +805,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'sword_slash',
     name: 'Sword Slash',
     tier: SkillTier.BASIC,
-    description: 'A powerful sword strike with bleeding chance.',
+    description: '10 damage at CLOSE. On hit, Bleed 4 for 2 opportunities. ATTACK slash.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.WEAPON, SkillTag.PHYSICAL],
     apCost: 2,
     chakraCost: 0,
     hpCost: 0,
@@ -819,7 +821,17 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.BLEED, value: 7, duration: 2, chance: 0.3, damageType: DamageType.PHYSICAL, damageProperty: DamageProperty.NORMAL }]
+    allowedRanges: [CombatRange.CLOSE],
+    markEffects: [
+      {
+        id: 'bleed',
+        duration: 2,
+        stacks: 4,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        perHit: true,
+      },
+    ],
   },
 
   IAIDO: {
