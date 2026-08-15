@@ -92,6 +92,7 @@ import { printCloakInvisProbe, runCloakInvisProbe } from './CloakInvisBalance';
 import { printIaidoProbe, runIaidoProbe } from './IaidoBalance';
 import { printMudWallProbe, runMudWallProbe } from './MudWallBalance';
 import { printBraceProbe, runBraceProbe } from './BraceBalance';
+import { printFlashBombProbe, runFlashBombProbe } from './FlashBombBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -530,6 +531,7 @@ async function main() {
     printIaidoProbe(runIaidoProbe());
     printMudWallProbe(runMudWallProbe());
     printBraceProbe(runBraceProbe());
+    printFlashBombProbe(runFlashBombProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

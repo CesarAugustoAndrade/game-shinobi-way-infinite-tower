@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-066 Flash Bomb:** SUPPORT AP1/CP0/CD4 plants enemy Blinded 1 (−2 ACC, stacks 2). ACC −40%×2 @50% packaging removed.
 - **T-065 Brace:** SUPPORT AP1/CP0/CD3 plants self Shield 20 until next enemy response and keeps Defensive stanceShift. WIL +30% packaging removed.
 - **T-064 Mud Wall:** SUPPORT AP1/CP4/CD4 plants self Shield 35 (absorb until gone) and keeps Defensive stanceShift. SHIELD 40×3 effects[] packaging removed.
 - **T-063 Iaido:** ATTACK AP2/CP1/CD3 CLOSE 12. With Cloak: Setup ×1.5 after auto-crit (12→28) and consume on attempt. critBonus 40 first-action packaging removed.

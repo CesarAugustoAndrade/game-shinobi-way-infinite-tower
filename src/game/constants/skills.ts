@@ -975,8 +975,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'flash_bomb',
     name: 'Flash Bomb',
     tier: SkillTier.BASIC,
-    description: 'Blind the enemy with a flash. Chance to reduce their accuracy.',
+    description: 'Blinded 1: enemy −2 ACC. Does not deal damage.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.TOOL, SkillTag.MARK],
     apCost: 1,
     chakraCost: 0,
     hpCost: 0,
@@ -989,7 +991,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.DEBUFF, targetStat: PrimaryStat.ACCURACY, value: 0.4, duration: 2, chance: 0.5 }]
+    markEffects: [
+      {
+        id: 'blinded',
+        duration: 1,
+        stacks: 2,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
   },
 
   ANALYZE: {
