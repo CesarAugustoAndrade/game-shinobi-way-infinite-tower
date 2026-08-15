@@ -94,6 +94,7 @@ import { printMudWallProbe, runMudWallProbe } from './MudWallBalance';
 import { printBraceProbe, runBraceProbe } from './BraceBalance';
 import { printFlashBombProbe, runFlashBombProbe } from './FlashBombBalance';
 import { printFocusedBreathingProbe, runFocusedBreathingProbe } from './FocusedBreathingBalance';
+import { printBasicMedicalProbe, runBasicMedicalProbe } from './BasicMedicalBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -534,6 +535,7 @@ async function main() {
     printBraceProbe(runBraceProbe());
     printFlashBombProbe(runFlashBombProbe());
     printFocusedBreathingProbe(runFocusedBreathingProbe());
+    printBasicMedicalProbe(runBasicMedicalProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

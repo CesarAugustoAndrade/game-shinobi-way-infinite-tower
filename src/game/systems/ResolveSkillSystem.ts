@@ -491,6 +491,36 @@ function resolveSupportCleanse(skill: Skill, state: ResolveSkillState): ResolveS
   };
 }
 
+const MEDICAL_DOT_BUFF_TYPES: readonly EffectType[] = [EffectType.POISON, EffectType.BLEED];
+
+function resolveSupportHeal(skill: Skill, state: ResolveSkillState): ResolveSkillState {
+  const spec = skill.supportHeal;
+  if (!spec) return state;
+  const ids = spec.cleanseOneOf ?? [];
+  let marks = state.marks.map((mark) => ({ ...mark }));
+  let playerBuffs = [...(state.playerBuffs ?? [])];
+  const markIdx = marks.findIndex(
+    (mark) => mark.target === CombatActor.PLAYER && ids.includes(mark.id),
+  );
+  if (markIdx >= 0) {
+    marks = marks.filter((_, i) => i !== markIdx);
+  } else {
+    const buffIdx = playerBuffs.findIndex((buff) =>
+      MEDICAL_DOT_BUFF_TYPES.includes(buff.effect.type),
+    );
+    if (buffIdx >= 0) {
+      playerBuffs = playerBuffs.filter((_, i) => i !== buffIdx);
+    }
+  }
+  const healed = Math.min(state.pools.maxHp, state.pools.hp + spec.amount);
+  return {
+    ...state,
+    marks,
+    playerBuffs,
+    pools: { ...state.pools, hp: healed },
+  };
+}
+
 /** SUPPORT Confusion: rng() < chance → enemy Confusion. Fail applies nothing. */
 function resolveConfusionSupport(
   skill: Skill,
@@ -909,6 +939,9 @@ export function resolveSkill(
     }
     if (skill.supportCleanse) {
       next = resolveSupportCleanse(skill, next);
+    }
+    if (skill.supportHeal) {
+      next = resolveSupportHeal(skill, next);
     }
     if ((mi?.restoreCharges ?? 0) > 0) {
       const boundId = bindLiveModeId(next.modes, mi);

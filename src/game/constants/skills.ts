@@ -1097,8 +1097,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'basic_medical',
     name: 'Basic Medical Jutsu',
     tier: SkillTier.BASIC,
-    description: 'Heal wounds with medical chakra. Removes poison and bleeding.',
+    description: 'Heal 25 HP. Remove one Poison or Bleed.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 2,
     stanceShift: Posture.BALANCED,
     stanceBonus: { posture: Posture.BALANCED, apDiscount: 1 },
@@ -1113,7 +1114,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.HEAL, value: 25, duration: 1, chance: 1.0 }]
+    supportHeal: {
+      amount: 25,
+      cleanseOneOf: ['poison', 'bleed'],
+    },
   },
 
   // ==========================================

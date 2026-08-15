@@ -892,6 +892,14 @@ export interface Skill {
     oneHostileMentalMark?: boolean;
     refundChakra?: number;
   };
+  /**
+   * SUPPORT heal (T-068 Basic Medical). Restore `amount` HP (clamp to maxHp)
+   * and strip one player mark whose id is in `cleanseOneOf` (first in array order).
+   */
+  supportHeal?: {
+    amount: number;
+    cleanseOneOf?: readonly string[];
+  };
 
   // DECKBUILDER / AP ECONOMY (T-004)
   // Prefer explicit apCost on every playable skill; fallback in combatCards.ts.
