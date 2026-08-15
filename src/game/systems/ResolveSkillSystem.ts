@@ -707,6 +707,7 @@ export function resolveSkill(
         (mark) => {
           if (mark.id === 'lotus_opening') return isGatesFinisher(skill);
           if (mark.id === 'feint') return role === CardRole.ATTACK;
+          if (mark.id === 'aim') return role === CardRole.ATTACK;
           if (mark.id === 'launched') {
             return role === CardRole.ATTACK && skill.attackMethod === AttackMethod.MELEE;
           }
@@ -893,6 +894,10 @@ export function resolveSkill(
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'shunshin_dex')) {
       damageDealt +=
         skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
+    }
+    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'aim')) {
+      damageDealt +=
+        skill.scalingStat === PrimaryStat.ACCURACY ? Math.max(0, skill.scalingPerPoint) : 1;
     }
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'feint')) {
       damageDealt += 15;
