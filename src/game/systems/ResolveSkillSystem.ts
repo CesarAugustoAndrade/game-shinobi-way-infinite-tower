@@ -14,6 +14,7 @@ import {
   CombatActor,
   CombatRange,
   EffectType,
+  ElementType,
   Mark,
   MarkConsumeTiming,
   MarkFamily,
@@ -23,6 +24,8 @@ import {
   Posture,
   RangeReactionDef,
   Skill,
+  type DerivedStats,
+  type PrimaryAttributes,
 } from '../types';
 import { getApCost } from '../constants/combatCards';
 import { getModeDefinition, MODE_FAMILY } from '../constants/modes';
@@ -74,6 +77,12 @@ import {
   type PendingSupportWeight,
 } from './SupportWeightSystem';
 import { onGatePrepPlayed } from './GatePrepDiscountSystem';
+import {
+  calculateDamage,
+  calculateDerivedStats,
+  type CalculateDamageOptions,
+} from './StatSystem';
+import { resolveSuccessfulHit } from './SkillResolutionSystem';
 
 export interface ResolveSkillPools {
   ap: number;
@@ -126,9 +135,23 @@ export interface ResolveSkillIntent {
   weightContext?: WeightContext;
 }
 
+/** Optional combatants for the Sprint B hit core (T-088). */
+export interface ResolveSkillCombatants {
+  attackerPrimary: PrimaryAttributes;
+  attackerDerived: DerivedStats;
+  defenderPrimary: PrimaryAttributes;
+  defenderDerived: DerivedStats;
+  attackerElement?: ElementType;
+  defenderElement?: ElementType;
+}
+
 export interface ResolveSkillPorts {
   rng?: () => number;
   rollHit?: () => HitRoll;
+  /** When set, ATTACK/SIDE hits use calculateDamage instead of the 0.85/baseDamage stub. */
+  combatants?: ResolveSkillCombatants;
+  /** Forwarded to calculateDamage when `rollHit` is omitted (tests force hit/no-crit). */
+  damageOptions?: CalculateDamageOptions;
   activateMode?: (
     board: ModeBoard,
     def: ModeDefinition,
@@ -299,7 +322,7 @@ function bindLiveModeId(board: ModeBoard, mi?: Skill['modeInteraction']): string
   )?.id;
 }
 
-function hasEnemyMark(marks: Mark[], markId: string): boolean {
+function hasEnemyMark(marks: readonly Mark[], markId: string): boolean {
   return marks.some((mark) => mark.id === markId && mark.target === CombatActor.ENEMY);
 }
 
@@ -393,6 +416,109 @@ function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   if (ids.has('exposed') && skill.attackMethod === AttackMethod.RANGED) mult *= 1.15;
   if (ids.has('launched') && skill.attackMethod === AttackMethod.MELEE) mult *= LAUNCHED_SETUP_MULT;
   return mult;
+}
+
+const FALLBACK_PRIMARY: PrimaryAttributes = {
+  willpower: 3,
+  chakra: 3,
+  strength: 3,
+  spirit: 3,
+  intelligence: 3,
+  calmness: 3,
+  speed: 3,
+  accuracy: 3,
+  dexterity: 3,
+};
+
+function fallbackCombatants(): ResolveSkillCombatants {
+  const derived = calculateDerivedStats(FALLBACK_PRIMARY);
+  return {
+    attackerPrimary: FALLBACK_PRIMARY,
+    attackerDerived: derived,
+    defenderPrimary: FALLBACK_PRIMARY,
+    defenderDerived: derived,
+    attackerElement: ElementType.PHYSICAL,
+    defenderElement: ElementType.PHYSICAL,
+  };
+}
+
+function rollCoreHit(
+  skill: Skill,
+  combatants: ResolveSkillCombatants,
+  options?: CalculateDamageOptions,
+): HitRoll {
+  const result = calculateDamage(
+    combatants.attackerPrimary,
+    combatants.attackerDerived,
+    combatants.defenderPrimary,
+    combatants.defenderDerived,
+    skill,
+    combatants.attackerElement ?? ElementType.PHYSICAL,
+    combatants.defenderElement ?? ElementType.PHYSICAL,
+    options ?? {},
+  );
+  if (result.isMiss || result.isEvaded) {
+    return { hit: false, damage: 0 };
+  }
+  return { hit: true, damage: result.finalDamage, crit: result.isCrit };
+}
+
+function pushNonIdentity(out: number[], mult: number): void {
+  if (mult !== 1) out.push(mult);
+}
+
+/** Mark/mode damage mults as a pre-mitigation product list (floor-after-each groups). */
+function collectConnectedHitPreMitigation(args: {
+  skill: Skill;
+  role: CardRole;
+  enhanced: boolean;
+  modeDamageBonus: number;
+  cpStacksConsumed: number;
+  spent: readonly Mark[];
+  marks: readonly Mark[];
+}): number[] {
+  const { skill, role, enhanced, modeDamageBonus, cpStacksConsumed, spent, marks } = args;
+  const mults: number[] = [];
+  const impactSpec = skill.impactMarkConsume;
+  const modeMult = 1 + modeDamageBonus;
+  const cpMult = 1 + (impactSpec?.damageMultPerStack ?? 0) * cpStacksConsumed;
+  pushNonIdentity(mults, modeMult * cpMult);
+  pushNonIdentity(mults, markDamageMultiplier(spent, skill));
+  const setup = skill.setupRead;
+  if (setup && hasEnemyMark(marks, setup.markId)) {
+    pushNonIdentity(mults, 1 + setup.damageMultBonus);
+  }
+  if (role === CardRole.ATTACK && hasEnemyMark(marks, WIRE_TRAP_ID)) {
+    pushNonIdentity(mults, WIRE_TRAP_MULT);
+  }
+  if (spent.some((mark) => mark.id === 'cloaked')) {
+    pushNonIdentity(mults, CLOAKED_CRIT_MULT);
+    if (skill.id === IAIDO_ID) pushNonIdentity(mults, IAIDO_SETUP_MULT);
+  }
+  if (spent.some((mark) => mark.id === 'lotus_opening')) {
+    pushNonIdentity(mults, 1.25);
+  }
+  if (enhanced) {
+    pushNonIdentity(mults, 1.5);
+  }
+  return mults;
+}
+
+function applyConnectedHitFlats(damage: number, skill: Skill, spent: readonly Mark[]): number {
+  let next = damage;
+  if (spent.some((mark) => mark.id === 'cloaked')) {
+    next += skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
+  }
+  if (spent.some((mark) => mark.id === 'shunshin_dex')) {
+    next += skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
+  }
+  if (spent.some((mark) => mark.id === 'aim')) {
+    next += skill.scalingStat === PrimaryStat.ACCURACY ? Math.max(0, skill.scalingPerPoint) : 1;
+  }
+  if (spent.some((mark) => mark.id === 'feint')) {
+    next += 15;
+  }
+  return next;
 }
 
 function isGatesFinisher(skill: Skill): boolean {
@@ -910,88 +1036,53 @@ export function resolveSkill(
       }
     }
   } else {
+    const combatants = ports.combatants ?? fallbackCombatants();
     const rollHit =
       ports.rollHit ??
-      (() => {
-        const roll = ports.rng?.() ?? 0;
-        const bonus = intent.enhanced ? Math.floor(Math.max(0, skill.baseDamage) * 0.5) : 0;
-        return {
-          hit: roll < 0.85,
-          damage: Math.max(0, skill.baseDamage) + bonus,
-        };
-      });
+      (() => rollCoreHit(skill, combatants, ports.damageOptions));
     const hitCount = (skill.hitCount ?? 1) + modeBonusHits;
     const multi = resolveMultiHit({ hitCount, perHit: Boolean(skill.perHitEffects?.length) }, rollHit);
     hitsLanded = multi.hitsLanded;
-    damageDealt = multi.totalDamage;
-    if (intent.enhanced && hitsLanded > 0 && !ports.rollHit) {
-      damageDealt += Math.floor(Math.max(0, skill.baseDamage) * 0.5) * hitsLanded;
-    }
     const impactSpec = skill.impactMarkConsume;
     const cpStacksConsumed =
       impactSpec && hitsLanded > 0
         ? Math.min(impactSpec.maxStacks, enemyMarkStacks(next.marks, impactSpec.markId))
         : 0;
-    if (hitsLanded > 0 && (modeDamageBonus > 0 || cpStacksConsumed > 0)) {
-      const modeMult = 1 + modeDamageBonus;
-      const cpMult = 1 + (impactSpec?.damageMultPerStack ?? 0) * cpStacksConsumed;
-      damageDealt = Math.floor(damageDealt * modeMult * cpMult);
-      if (modeDamageBonus > 0 && (skill.penetration ?? 0) > 0) {
-        damageDealt = applySkillPenetration(damageDealt, skill.penetration ?? 0);
-      }
-    }
-    const markMult = markDamageMultiplier(afterAttempt.spent, skill);
-    if (markMult !== 1 && hitsLanded > 0) {
-      damageDealt = Math.floor(damageDealt * markMult);
-    }
-    const setup = skill.setupRead;
-    if (setup && hitsLanded > 0 && hasEnemyMark(next.marks, setup.markId)) {
-      damageDealt = Math.floor(damageDealt * (1 + setup.damageMultBonus));
-    }
-    if (
-      role === CardRole.ATTACK &&
-      hitsLanded > 0 &&
-      hasEnemyMark(next.marks, WIRE_TRAP_ID)
-    ) {
-      damageDealt = Math.floor(damageDealt * WIRE_TRAP_MULT);
-    }
-    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'cloaked')) {
-      damageDealt = Math.floor(damageDealt * CLOAKED_CRIT_MULT);
-      if (skill.id === IAIDO_ID) {
-        damageDealt = Math.floor(damageDealt * IAIDO_SETUP_MULT);
-      }
-      damageDealt +=
-        skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
-    }
-    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'shunshin_dex')) {
-      damageDealt +=
-        skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
-    }
-    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'aim')) {
-      damageDealt +=
-        skill.scalingStat === PrimaryStat.ACCURACY ? Math.max(0, skill.scalingPerPoint) : 1;
-    }
-    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'feint')) {
-      damageDealt += 15;
-    }
-    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'lotus_opening')) {
-      damageDealt = Math.floor(damageDealt * 1.25);
-    }
-    const studied = next.marks.find(
-      (mark) =>
-        mark.id === 'studied' &&
-        mark.target === CombatActor.PLAYER &&
-        mark.boundSkillId === skill.id,
-    );
-    const spentGuard = afterAttempt.spent.some((mark) => mark.id === 'guard_break');
-    const defensePercent = next.enemyDefensePercent ?? 0;
-    if (hitsLanded > 0 && (studied || spentGuard || defensePercent > 0)) {
-      const pen = Math.max(
-        studied ? 0.2 : 0,
-        spentGuard ? GUARD_BREAK_PEN : 0,
-        skill.penetration ?? 0,
+    if (hitsLanded > 0) {
+      const resolved = resolveSuccessfulHit({
+        rawDamage: multi.totalDamage,
+        preMitigationMultipliers: collectConnectedHitPreMitigation({
+          skill,
+          role,
+          enhanced: Boolean(intent.enhanced) && !ports.rollHit,
+          modeDamageBonus,
+          cpStacksConsumed,
+          spent: afterAttempt.spent,
+          marks: next.marks,
+        }),
+        defenderBuffs: next.enemyBuffs ?? [],
+        defenderLabel: 'enemy',
+      });
+      damageDealt = applyConnectedHitFlats(resolved.finalDamage, skill, afterAttempt.spent);
+      const studied = next.marks.find(
+        (mark) =>
+          mark.id === 'studied' &&
+          mark.target === CombatActor.PLAYER &&
+          mark.boundSkillId === skill.id,
       );
-      damageDealt = applySkillPenetration(damageDealt, pen, defensePercent);
+      const spentGuard = afterAttempt.spent.some((mark) => mark.id === 'guard_break');
+      const defensePercent = next.enemyDefensePercent ?? 0;
+      if (studied || spentGuard || defensePercent > 0) {
+        const pen = Math.max(
+          studied ? 0.2 : 0,
+          spentGuard ? GUARD_BREAK_PEN : 0,
+          skill.penetration ?? 0,
+        );
+        damageDealt = applySkillPenetration(damageDealt, pen, defensePercent);
+      }
+      if (next.enemyBuffs) {
+        next = { ...next, enemyBuffs: resolved.updatedDefenderBuffs };
+      }
     }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {
