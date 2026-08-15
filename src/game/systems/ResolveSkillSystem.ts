@@ -74,6 +74,11 @@ import {
   type PendingSupportWeight,
 } from './SupportWeightSystem';
 import { onGatePrepPlayed } from './GatePrepDiscountSystem';
+import {
+  FOCUSED_BREATHING_ID,
+  armFocusedBreathingDiscount,
+  grantFocusedBreathingChakra,
+} from './FocusedBreathingDiscountSystem';
 
 export interface ResolveSkillPools {
   ap: number;
@@ -112,6 +117,8 @@ export interface ResolveSkillState {
   pendingSupportWeights?: PendingSupportWeight[];
   /** T-017 one-shot next Gate HP activation −50% (armed by Gate Prep play). */
   pendingGateHpDiscount?: boolean;
+  /** T-067 one-shot next CP Mode upkeep −2 (armed by Focused Breathing). */
+  pendingCpUpkeepDiscount?: number;
 }
 
 export interface ResolveSkillIntent {
@@ -225,6 +232,7 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
       : undefined,
     pendingSupportWeights: state.pendingSupportWeights?.map((entry) => ({ ...entry })),
     pendingGateHpDiscount: state.pendingGateHpDiscount,
+    pendingCpUpkeepDiscount: state.pendingCpUpkeepDiscount,
     enemyModes: state.enemyModes
       ? { instances: state.enemyModes.instances.map((mode) => ({ ...mode })) }
       : undefined,
@@ -1118,6 +1126,16 @@ export function resolveSkill(
   }
   if (skill.id === GATE_PREP_ID) {
     next = { ...next, pendingGateHpDiscount: onGatePrepPlayed().pending };
+  }
+  if (skill.id === FOCUSED_BREATHING_ID) {
+    next = {
+      ...next,
+      pools: {
+        ...next.pools,
+        chakra: grantFocusedBreathingChakra(next.pools.chakra),
+      },
+      pendingCpUpkeepDiscount: armFocusedBreathingDiscount(),
+    };
   }
 
   let reactions: RangeReactionDef[] = [];

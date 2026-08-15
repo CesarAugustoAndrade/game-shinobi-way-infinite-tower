@@ -20,6 +20,7 @@ import {
   resolveModeUpkeep,
 } from './TurnClockSystem';
 import { discountedGateActivationCost, isGateHpDiscountEligible } from './GatePrepDiscountSystem';
+import { applyCpUpkeepDiscount } from './FocusedBreathingDiscountSystem';
 
 export interface ModeBoard {
   instances: ActiveModeRuntime[];
@@ -55,6 +56,8 @@ export interface ModeOpResult {
   ended?: { id: string; kind: ModeEndKind }[];
   /** Remaining Gate Prep HP discount after this op (echo; undefined if unused). */
   gateHpDiscount?: boolean;
+  /** Remaining T-067 CP upkeep discount after this op (echo; undefined if unused). */
+  cpUpkeepDiscount?: number;
 }
 
 export function emptyModeBoard(): ModeBoard {
@@ -396,17 +399,37 @@ export function pickEnemyModeToDrain(
   return on[0].id;
 }
 
+export interface ModeUpkeepOpts {
+  cpUpkeepDiscount?: number;
+}
+
 export function applyModeUpkeep(
   board: ModeBoard,
   priority: readonly string[],
   pools: ModePools,
   turnIndex: number,
+  opts?: ModeUpkeepOpts,
 ): ModeOpResult {
   const active = onModes(board);
   const costs: Record<string, TypedCost> = {};
+  let remainingDiscount = opts?.cpUpkeepDiscount ?? 0;
+  const seen = new Set<string>();
+  const payOrder: string[] = [];
+  for (const id of priority) {
+    if (active.some((mode) => mode.id === id) && !seen.has(id)) {
+      payOrder.push(id);
+      seen.add(id);
+    }
+  }
   for (const mode of active) {
-    const def = getModeDefinition(mode.id);
-    if (def) costs[mode.id] = def.upkeep;
+    if (!seen.has(mode.id)) payOrder.push(mode.id);
+  }
+  for (const id of payOrder) {
+    const def = getModeDefinition(id);
+    if (!def) continue;
+    const applied = applyCpUpkeepDiscount(def.upkeep, remainingDiscount);
+    costs[id] = applied.cost;
+    if (applied.consumed) remainingDiscount = applied.remaining;
   }
   const paid = resolveModeUpkeep(
     active,
@@ -437,5 +460,6 @@ export function applyModeUpkeep(
     board: { instances: [...others, ...kept, ...cooling] },
     pools: { ap: pools.ap, chakra: paid.chakra, hp: paid.hp },
     ended: paid.endedModes.map((ended) => ({ id: ended.id, kind: ModeEndKind.UPKEEP_FAIL })),
+    ...(opts !== undefined ? { cpUpkeepDiscount: remainingDiscount } : {}),
   };
 }

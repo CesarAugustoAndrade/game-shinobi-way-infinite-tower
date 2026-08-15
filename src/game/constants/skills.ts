@@ -598,10 +598,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'focused_breathing',
     name: 'Focused Breathing',
     tier: SkillTier.BASIC,
-    description: 'Regulate breathing to recover chakra.',
+    description: '+8 CP. Next CP Mode upkeep −2 once.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 1,
-    stanceShift: Posture.DEFENSIVE,  // centering your breathing eases you into a guard
+    stanceShift: Posture.DEFENSIVE,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -613,7 +614,6 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.CHAKRA_REGEN, value: 10, duration: 1, chance: 1.0 }]
   },
 
   // ==========================================

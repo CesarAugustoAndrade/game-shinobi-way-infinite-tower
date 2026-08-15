@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-067 Focused Breathing:** SUPPORT AP1/CP0/CD2 grants +8 CP and arms a one-shot next CP Mode upkeep −2. CHAKRA_REGEN 10 packaging removed.
 - **T-066 Flash Bomb:** SUPPORT AP1/CP0/CD4 plants enemy Blinded 1 (−2 ACC, stacks 2). ACC −40%×2 @50% packaging removed.
 - **T-065 Brace:** SUPPORT AP1/CP0/CD3 plants self Shield 20 until next enemy response and keeps Defensive stanceShift. WIL +30% packaging removed.
 - **T-064 Mud Wall:** SUPPORT AP1/CP4/CD4 plants self Shield 35 (absorb until gone) and keeps Defensive stanceShift. SHIELD 40×3 effects[] packaging removed.
