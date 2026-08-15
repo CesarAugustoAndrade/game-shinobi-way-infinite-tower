@@ -382,6 +382,7 @@ const GUARD_BREAK_PEN = 0.15;
 const WIRE_TRAP_ID = 'wire_trap';
 const WIRE_TRAP_MULT = 1.2;
 const COATED_ID = 'coated';
+const CLOAKED_CRIT_MULT = 1.5;
 
 function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   const ids = new Set(spent.map((mark) => mark.id));
@@ -760,6 +761,7 @@ export function resolveSkill(
           if (mark.id === 'lotus_opening') return isGatesFinisher(skill);
           if (mark.id === 'feint') return role === CardRole.ATTACK;
           if (mark.id === 'aim') return role === CardRole.ATTACK;
+          if (mark.id === 'cloaked') return role === CardRole.ATTACK;
           if (mark.id === 'guard_break') return role === CardRole.ATTACK;
           if (mark.id === 'launched') {
             return role === CardRole.ATTACK && skill.attackMethod === AttackMethod.MELEE;
@@ -950,6 +952,11 @@ export function resolveSkill(
       hasEnemyMark(next.marks, WIRE_TRAP_ID)
     ) {
       damageDealt = Math.floor(damageDealt * WIRE_TRAP_MULT);
+    }
+    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'cloaked')) {
+      damageDealt = Math.floor(damageDealt * CLOAKED_CRIT_MULT);
+      damageDealt +=
+        skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
     }
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'shunshin_dex')) {
       damageDealt +=

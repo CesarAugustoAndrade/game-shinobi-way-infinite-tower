@@ -1032,8 +1032,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'cloak_invis',
     name: 'Cloak of Invisibility',
     tier: SkillTier.BASIC,
-    description: 'Become nearly invisible. +60% evasion and next hit auto-crits.',
+    description:
+      'Cloaked 2 on self. Next ATTACK force crits and gains +1 DEX; consume on attempt.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.MARK],
     apCost: 1,
     chakraCost: 3,
     hpCost: 0,
@@ -1046,10 +1049,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.6, duration: 1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.DEXTERITY, value: 0.5, duration: 1, chance: 1.0 }
-    ]
+    markEffects: [
+      {
+        id: 'cloaked',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   BASIC_MEDICAL: {

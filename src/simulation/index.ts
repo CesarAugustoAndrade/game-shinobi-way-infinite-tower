@@ -88,6 +88,7 @@ import { printSenbonProbe, runSenbonProbe } from './SenbonBalance';
 import { printSwordSlashProbe, runSwordSlashProbe } from './SwordSlashBalance';
 import { printWireSetupProbe, runWireSetupProbe } from './WireSetupBalance';
 import { printPoisonCoatProbe, runPoisonCoatProbe } from './PoisonCoatBalance';
+import { printCloakInvisProbe, runCloakInvisProbe } from './CloakInvisBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -522,6 +523,7 @@ async function main() {
     printSwordSlashProbe(runSwordSlashProbe());
     printWireSetupProbe(runWireSetupProbe());
     printPoisonCoatProbe(runPoisonCoatProbe());
+    printCloakInvisProbe(runCloakInvisProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

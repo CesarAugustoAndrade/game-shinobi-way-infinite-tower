@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-062 Cloak of Invisibility:** SUPPORT AP1/CP3/CD4 plants self Cloaked 2. Next ATTACK force-crits (×1.5) and gains +1 DEX; consume on attempt (even miss). SIDE leaves the cloak. SPEED +60% / DEX +50% packaging removed.
 - **T-061 Poison Coat:** SUPPORT AP1/CP1/CD4 plants self Coated 2. Next Offensive (ATTACK or SIDE) hit applies Poison 5×3 and consumes the coat. Miss/SUPPORT leave the coat. Immediate Poison 8×3 packaging removed.
 - **T-060 Wire Trap:** SUPPORT AP1/CP1/CD4 plants enemy Wire Trap 2. Next ATTACK hit +20%, Bleed 5×2, consume. Miss/SIDE leave the trap. Self STR +20% / 40% Bleed 8 packaging removed.
 - **T-059 Sword Slash:** ATTACK AP2/CD1 CLOSE 10. On hit, Bleed 4 for 2 via `markEffects`. BLEED 7@30% packaging removed.
