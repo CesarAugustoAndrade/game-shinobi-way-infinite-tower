@@ -383,6 +383,8 @@ const WIRE_TRAP_ID = 'wire_trap';
 const WIRE_TRAP_MULT = 1.2;
 const COATED_ID = 'coated';
 const CLOAKED_CRIT_MULT = 1.5;
+const IAIDO_ID = 'iaido';
+const IAIDO_SETUP_MULT = 1.5;
 
 function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   const ids = new Set(spent.map((mark) => mark.id));
@@ -955,6 +957,9 @@ export function resolveSkill(
     }
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'cloaked')) {
       damageDealt = Math.floor(damageDealt * CLOAKED_CRIT_MULT);
+      if (skill.id === IAIDO_ID) {
+        damageDealt = Math.floor(damageDealt * IAIDO_SETUP_MULT);
+      }
       damageDealt +=
         skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
     }

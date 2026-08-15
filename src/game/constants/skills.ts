@@ -838,8 +838,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'iaido',
     name: 'Iaido',
     tier: SkillTier.BASIC,
-    description: 'A lightning-fast quick draw attack. +40% crit if first action.',
+    description:
+      '12 CLOSE. With Cloak: +50% Setup besides auto-crit; consume Cloak on attempt.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.WEAPON, SkillTag.PHYSICAL],
     apCost: 2,
     stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.2 },
     chakraCost: 1,
@@ -853,7 +856,7 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    critBonus: 40
+    allowedRanges: [CombatRange.CLOSE],
   },
 
   WIRE_SETUP: {
