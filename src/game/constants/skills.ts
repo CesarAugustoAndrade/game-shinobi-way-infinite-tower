@@ -366,9 +366,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'rising_wind',
     name: 'Leaf Rising Wind',
     tier: SkillTier.BASIC,
-    description: 'An upward kick that sets up a follow-up attack.',
+    description: '8 dmg at CLOSE. Launched 2: next MELEE ATTACK +20% setup. SIDE kick.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PHYSICAL],
+    apCost: 1,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
@@ -380,7 +382,18 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.25, duration: 1, chance: 1.0 }]
+    allowedRanges: [CombatRange.CLOSE],
+    markEffects: [
+      {
+        id: 'launched',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+        perHit: true,
+      },
+    ],
   },
 
   STRONG_FIST: {

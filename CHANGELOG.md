@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-052 Leaf Rising Wind:** SIDE AP1/CD2 CLOSE 8. Plants Launched 2: next MELEE ATTACK +20% setup. STR +25% packaging removed.
 - **T-051 Leaf Whirlwind:** ATTACK AP2/CD2 CLOSE 14. On hit, enemy −1 SPD for 2. ACC −15%@30% packaging removed.
 - **T-050 Feint Strike:** SIDE AP1/CD2 CLOSE AUTO 7. Plants Feint 2: next ATTACK +15 impact. AP2 unmarked packaging removed.
 - **T-049 Kunai Throw:** SIDE AP1/CD1 7 at MEDIUM/LONG. On hit, TOOL weight +1 next draw. AP2 untagged packaging removed.

@@ -373,11 +373,14 @@ function applySkillMarkEffects(
   return { ...state, marks };
 }
 
+const LAUNCHED_SETUP_MULT = 1.2;
+
 function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   const ids = new Set(spent.map((mark) => mark.id));
   let mult = 1;
   if (ids.has('off_balance')) mult *= 1.2;
   if (ids.has('exposed') && skill.attackMethod === AttackMethod.RANGED) mult *= 1.15;
+  if (ids.has('launched') && skill.attackMethod === AttackMethod.MELEE) mult *= LAUNCHED_SETUP_MULT;
   return mult;
 }
 
@@ -704,6 +707,9 @@ export function resolveSkill(
         (mark) => {
           if (mark.id === 'lotus_opening') return isGatesFinisher(skill);
           if (mark.id === 'feint') return role === CardRole.ATTACK;
+          if (mark.id === 'launched') {
+            return role === CardRole.ATTACK && skill.attackMethod === AttackMethod.MELEE;
+          }
           return true;
         },
       )
