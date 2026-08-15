@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-064 Mud Wall:** SUPPORT AP1/CP4/CD4 plants self Shield 35 (absorb until gone) and keeps Defensive stanceShift. SHIELD 40×3 effects[] packaging removed.
 - **T-063 Iaido:** ATTACK AP2/CP1/CD3 CLOSE 12. With Cloak: Setup ×1.5 after auto-crit (12→28) and consume on attempt. critBonus 40 first-action packaging removed.
 - **T-062 Cloak of Invisibility:** SUPPORT AP1/CP3/CD4 plants self Cloaked 2. Next ATTACK force-crits (×1.5) and gains +1 DEX; consume on attempt (even miss). SIDE leaves the cloak. SPEED +60% / DEX +50% packaging removed.
 - **T-061 Poison Coat:** SUPPORT AP1/CP1/CD4 plants self Coated 2. Next Offensive (ATTACK or SIDE) hit applies Poison 5×3 and consumes the coat. Miss/SUPPORT leave the coat. Immediate Poison 8×3 packaging removed.

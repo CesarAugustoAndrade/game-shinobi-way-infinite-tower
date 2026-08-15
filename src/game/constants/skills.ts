@@ -110,8 +110,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'mud_wall',
     name: 'Mud Wall',
     tier: SkillTier.BASIC,
-    description: 'Spits mud that hardens into a barricade. Creates a Shield.',
+    description: 'Shield 35 until absorbed. Shift Defensive inside the card cost.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.EARTH],
     apCost: 1,
     stanceShift: Posture.DEFENSIVE,
     stanceBonus: { posture: Posture.DEFENSIVE, apDiscount: 1 },
@@ -132,7 +134,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.SPIRIT]: 1,
       },
     },
-    effects: [{ type: EffectType.SHIELD, value: 40, duration: 3, chance: 1.0 }]
+    markEffects: [
+      {
+        id: 'mud_wall_shield',
+        duration: 99,
+        stacks: 35,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+      },
+    ],
   },
 
   PHOENIX_FLOWER: {
