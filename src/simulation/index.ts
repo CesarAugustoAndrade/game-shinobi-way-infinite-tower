@@ -91,6 +91,7 @@ import { printPoisonCoatProbe, runPoisonCoatProbe } from './PoisonCoatBalance';
 import { printCloakInvisProbe, runCloakInvisProbe } from './CloakInvisBalance';
 import { printIaidoProbe, runIaidoProbe } from './IaidoBalance';
 import { printMudWallProbe, runMudWallProbe } from './MudWallBalance';
+import { printBraceProbe, runBraceProbe } from './BraceBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -528,6 +529,7 @@ async function main() {
     printCloakInvisProbe(runCloakInvisProbe());
     printIaidoProbe(runIaidoProbe());
     printMudWallProbe(runMudWallProbe());
+    printBraceProbe(runBraceProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

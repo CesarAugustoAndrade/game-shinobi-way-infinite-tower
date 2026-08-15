@@ -1022,10 +1022,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'brace',
     name: 'Brace',
     tier: SkillTier.BASIC,
-    description: 'Prepare for impact. Gain +30% defense until next turn.',
+    description: 'Shift Defensive. Shield 20 until the next enemy response.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
     apCost: 1,
-    stanceShift: Posture.DEFENSIVE,  // settling in to guard shifts you defensive
+    stanceShift: Posture.DEFENSIVE,
     stanceBonus: { posture: Posture.DEFENSIVE, apDiscount: 1 },
     chakraCost: 0,
     hpCost: 0,
@@ -1038,7 +1039,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.3, duration: 1, chance: 1.0 }]
+    markEffects: [
+      {
+        id: 'brace_shield',
+        duration: 1,
+        stacks: 20,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+      },
+    ],
   },
 
   CLOAK_INVIS: {
