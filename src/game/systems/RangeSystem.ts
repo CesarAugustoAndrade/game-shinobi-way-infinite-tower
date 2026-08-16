@@ -10,6 +10,7 @@ import {
   AttackMethod,
   CombatRange,
   Enemy,
+  Mark,
   RangeMoveDirection,
   RangeMoveTrigger,
   RangeReactionDef,
@@ -30,6 +31,23 @@ const ALL_RANGES: CombatRange[] = [
 
 /** Base AP cost for one voluntary band move. */
 export const VOLUNTARY_MOVE_AP_COST = 1;
+
+/** T-080: self mark planted when Water Prison Stun lands. Blocks voluntary range-up. */
+export const WATER_PRISON_LOCK_ID = 'water_prison_lock';
+
+/** True when the player is trying to step to a longer band (CLOSE→MEDIUM / MEDIUM→LONG). */
+export function isVoluntaryRangeIncrease(direction: RangeMoveDirection): boolean {
+  return direction === RangeMoveDirection.RETREAT;
+}
+
+/** Water Prison lock: reject voluntary range-up while `water_prison_lock` remains. */
+export function voluntaryRangeIncreaseBlocked(
+  marks: readonly Mark[] | undefined,
+  direction: RangeMoveDirection,
+): boolean {
+  if (!isVoluntaryRangeIncrease(direction)) return false;
+  return (marks ?? []).some((mark) => mark.id === WATER_PRISON_LOCK_ID);
+}
 
 // ============================================================================
 // Defaults & legality

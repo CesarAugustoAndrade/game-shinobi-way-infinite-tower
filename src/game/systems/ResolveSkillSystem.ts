@@ -542,7 +542,9 @@ function resolveConfusionSupport(
   return state;
 }
 
-/** SIDE/ATTACK impact stun: rng() < chance → enemy stun. No self-stun. */
+const WATER_PRISON_LOCK_MARK_ID = 'water_prison_lock';
+
+/** SIDE/ATTACK impact stun: rng() < chance → enemy stun. Optional self range-up lock. */
 function resolveImpactStun(
   skill: Skill,
   state: ResolveSkillState,
@@ -550,13 +552,24 @@ function resolveImpactStun(
 ): ResolveSkillState {
   const spec = skill.impactStun;
   if (!spec) return state;
-  if (rng() < spec.chance) {
-    return {
-      ...state,
-      enemyBuffs: [...(state.enemyBuffs ?? []), stunControlBuff(skill.id, spec.duration, 'enemy')],
-    };
+  if (rng() >= spec.chance) return state;
+  let next: ResolveSkillState = {
+    ...state,
+    enemyBuffs: [...(state.enemyBuffs ?? []), stunControlBuff(skill.id, spec.duration, 'enemy')],
+  };
+  if (spec.lockVoluntaryRangeUp) {
+    const planted = addMark(next.marks, {
+      id: WATER_PRISON_LOCK_MARK_ID,
+      sourceSkillId: skill.id,
+      owner: CombatActor.PLAYER,
+      target: CombatActor.PLAYER,
+      duration: spec.duration,
+      stacks: 1,
+      family: MarkFamily.STAT,
+    });
+    next = { ...next, marks: planted.marks };
   }
-  return state;
+  return next;
 }
 
 function silenceControlBuff(sourceId: string, duration: number): Buff {

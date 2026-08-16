@@ -1808,28 +1808,32 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'water_prison',
     name: 'Water Prison',
     tier: SkillTier.ADVANCED,
-    description: 'Traps the enemy in a sphere of heavy water. High stun chance.',
+    description:
+      '9 dmg at MEDIUM. 70% Stun 1. Cannot voluntarily increase range while Stun persists.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.WATER],
     apCost: 2,
     chakraCost: 6,
     hpCost: 0,
     cooldown: 5,
     currentCooldown: 0,
     baseDamage: 9,
-
+    hitCount: 1,
     scalingPerPoint: 2,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WATER,
+    allowedRanges: [CombatRange.MEDIUM],
+    impactStun: { chance: 0.7, duration: 1, lockVoluntaryRangeUp: true },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 2, chance: 0.7 }]
   },
 
   WATER_WALL: {

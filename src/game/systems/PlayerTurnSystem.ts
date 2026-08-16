@@ -49,6 +49,7 @@ import {
   shiftRange,
   voluntaryMoveCost,
   collectRangeReactions,
+  voluntaryRangeIncreaseBlocked,
 } from './RangeSystem';
 import { RangeMoveTrigger } from '../types';
 import { CombatModifiers } from './ApproachSystem';
@@ -375,6 +376,14 @@ export function voluntaryPlayerMove(
       blocked: true,
       combatState,
       logMessage: 'Already moved this turn.',
+    };
+  }
+  if (voluntaryRangeIncreaseBlocked(combatState.marks, direction)) {
+    return {
+      success: false,
+      blocked: true,
+      combatState,
+      logMessage: 'Water Prison holds you at this band.',
     };
   }
   const cost = voluntaryMoveCost(apSurcharge);
