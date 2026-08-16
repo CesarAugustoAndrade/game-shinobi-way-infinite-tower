@@ -3006,24 +3006,27 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: '1000_years',
     name: '1000 Years of Death',
     tier: SkillTier.FORBIDDEN,
-    description: 'The forbidden poke. 100% stun, 60% confusion.',
+    description:
+      '9 dmg at CLOSE. 45% Stun 1 and 45% Confusion 1, separate rolls on hit.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PHYSICAL],
     apCost: 2,
     chakraCost: 1,
     hpCost: 0,
     cooldown: 5,
     currentCooldown: 0,
     baseDamage: 9,
+    hitCount: 1,
     scalingPerPoint: 7,
     scalingStat: PrimaryStat.STRENGTH,
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
-    effects: [
-      { type: EffectType.STUN, duration: 1, chance: 1.0 },
-      { type: EffectType.CONFUSION, duration: 2, chance: 0.6 }
-    ]
+    allowedRanges: [CombatRange.CLOSE],
+    impactStun: { chance: 0.45, duration: 1 },
+    controlConfusion: { chance: 0.45, enemyDuration: 1 },
   },
 
   // ==========================================

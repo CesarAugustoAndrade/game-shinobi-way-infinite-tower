@@ -107,6 +107,7 @@ import { printAirBulletProbe, runAirBulletProbe } from './AirBulletBalance';
 import { printDemonSlashProbe, runDemonSlashProbe } from './DemonSlashBalance';
 import { printKillingIntentProbe, runKillingIntentProbe } from './KillingIntentBalance';
 import { printWaterPrisonProbe, runWaterPrisonProbe } from './WaterPrisonBalance';
+import { printThousandYearsProbe, runThousandYearsProbe } from './ThousandYearsBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -560,6 +561,7 @@ async function main() {
     printDemonSlashProbe(runDemonSlashProbe());
     printKillingIntentProbe(runKillingIntentProbe());
     printWaterPrisonProbe(runWaterPrisonProbe());
+    printThousandYearsProbe(runThousandYearsProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
