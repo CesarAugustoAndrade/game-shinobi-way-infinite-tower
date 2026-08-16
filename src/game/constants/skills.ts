@@ -1938,9 +1938,14 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'dragon_flame',
     name: 'Dragon Flame Bomb',
     tier: SkillTier.ADVANCED,
-    description: 'A dragon-shaped fireball that causes severe burns.',
+    description:
+      'Base 17 + Burn 5×3 at MEDIUM or LONG. With Sharingan 2-Tomoe ON: +50% damage and consume 1 charge at attempt.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.UCHIHA, SkillTag.NINJUTSU, SkillTag.FIRE],
+    apCost: 3,
+    stanceShift: Posture.AGGRESSIVE,
+    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.15 },
     chakraCost: 6,
     hpCost: 0,
     cooldown: 3,
@@ -1952,14 +1957,27 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.FIRE,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    modeInteraction: {
+      modeId: 'sharingan_2',
+      family: MODE_FAMILY.SHARINGAN,
+      consumeCharges: 1,
+      damageMultBonus: 0.5,
+    },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.15 },
-    effects: [{ type: EffectType.BURN, value: 10, duration: 3, chance: 0.7, damageType: DamageType.ELEMENTAL, damageProperty: DamageProperty.NORMAL }]
+    effects: [{
+      type: EffectType.BURN,
+      value: 5,
+      duration: 3,
+      chance: 1.0,
+      damageType: DamageType.ELEMENTAL,
+      damageProperty: DamageProperty.NORMAL,
+    }],
   },
 
   HIDDEN_MIST: {
