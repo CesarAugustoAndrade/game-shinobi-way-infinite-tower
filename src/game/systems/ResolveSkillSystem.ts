@@ -803,6 +803,7 @@ export function resolveSkill(
           if (mark.id === 'lotus_opening') return isGatesFinisher(skill);
           if (mark.id === 'feint') return role === CardRole.ATTACK;
           if (mark.id === 'barrage_setup') return role === CardRole.ATTACK;
+          if (mark.id === 'exposed') return role === CardRole.ATTACK;
           if (mark.id === 'aim') return role === CardRole.ATTACK;
           if (mark.id === 'cloaked') return role === CardRole.ATTACK;
           if (mark.id === 'guard_break') return role === CardRole.ATTACK;

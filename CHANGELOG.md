@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-072 Explosive Barrage:** SIDE AP2/CP3/CD4 deals 3×5 FIRE at MEDIUM/LONG. On hit, Exposed 2 (+15% next ranged ATTACK). SPEED −20% / single-13 packaging removed.
 - **T-071 Windmill Shuriken:** SIDE AP2/CP0/CD3 deals 12 at MEDIUM/LONG and PULL 1 on hit. PIERCING / pen 0.2 packaging removed.
 - **T-070 Senbon Rain:** SIDE AP2/CP3/CD3 deals 4×2 at MEDIUM/LONG. On hit, plants Poison 3 for 2 once. POISON 5×3 @20% packaging removed.
 - **T-069 Shuriken Barrage:** SIDE AP2/CP1/CD2 deals 3×3 at MEDIUM/LONG. On hit, next ATTACK +10% Setup. Single-6 “40% each” packaging removed.

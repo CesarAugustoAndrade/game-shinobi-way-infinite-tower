@@ -98,6 +98,7 @@ import { printBasicMedicalProbe, runBasicMedicalProbe } from './BasicMedicalBala
 import { printShurikenBarrageProbe, runShurikenBarrageProbe } from './ShurikenBarrageBalance';
 import { printSenbonRainProbe, runSenbonRainProbe } from './SenbonRainBalance';
 import { printWindmillShurikenProbe, runWindmillShurikenProbe } from './WindmillShurikenBalance';
+import { printExplosiveBarrageProbe, runExplosiveBarrageProbe } from './ExplosiveBarrageBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -542,6 +543,7 @@ async function main() {
     printShurikenBarrageProbe(runShurikenBarrageProbe());
     printSenbonRainProbe(runSenbonRainProbe());
     printWindmillShurikenProbe(runWindmillShurikenProbe());
+    printExplosiveBarrageProbe(runExplosiveBarrageProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
