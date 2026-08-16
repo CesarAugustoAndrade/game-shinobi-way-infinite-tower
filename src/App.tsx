@@ -24,6 +24,7 @@ import {
   canAddPlayableSkill,
   getPlayableDeckSize,
 } from './game/systems/DeckSystem';
+import { applyForgetSkill, applyLearnSkill } from './game/systems/SkillConfigLive';
 import { applyLevelUp } from './game/systems/LevelSystem';
 import { generateEnemy } from './game/systems/EnemySystem';
 
@@ -1526,38 +1527,50 @@ const App: React.FC = () => {
 
     setPlayer(prev => {
       if (!prev) return null;
-      const newSkills = [...prev.skills];
-      const idx = newSkills.findIndex(s => s.id === skill.id);
+      const idx = prev.skills.findIndex(s => s.id === skill.id);
 
       if (idx !== -1) {
-        const existing = newSkills[idx];
+        const existing = prev.skills[idx];
         const currentLevel = existing.level || 1;
         const baseGrowth = Math.max(1, Math.round((skill.baseDamage ?? 0) * 0.1));
         const scaleGrowth = Math.max(0, Math.round((skill.scalingPerPoint ?? 0) * 0.1));
-        newSkills[idx] = {
-          ...existing,
-          level: currentLevel + 1,
-          baseDamage: (existing.baseDamage ?? 0) + baseGrowth,
-          scalingPerPoint: (existing.scalingPerPoint ?? 0) + scaleGrowth,
+        const learned = applyLearnSkill(prev, skill, GameState.LOOT);
+        if (learned.refused) return prev;
+        return {
+          ...learned.player,
+          skills: learned.player.skills.map((entry) =>
+            entry.id === skill.id
+              ? {
+                  ...entry,
+                  level: currentLevel + 1,
+                  baseDamage: (entry.baseDamage ?? 0) + baseGrowth,
+                  scalingPerPoint: (entry.scalingPerPoint ?? 0) + scaleGrowth,
+                }
+              : entry,
+          ),
         };
-        return { ...prev, skills: newSkills };
       }
-      if (slotIndex !== undefined && newSkills[slotIndex]) {
-        const replaced = newSkills[slotIndex];
-        // When playable deck is full, only allow replacing a playable slot (not a passive)
+      if (slotIndex !== undefined && prev.skills[slotIndex]) {
+        const replaced = prev.skills[slotIndex];
         if (
           skill.actionType !== ActionType.PASSIVE &&
-          !canAddPlayableSkill(newSkills) &&
+          !canAddPlayableSkill(prev.skills) &&
           replaced.actionType === ActionType.PASSIVE
         ) {
           return prev;
         }
-        newSkills[slotIndex] = { ...skill, level: 1 };
-        return { ...prev, skills: newSkills };
+        const forgotten = applyForgetSkill(prev, replaced.id, GameState.LOOT, Math.random);
+        if (forgotten.refused) return prev;
+        const learned = applyLearnSkill(
+          forgotten.player,
+          { ...skill, level: 1 },
+          GameState.LOOT,
+        );
+        return learned.refused ? prev : learned.player;
       }
-      if (skill.actionType === ActionType.PASSIVE || canAddPlayableSkill(newSkills)) {
-        newSkills.push({ ...skill, level: 1 });
-        return { ...prev, skills: newSkills };
+      if (skill.actionType === ActionType.PASSIVE || canAddPlayableSkill(prev.skills)) {
+        const learned = applyLearnSkill(prev, { ...skill, level: 1 }, GameState.LOOT);
+        return learned.refused ? prev : learned.player;
       }
       return prev;
     });
