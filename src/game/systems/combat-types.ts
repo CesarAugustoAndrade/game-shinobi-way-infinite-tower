@@ -214,4 +214,6 @@ export interface EnemyTurnResult {
   enemyCurrentAp?: number;
   /** F2: enemy move used flag */
   enemyMoveUsedThisTurn?: boolean;
+  /** T-084: board after ON_MOVE fire / Fear-Smoke-ReadWindow consume */
+  marks?: Mark[];
 }
