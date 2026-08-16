@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-076 Sand Shield:** SUPPORT AP1/CP5/CD3 plants self Shield 45 until absorbed. SHIELD 80×2 effects[] packaging removed.
 - **T-075 Henge:** SUPPORT AP1/CP1/CD4 plants Misdirect 2, SIDE weight +2 next draw; next SIDE hit applies Exposed 10%. DEX +25% packaging removed.
 - **T-074 Bunshin:** SUPPORT AP1/CP1/CD3 plants Decoy 1 (−20 first enemy offensive). Does not grant Shadow Clone charges or SIDE weight. SPEED +20% packaging removed.
 - **T-073 Hidden Mist:** SUPPORT AP2/CP5/CD5 plants Mist 2 (−20 first enemy offensive) and SIDE weight +1 next draw. SPEED +50% / ACC −30% packaging removed.

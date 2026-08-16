@@ -2393,8 +2393,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'sand_shield',
     name: 'Sand Shield',
     tier: SkillTier.HIDDEN,
-    description: 'Automatic sand defense. Creates 80 shield.',
+    description: 'Shield 45 until absorbed.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.EARTH],
     apCost: 1,
     chakraCost: 5,
     hpCost: 0,
@@ -2413,7 +2415,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.SPIRIT]: 3,
       },
     },
-    effects: [{ type: EffectType.SHIELD, value: 80, duration: 2, chance: 1.0 }]
+    markEffects: [
+      {
+        id: 'sand_shield',
+        duration: 99,
+        stacks: 45,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+      },
+    ],
   },
 
   SHARINGAN_PREDICT: {
