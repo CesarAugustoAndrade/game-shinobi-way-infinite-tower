@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-087 Combat mount:** Modes + Setup panels render on the board. Hand paints the Main ribbon. Toggle playability uses `canPlaySkill` with `modeAlreadyOn` + Mode `grantedRanges` (Chidori MEDIUM with Sharingan 3).
 - **T-086 Skill Config choke:** loot `learnSkill` (and existing activity/treasure handlers) go through `applyLearnSkill` / `applyForgetSkill`. Forgetting Main realigns `skillConfig.mainAttackId`.
 - **T-085 live weights:** `processUpkeep` consumes `pendingSupportWeights` once into the new-turn draw and writes an empty bag back. Discover is not consumed at upkeep.
 - **T-084 live reactions:** enemy voluntary move fires ON_MOVE (tripwire 8 + 60% Stun 1). Live outgoing applies Fear → Smoke → Read Window once. `EnemyTurnResult.marks` is now official.

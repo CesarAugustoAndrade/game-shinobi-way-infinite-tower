@@ -113,6 +113,7 @@ import { printTurnIndexProbe, runTurnIndexProbe } from './TurnIndexBalance';
 import { printLiveReactionsProbe, runLiveReactionsProbe } from './LiveReactionsBalance';
 import { printLiveWeightsProbe, runLiveWeightsProbe } from './LiveWeightsBalance';
 import { printSkillConfigChokeProbe, runSkillConfigChokeProbe } from './SkillConfigChokeBalance';
+import { printCombatMountProbe, runCombatMountProbe } from './CombatMountBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -572,6 +573,7 @@ async function main() {
     printLiveReactionsProbe(runLiveReactionsProbe());
     printLiveWeightsProbe(runLiveWeightsProbe());
     printSkillConfigChokeProbe(runSkillConfigChokeProbe());
+    printCombatMountProbe(runCombatMountProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

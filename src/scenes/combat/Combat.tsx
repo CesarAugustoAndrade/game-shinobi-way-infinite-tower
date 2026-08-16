@@ -330,6 +330,18 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   const resolvedUpkeepPriority =
     modeUpkeepPriority ?? player.skillConfig?.modeUpkeepPriority ?? [];
 
+  const grantedRangesForSkill = useCallback(
+    (skill: Skill): CombatRange[] => {
+      const mi = skill.modeInteraction;
+      if (!mi?.modeId || !mi.grantRanges?.length) return [];
+      const need = mi.consumeCharges ?? 1;
+      const charges = activeModes.find((mode) => mode.id === mi.modeId)?.charges ?? 0;
+      if (charges < need) return [];
+      return [...mi.grantRanges];
+    },
+    [activeModes],
+  );
+
   /** Assemble pure playability context from live combat fields. */
   const buildSkillPlayContext = useCallback(
     (skill: Skill): SkillPlayContext => {
@@ -356,9 +368,10 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         skipFirstSkillCost,
         modeAlreadyOn,
         modeActivation: isModeSkill && !modeAlreadyOn,
+        grantedRanges: grantedRangesForSkill(skill),
       };
     },
-    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost, activeModes],
+    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost, activeModes, grantedRangesForSkill],
   );
 
   /** Card playability — single path through skillPlayability (incl. Mode ON range skip). */

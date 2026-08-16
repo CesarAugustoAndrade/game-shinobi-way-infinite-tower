@@ -28,6 +28,7 @@ describe('T-087 AC1 — Combat mounts Modes + Setup panels', () => {
     expect(combatSrc).toContain('canPlaySkill');
     expect(combatSrc).toContain('buildSkillPlayContext');
     expect(combatSrc).toContain('modeAlreadyOn');
+    expect(combatSrc).toContain('grantedRanges');
     expect(combatSrc).not.toMatch(/if\s*\(\s*skill\.isActive\s*\)[\s\S]*skillAllowedAt/);
   });
 });
