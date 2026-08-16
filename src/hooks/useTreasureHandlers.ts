@@ -12,6 +12,7 @@ import {
   applyFloorHeatDelta,
 } from '../game/systems/LocationSystem';
 import { addToBag, getSellPrice } from '../game/systems/LootSystem';
+import { applyLearnSkill } from '../game/systems/SkillConfigLive';
 import {
   resolveVisitContext,
   completeActivityOnVisit,
@@ -454,9 +455,15 @@ export function useTreasureHandlers(
         if (already) {
           addLog(`You already know ${skill.name} — the scroll fades.`, 'info');
         } else {
-          setPlayer((p) =>
-            p ? { ...p, skills: [...p.skills, { ...skill, level: skill.level || 1 }] } : p,
-          );
+          setPlayer((p) => {
+            if (!p) return p;
+            const learned = applyLearnSkill(
+              p,
+              { ...skill, level: skill.level || 1 },
+              GameState.TREASURE,
+            );
+            return learned.refused ? p : learned.player;
+          });
           addLog(`Learned ${skill.name} from the vault scroll!`, 'gain');
         }
         completeTreasureAndReturn();

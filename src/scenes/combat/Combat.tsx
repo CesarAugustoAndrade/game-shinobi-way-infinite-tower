@@ -11,8 +11,12 @@ import {
   LogEntry,
   CombatRange,
   RangeMoveDirection,
+  ActionType,
+  CardRole,
+  ModeRuntimeState,
+  type ActiveModeRuntime,
+  type Mark,
 } from '../../game/types';
-import { skillAllowedAt } from '../../game/systems/RangeSystem';
 import {
   canPlaySkill,
   getSkillBlockReason as getMachineBlockReason,
@@ -25,10 +29,11 @@ import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen
 import FloatingText, { FloatingTextItem, FloatingTextType } from '../../components/combat/FloatingText';
 import CombatSenStrip from '../../components/combat/CombatSenStrip';
 import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
+import { CombatModesPanel } from '../../components/combat/CombatModesPanel';
+import { TacticalSetupPanel } from '../../components/combat/TacticalSetupPanel';
 import { PostureIndicator } from '../../components/combat/PostureIndicator';
 import { RangeControlPanel } from '../../components/combat/RangeControlPanel';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
-import { getApCost } from '../../game/constants/combatCards';
 import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
 import { ApproachResult } from '../../game/systems/ApproachSystem';
 import { describePosture } from '../../game/systems/PostureSystem';
@@ -168,6 +173,12 @@ interface CombatProps {
   roomTerrain?: import('../../game/types').TerrainDefinition | null;
   /** T-103: active room combat condition labels (Ambush, Sanctuary, …) */
   roomConditionNames?: string[] | null;
+  /** Live Modes board (`combatState.activeModes`). */
+  activeModes?: ActiveModeRuntime[];
+  /** Live Marks board (`combatState.marks`). */
+  marks?: Mark[];
+  /** Skill Config upkeep order. Falls back to `player.skillConfig`. */
+  modeUpkeepPriority?: readonly string[];
 }
 
 const Combat = forwardRef<CombatRef, CombatProps>(({
@@ -205,6 +216,9 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   locationTerrainMods = null,
   roomTerrain = null,
   roomConditionNames = null,
+  activeModes = [],
+  marks = [],
+  modeUpkeepPriority,
 }, ref) => {
   // Floating text state
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextItem[]>([]);
@@ -313,68 +327,54 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
   const isSilencedStatus = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
 
+  const resolvedUpkeepPriority =
+    modeUpkeepPriority ?? player.skillConfig?.modeUpkeepPriority ?? [];
+
   /** Assemble pure playability context from live combat fields. */
   const buildSkillPlayContext = useCallback(
-    (skill: Skill): SkillPlayContext => ({
-      skill,
-      currentChakra: player.currentChakra,
-      currentHp: player.currentHp,
-      maxHp: playerStats.derived.maxHp,
-      currentAp,
-      currentRange: currentRange ?? undefined,
-      activeBuffs: player.activeBuffs,
-      skipFirstSkillCost,
-    }),
-    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost],
+    (skill: Skill): SkillPlayContext => {
+      const isModeSkill =
+        skill.cardRole === CardRole.MODE ||
+        skill.actionType === ActionType.TOGGLE ||
+        Boolean(skill.isToggle);
+      const modeAlreadyOn =
+        Boolean(skill.isActive) ||
+        (isModeSkill &&
+          activeModes.some(
+            (mode) =>
+              (mode.id === skill.id || mode.id === skill.modeInteraction?.modeId) &&
+              (mode.state === ModeRuntimeState.ON || mode.state === undefined),
+          ));
+      return {
+        skill,
+        currentChakra: player.currentChakra,
+        currentHp: player.currentHp,
+        maxHp: playerStats.derived.maxHp,
+        currentAp,
+        currentRange: currentRange ?? undefined,
+        activeBuffs: player.activeBuffs,
+        skipFirstSkillCost,
+        modeAlreadyOn,
+        modeActivation: isModeSkill && !modeAlreadyOn,
+      };
+    },
+    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost, activeModes],
   );
 
-  /**
-   * Card playability (resources + AP + state).
-   * Routes normal skills through skillPlayability; active toggles keep the
-   * legacy deactivation path (bypass chakra/hp/silence, still gate stun/cd/range/ap).
-   */
+  /** Card playability — single path through skillPlayability (incl. Mode ON range skip). */
   const canUseSkill = useCallback(
-    (skill: Skill): boolean => {
-      if (skill.isActive) {
-        if (player.activeBuffs.some((b) => b?.effect?.type === EffectType.STUN)) return false;
-        if (skill.currentCooldown > 0) return false;
-        if (currentRange != null && !skillAllowedAt(skill, currentRange)) return false;
-        if (currentAp < getApCost(skill)) return false;
-        return true;
-      }
-      return canPlaySkill(buildSkillPlayContext(skill));
-    },
-    [player.activeBuffs, currentAp, currentRange, buildSkillPlayContext],
+    (skill: Skill): boolean => canPlaySkill(buildSkillPlayContext(skill)),
+    [buildSkillPlayContext],
   );
 
   /** R1 Confuso: explain greyed hand cards (AP / chakra / silence / stun / range). */
   const getSkillBlockReason = useCallback(
     (skill: Skill): string | null => {
-      if (canUseSkill(skill)) return null;
-
       const ctx = buildSkillPlayContext(skill);
-
-      // Active toggle deactivation never hits silence/resource gates.
-      if (skill.isActive) {
-        if (player.activeBuffs.some((b) => b?.effect?.type === EffectType.STUN)) {
-          return formatSkillBlockReason('stun', ctx);
-        }
-        if (skill.currentCooldown > 0) {
-          return formatSkillBlockReason('cooldown', ctx);
-        }
-        if (currentRange != null && !skillAllowedAt(skill, currentRange)) {
-          return formatSkillBlockReason('range', ctx);
-        }
-        if (currentAp < getApCost(skill)) {
-          return formatSkillBlockReason('ap', ctx);
-        }
-        return 'Cannot play this card';
-      }
-
       const reason = getMachineBlockReason(ctx);
-      return formatSkillBlockReason(reason, ctx) ?? 'Cannot play this card';
+      return formatSkillBlockReason(reason, ctx);
     },
-    [canUseSkill, buildSkillPlayContext, player.activeBuffs, currentAp, currentRange],
+    [buildSkillPlayContext],
   );
 
   /** Hand empty on player turn — surface End Turn so the player is never stuck. */
@@ -706,6 +706,13 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
       {/* ROW 2: AP + stance + End Turn over hand — no dark plates / no player HUD */}
       <div className="combat__deck" ref={playerFloatRef}>
         <div className="combat__command">
+          <div className="combat__board">
+            <CombatModesPanel
+              modes={activeModes}
+              upkeepPriority={resolvedUpkeepPriority}
+            />
+            <TacticalSetupPanel marks={marks} />
+          </div>
           <div className="combat__econ-bar">
             <div className="combat__ap" aria-label={`Action Points ${currentAp} of ${maxAp}`}>
               <span className="combat__ap-label">AP</span>
@@ -786,6 +793,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           locationTerrainMods={locationTerrainMods}
           roomTerrain={roomTerrain}
           skipFirstSkillCost={skipFirstSkillCost}
+          mainAttackId={player.skillConfig?.mainAttackId ?? null}
         />
       </div>
 

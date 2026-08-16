@@ -246,9 +246,11 @@ export interface TurnClockResult {
 /**
  * Runs start-of-turn phases 1–4 in SOUL order.
  * ACTIONS / VIRTUAL_DISCARD stay at existing turn-system call sites.
+ * T-083: T advances at start-of-turn so readyOnTurn = T+N+1 can expire.
  */
 export function runTurnStartClock(input: TurnClockInput): TurnClockResult {
   const phasesRun: TurnPhase[] = [];
+  const turnIndex = input.turnIndex + 1;
 
   phasesRun.push(TurnPhase.MODE_UPKEEP);
   const upkeep = resolveModeUpkeep(
@@ -256,7 +258,7 @@ export function runTurnStartClock(input: TurnClockInput): TurnClockResult {
     input.modeCosts,
     input.modeUpkeepPriority,
     { chakra: input.chakra, hp: input.hp },
-    input.turnIndex,
+    turnIndex,
   );
 
   phasesRun.push(TurnPhase.TICKS_REGEN);
@@ -269,7 +271,7 @@ export function runTurnStartClock(input: TurnClockInput): TurnClockResult {
   const durations = decrementSupportAndMarkDurations(input.marks, input.supports ?? []);
 
   return {
-    turnIndex: input.turnIndex,
+    turnIndex,
     chakra: pools.chakra,
     hp: pools.hp,
     modes: upkeep.remainingModes,

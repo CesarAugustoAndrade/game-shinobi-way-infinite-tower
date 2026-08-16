@@ -9,6 +9,7 @@
 import {
   CombatActor,
   CombatRange,
+  CombatTrigger,
   Mark,
   MarkConsumeTiming,
   MarkFamily,
@@ -112,7 +113,7 @@ export function consumeOnAttempt(
 
 /**
  * Next enemy offensive under Read Window: subtract stacks (default 30) once, then strip.
- * Live EnemyTurn wiring is optional; this is the R0 contract (T-039).
+ * Live EnemyTurn applies this on a successful hit (T-084).
  */
 export function applyReadWindowOutgoing(
   damage: number,
@@ -178,7 +179,7 @@ export function applyMistOutgoing(
 
 /**
  * First enemy offensive under Smoke: subtract stacks (default 25) once, then strip.
- * Live EnemyTurn wiring is optional; this is the R0 contract (T-038).
+ * Live EnemyTurn applies this on a successful hit (T-084).
  */
 export function applySmokeOutgoing(
   damage: number,
@@ -200,7 +201,7 @@ export function applySmokeOutgoing(
 
 /**
  * Next enemy offensive under Fear: ×(1 − stacks/100) once, then strip the mark.
- * Live EnemyTurn wiring is optional; this is the R0 contract (T-037).
+ * Live EnemyTurn applies this on a successful hit (T-084).
  */
 export function applyFearOutgoing(
   damage: number,
@@ -217,6 +218,23 @@ export function applyFearOutgoing(
       .filter((mark) => !(mark.id === 'fear' && mark.target === CombatActor.ENEMY))
       .map((mark) => ({ ...mark })),
     consumed: true,
+  };
+}
+
+/**
+ * Fear → Smoke → Read Window on one outgoing enemy hit. Each helper still consume-once.
+ */
+export function applyOutgoingMarkCuts(
+  damage: number,
+  marks: readonly Mark[],
+): { damage: number; marks: Mark[]; consumed: boolean } {
+  const fear = applyFearOutgoing(damage, marks);
+  const smoke = applySmokeOutgoing(fear.damage, fear.marks);
+  const window = applyReadWindowOutgoing(smoke.damage, smoke.marks);
+  return {
+    damage: window.damage,
+    marks: window.marks,
+    consumed: fear.consumed || smoke.consumed || window.consumed,
   };
 }
 
@@ -288,16 +306,21 @@ function tripwireStunMark(sourceSkillId: string): Mark {
   };
 }
 
+function isOnMoveReaction(mark: Mark): boolean {
+  return mark.trigger === CombatTrigger.ON_MOVE || mark.id === TRIPWIRE_MARK_ID;
+}
+
 /**
- * First real enemy band change consumes one `tripwire` mark: 8 chip + 60% Stun 1.
- * Player moves and non-moves leave marks and HP unchanged.
+ * First real enemy band change consumes one ON_MOVE mark (tripwire or trigger).
+ * Payload: 8 chip + 60% Stun 1. Player moves and non-moves leave marks/HP unchanged.
+ * Stun is a HARD_CONTROL mark — live skip still reads STUN buffs (residual).
  */
 export function fireTripwireOnEnemyMove(input: TripwireFireInput): TripwireFireResult {
   const marks = cloneSetup(input.marks);
   if (!input.moved || input.mover !== 'enemy') {
     return { marks, enemyHp: input.enemyHp, damageDealt: 0, stunned: false, fired: false };
   }
-  const idx = marks.findIndex((mark) => mark.id === TRIPWIRE_MARK_ID);
+  const idx = marks.findIndex(isOnMoveReaction);
   if (idx < 0) {
     return { marks, enemyHp: input.enemyHp, damageDealt: 0, stunned: false, fired: false };
   }
@@ -332,6 +355,11 @@ export function applyEnemyBandChange(
     rng,
   });
   return { ...fired, range: shifted.range, moved: shifted.moved };
+}
+
+/** Live/sim alias: fire the first ON_MOVE mark after a real enemy band change. */
+export function fireOnMoveReactions(input: TripwireFireInput): TripwireFireResult {
+  return fireTripwireOnEnemyMove(input);
 }
 
 export interface HitRoll {

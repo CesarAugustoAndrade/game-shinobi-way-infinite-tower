@@ -62,6 +62,8 @@ interface HandProps {
    * Surface as waived CP on the card face (WAVE9 cost honesty).
    */
   skipFirstSkillCost?: boolean;
+  /** Skill Config Main Attack id — SkillCard paints the Main ribbon. */
+  mainAttackId?: string | null;
 }
 
 /**
@@ -89,6 +91,7 @@ export const Hand: React.FC<HandProps> = ({
   locationTerrainMods = null,
   roomTerrain = null,
   skipFirstSkillCost = false,
+  mainAttackId = null,
 }) => {
   const renderCard = (skill: Skill, index: number) => {
     const apCost = getApCost(skill);
@@ -299,6 +302,7 @@ export const Hand: React.FC<HandProps> = ({
           freeChakra={skipFirstSkillCost}
           chakraShort={chakraShort}
           hpShort={hpShort}
+          mainAttackId={mainAttackId}
           blockReason={
             !usable
               ? (!isPlayerTurn

@@ -3,7 +3,6 @@ import {
   Player,
   Enemy,
   Skill,
-  Buff,
   EffectType,
   GameState,
   ActionType,
@@ -12,6 +11,8 @@ import {
   ApproachType,
   RangeMoveDirection,
   CombatRange,
+  CardRole,
+  ModeRuntimeState,
 } from '../game/types';
 import { getEnemyFullStats, getPlayerFullStats } from '../game/systems/StatSystem';
 import {
@@ -24,16 +25,19 @@ import {
   buildDeck,
   drawHand,
 } from '../game/systems/CombatWorkflowSystem';
-import { voluntaryPlayerMove } from '../game/systems/PlayerTurnSystem';
+import { voluntaryPlayerMove, type LiveCombatResult } from '../game/systems/PlayerTurnSystem';
 import { bootstrapPlayerSkillConfig, normalizeSkillConfig } from '../game/systems/SkillConfigLive';
-import {
-  resolveInitialRange,
-  skillAllowedAt,
-  outOfRangeBlockReason,
-} from '../game/systems/RangeSystem';
+import { resolveInitialRange } from '../game/systems/RangeSystem';
 import { determineTurnOrder } from '../game/systems/CombatCalculationSystem';
 import { getApCost } from '../game/constants/combatCards';
 import { LaunchProperties } from '../config/featureFlags';
+import { resetCombatFrontier } from '../game/systems/TurnClockSystem';
+import {
+  canPlaySkill,
+  getSkillBlockReason,
+  type SkillPlayContext,
+} from '../game/systems/skillPlayability';
+import { formatSkillBlockReason } from '../game/systems/combatSkillViewModel';
 import { ApproachResult, getCombatModifiers } from '../game/systems/ApproachSystem';
 import { applyRoomCombatModifiers } from '../game/systems/RoomCombatModifierSystem';
 import type { CombatModifierType } from '../game/types';
@@ -110,6 +114,58 @@ export interface UseCombatReturn {
   playerMoveUsedThisTurn: boolean;
 }
 
+function isModeSkill(skill: Skill): boolean {
+  return (
+    skill.cardRole === CardRole.MODE ||
+    skill.isToggle === true ||
+    skill.actionType === ActionType.TOGGLE
+  );
+}
+
+function isModeAlreadyOn(skill: Skill, combatState: CombatState): boolean {
+  if (skill.isActive) return true;
+  const modeId = skill.modeInteraction?.modeId ?? skill.id;
+  return (combatState.activeModes ?? []).some(
+    (mode) =>
+      mode.id === modeId &&
+      (mode.state === ModeRuntimeState.ON || mode.state === undefined),
+  );
+}
+
+function grantedRangesForSkill(skill: Skill, combatState: CombatState): CombatRange[] {
+  const mi = skill.modeInteraction;
+  if (!mi?.modeId || !mi.grantRanges?.length) return [];
+  const need = mi.consumeCharges ?? 1;
+  const charges =
+    (combatState.activeModes ?? []).find((mode) => mode.id === mi.modeId)?.charges ?? 0;
+  if (charges < need) return [];
+  return [...mi.grantRanges];
+}
+
+/** Assemble playability context; FREE_FIRST is skipFirstSkillCost only. */
+function buildSkillPlayContext(
+  skill: Skill,
+  player: Player,
+  maxHp: number,
+  combatState: CombatState,
+): SkillPlayContext {
+  const modeSkill = isModeSkill(skill);
+  const modeAlreadyOn = modeSkill && isModeAlreadyOn(skill, combatState);
+  return {
+    skill,
+    currentChakra: player.currentChakra,
+    currentHp: player.currentHp,
+    maxHp,
+    currentAp: combatState.currentAp,
+    currentRange: combatState.currentRange ?? undefined,
+    activeBuffs: player.activeBuffs,
+    skipFirstSkillCost: Boolean(combatState.skipFirstSkillCost),
+    modeActivation: modeSkill && !modeAlreadyOn,
+    modeAlreadyOn,
+    grantedRanges: grantedRangesForSkill(skill, combatState),
+  };
+}
+
 /**
  * Custom hook for managing combat state and logic
  * Extracts combat-related functionality from App.tsx
@@ -175,11 +231,9 @@ export function useCombat({
   /**
    * Play a card from the hand during combat (T-004 AP economy).
    *
-   * - Rejects if stunned, if the skill is PASSIVE, or if there isn't enough AP.
-   * - TOGGLE cards flip activation and pay their AP cost (they no longer end the turn).
-   * - Regular cards run the combat math, spend AP, may shift the player's stance,
-   *   and leave the hand (to the discard pile).
-   * - The player's turn ends when AP is exhausted (or via SPACE / changePosture).
+   * Playability (stun / silence / CD / range / AP / chakra / HP / FREE_FIRST)
+   * is skillPlayability. Commit is PlayerTurnSystem.useSkill — no local
+   * toggle-buff branch. Turn ends when AP is exhausted (or SPACE / posture).
    */
   const useSkill = useCallback(
     (skill: Skill) => {
@@ -195,33 +249,21 @@ export function useCombat({
         enemyHpBefore: enemy.currentHp
       });
 
-      // STUN blocks ALL actions (except PASSIVE which returns early anyway)
-      const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
-      if (isStunned) {
-        addLog('You are stunned and cannot act!', 'danger');
-        return;
-      }
-
       // PASSIVE skills are always active and never played as cards
       if (skill.actionType === ActionType.PASSIVE) {
         addLog('Passive abilities are always active!', 'info');
         return;
       }
 
-      // Silence blocks any skill that costs chakra (activation / cast), not free taijutsu
-      // and not toggle deactivation (handled below for toggles).
-      const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
-
-      // F2: range gate (shared pure helper — matches useSkillCombat)
-      if (combatState.currentRange && !skillAllowedAt(skill, combatState.currentRange)) {
-        addLog(outOfRangeBlockReason(skill, combatState.currentRange), 'danger');
-        return;
-      }
-
-      // Action Point gate
-      const apCost = getApCost(skill);
-      if (combatState.currentAp < apCost) {
-        addLog(`Not enough Action Points (need ${apCost}, have ${combatState.currentAp}).`, 'danger');
+      const playCtx = buildSkillPlayContext(
+        skill,
+        player,
+        playerStats.derived.maxHp,
+        combatState,
+      );
+      if (!canPlaySkill(playCtx)) {
+        const reason = getSkillBlockReason(playCtx);
+        addLog(formatSkillBlockReason(reason, playCtx) ?? 'Cannot play this card', 'danger');
         return;
       }
 
@@ -230,110 +272,11 @@ export function useCombat({
         return;
       }
 
-      const apAfter = combatState.currentAp - apCost;
+      const apCost = getApCost(skill);
       // Commit lock after validation — released when combatState/turn commits
       skillActionLockRef.current = true;
 
-      // Shared bookkeeping after a card resolves: spend AP, move the played card
-      // to the discard pile, optionally shift posture, then end the turn if AP
-      // is exhausted.
-      const finishCardPlay = (shiftedPosture?: Posture) => {
-        setCombatState((prev) => {
-          if (!prev) return prev;
-          const newHand = prev.hand.filter((c) => c.id !== skill.id);
-          return {
-            ...prev,
-            currentAp: prev.currentAp - apCost,
-            hand: newHand,
-            posture: shiftedPosture ?? prev.posture,
-          };
-        });
-        if (apAfter <= 0) {
-          setTurnState('ENEMY_TURN');
-        }
-      };
-
-      // ── TOGGLE cards: flip activation, pay AP, do NOT end the turn directly ──
-      if (skill.isToggle || skill.actionType === ActionType.TOGGLE) {
-        const isActive = skill.isActive || false;
-        // FREE_FIRST_SKILL: activation chakra waived on first accepted skill (parity with useSkill).
-        // Silence still keys off base chakraCost — free-first does not bypass silence.
-        const skipToggleChakra =
-          Boolean(combatState.skipFirstSkillCost) && !isActive && skill.chakraCost > 0;
-        const effectiveToggleChakra = skipToggleChakra ? 0 : isActive ? 0 : skill.chakraCost;
-
-        // Silence blocks toggle activation (but not deactivation)
-        if (!isActive && isSilenced && skill.chakraCost > 0) {
-          addLog('Cannot activate - you are Silenced!', 'danger');
-          skillActionLockRef.current = false;
-          return;
-        }
-
-        // Check chakra cost for activation (honour FREE_FIRST waiver)
-        if (!isActive && player.currentChakra < effectiveToggleChakra) {
-          addLog('Insufficient Chakra to activate!', 'danger');
-          skillActionLockRef.current = false;
-          return;
-        }
-
-        setPlayer((prev) => {
-          if (!prev) return null;
-          let newBuffs = [...prev.activeBuffs];
-          const newSkills = prev.skills.map((s) =>
-            s.id === skill.id ? { ...s, isActive: !isActive } : s
-          );
-          let newChakra = prev.currentChakra;
-
-          if (isActive) {
-            // Deactivate: Remove all buffs from this skill
-            newBuffs = newBuffs.filter((b) => b.source !== skill.name);
-            addLog(`${skill.name} Deactivated.`, 'info');
-          } else {
-            // Activate: Apply effects and pay initial cost (0 when FREE_FIRST)
-            newChakra -= effectiveToggleChakra;
-            if (skill.effects) {
-              skill.effects.forEach((eff) => {
-                const buff: Buff = {
-                  id: Math.random().toString(36).substring(2, 9),
-                  name: eff.type,
-                  duration: eff.duration,
-                  effect: eff,
-                  source: skill.name,
-                };
-                newBuffs.push(buff);
-              });
-            }
-            addLog(
-              skipToggleChakra
-                ? `${skill.name} Activated! FREE!`
-                : `${skill.name} Activated!`,
-              'gain',
-            );
-          }
-
-          return { ...prev, skills: newSkills, activeBuffs: newBuffs, currentChakra: newChakra };
-        });
-
-        // Consume FREE_FIRST on any accepted toggle play (same as regular cards)
-        if (combatState.skipFirstSkillCost) {
-          setCombatState((prev) =>
-            prev ? { ...prev, skipFirstSkillCost: false } : prev,
-          );
-        }
-
-        finishCardPlay();
-        // Lock stays until combatState commits (see unlock effect) — blocks stale-AP double play
-        return;
-      }
-
-      // ── Regular cards: silence blocks chakra-cost skills before paying ──
-      if (isSilenced && skill.chakraCost > 0) {
-        addLog('You are Silenced and cannot use chakra skills!', 'danger');
-        skillActionLockRef.current = false;
-        return;
-      }
-
-      // ── Regular cards: run the combat math ──
+      // MODE / TOGGLE and attacks share PlayerTurnSystem.useSkill (no local buff ids).
       const result = useSkillCombat(
         player,
         playerStats,
@@ -357,24 +300,43 @@ export function useCombat({
         return;
       }
 
-      // Consume free-first after any accepted skill; ambush first-hit only on a real hit.
-      // Matches PlayerTurnSystem: firstHitMultiplier only scales successful damage.
-      if (
-        combatState.skipFirstSkillCost ||
-        (combatState.isFirstTurn && result.damageDealt > 0) ||
-        result.artifactGutsTriggered
-      ) {
+      // Project adapter board (range / modes / marks / AP). Do not re-spend locally
+      // when useSkill already committed pools. FREE_FIRST is skipFirstSkillCost only.
+      const finishCardPlay = (shiftedPosture?: Posture) => {
+        const live = result as LiveCombatResult;
+        const nextAp = live.newCurrentAp ?? combatState.currentAp - apCost;
         setCombatState((prev) => {
-          if (!prev) return null;
+          if (!prev) return prev;
+          const sourceHand = live.hand ?? prev.hand;
           return {
             ...prev,
-            skipFirstSkillCost: combatState.skipFirstSkillCost ? false : prev.skipFirstSkillCost,
+            currentAp: nextAp,
+            hand: sourceHand.filter((c) => c.id !== skill.id),
+            posture: shiftedPosture ?? prev.posture,
+            currentRange: live.currentRange ?? prev.currentRange,
+            marks: live.marks ?? prev.marks,
+            activeModes: live.activeModes ?? prev.activeModes,
+            playerMoveUsedThisTurn:
+              live.playerMoveUsedThisTurn ?? prev.playerMoveUsedThisTurn,
+            pendingSupportWeights:
+              live.pendingSupportWeights ?? prev.pendingSupportWeights,
+            pendingDiscover: live.pendingDiscover ?? prev.pendingDiscover,
+            skipFirstSkillCost: combatState.skipFirstSkillCost
+              ? false
+              : prev.skipFirstSkillCost,
             isFirstTurn:
-              combatState.isFirstTurn && result.damageDealt > 0 ? false : prev.isFirstTurn,
-            artifactGutsUsed: result.artifactGutsTriggered ? true : prev.artifactGutsUsed,
+              combatState.isFirstTurn && result.damageDealt > 0
+                ? false
+                : prev.isFirstTurn,
+            artifactGutsUsed: result.artifactGutsTriggered
+              ? true
+              : prev.artifactGutsUsed,
           };
         });
-      }
+        if (nextAp <= 0) {
+          setTurnState('ENEMY_TURN');
+        }
+      };
 
       // Spawn floating combat text — color by skill damage channel / element (A7b)
       if (result.damageDealt > 0) {
@@ -544,8 +506,8 @@ export function useCombat({
 
       let modifiers = getCombatModifiers(result);
 
-      // Fresh encounter hygiene (mirrors simulatorUtils.prepareForCombat):
-      // - reset cooldowns, deactivate toggles
+      // Fresh encounter hygiene:
+      // - deactivate leftover toggles (board Modes/CDs reset after createCombatState)
       // - drop leftover combat buffs (shields/DoTs/toggle auras) that stacked across fights
       // - keep narrative curses/event flags' buffs (source === 'event' or CURSE)
       const persistentBuffs = (playerAfterCosts.activeBuffs || []).filter(
@@ -556,7 +518,6 @@ export function useCombat({
         activeBuffs: persistentBuffs,
         skills: playerAfterCosts.skills.map((s) => ({
           ...s,
-          currentCooldown: 0,
           isActive: false,
         })),
       };
@@ -612,6 +573,16 @@ export function useCombat({
       );
       // Store skipFirstSkillCost from artifact passive
       newCombatState.skipFirstSkillCost = passiveResult.skipFirstSkillCost;
+
+      // T-002: single CD SoT — currentCooldown + readyOnTurn, empty Modes/Marks
+      const frontier = resetCombatFrontier({
+        skills: preparedPlayer.skills,
+        modes: newCombatState.activeModes ?? [],
+        marks: newCombatState.marks ?? [],
+      });
+      preparedPlayer = { ...preparedPlayer, skills: frontier.skills };
+      newCombatState.activeModes = frontier.modes;
+      newCombatState.marks = frontier.marks;
 
       // T-004 / T-039: initialise deckbuilder/AP and opening posture from approach.
       const openingPosture = openingPostureForApproach(result.approach, result.success);

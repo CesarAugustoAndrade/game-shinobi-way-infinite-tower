@@ -32,7 +32,7 @@ import {
   DamageType,
   CombatRange,
   RangeMoveDirection,
-  RangeMoveTrigger,
+  Mark,
 } from '../types';
 import {
   resistStatus,
@@ -55,9 +55,12 @@ import {
 } from './LocationTerrainSystem';
 import {
   shiftRange,
-  collectRangeReactions,
   VOLUNTARY_MOVE_AP_COST,
 } from './RangeSystem';
+import {
+  applyOutgoingMarkCuts,
+  fireOnMoveReactions,
+} from './MarkSystem';
 import { getApCost } from '../constants/combatCards';
 import {
   shouldCounterAttack,
@@ -128,6 +131,8 @@ interface EnemyActionResult {
   currentRange?: CombatRange;
   enemyCurrentAp?: number;
   enemyMoveUsedThisTurn?: boolean;
+  /** Setup board after ON_MOVE / outgoing consume (T-084). */
+  marks?: Mark[];
 }
 
 /**
@@ -287,6 +292,7 @@ export function executeEnemyAction(
   let playerDefeated = false;
   let enemyDefeated = false;
   const updatedGutsContext = { ...gutsContext };
+  let actionMarks: Mark[] = (combatState?.marks ?? []).map((mark) => ({ ...mark }));
 
   // Check for stun
   const isStunned = enemy.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
@@ -298,7 +304,8 @@ export function executeEnemyAction(
       logs,
       playerDefeated: false,
       enemyDefeated: false,
-      gutsContext: updatedGutsContext
+      gutsContext: updatedGutsContext,
+      marks: actionMarks,
     };
   }
 
@@ -316,7 +323,8 @@ export function executeEnemyAction(
         logs,
         playerDefeated: false,
         enemyDefeated: true,
-        gutsContext: updatedGutsContext
+        gutsContext: updatedGutsContext,
+        marks: actionMarks,
       };
     }
 
@@ -326,7 +334,8 @@ export function executeEnemyAction(
       logs,
       playerDefeated: false,
       enemyDefeated: false,
-      gutsContext: updatedGutsContext
+      gutsContext: updatedGutsContext,
+      marks: actionMarks,
     };
   }
 
@@ -364,7 +373,36 @@ export function executeEnemyAction(
       logs.push(
         `${enemy.name} ${plan.moveDirection === RangeMoveDirection.APPROACH ? 'closes in' : 'backs off'} → ${range}.`
       );
-      void collectRangeReactions(RangeMoveTrigger.VOLUNTARY, true, false);
+      const trip = fireOnMoveReactions({
+        marks: actionMarks,
+        moved: true,
+        mover: 'enemy',
+        enemyHp: updatedEnemy.currentHp,
+        rng: Math.random,
+      });
+      actionMarks = trip.marks;
+      if (trip.fired) {
+        updatedEnemy = { ...updatedEnemy, currentHp: trip.enemyHp };
+        logs.push(
+          trip.stunned
+            ? `Tripwire snaps! ${trip.damageDealt} to ${enemy.name} — Stun 1.`
+            : `Tripwire snaps! ${trip.damageDealt} to ${enemy.name}.`,
+        );
+        if (updatedEnemy.currentHp <= 0) {
+          return {
+            player: updatedPlayer,
+            enemy: updatedEnemy,
+            logs,
+            playerDefeated: false,
+            enemyDefeated: true,
+            gutsContext: updatedGutsContext,
+            currentRange: range,
+            enemyCurrentAp: enemyAp,
+            enemyMoveUsedThisTurn: enemyMoveUsed,
+            marks: actionMarks,
+          };
+        }
+      }
     }
   }
 
@@ -380,6 +418,7 @@ export function executeEnemyAction(
       currentRange: range,
       enemyCurrentAp: enemyAp,
       enemyMoveUsedThisTurn: enemyMoveUsed,
+      marks: actionMarks,
     };
   }
 
@@ -397,6 +436,7 @@ export function executeEnemyAction(
       currentRange: range,
       enemyCurrentAp: enemyAp,
       enemyMoveUsedThisTurn: enemyMoveUsed,
+      marks: actionMarks,
     };
   }
   enemyAp -= skillAp;
@@ -472,7 +512,9 @@ export function executeEnemyAction(
       postMitigationMultipliers,
     });
     updatedPlayer.activeBuffs = hit.updatedDefenderBuffs;
-    const incomingDamage = hit.finalDamage;
+    const outgoing = applyOutgoingMarkCuts(hit.finalDamage, actionMarks);
+    actionMarks = outgoing.marks;
+    const incomingDamage = outgoing.damage;
 
     // Check lethal damage
     const artifactGuts = checkGutsPassive(player);
@@ -512,7 +554,11 @@ export function executeEnemyAction(
           logs,
           playerDefeated: false,
           enemyDefeated: true,
-          gutsContext: updatedGutsContext
+          gutsContext: updatedGutsContext,
+          currentRange: range,
+          enemyCurrentAp: enemyAp,
+          enemyMoveUsedThisTurn: enemyMoveUsed,
+          marks: actionMarks,
         };
       }
     }
@@ -530,7 +576,11 @@ export function executeEnemyAction(
         logs,
         playerDefeated: true,
         enemyDefeated: false,
-        gutsContext: updatedGutsContext
+        gutsContext: updatedGutsContext,
+        currentRange: range,
+        enemyCurrentAp: enemyAp,
+        enemyMoveUsedThisTurn: enemyMoveUsed,
+        marks: actionMarks,
       };
     }
 
@@ -604,7 +654,11 @@ export function executeEnemyAction(
           logs,
           playerDefeated: false,
           enemyDefeated: true,
-          gutsContext: updatedGutsContext
+          gutsContext: updatedGutsContext,
+          currentRange: range,
+          enemyCurrentAp: enemyAp,
+          enemyMoveUsedThisTurn: enemyMoveUsed,
+          marks: actionMarks,
         };
       }
     }
@@ -625,6 +679,7 @@ export function executeEnemyAction(
     currentRange: range,
     enemyCurrentAp: enemyAp,
     enemyMoveUsedThisTurn: enemyMoveUsed,
+    marks: actionMarks,
   };
 }
 
@@ -766,8 +821,9 @@ function buildTurnResult(
     currentRange?: CombatRange;
     enemyCurrentAp?: number;
     enemyMoveUsedThisTurn?: boolean;
+    marks?: Mark[];
   }
-): EnemyTurnResult {
+): EnemyTurnResult & { marks?: Mark[] } {
   return {
     newPlayerHp: player.currentHp,
     newPlayerChakra: player.currentChakra,
@@ -787,6 +843,7 @@ function buildTurnResult(
     currentRange: f2?.currentRange,
     enemyCurrentAp: f2?.enemyCurrentAp,
     enemyMoveUsedThisTurn: f2?.enemyMoveUsedThisTurn,
+    marks: f2?.marks,
   };
 }
 
@@ -1022,7 +1079,8 @@ export function processEnemyTurn(
       logs,
       dotDeath.playerDefeated,
       dotDeath.enemyDefeated,
-      gutsContext.artifactTriggered
+      gutsContext.artifactTriggered,
+      { marks: combatState?.marks }
     );
   }
 
@@ -1046,6 +1104,7 @@ export function processEnemyTurn(
     currentRange: actionResult.currentRange,
     enemyCurrentAp: actionResult.enemyCurrentAp,
     enemyMoveUsedThisTurn: actionResult.enemyMoveUsedThisTurn,
+    marks: actionResult.marks,
   };
 
   // ============================================
@@ -1149,7 +1208,8 @@ export function processEnemyTurn(
         logs,
         hazardResult.playerDefeated,
         hazardResult.enemyDefeated,
-        gutsContext.artifactTriggered
+        gutsContext.artifactTriggered,
+        f2State
       );
     }
   }

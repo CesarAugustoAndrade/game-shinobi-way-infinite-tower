@@ -1,0 +1,21 @@
+# T-055 pipeline status
+
+- SETUP: moved `tasks/backlog/T-055.md` → `tasks/active/T-055/`; worktree `.worktrees/T-055` branch `task/T-055` @ `e656410`
+- Ring: R0 · Route: autonomous · Type: expand S
+- Skills: jutsu-creator / combat-system-creator (pattern only)
+- EXPLORE: done (`exploration.md`)
+- RESEARCH: done (`research.md`)
+- PLAN: written + **auto-approved** (standing automatic loop)
+- IMPLEMENT: done in `.worktrees/T-055`
+  - `types.ts` `ImpactStunSpec` + `Skill.impactStun`
+  - `skills.ts` SWEEPING_KICK → SIDE AP1/CD2 CLOSE 7 + `impactStun` 0.4/1
+  - `ResolveSkillSystem.ts` `resolveImpactStun` after hits (no self-stun)
+  - `t055SweepingKick.test.ts` AC1–3
+  - `SweepingKickBalance.ts` + `index.ts` probe
+  - CHANGELOG Unreleased
+- Tests: 683 passed (was 679 + 4 T-055); T-036 Mind Transfer unchanged
+- RING-GUARD: PASS (no React/UI imports in R0)
+- Sim: probe all true; AP 2→1; chip 7→7; stun 0→1 on rng 0; rng 0.4 no stun; miss 0
+- REVIEW: APPROVE
+- VERIFY: PASS 683 tests; typecheck PASS; RING-GUARD PASS
+- MERGE: ff `e656410..b3367e3` into `wt/jp-08121518`; worktree/branch removed

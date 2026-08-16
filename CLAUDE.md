@@ -17,6 +17,13 @@ Source of truth for the topic loop: `loop/RULES.md`, `loop/LOOP-TOPICS.md`.
 - No T-XXX without a spec with executable objective tests.
 - Pipeline detail lives in the skill / `loop/RULES.md` — do not duplicate it here.
 
+
+## Loop-engineering commands (Soul vs tasks)
+
+- **`/soul-loop`** — interactive research to improve `.claude/skills/soul/SOUL.md` only (never creates T-XXX, never touches `src/`).
+- **`/task-new`** — creates one T-XXX: **no args** = SOUL↔code gap; **with args** = brainstorm + SOUL alignment. Then `/task-dev T-XXX` implements.
+- Log of soul curation: `tasks/SOUL-LOG.md` (created by soul-loop on first apply).
+
 ## Ring map (Ring System → this repo's paths)
 
 | Ring | Paths | Notes |

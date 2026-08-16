@@ -14,6 +14,8 @@
 
 import { ActiveModeRuntime, Buff, CombatRange, Mark, Player, Posture, Skill, TerrainDefinition } from '../types';
 import type { LocationTerrainMods } from './LocationTerrainSystem';
+import type { PendingDiscover } from './ResolveSkillSystem';
+import type { PendingSupportWeight } from './SupportWeightSystem';
 
 // ============================================================================
 // COMBAT STATE
@@ -102,6 +104,10 @@ export interface CombatState {
   marks?: Mark[];
   /** Skill Config upkeep order. Empty = stable order of active Mode ids. */
   modeUpkeepPriority?: string[];
+  /** T-085: one-shot next-draw support bag. Consumed at upkeep draw. */
+  pendingSupportWeights?: PendingSupportWeight[];
+  /** T-085: Discover offer from resolveSkill (not consumed at upkeep). */
+  pendingDiscover?: PendingDiscover;
 }
 
 // ============================================================================

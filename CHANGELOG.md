@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **CUTOVER WIP (T-082–T-088):** persist live combat cutover — `useSkill`/`useCombat` toward `resolveSkill`, turnIndex/frontier reset, ON_MOVE + Fear/Smoke/ReadWindow on enemy turn, pending support weights/Discover on CombatState, SkillConfig live learn/forget, combat panel mount, hit-core tests. Not a finished cutover; T-080 Water Prison remains on `task/T-080` unmerged.
 - **T-079 Killing Intent:** SUPPORT AP2/CD6. 80% Stun 1; always plants Fear 1 (−20% next enemy action). AP1 / 30% Stun packaging removed.
 - **T-078 Demon Slash:** ATTACK AP3/CD2 CLOSE 15. Bleed 6 for 3 on hit. PIERCING / BLEED 15 packaging removed.
 - **T-077 Air Bullet:** SIDE AP2/CP5/CD2 deals 13 at MEDIUM/LONG. PUSH 1 and −1 ACC for 1 on hit. WIL −15% packaging removed.

@@ -723,10 +723,24 @@
 
 .combat__command {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--sw-space-3);
+  min-width: 0;
+}
+
+/* T-087: Modes + Setup mount — layout only, panels keep their own chrome */
+.combat__board {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cb-deck-gap);
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.combat__board > * {
+  flex: 1 1 12rem;
   min-width: 0;
 }
 

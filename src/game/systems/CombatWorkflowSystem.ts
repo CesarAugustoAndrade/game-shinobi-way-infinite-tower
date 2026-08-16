@@ -66,8 +66,9 @@
  * =============================================================================
  */
 
-import { CombatRange, Posture, TerrainDefinition } from '../types';
+import { CombatRange, Posture, Skill, TerrainDefinition } from '../types';
 import { CombatModifiers } from './ApproachSystem';
+import { resetCombatFrontier } from './TurnClockSystem';
 
 // Re-export types from combat-types.ts (single source of truth)
 export type { CombatState, CombatResult, UpkeepResult, EnemyTurnResult } from './combat-types';
@@ -122,6 +123,19 @@ export type { PostureProfile } from './PostureSystem';
 // ============================================================================
 
 /**
+ * T-083 encounter-start hook for T-082 / startCombat.
+ * createCombatState has no player skill list; callers must pass player.skills
+ * through this so readyOnTurn and currentCooldown reset at the frontier.
+ */
+export function applyEncounterReset(skills: readonly Skill[]): Skill[] {
+  return resetCombatFrontier({
+    skills: [...skills],
+    modes: [],
+    marks: [],
+  }).skills;
+}
+
+/**
  * Create initial combat state with approach modifiers.
  * Called at the start of each combat encounter.
  *
@@ -142,6 +156,9 @@ export function createCombatState(
     enemyFirstHitMultiplier?: number;
   } | null,
 ): CombatState {
+  // T-083: resetCombatFrontier stays on the encounter-start path (empty skills here).
+  // T-082 startCombat hook: pass player.skills through applyEncounterReset.
+  const resetSkills = applyEncounterReset([]);
   return {
     isFirstTurn: true,
     firstHitMultiplier: modifiers?.firstHitMultiplier || 1.0,
@@ -163,17 +180,20 @@ export function createCombatState(
     maxAp: 0,
     posture: Posture.BALANCED,
     hand: [],
-    playablePool: [],
+    playablePool: resetSkills,
     // F2 distance — seeded by startCombat via resolveInitialRange
     currentRange: CombatRange.MEDIUM,
     playerMoveUsedThisTurn: false,
     enemyMoveUsedThisTurn: false,
     enemyCurrentAp: 0,
     enemyMaxAp: 0,
-    // T-002 encounter frontier — empty Modes/Marks; skills reset via resetCombatFrontier
+    // T-002 / T-083 encounter frontier — empty Modes/Marks; skills via applyEncounterReset
     turnIndex: 1,
     activeModes: [],
     marks: [],
+    // T-085: empty support bag / no Discover offer until resolveSkill enqueues
+    pendingSupportWeights: [],
+    pendingDiscover: undefined,
   };
 }
 

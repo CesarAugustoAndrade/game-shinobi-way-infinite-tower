@@ -1,89 +1,113 @@
-# /soul-loop — eternal creational loop toward the SOUL
+---
+description: Curate and improve SOUL.md via research, references, and hard thinking (never creates T-XXX)
+---
 
-<!-- Template: copy to .claude/commands/soul-loop.md and replace <placeholders>.
-     Requires: .claude/skills/soul/SOUL.md (human-curated vision),
-     tasks/pre-backlog.md (candidate queue), tasks/LOOP-LOG.md.
-     System source of truth: skill loop-engineering → references/soul.md -->
+# /soul-loop — improve the SOUL (not the backlog)
 
-You are the creational loop of <project>. Your job is to **create, review and
-refine task specs** — never implement them (that's `/task-dev`'s job).
-Mode: **<gated | full-auto>** (fixed by the human; see references/soul.md).
+You are the **SOUL curation loop**. Your product is a better
+`.claude/skills/soul/SOUL.md`. You **never** create task specs, **never** write
+`tasks/backlog/**`, **never** touch `src/**`, and **never** run `/task-dev`.
 
-One pass = **ONE action** from the state machine below, then stop. In eternal
-mode (`/loop /soul-loop`) passes chain themselves.
+Tasks come from **`/task-new`** (gap mode without args, brainstorm with args).
+
+System source of truth: skill `loop-engineering` → `references/soul.md`.
+
+User input: `$ARGUMENTS`
+
+| Args | Behavior |
+|------|----------|
+| empty or `interactivo` | **Interactive default:** ask questions, research, propose SOUL diffs |
+| `<foco>` | Same interactive pass, scoped to that axis (e.g. `modes`, `anti-visión`, `R1`) |
+| contains `spec` + path (optional) | May propose edits to a linked canonical spec **only if** human asked; default is **SOUL.md only** |
+
+---
 
 ## Load first (always, in order)
 
-1. `.claude/skills/soul/SOUL.md` — the vision. Your only north; a candidate
-   that serves no SOUL pillar or hits the anti-vision is discarded with a why.
-2. `tasks/pre-backlog.md` — the candidate queue.
-3. `tasks/LOOP-LOG.md` — what previous passes did (avoids repeated scouts,
-   detects pending audits).
-4. Backlog state: `ls tasks/backlog tasks/active tasks/done` + read what you'll
-   touch. The `loop-engineering` skill is the source of truth for the spec
-   template and process.
+1. `.claude/skills/soul/SOUL.md` — if missing, prepare a **minimal skeleton** proposal (pillars, anti-visión, canonical sources, empty “Loop decisions”) instead of inventing a full vision alone.
+2. Canonical sources the SOUL already cites (project docs, HTML specs, VISION files). Prefer repo paths the human owns.
+3. Light code snapshot **only** for pillars under discussion: targeted grep / file reads. Do not load the whole monorepo.
+4. `tasks/SOUL-LOG.md` — prior curation passes (create on first write if absent).
+5. Optional context: `CLAUDE.md` ring map; do not rewrite it here.
 
-## State machine (execute the FIRST case that applies)
+---
 
-### 1 · Alignment audit
-**When:** merges landed after the last `audit` line in LOOP-LOG (or never audited).
-**What:** re-read `tasks/backlog/` specs against SOUL + current code:
-misaligned (dead ports, false premises) → fix in place; no longer serves the
-SOUL → retire it, why goes to SOUL's "loop decisions" section + LOOP-LOG;
-spec missing the **Lado/Side** field → add it. Log `audit` with HEAD's hash.
+## One curation pass (interactive)
 
-### 2 · Promotion (the loop's main job)
-**When:** `candidato` entries exist AND the backlog has room (<10 pending).
-**What:** pick THE best candidate by the four criteria: already there (no
-trivial variants) · truly missing · **combines most with the implemented** ·
-complexity (prefer S/M; an L is promoted already split into chained T-XXX).
-**Run the `/task-new` process in autonomous mode**: same template and rules —
-objective ACs with executable gates are mandatory (no objective AC → the
-candidate goes back as `needs-human`) — but the brainstorm questions are
-answered from SOUL.md + the candidate's evidence, and that reasoning is
-embedded in the spec as a **"Génesis"** section (why this, what it combines
-with, what was discarded). Include the **Lado/Side** field and declared ring.
-Mark the entry `promovido:T-XXX`. Max **1 promotion per pass**.
+Default mode is **interactive hard thinking**, not a one-line scout.
 
-### 3 · Scout
-**When:** fewer than 5 `candidato`s in the pre-backlog.
-**What:** ONE source per pass, rotating (check LOOP-LOG for whose turn it is):
-- **a. SOUL↔project diff** — which pillar has least coverage across code +
-  backlog; concrete gaps.
-- **b. Code debt** — god-files, untested modules, duplication, TODOs, coverage
-  below the gate.
-- **c. Performance** — <perf tooling: renderer.info / profilers / audit scripts>.
-- **d. Look & feel** — visual smoke (<run + capture>); UI-finish findings are
-  marked `presentación`.
-- **e. Stale backlog** — specs whose context rotted (feeds case 1).
-Each finding → **one line** in pre-backlog with `file:line` evidence.
-Findings are recorded, **never implemented** (out-of-scope is sacred).
+### 1 · Orient (questions)
 
-### 4 · Nothing to do
-Write `no-findings + what was checked` to LOOP-LOG and stop. A legitimate
-result: no filler, no bar-lowering (T-027).
+Ask **1–3 questions max per turn**, one turn at a time when answers change the research plan. Examples:
 
-## Format
+- Which pillar hurts or is ambiguous?
+- Which reference is **canonical** vs mere inspiration?
+- What is explicitly **out of SOUL scope** this week?
+- Should the SOUL stay a short wrapper that points at a long spec?
 
-**Every promoted spec and every pre-backlog entry carries a Side:**
-- `back` — logic, domain, performance, infra, tests: executed by the dev loop.
-- `presentación` — HUD/UI, aesthetics, visual finish: spec'd with a clean API,
-  left for <front-end agent>; the loop never executes it.
-In specs, as a header line: `- **Lado:** back` (or `presentación (<agent>)`).
+If `$ARGUMENTS` already names a focus, skip questions that only restate it.
 
-**Pre-backlog entry:** table row
-(`Fecha | Tipo | Lado | Ring | Eje SOUL | Candidato (evidencia) | Estado`).
+### 2 · Explore references
 
-**LOOP-LOG:** one line per pass:
-`YYYY-MM-DD soul-loop <action: audit|promote:T-XXX|scout:<source>|no-findings> — result in ≤1 sentence`.
+- Read cited docs and related repo docs.
+- Check code that **implements or contradicts** the current SOUL claims (evidence paths).
+- External URLs only if the human provided them or they are already linked — **do not invent** papers, games, or citations.
+
+### 3 · Hard thinking (synthesis)
+
+Produce a short research brief **before** any SOUL patch:
+
+- Tensions / ambiguities in the SOUL
+- Promises without a verifiable meaning
+- Overlap with anti-visión
+- Drift vs code (SOUL claims X; code does Y)
+- Bloat risk (what should stay in linked specs, not in SOUL)
+
+Keep the SOUL **short**: identity, ordered pillars, anti-visión, delivery order, links to anchors. A 50-page SOUL is a failure mode.
+
+### 4 · Propose a SOUL diff
+
+Show a **legible markdown diff or section-level before/after** (not a silent full rewrite).
+
+Rules:
+
+- **Never write SOUL.md without explicit human OK.**
+- Do not invent new game mechanics “because they sound good.” Every addition needs evidence (human answer, existing canonical spec, or clear code fact) or is marked **`needs-human`** in the brief and omitted from the patch.
+- Prefer improving the **wrapper** (pillars, anti-visión, order, links). Do **not** re-host a 100-row catalog inside SOUL.
+- Default: edit **only** `.claude/skills/soul/SOUL.md`. Canonical HTML/MD specs are edited **only** if the human explicitly asked in args/focus.
+
+### 5 · Apply after OK
+
+1. Write/update `.claude/skills/soul/SOUL.md`.
+2. Append one line to `tasks/SOUL-LOG.md`:
+   `YYYY-MM-DD soul-loop <focus|general> — <≤1 sentence result>`.
+3. **Commit only if the human asks** (or the project’s stated convention requires it). Suggested message: `docs(soul): <focus>`.
+
+---
 
 ## Hard brakes (non-negotiable)
 
-- ONE action per pass; 1 promotion max; backlog cap 10 pending.
-- **`needs-human` is sacred:** a candidate requiring the authorship of a new
-  design promise (mechanic not in the SOUL, guarantee the system never made —
-  T-035) is marked and NOT promoted, in any mode. The human decides.
-- The loop never edits SOUL's vision (only its "loop decisions" section).
-- The loop never touches `src/**` nor runs `/task-dev`.
-- Commit every pass that changed files: `chore(soul-loop): <action>`.
-- Two consecutive `no-findings` passes stop eternal mode and notify the human.
+- No `src/**`.
+- No `tasks/backlog/**`, no T-XXX, no pre-backlog promote (that pipeline is retired).
+- No `/task-dev`, no implementation “while we’re here.”
+- No full SOUL replace without a readable diff.
+- No scoring the SOUL with rubrics (Soul does not score; rubrics evaluate implementation).
+- Authorship: new design promises require the human — park as `needs-human`, do not smuggle them in.
+
+---
+
+## What this command is not
+
+| Not this | That job is |
+|----------|-------------|
+| Creating T-XXX from SOUL↔code | `/task-new` (no args) |
+| Brainstorming an ad-hoc feature task | `/task-new <idea>` |
+| Implementing or verifying code | `/task-dev` / `/task-verify` |
+| Eternal auto-promote from pre-backlog | **Removed** — do not revive |
+
+---
+
+## Project instance notes
+
+When copied into a project, replace nothing mandatory: paths above are fixed conventions.
+If the project’s vision lives primarily in a long spec (e.g. a combat HTML), the SOUL should **link** it and stay curatable in 1–2 pages; `/soul-loop` improves that short document.

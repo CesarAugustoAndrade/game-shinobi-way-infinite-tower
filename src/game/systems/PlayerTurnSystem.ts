@@ -16,30 +16,23 @@
  *    - Apply passive/artifact regen after Mode upkeep (never funds it)
  *
  * 2. Action Phase (useSkill):
- *    - Resource validation (chakra, HP costs)
- *    - Stun check
- *    - Damage calculation
- *    - First hit multiplier from approach
- *    - Terrain element amplification
- *    - Damage mitigation on enemy
- *    - Effect application with resistance checks
- *    - Cooldown update
+ *    - Adapter over resolveSkill (T-082 live cutover)
+ *    - Maps CombatState + actors → ResolveSkillState
+ *    - Projects commit back to CombatResult (exported shape preserved)
+ *    - Artifact on-hit + guts/survival after hit (not yet in resolveSkill)
  *
  * =============================================================================
  */
 
 import {
-  skillLocationDamageMult,
   applyMovementPenaltyToMaxAp,
   applyRoomMovementCostToMaxAp,
 } from './LocationTerrainSystem';
-import { canAffordHpCost, resolveHpCost } from './StatSystem';
 import {
   Player,
   Enemy,
   Skill,
   EffectType,
-  Buff,
   CharacterStats,
   ActionType,
   Posture,
@@ -47,52 +40,35 @@ import {
   ModeRuntimeState,
   ActiveModeRuntime,
   TypedCost,
+  CardRole,
+  CombatRange,
+  Mark,
 } from '../types';
 import {
-  skillAllowedAt,
   outOfRangeBlockReason,
   shiftRange,
   voluntaryMoveCost,
   collectRangeReactions,
 } from './RangeSystem';
 import { RangeMoveTrigger } from '../types';
-import {
-  calculateDamage,
-  resolvePassiveDamageBonus,
-  resistStatus,
-} from './StatSystem';
 import { CombatModifiers } from './ApproachSystem';
-import { logFlowCheckpoint, logDamage } from '../utils/combatDebug';
+import { logFlowCheckpoint } from '../utils/combatDebug';
 import { LaunchProperties } from '../../config/featureFlags';
-import {
-  generateId,
-  getTerrainElementAmplification,
-  getTerrainEvasionBonus,
-} from './CombatCalculationSystem';
-import {
-  applyDamageMultipliers,
-  applyEnemyDefenseBonusToDamage,
-  buildPlayerPreMitigationMults,
-  resolveSuccessfulHit,
-} from './SkillResolutionSystem';
+import { resolvePassiveDamageBonus } from './StatSystem';
+import { getTerrainEvasionBonus } from './CombatCalculationSystem';
 import {
   processPassivesOnHit,
   processPassivesOnTurnStart,
-  checkExecuteThreshold,
+  checkGutsPassive,
   getTotalDefenseBypass,
   getCritDefenseBypass,
   hasAllElementsPassive,
   getConvertToElementalPercent,
   applyClanTraitToDamageContext,
-  checkGutsPassive,
 } from './EquipmentPassiveSystem';
 import { getEventFlagRunModifiers } from './EventSystem';
 import { getApCost } from '../constants/combatCards';
-import {
-  postureDamageMod,
-  stanceBonusDamageMult,
-  stanceShiftFromSkill,
-} from './PostureSystem';
+import { stanceShiftFromSkill } from './PostureSystem';
 import { buildDeck, drawNewTurnHand } from './DeckSystem';
 import { checkLethalDamage } from './SurvivalSystem';
 import type { CombatState, CombatResult, UpkeepResult } from './combat-types';
@@ -101,6 +77,19 @@ import { getModeDefinition } from '../constants/modes';
 import { normalizeSkillConfig } from './SkillConfigLive';
 import type { WeightContext } from './DeckSystem';
 import { buildModeWeightBonuses } from './ModeWeightSystem';
+import {
+  consumeSupportWeightBonuses,
+  type PendingSupportWeight,
+} from './SupportWeightSystem';
+import {
+  resolveSkill,
+  type PendingDiscover,
+  type ResolveRejectReason,
+  type ResolveSkillIntent,
+  type ResolveSkillPorts,
+  type ResolveSkillResult,
+  type ResolveSkillState,
+} from './ResolveSkillSystem';
 
 // ============================================================================
 // APPROACH EFFECTS
@@ -163,6 +152,7 @@ export function buildUpkeepWeightContext(
 ): WeightContext {
   const config = normalizeSkillConfig(player.skillConfig);
   const activeModes = combatState.activeModes ?? [];
+  const consumed = consumeSupportWeightBonuses(combatState.pendingSupportWeights ?? []);
   return {
     posture: combatState.posture,
     turnIndex: combatState.turnIndex,
@@ -171,6 +161,10 @@ export function buildUpkeepWeightContext(
       .filter((mode) => mode.state === ModeRuntimeState.ON || mode.state === undefined)
       .map((mode) => mode.id),
     modeBonuses: buildModeWeightBonuses(activeModes),
+    supportBonuses: consumed.bonuses,
+    supportRoleBonuses: consumed.roleBonuses,
+    supportMentalAttackBonus: consumed.mentalAttackBonus,
+    supportTagBonuses: consumed.tagBonuses,
   };
 }
 
@@ -421,184 +415,89 @@ export function voluntaryPlayerMove(
 }
 
 // ============================================================================
-// SKILL EXECUTION
+// SKILL EXECUTION (T-082 adapter over resolveSkill)
 // ============================================================================
 
-/**
- * Executes a player skill attack against an enemy.
- * This is the main player combat action function.
- *
- * ## Execution Flow:
- * 1. **Resource Check** - Verify player has enough chakra/HP for skill costs
- * 2. **Cooldown Check** - Return null if skill is on cooldown
- * 3. **Stun Check** - Stunned players cannot act
- * 4. **Pay Costs** - Deduct chakra and HP costs
- * 5. **Calculate Damage** - Use StatSystem.calculateDamage()
- * 6. **Apply Modifiers**:
- *    - First hit multiplier from approach (ambush bonus)
- *    - Terrain element amplification
- * 7. **Apply Mitigation** - Enemy shields, invuln, reflection
- * 8. **Handle Reflection** - Damage returned to player
- * 9. **Apply Effects** - Self-buffs and enemy debuffs with resistance
- * 10. **Update Cooldowns** - Set skill on cooldown
- *
- * ## Effect Types:
- * - Self-buffs (BUFF, SHIELD, REFLECTION, REGEN, INVULNERABILITY, HEAL)
- *   always apply to player, no resistance check
- * - Debuffs apply to enemy with status resistance check
- *
- * @param player - Current player state
- * @param playerStats - Calculated player stats (from getPlayerFullStats)
- * @param enemy - Current enemy state
- * @param enemyStats - Calculated enemy stats (from getEnemyFullStats)
- * @param skill - The skill being used
- * @param combatState - Optional combat state for approach/terrain bonuses
- * @returns CombatResult with all state changes, or null if action impossible
- */
-export function useSkill(
+/** Board fields resolveSkill owns; extra on CombatResult so useCombat still compiles. */
+export interface LiveCombatBoardPatch {
+  currentRange: CombatRange;
+  newCurrentAp: number;
+  marks: Mark[];
+  activeModes: ActiveModeRuntime[];
+  playerMoveUsedThisTurn: boolean;
+  hand?: Skill[];
+  pendingSupportWeights?: PendingSupportWeight[];
+  pendingDiscover?: PendingDiscover;
+  pendingGateHpDiscount?: boolean;
+}
+
+export type LiveCombatResult = CombatResult & Partial<LiveCombatBoardPatch>;
+
+const UNBOUNDED_AP = 1_000_000;
+
+/** Residual: unauthored live skills need a role so resolveSkill can commit. */
+function authorLiveSkill(skill: Skill): Skill {
+  if (skill.cardRole !== undefined) return skill;
+  if (skill.actionType === ActionType.TOGGLE || skill.isToggle) {
+    return { ...skill, cardRole: CardRole.MODE };
+  }
+  return { ...skill, cardRole: CardRole.ATTACK };
+}
+
+function toResolveSkillState(
+  player: Player,
+  playerStats: CharacterStats,
+  enemy: Enemy,
+  combatState?: CombatState,
+): ResolveSkillState {
+  return {
+    pools: {
+      ap: combatState?.currentAp ?? UNBOUNDED_AP,
+      chakra: player.currentChakra,
+      hp: player.currentHp,
+      maxHp: playerStats?.derived?.maxHp ?? player.currentHp,
+    },
+    range: combatState?.currentRange ?? CombatRange.MEDIUM,
+    turnIndex: combatState?.turnIndex ?? 1,
+    marks: combatState?.marks ?? [],
+    modes: { instances: (combatState?.activeModes ?? []).map((mode) => ({ ...mode })) },
+    skills: player.skills,
+    playerBuffs: player.activeBuffs,
+    enemyHp: enemy.currentHp,
+    enemyChakra: enemy.currentChakra,
+    skipFirstSkillCost: combatState?.skipFirstSkillCost,
+    playerMoveUsedThisTurn: combatState?.playerMoveUsedThisTurn,
+    hand: combatState?.hand,
+    playablePool: combatState?.playablePool,
+    pendingDiscover: combatState?.pendingDiscover,
+    pendingSupportWeights: combatState?.pendingSupportWeights,
+    enemyBuffs: enemy.activeBuffs,
+  };
+}
+
+function toResolveSkillIntent(skill: Skill, player: Player, combatState?: CombatState): ResolveSkillIntent {
+  return {
+    skill: authorLiveSkill(skill),
+    weightContext: combatState
+      ? buildUpkeepWeightContext(player, combatState)
+      : { posture: Posture.BALANCED, turnIndex: 1 },
+  };
+}
+
+function toResolveSkillPorts(
   player: Player,
   playerStats: CharacterStats,
   enemy: Enemy,
   enemyStats: CharacterStats,
   skill: Skill,
-  combatState?: CombatState
-): CombatResult | null {
-  logFlowCheckpoint('useSkill START', {
-    skill: skill.name,
-    playerHp: player.currentHp,
-    playerChakra: player.currentChakra,
-    enemyHp: enemy.currentHp,
-    enemyName: enemy.name
-  });
-
-  // T-004: AP cost to play this card (explicit Skill.apCost, else ActionType default).
-  const apCost = getApCost(skill);
-
-  // FREE_FIRST_SKILL: first accepted skill costs 0 chakra (flag cleared by caller).
-  const skipCost = Boolean(combatState?.skipFirstSkillCost);
-  const effectiveChakraCost = skipCost ? 0 : skill.chakraCost;
-
-  // F2: range gate — distance only blocks, no damage modifiers
-  if (combatState?.currentRange && !skillAllowedAt(skill, combatState.currentRange)) {
-    return {
-      damageDealt: 0,
-      newEnemyHp: enemy.currentHp,
-      newPlayerHp: player.currentHp,
-      newPlayerChakra: player.currentChakra,
-      newEnemyBuffs: enemy.activeBuffs,
-      newPlayerBuffs: player.activeBuffs,
-      logMessage: outOfRangeBlockReason(skill, combatState.currentRange),
-      logType: 'danger',
-      enemyDefeated: false,
-      apCost: 0,
-    };
-  }
-
-  // Resource check (chakra/HP and — when in the AP economy — Action Points).
-  // Gate uses effectiveChakraCost so free-first works even at low chakra.
-  const playerMaxHp = playerStats?.derived?.maxHp ?? player.currentHp;
-  if (
-    player.currentChakra < effectiveChakraCost ||
-    !canAffordHpCost(skill, player.currentHp, playerMaxHp)
-  ) {
-    return {
-      damageDealt: 0,
-      newEnemyHp: enemy.currentHp,
-      newPlayerHp: player.currentHp,
-      newPlayerChakra: player.currentChakra,
-      newEnemyBuffs: enemy.activeBuffs,
-      newPlayerBuffs: player.activeBuffs,
-      logMessage: "Insufficient Chakra or HP!",
-      logType: 'danger',
-      enemyDefeated: false,
-      apCost: 0
-    };
-  }
-
-  // Mutual KO (Reaper Death Seal): both actors defeated without damage pipeline.
-  if (skill.mutualKo) {
-    return {
-      damageDealt: enemy.currentHp,
-      newEnemyHp: 0,
-      newPlayerHp: 0,
-      newPlayerChakra: Math.max(0, player.currentChakra - effectiveChakraCost),
-      newEnemyBuffs: enemy.activeBuffs,
-      newPlayerBuffs: player.activeBuffs,
-      logMessage: `${skill.name}! Mutual seal — both fall.`,
-      logType: 'danger',
-      enemyDefeated: true,
-      playerDefeated: true,
-      apCost,
-    };
-  }
-
-  if (combatState && combatState.currentAp < apCost) {
-    return {
-      damageDealt: 0,
-      newEnemyHp: enemy.currentHp,
-      newPlayerHp: player.currentHp,
-      newPlayerChakra: player.currentChakra,
-      newEnemyBuffs: enemy.activeBuffs,
-      newPlayerBuffs: player.activeBuffs,
-      logMessage: "Not enough Action Points!",
-      logType: 'danger',
-      enemyDefeated: false,
-      apCost: 0
-    };
-  }
-
-  if (skill.currentCooldown > 0) return null;
-
-  const isStunned = player.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
-  if (isStunned) {
-    return {
-      damageDealt: 0,
-      newEnemyHp: enemy.currentHp,
-      newPlayerHp: player.currentHp,
-      newPlayerChakra: player.currentChakra,
-      newEnemyBuffs: enemy.activeBuffs,
-      newPlayerBuffs: player.activeBuffs,
-      logMessage: "You are stunned!",
-      logType: 'danger',
-      enemyDefeated: false,
-      apCost: 0
-    };
-  }
-
-  // Silence blocks any skill that costs chakra (ninjutsu / medical / toggles), not taijutsu.
-  const isSilenced = player.activeBuffs.some(b => b?.effect?.type === EffectType.SILENCE);
-  if (isSilenced && skill.chakraCost > 0) {
-    return {
-      damageDealt: 0,
-      newEnemyHp: enemy.currentHp,
-      newPlayerHp: player.currentHp,
-      newPlayerChakra: player.currentChakra,
-      newEnemyBuffs: enemy.activeBuffs,
-      newPlayerBuffs: player.activeBuffs,
-      logMessage: "You are Silenced and cannot use chakra skills!",
-      logType: 'danger',
-      enemyDefeated: false,
-      apCost: 0
-    };
-  }
-
-  // Active posture (defaults to BALANCED → neutral 1.0× when no combat state).
-  const posture: Posture = combatState?.posture ?? Posture.BALANCED;
-
-  // Execute attack
-  let newPlayerHp = player.currentHp - skill.hpCost;
-  let newPlayerChakra = player.currentChakra - effectiveChakraCost;
-  let newEnemyChakra = enemy.currentChakra;
-  let artifactGutsTriggered = false;
-
-  // T-031: clan trait artifacts modify crit and enemy speed/evasion for this hit
+  combatState?: CombatState,
+): ResolveSkillPorts {
   const clanCtx = applyClanTraitToDamageContext(
     player,
     playerStats.derived,
     enemyStats.effectivePrimary,
     enemyStats.derived,
   );
-  // T-077: room terrain evasion also helps the enemy dodge your attacks
   const roomEvasion = getTerrainEvasionBonus(combatState?.terrain ?? null);
   const defenderDerived =
     roomEvasion !== 0
@@ -607,15 +506,17 @@ export function useSkill(
           evasion: Math.min(0.75, clanCtx.defenderDerived.evasion + roomEvasion),
         }
       : clanCtx.defenderDerived;
-  const damageResult = calculateDamage(
-    playerStats.effectivePrimary,
-    clanCtx.attackerDerived,
-    clanCtx.defenderPrimary,
-    defenderDerived,
-    skill,
-    player.element,
-    enemy.element,
-    {
+  return {
+    rng: Math.random,
+    combatants: {
+      attackerPrimary: playerStats.effectivePrimary,
+      attackerDerived: clanCtx.attackerDerived,
+      defenderPrimary: clanCtx.defenderPrimary,
+      defenderDerived,
+      attackerElement: player.element,
+      defenderElement: enemy.element,
+    },
+    damageOptions: {
       damageBonus:
         resolvePassiveDamageBonus(playerStats.passiveBonuses, skill.element)
         + getEventFlagRunModifiers(player).damageBonus,
@@ -623,267 +524,271 @@ export function useSkill(
       critDefenseBypass: getCritDefenseBypass(player),
       forceSuperEffective: hasAllElementsPassive(player),
       convertToElementalPercent: getConvertToElementalPercent(player),
-    }
+    },
+  };
+}
+
+function rejectLogMessage(
+  reason: ResolveRejectReason,
+  skill: Skill,
+  combatState?: CombatState,
+): string {
+  switch (reason) {
+    case 'stun':
+      return 'You are stunned!';
+    case 'silence':
+      return 'You are Silenced and cannot use chakra skills!';
+    case 'chakra':
+    case 'hp':
+      return 'Insufficient Chakra or HP!';
+    case 'ap':
+      return 'Not enough Action Points!';
+    case 'range':
+      return combatState?.currentRange
+        ? outOfRangeBlockReason(skill, combatState.currentRange)
+        : 'Out of range';
+    case 'not-ready':
+      return 'That skill is not ready this turn!';
+    case 'mode-required':
+      return 'Required Mode is not active!';
+    case 'mode-family':
+      return 'Cannot change Mode family that way!';
+    case 'incomplete-authoring':
+      return 'Skill is missing a card role!';
+    case 'invalid-snapshot':
+      return 'Invalid card snapshot!';
+    default:
+      return 'Cannot use that skill!';
+  }
+}
+
+function rejectToCombatResult(
+  reason: ResolveRejectReason,
+  player: Player,
+  enemy: Enemy,
+  skill: Skill,
+  combatState?: CombatState,
+): LiveCombatResult | null {
+  if (reason === 'cooldown' || reason === 'passive') return null;
+  return {
+    damageDealt: 0,
+    newEnemyHp: enemy.currentHp,
+    newPlayerHp: player.currentHp,
+    newPlayerChakra: player.currentChakra,
+    newEnemyBuffs: enemy.activeBuffs,
+    newPlayerBuffs: player.activeBuffs,
+    logMessage: rejectLogMessage(reason, skill, combatState),
+    logType: 'danger',
+    enemyDefeated: false,
+    apCost: 0,
+  };
+}
+
+function commitLogMessage(
+  skill: Skill,
+  resolved: Extract<ResolveSkillResult, { ok: true }>,
+  skipCost: boolean,
+  extra: string[],
+): string {
+  const offensive = resolved.role === CardRole.ATTACK || resolved.role === CardRole.SIDE_ATTACK;
+  let logMsg: string;
+  if (offensive && resolved.hitsLanded < 1) {
+    logMsg = `You used ${skill.name} but MISSED!`;
+  } else if (resolved.damageDealt > 0) {
+    logMsg = `Used ${skill.name} for ${resolved.damageDealt} dmg`;
+  } else {
+    logMsg = `Used ${skill.name}`;
+  }
+  if (skipCost) logMsg += ' FREE!';
+  if (extra.length > 0) logMsg += ` ${extra.join(' ')}`;
+  return logMsg;
+}
+
+function applyArtifactOnHit(
+  player: Player,
+  enemy: Enemy,
+  playerStats: CharacterStats,
+  resolved: Extract<ResolveSkillResult, { ok: true }>,
+): {
+  playerHp: number;
+  playerChakra: number;
+  enemyChakra: number;
+  enemyBuffs: LiveCombatResult['newEnemyBuffs'];
+  playerBuffs: LiveCombatResult['newPlayerBuffs'];
+  logs: string[];
+} {
+  let playerHp = resolved.state.pools.hp;
+  let playerChakra = resolved.state.pools.chakra;
+  let enemyChakra = resolved.state.enemyChakra ?? enemy.currentChakra;
+  let enemyBuffs = [...(resolved.state.enemyBuffs ?? enemy.activeBuffs)];
+  let playerBuffs = [...resolved.state.playerBuffs];
+  const logs: string[] = [];
+  if (resolved.hitsLanded < 1) {
+    return { playerHp, playerChakra, enemyChakra, enemyBuffs, playerBuffs, logs };
+  }
+  const onHit = processPassivesOnHit(
+    { ...player, currentHp: playerHp, currentChakra: playerChakra, activeBuffs: playerBuffs },
+    { ...enemy, currentHp: resolved.state.enemyHp, currentChakra: enemyChakra, activeBuffs: enemyBuffs },
+    resolved.damageDealt,
+    false,
+  );
+  const newDebuffs = onHit.enemy.activeBuffs.filter(
+    (buff) => !enemyBuffs.some((existing) => existing.id === buff.id),
+  );
+  enemyBuffs = [...enemyBuffs, ...newDebuffs];
+  if (onHit.healToPlayer > 0) {
+    playerHp = Math.min(playerStats.derived.maxHp, playerHp + onHit.healToPlayer);
+  }
+  if (onHit.chakraRestored > 0) {
+    playerChakra = Math.min(playerStats.derived.maxChakra, playerChakra + onHit.chakraRestored);
+  }
+  if (onHit.enemy.currentChakra !== enemyChakra) {
+    enemyChakra = onHit.enemy.currentChakra;
+  } else if (onHit.chakraDrained > 0) {
+    enemyChakra = Math.max(0, enemyChakra - onHit.chakraDrained);
+  }
+  logs.push(...onHit.logs);
+  return { playerHp, playerChakra, enemyChakra, enemyBuffs, playerBuffs, logs };
+}
+
+function applyGutsIfLethal(
+  player: Player,
+  playerStats: CharacterStats,
+  currentHp: number,
+  incomingDamage: number,
+  artifactGutsUsed?: boolean,
+): { hp: number; artifactGutsTriggered: boolean; log?: string } {
+  if (currentHp > 0 || incomingDamage <= 0) {
+    return { hp: currentHp, artifactGutsTriggered: false };
+  }
+  const lethal = checkLethalDamage(
+    player.currentHp,
+    incomingDamage,
+    playerStats.derived.gutsChance,
+    { triggered: false, artifactTriggered: false },
+    checkGutsPassive(player),
+    artifactGutsUsed,
+    playerStats.derived.maxHp,
+  );
+  return {
+    hp: lethal.newHp,
+    artifactGutsTriggered: lethal.artifactGutsTriggered,
+    log: lethal.log,
+  };
+}
+
+/**
+ * Live skill adapter: maps pools/board → resolveSkill and projects CombatResult.
+ * Does not reimplement hit math (T-088). Name kept so useCombat callers compile.
+ */
+export function useSkill(
+  player: Player,
+  playerStats: CharacterStats,
+  enemy: Enemy,
+  enemyStats: CharacterStats,
+  skill: Skill,
+  combatState?: CombatState,
+): LiveCombatResult | null {
+  logFlowCheckpoint('useSkill START', {
+    skill: skill.name,
+    playerHp: player.currentHp,
+    playerChakra: player.currentChakra,
+    enemyHp: enemy.currentHp,
+    enemyName: enemy.name,
+  });
+
+  const resolved = resolveSkill(
+    toResolveSkillIntent(skill, player, combatState),
+    toResolveSkillState(player, playerStats, enemy, combatState),
+    toResolveSkillPorts(player, playerStats, enemy, enemyStats, skill, combatState),
   );
 
-  let logMsg = '';
-  let newEnemyHp = enemy.currentHp;
-  let newEnemyBuffs = [...enemy.activeBuffs];
-  let newPlayerBuffs = [...player.activeBuffs];
-  let finalDamageToEnemy = 0;
-
-  if (damageResult.isMiss) {
-    logMsg = `You used ${skill.name} but MISSED!`;
-    // T-103: CLIFF — miss risks a fall (% max HP)
-    const fallFrac = combatState?.fallDamageOnMiss ?? 0;
-    if (fallFrac > 0 && playerStats.derived.maxHp > 0) {
-      const fallDmg = Math.max(1, Math.floor(playerStats.derived.maxHp * fallFrac));
-      newPlayerHp = Math.max(1, newPlayerHp - fallDmg);
-      logMsg += ` You slip on the cliff edge for ${fallDmg} damage!`;
-    }
-  } else if (damageResult.isEvaded) {
-    logMsg = `You used ${skill.name} but ${enemy.name} EVADED!`;
-  } else {
-    // Successful hit — shared SkillResolution pipeline (order preserved):
-    // firstHit → terrainAmp → locSkill → enemyDef (additive-style) →
-    // PLAYER_DAMAGE_MULTIPLIER → posture → stance → mitigation
-    //
-    // enemyDef must stay BETWEEN early mults and late mults, so the builder
-    // is applied in two passes (same helper, split opts).
-    let terrainAmp: number | undefined;
-    if (combatState?.terrain && player.element) {
-      const amp = getTerrainElementAmplification(combatState.terrain, player.element);
-      if (amp > 1.0) terrainAmp = amp;
-    }
-
-    let locationSkillMult: number | undefined;
-    if (combatState?.locationTerrainMods) {
-      const locMult = skillLocationDamageMult(skill, combatState.locationTerrainMods);
-      if (locMult !== 1) locationSkillMult = locMult;
-    }
-
-    const firstHitApplied =
-      !!combatState?.isFirstTurn && (combatState.firstHitMultiplier ?? 1) > 1.0;
-
-    const earlyMults = buildPlayerPreMitigationMults({
-      isFirstTurn: combatState?.isFirstTurn,
-      firstHitMultiplier: combatState?.firstHitMultiplier,
-      terrainAmp,
-      locationSkillMult,
-    });
-
-    const afterLoc = applyDamageMultipliers(damageResult.finalDamage, earlyMults);
-    const afterDef = applyEnemyDefenseBonusToDamage(
-      afterLoc,
-      combatState?.locationTerrainMods,
-    );
-
-    // Card-combat plan: stanceBonus match (multiplicative on final pre-mitigation dmg).
-    const stanceCardMult = stanceBonusDamageMult(skill, posture);
-    let stanceMatchNote = '';
-    if (stanceCardMult !== 1) {
-      stanceMatchNote = ` Stance match (${posture}): ×${stanceCardMult.toFixed(2)} dmg.`;
-    }
-
-    const hit = resolveSuccessfulHit({
-      rawDamage: afterDef,
-      preMitigationMultipliers: buildPlayerPreMitigationMults({
-        playerDamageMultiplier: LaunchProperties.PLAYER_DAMAGE_MULTIPLIER,
-        postureMod: postureDamageMod(posture),
-        stanceMult: stanceCardMult,
-      }),
-      defenderBuffs: enemy.activeBuffs,
-      defenderLabel: enemy.name,
-    });
-    finalDamageToEnemy = hit.finalDamage;
-    newEnemyBuffs = hit.updatedDefenderBuffs;
-
-    // Check execute threshold (instant kill at low HP)
-    const enemyMaxHp = enemyStats.derived.maxHp;
-    if (checkExecuteThreshold(player, enemy, enemyMaxHp)) {
-      finalDamageToEnemy = enemy.currentHp; // Kill
-    }
-
-    newEnemyHp -= finalDamageToEnemy;
-
-    // Process artifact on-hit passives (bleed, burn, lifesteal, etc.)
-    const onHitResult = processPassivesOnHit(player, enemy, finalDamageToEnemy, damageResult.isCrit);
-
-    // Apply DoT debuffs from artifact passives to enemy
-    const newPassiveDebuffs = onHitResult.enemy.activeBuffs.filter(
-      b => !enemy.activeBuffs.some(existing => existing.id === b.id)
-    );
-    newEnemyBuffs = [...newEnemyBuffs, ...newPassiveDebuffs];
-
-    // Apply lifesteal healing from artifact passives
-    if (onHitResult.healToPlayer > 0) {
-      newPlayerHp = Math.min(playerStats.derived.maxHp, newPlayerHp + onHitResult.healToPlayer);
-    }
-
-    // Apply chakra restore from artifact passives (including CHAKRA_DRAIN steal)
-    if (onHitResult.chakraRestored > 0) {
-      newPlayerChakra = Math.min(playerStats.derived.maxChakra, newPlayerChakra + onHitResult.chakraRestored);
-    }
-
-    // Artifact/clan CHAKRA_DRAIN mutates enemy chakra on hit
-    if (onHitResult.enemy.currentChakra !== enemy.currentChakra) {
-      newEnemyChakra = onHitResult.enemy.currentChakra;
-    } else if (onHitResult.chakraDrained > 0) {
-      newEnemyChakra = Math.max(0, enemy.currentChakra - onHitResult.chakraDrained);
-    }
-
-    // Handle Reflection — guts check if reflected damage would be lethal
-    let reflectionGutsLog: string | undefined;
-    if (hit.reflectedDamage > 0) {
-      const artifactGuts = checkGutsPassive(player);
-      const lethalCheck = checkLethalDamage(
-        newPlayerHp,
-        hit.reflectedDamage,
-        playerStats.derived.gutsChance,
-        { triggered: false, artifactTriggered: false },
-        artifactGuts,
-        combatState?.artifactGutsUsed,
-        playerStats.derived.maxHp
-      );
-      newPlayerHp = lethalCheck.newHp;
-      if (lethalCheck.artifactGutsTriggered) {
-        artifactGutsTriggered = true;
-      }
-      reflectionGutsLog = lethalCheck.log;
-    }
-
-    // Construct Log Message — R1: never spam "for 0 dmg" on setup/buff skills
-    if (finalDamageToEnemy > 0) {
-      logMsg = `Used ${skill.name} for ${finalDamageToEnemy} dmg`;
-    } else {
-      logMsg = `Used ${skill.name}`;
-    }
-    if (stanceMatchNote) {
-      logMsg += stanceMatchNote;
-    }
-    // Add execute message
-    if (checkExecuteThreshold(player, enemy, enemyMaxHp) && enemy.currentHp <= enemyMaxHp * 0.2) {
-      logMsg += " EXECUTE!";
-    }
-    if (skipCost) logMsg += " FREE!";
-    if (firstHitApplied) logMsg += " AMBUSH!";
-    if (hit.messages.length > 0) {
-      logMsg += ` [${hit.messages.join(', ')}]`;
-    }
-    if (hit.reflectedDamage > 0) {
-      logMsg += ` (Reflected ${hit.reflectedDamage}!)`;
-    }
-    if (reflectionGutsLog) {
-      logMsg += ` ${reflectionGutsLog}`;
-    }
-    if (damageResult.flatReduction > 0 && finalDamageToEnemy > 0) {
-      logMsg += ` (${damageResult.flatReduction} blocked)`;
-    }
-    if (finalDamageToEnemy > 0) {
-      if (damageResult.elementMultiplier > 1) logMsg += " SUPER EFFECTIVE!";
-      else if (damageResult.elementMultiplier < 1) logMsg += " Resisted.";
-      if (damageResult.isCrit) logMsg += " CRITICAL!";
-    }
-    // Add artifact passive logs
-    if (onHitResult.logs.length > 0) {
-      logMsg += ` [${onHitResult.logs.join(', ')}]`;
-    }
-
-    // Debug: Log damage dealt
-    logDamage('Player', enemy.name, finalDamageToEnemy, {
-      baseDamage: damageResult.finalDamage,
-      isCrit: damageResult.isCrit,
-      elementMultiplier: damageResult.elementMultiplier,
-      enemyHpBefore: enemy.currentHp,
-      enemyHpAfter: newEnemyHp
-    });
-
-    // Apply effects
-    if (skill.effects) {
-      skill.effects.forEach(eff => {
-        // Instant HEAL: restore HP immediately (not a lingering buff).
-        // Medical jutsu that mention poison/bleed also cleanse those DoTs.
-        if (eff.type === EffectType.HEAL) {
-          const baseHeal = eff.value || 0;
-          const intStat = playerStats.effectivePrimary?.intelligence ?? 10;
-          const spiritStat = playerStats.effectivePrimary?.spirit ?? 10;
-          const statMult = Math.max(1, (intStat + spiritStat) / 20);
-          const healAmount = Math.floor(baseHeal * statMult);
-          if (healAmount > 0) {
-            const healed = Math.min(healAmount, playerStats.derived.maxHp - newPlayerHp);
-            if (healed > 0) {
-              newPlayerHp += healed;
-              logMsg += ` HEAL +${healed} HP!`;
-            }
-          }
-          const desc = (skill.description || '').toLowerCase();
-          if (desc.includes('poison') || desc.includes('bleed')) {
-            const before = newPlayerBuffs.length;
-            newPlayerBuffs = newPlayerBuffs.filter(
-              b => b?.effect?.type !== EffectType.BLEED && b?.effect?.type !== EffectType.POISON
-            );
-            if (newPlayerBuffs.length < before) {
-              logMsg += ' Cleansed poison/bleed!';
-            }
-          }
-          return;
-        }
-
-        // Self-buffs (applied to player) — CHAKRA_REGEN restores chakra on tick
-        const isSelfBuff = [
-          EffectType.BUFF,
-          EffectType.SHIELD,
-          EffectType.REFLECTION,
-          EffectType.REGEN,
-          EffectType.INVULNERABILITY,
-          EffectType.CHAKRA_REGEN,
-        ].includes(eff.type);
-
-        if (isSelfBuff) {
-          // Apply to player (self-buff always succeeds)
-          const buff: Buff = { id: generateId(), name: eff.type, duration: eff.duration, effect: eff, source: skill.name };
-          newPlayerBuffs.push(buff);
-        } else {
-          // Debuffs (applied to enemy with resistance check)
-          const resisted = !resistStatus(eff.chance, enemyStats.derived.statusResistance);
-          if (!resisted && finalDamageToEnemy >= 0) {
-            const buff: Buff = { id: generateId(), name: eff.type, duration: eff.duration, effect: eff, source: skill.name };
-            newEnemyBuffs.push(buff);
-          }
-        }
-      });
-    }
+  if (!resolved.ok) {
+    return rejectToCombatResult(resolved.reason, player, enemy, skill, combatState);
   }
 
-  // Update cooldowns
-  const newSkills = player.skills.map(s => s.id === skill.id ? { ...s, currentCooldown: s.cooldown + 1 } : s);
+  const spentAp = (combatState?.currentAp ?? UNBOUNDED_AP) - resolved.state.pools.ap;
+  const skipCost = Boolean(combatState?.skipFirstSkillCost);
 
-  // T-004: playing this card may shift the player's stance (free, on play).
-  const newPosture = stanceShiftFromSkill(skill);
+  if (skill.mutualKo) {
+    const result: LiveCombatResult = {
+      damageDealt: enemy.currentHp,
+      newEnemyHp: 0,
+      newPlayerHp: 0,
+      newPlayerChakra: resolved.state.pools.chakra,
+      newEnemyChakra: resolved.state.enemyChakra ?? enemy.currentChakra,
+      newEnemyBuffs: resolved.state.enemyBuffs ?? enemy.activeBuffs,
+      newPlayerBuffs: resolved.state.playerBuffs,
+      logMessage: `${skill.name}! Mutual seal — both fall.`,
+      logType: 'danger',
+      skillsUpdate: resolved.state.skills,
+      enemyDefeated: true,
+      playerDefeated: true,
+      apCost: Math.max(0, spentAp),
+      currentRange: resolved.state.range,
+      newCurrentAp: resolved.state.pools.ap,
+      marks: resolved.state.marks,
+      activeModes: resolved.state.modes.instances,
+      playerMoveUsedThisTurn: resolved.state.playerMoveUsedThisTurn ?? false,
+      hand: resolved.state.hand,
+      pendingSupportWeights: resolved.state.pendingSupportWeights,
+      pendingDiscover: resolved.state.pendingDiscover,
+      pendingGateHpDiscount: resolved.state.pendingGateHpDiscount,
+    };
+    logFlowCheckpoint('useSkill END', {
+      damageDealt: result.damageDealt,
+      enemyDefeated: true,
+      playerDefeated: true,
+      newEnemyHp: 0,
+    });
+    return result;
+  }
 
-  const result: CombatResult = {
-    damageDealt: finalDamageToEnemy,
+  const onHit = applyArtifactOnHit(player, enemy, playerStats, resolved);
+  const hpLost = player.currentHp - onHit.playerHp;
+  const guts = applyGutsIfLethal(
+    player,
+    playerStats,
+    onHit.playerHp,
+    hpLost,
+    combatState?.artifactGutsUsed,
+  );
+  const extraLogs = [...onHit.logs];
+  if (guts.log) extraLogs.push(guts.log);
+
+  const newEnemyHp = resolved.state.enemyHp;
+  const result: LiveCombatResult = {
+    damageDealt: resolved.damageDealt,
     newEnemyHp,
-    newPlayerHp,
-    newPlayerChakra,
-    newEnemyChakra,
-    newEnemyBuffs,
-    newPlayerBuffs,
-    logMessage: logMsg,
-    logType: damageResult.isMiss || damageResult.isEvaded ? 'info' : 'combat',
-    skillsUpdate: newSkills,
+    newPlayerHp: guts.hp,
+    newPlayerChakra: onHit.playerChakra,
+    newEnemyChakra: onHit.enemyChakra,
+    newEnemyBuffs: onHit.enemyBuffs,
+    newPlayerBuffs: onHit.playerBuffs,
+    logMessage: commitLogMessage(skill, resolved, skipCost, extraLogs),
+    logType: resolved.hitsLanded < 1 && resolved.damageDealt === 0 ? 'info' : 'combat',
+    skillsUpdate: resolved.state.skills,
     enemyDefeated: newEnemyHp <= 0,
-    playerDefeated: newPlayerHp <= 0,
-    apCost,
-    newPosture,
-    artifactGutsTriggered: artifactGutsTriggered || undefined,
+    playerDefeated: guts.hp <= 0,
+    apCost: Math.max(0, spentAp),
+    newPosture: stanceShiftFromSkill(skill),
+    artifactGutsTriggered: guts.artifactGutsTriggered || undefined,
+    currentRange: resolved.state.range,
+    newCurrentAp: resolved.state.pools.ap,
+    marks: resolved.state.marks,
+    activeModes: resolved.state.modes.instances,
+    playerMoveUsedThisTurn: resolved.state.playerMoveUsedThisTurn ?? false,
+    hand: resolved.state.hand,
+    pendingSupportWeights: resolved.state.pendingSupportWeights,
+    pendingDiscover: resolved.state.pendingDiscover,
+    pendingGateHpDiscount: resolved.state.pendingGateHpDiscount,
   };
 
   logFlowCheckpoint('useSkill END', {
     damageDealt: result.damageDealt,
     enemyDefeated: result.enemyDefeated,
     playerDefeated: result.playerDefeated,
-    newEnemyHp: result.newEnemyHp
+    newEnemyHp: result.newEnemyHp,
   });
 
   return result;

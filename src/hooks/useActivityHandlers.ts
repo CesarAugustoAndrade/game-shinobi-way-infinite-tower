@@ -20,6 +20,7 @@ import { generateMerchantItem, getMerchantBuyPrice } from '../game/systems/LootS
 import { simulateGameCombat } from '../game/systems/CombatSimulationService';
 import { canLearnSkill } from '../game/systems/StatSystem';
 import { canAddPlayableSkill } from '../game/systems/DeckSystem';
+import { applyForgetSkill, applyLearnSkill } from '../game/systems/SkillConfigLive';
 import {
   ApproachResult,
   executeApproach,
@@ -1029,54 +1030,71 @@ export function useActivityHandlers(
         if (!checkResult.canLearn) return p;
       }
 
-      let nextSkills = [...p.skills];
-      const existingIndex = nextSkills.findIndex((s) => s.id === skill.id);
+      const learnState = GameState.SCROLL_DISCOVERY;
+      const existingIndex = p.skills.findIndex((s) => s.id === skill.id);
+      let next: Player;
 
       if (existingIndex !== -1) {
-        const existing = nextSkills[existingIndex];
+        const existing = p.skills[existingIndex];
         const currentLevel = existing.level || 1;
         const baseGrowth = Math.max(1, Math.round((skill.baseDamage ?? 0) * 0.1));
         const scaleGrowth = Math.max(0, Math.round((skill.scalingPerPoint ?? 0) * 0.1));
-        nextSkills = [...nextSkills];
-        nextSkills[existingIndex] = {
-          ...existing,
-          level: currentLevel + 1,
-          baseDamage: (existing.baseDamage ?? 0) + baseGrowth,
-          scalingPerPoint: (existing.scalingPerPoint ?? 0) + scaleGrowth,
+        const learned = applyLearnSkill(p, skill, learnState);
+        if (learned.refused) return p;
+        next = {
+          ...learned.player,
+          skills: learned.player.skills.map((entry) =>
+            entry.id === skill.id
+              ? {
+                  ...entry,
+                  level: currentLevel + 1,
+                  baseDamage: (entry.baseDamage ?? 0) + baseGrowth,
+                  scalingPerPoint: (entry.scalingPerPoint ?? 0) + scaleGrowth,
+                }
+              : entry,
+          ),
         };
         box.o = isClan ? 'clan' : 'upgrade';
         box.detail = existing.name;
         box.level = currentLevel + 1;
-      } else if (slotIndex !== undefined && nextSkills[slotIndex]) {
-        const replaced = nextSkills[slotIndex];
+      } else if (slotIndex !== undefined && p.skills[slotIndex]) {
+        const replaced = p.skills[slotIndex];
         if (
           skill.actionType !== ActionType.PASSIVE &&
-          !canAddPlayableSkill(nextSkills) &&
+          !canAddPlayableSkill(p.skills) &&
           replaced.actionType === ActionType.PASSIVE
         ) {
           return p;
         }
+        const forgotten = applyForgetSkill(p, replaced.id, learnState, Math.random);
+        if (forgotten.refused) return p;
+        const learned = applyLearnSkill(
+          forgotten.player,
+          { ...skill, level: 1 },
+          learnState,
+        );
+        if (learned.refused) return p;
+        next = learned.player;
         box.o = 'replace';
         box.detail = replaced.name;
-        nextSkills = [...nextSkills];
-        nextSkills[slotIndex] = { ...skill, level: 1 };
       } else if (
         skill.actionType === ActionType.PASSIVE ||
-        canAddPlayableSkill(nextSkills)
+        canAddPlayableSkill(p.skills)
       ) {
-        nextSkills = [...nextSkills, { ...skill, level: 1 }];
+        const learned = applyLearnSkill(p, { ...skill, level: 1 }, learnState);
+        if (learned.refused) return p;
+        next = learned.player;
         box.o = isClan ? 'clan' : 'learn';
       } else {
         return p;
       }
 
       return {
-        ...p,
-        ryo: isClan ? p.ryo : p.ryo - ryoPrice,
-        skills: nextSkills,
+        ...next,
+        ryo: isClan ? next.ryo : next.ryo - ryoPrice,
         clanLevel: isClan
-          ? Math.min(5, (p.clanLevel ?? 0) + 1)
-          : (p.clanLevel ?? 0),
+          ? Math.min(5, (next.clanLevel ?? 0) + 1)
+          : (next.clanLevel ?? 0),
       };
     });
 
@@ -1123,11 +1141,14 @@ export function useActivityHandlers(
     setScrollDiscoveryData(() => null);
     setPlayer((p) => {
       if (!p || p.ryo < cost) return p;
-      return {
-        ...p,
-        ryo: p.ryo - cost,
-        skills: p.skills.filter((s) => s.id !== skillId),
-      };
+      const forgotten = applyForgetSkill(
+        p,
+        skillId,
+        GameState.SCROLL_DISCOVERY,
+        Math.random,
+      );
+      if (forgotten.refused) return p;
+      return { ...forgotten.player, ryo: forgotten.player.ryo - cost };
     });
     addLog(`Forgot ${skill.name} (−${cost} Ryo).`, 'info');
     finishScrollRoom(roomId, false);
