@@ -3156,9 +3156,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'killing_intent',
     name: 'Killing Intent',
     tier: SkillTier.FORBIDDEN,
-    description: 'Release murderous aura. 30% chance enemy skips turn.',
+    description: '80% Stun 1. Fear 1: next enemy action deals −20% damage.',
     actionType: ActionType.ACTIVE,
-    apCost: 1,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.GENJUTSU, SkillTag.MENTAL],
+    apCost: 2,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 6,
@@ -3170,13 +3172,22 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    controlStun: { chance: 0.8, enemyDuration: 1 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 5,
         [PrimaryStat.CALMNESS]: 5,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.3 }]
+    markEffects: [
+      {
+        id: 'fear',
+        duration: 1,
+        stacks: 20,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
   },
 
   // ==== LEGENDARY / AMBUSH ====

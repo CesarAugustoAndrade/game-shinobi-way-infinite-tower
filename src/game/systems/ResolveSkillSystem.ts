@@ -586,7 +586,7 @@ function resolveImpactSilence(
   return state;
 }
 
-/** SUPPORT control: rng() < chance → enemy stun; else self stun. Never deals damage. */
+/** SUPPORT control: rng() < chance → enemy stun; else self stun only if failSelfDuration ≥ 1. */
 function resolveControlSupport(
   skill: Skill,
   state: ResolveSkillState,
@@ -600,9 +600,11 @@ function resolveControlSupport(
       enemyBuffs: [...(state.enemyBuffs ?? []), stunControlBuff(skill.id, spec.enemyDuration, 'enemy')],
     };
   }
+  const failSelf = spec.failSelfDuration ?? 0;
+  if (failSelf < 1) return state;
   return {
     ...state,
-    playerBuffs: [...state.playerBuffs, stunControlBuff(skill.id, spec.failSelfDuration, 'self')],
+    playerBuffs: [...state.playerBuffs, stunControlBuff(skill.id, failSelf, 'self')],
   };
 }
 

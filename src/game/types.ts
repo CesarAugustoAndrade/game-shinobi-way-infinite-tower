@@ -781,11 +781,12 @@ export type HpCostSpec =
   | { kind: 'percentMax'; value: number }
   | { kind: 'all' };
 
-/** SUPPORT control roll (Mind Transfer): success enemy stun / fail self stun. */
+/** SUPPORT control roll: rng < chance → enemy stun; else self stun if failSelfDuration ≥ 1. */
 export interface ControlStunSpec {
   chance: number;
   enemyDuration: number;
-  failSelfDuration: number;
+  /** Omit or 0: fail applies no stun (Killing Intent). Mind Transfer uses 1. */
+  failSelfDuration?: number;
 }
 
 /** SUPPORT control roll (False Surroundings): chance enemy Confusion; no fail self. */
@@ -861,7 +862,7 @@ export interface Skill {
   perHitEffects?: EffectDefinition[];
   /**
    * SUPPORT control stun (T-036 Mind Transfer).
-   * `rng() < chance` → enemy STUN `enemyDuration`; else self STUN `failSelfDuration`.
+   * `rng() < chance` → enemy STUN `enemyDuration`; else self STUN if `failSelfDuration` ≥ 1.
    */
   controlStun?: ControlStunSpec;
   /**
