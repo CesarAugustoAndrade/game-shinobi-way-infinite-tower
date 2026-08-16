@@ -2109,27 +2109,41 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'air_bullet',
     name: 'Air Bullet',
     tier: SkillTier.ADVANCED,
-    description: 'Compressed air projectile that reduces enemy defense.',
+    description: '13 dmg at MEDIUM or LONG. PUSH 1 on hit. −1 ACC for 1 opportunity.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.WIND],
     apCost: 2,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 2,
     currentCooldown: 0,
     baseDamage: 13,
+    hitCount: 1,
     scalingPerPoint: 4,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WIND,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    bandMove: { kind: 'PUSH', steps: 1, requireHit: true },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [{ type: EffectType.DEBUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.15, duration: 2, chance: 1.0 }]
+    markEffects: [
+      {
+        id: 'air_acc_down',
+        duration: 1,
+        stacks: 1,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
   },
 
   // ==========================================
