@@ -133,6 +133,28 @@ export function applyReadWindowOutgoing(
 }
 
 /**
+ * First enemy offensive under Mist: subtract stacks (default 20) once, then strip.
+ * Live EnemyTurn wiring is optional; this is the R0 contract (T-073).
+ */
+export function applyMistOutgoing(
+  damage: number,
+  marks: readonly Mark[],
+): { damage: number; marks: Mark[]; consumed: boolean } {
+  const mist = marks.find((mark) => mark.id === 'mist' && mark.target === CombatActor.ENEMY);
+  if (!mist) {
+    return { damage, marks: marks.map((mark) => ({ ...mark })), consumed: false };
+  }
+  const cut = mist.stacks ?? 20;
+  return {
+    damage: Math.max(0, damage - cut),
+    marks: marks
+      .filter((mark) => !(mark.id === 'mist' && mark.target === CombatActor.ENEMY))
+      .map((mark) => ({ ...mark })),
+    consumed: true,
+  };
+}
+
+/**
  * First enemy offensive under Smoke: subtract stacks (default 25) once, then strip.
  * Live EnemyTurn wiring is optional; this is the R0 contract (T-038).
  */

@@ -99,6 +99,7 @@ import { printShurikenBarrageProbe, runShurikenBarrageProbe } from './ShurikenBa
 import { printSenbonRainProbe, runSenbonRainProbe } from './SenbonRainBalance';
 import { printWindmillShurikenProbe, runWindmillShurikenProbe } from './WindmillShurikenBalance';
 import { printExplosiveBarrageProbe, runExplosiveBarrageProbe } from './ExplosiveBarrageBalance';
+import { printHiddenMistProbe, runHiddenMistProbe } from './HiddenMistBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -544,6 +545,7 @@ async function main() {
     printSenbonRainProbe(runSenbonRainProbe());
     printWindmillShurikenProbe(runWindmillShurikenProbe());
     printExplosiveBarrageProbe(runExplosiveBarrageProbe());
+    printHiddenMistProbe(runHiddenMistProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

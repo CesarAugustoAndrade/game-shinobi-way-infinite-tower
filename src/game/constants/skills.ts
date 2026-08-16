@@ -1938,8 +1938,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'hidden_mist',
     name: 'Hidden Mist Jutsu',
     tier: SkillTier.ADVANCED,
-    description: 'Creates a dense mist for evasion and enemy accuracy reduction.',
+    description:
+      'Mist 2: first enemy offensive −20 impact. SIDE weight +1 on the next draw. Does not change Terrain.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.WATER, SkillTag.MARK],
     apCost: 2,
     chakraCost: 5,
     hpCost: 0,
@@ -1958,10 +1961,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.5, duration: 3, chance: 1.0 },
-      { type: EffectType.DEBUFF, targetStat: PrimaryStat.ACCURACY, value: 0.3, duration: 3, chance: 1.0 }
-    ]
+    nextDrawRoleBonus: { role: CardRole.SIDE_ATTACK, delta: 1 },
+    markEffects: [
+      {
+        id: 'mist',
+        duration: 2,
+        stacks: 20,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
   },
 
   WATER_CLONE: {
