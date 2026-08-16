@@ -111,6 +111,7 @@ import { printThousandYearsProbe, runThousandYearsProbe } from './ThousandYearsB
 import { printLiveCutoverProbe, runLiveCutoverProbe } from './LiveCutoverBalance';
 import { printTurnIndexProbe, runTurnIndexProbe } from './TurnIndexBalance';
 import { printLiveReactionsProbe, runLiveReactionsProbe } from './LiveReactionsBalance';
+import { printLiveWeightsProbe, runLiveWeightsProbe } from './LiveWeightsBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -568,6 +569,7 @@ async function main() {
     printLiveCutoverProbe(runLiveCutoverProbe());
     printTurnIndexProbe(runTurnIndexProbe());
     printLiveReactionsProbe(runLiveReactionsProbe());
+    printLiveWeightsProbe(runLiveWeightsProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);

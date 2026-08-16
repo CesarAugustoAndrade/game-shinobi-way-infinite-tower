@@ -989,6 +989,8 @@ export function useCombat({
           activeModes: upkeepResult.activeModes,
           marks: upkeepResult.marks,
           turnIndex: upkeepResult.turnIndex,
+          pendingSupportWeights: upkeepResult.pendingSupportWeights ?? [],
+          pendingDiscover: upkeepResult.pendingDiscover,
           playerMoveUsedThisTurn: false,
           enemyMoveUsedThisTurn: false,
           enemyMaxAp: eMax,

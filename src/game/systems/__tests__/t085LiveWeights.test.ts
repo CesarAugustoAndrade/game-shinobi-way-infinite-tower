@@ -69,6 +69,13 @@ describe('T-085 live support weights', () => {
 
     const result = processUpkeep(player, makeStats(), combatState);
     expect(result.hand.length).toBeGreaterThan(0);
+    expect(result.pendingSupportWeights).toEqual([]);
+    const second = buildUpkeepWeightContext(player, {
+      ...combatState,
+      pendingSupportWeights: result.pendingSupportWeights,
+    });
+    expect(second.supportBonuses?.rasengan).toBeUndefined();
+    expect(effectiveWeight(rasengan, second)).toBe(base);
   });
 
   it('feeds role / tag / mental consume results into WeightContext', () => {

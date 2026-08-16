@@ -292,6 +292,7 @@ export function processUpkeep(
         ? playerPriority
         : onModes.map((mode) => mode.id);
 
+  const weightCtx = buildUpkeepWeightContext(updatedPlayer, combatState);
   const clock = runTurnStartClock({
     turnIndex,
     chakra: updatedPlayer.currentChakra,
@@ -310,7 +311,7 @@ export function processUpkeep(
     snapshotDraw: () =>
       drawNewTurnHand(
         pool,
-        buildUpkeepWeightContext(updatedPlayer, combatState),
+        weightCtx,
         LaunchProperties.HAND_SIZE,
         Math.random,
       ).hand,
@@ -346,6 +347,8 @@ export function processUpkeep(
       clock.endedModes.map((ended) => ended.id),
     ),
     marks: clock.marks,
+    pendingSupportWeights: [],
+    pendingDiscover: combatState.pendingDiscover,
   };
 }
 

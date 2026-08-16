@@ -168,6 +168,10 @@ export interface UpkeepResult {
   turnIndex: number;
   activeModes: ActiveModeRuntime[];
   marks: Mark[];
+  /** T-085: emptied after one-shot consume into the new-turn draw. */
+  pendingSupportWeights?: PendingSupportWeight[];
+  /** T-085: Discover offer is not consumed at upkeep. */
+  pendingDiscover?: PendingDiscover;
 }
 
 /**

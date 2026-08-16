@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-085 live weights:** `processUpkeep` consumes `pendingSupportWeights` once into the new-turn draw and writes an empty bag back. Discover is not consumed at upkeep.
 - **T-084 live reactions:** enemy voluntary move fires ON_MOVE (tripwire 8 + 60% Stun 1). Live outgoing applies Fear → Smoke → Read Window once. `EnemyTurnResult.marks` is now official.
 - **T-083 turnIndex:** `runTurnStartClock` increments T by 1 so `readyOnTurn = T+N+1` can expire. `createCombatState` resets the encounter frontier (`readyOnTurn` + CD). Echo-T would leave CD cards locked forever.
 - **T-082 Live cutover:** `useSkill` is an adapter over `resolveSkill` (passes combatants ports). `bandMove` mutates live range. Hit-core consume is T-088.
