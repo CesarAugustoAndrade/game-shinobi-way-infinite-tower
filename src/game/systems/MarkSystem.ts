@@ -133,6 +133,28 @@ export function applyReadWindowOutgoing(
 }
 
 /**
+ * First enemy offensive under Decoy: subtract stacks (default 20) once, then strip.
+ * Live EnemyTurn wiring is optional; this is the R0 contract (T-074).
+ */
+export function applyDecoyOutgoing(
+  damage: number,
+  marks: readonly Mark[],
+): { damage: number; marks: Mark[]; consumed: boolean } {
+  const decoy = marks.find((mark) => mark.id === 'decoy' && mark.target === CombatActor.ENEMY);
+  if (!decoy) {
+    return { damage, marks: marks.map((mark) => ({ ...mark })), consumed: false };
+  }
+  const cut = decoy.stacks ?? 20;
+  return {
+    damage: Math.max(0, damage - cut),
+    marks: marks
+      .filter((mark) => !(mark.id === 'decoy' && mark.target === CombatActor.ENEMY))
+      .map((mark) => ({ ...mark })),
+    consumed: true,
+  };
+}
+
+/**
  * First enemy offensive under Mist: subtract stacks (default 20) once, then strip.
  * Live EnemyTurn wiring is optional; this is the R0 contract (T-073).
  */

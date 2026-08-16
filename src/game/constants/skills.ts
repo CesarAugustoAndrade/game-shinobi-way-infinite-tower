@@ -220,8 +220,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'bunshin',
     name: 'Clone Technique',
     tier: SkillTier.BASIC,
-    description: 'Creates illusory copies to distract the enemy. Slight Evasion boost.',
+    description:
+      'Decoy 1: first enemy offensive −20 impact. Does not grant Shadow Clone charges.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.MENTAL, SkillTag.MARK],
     apCost: 1,
     chakraCost: 1,
     hpCost: 0,
@@ -234,7 +237,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.2, duration: 2, chance: 1.0 }]
+    markEffects: [
+      {
+        id: 'decoy',
+        duration: 1,
+        stacks: 20,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
   },
 
   HENGE: {
