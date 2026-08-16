@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-083 turnIndex:** `runTurnStartClock` increments T by 1 so `readyOnTurn = T+N+1` can expire. `createCombatState` resets the encounter frontier (`readyOnTurn` + CD). Echo-T would leave CD cards locked forever.
 - **T-082 Live cutover:** `useSkill` is an adapter over `resolveSkill` (passes combatants ports). `bandMove` mutates live range. Hit-core consume is T-088.
 - **T-081 1000 Years of Death:** SIDE AP2/CP1/CD5 deals 9 at CLOSE. Independent 45% Stun 1 and 45% Confusion 1 on hit. Guaranteed stun / 60% Confusion×2 packaging removed.
 - **T-080 Water Prison:** SIDE AP2/CP6/CD5 deals 9 at MEDIUM. 70% Stun 1; voluntary range-up locked while Stun persists. STUN×2 packaging removed.
