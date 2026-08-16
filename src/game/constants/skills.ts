@@ -762,22 +762,34 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'senbon_rain',
     name: 'Senbon Rain',
     tier: SkillTier.BASIC,
-    description: 'A barrage of poisoned needles. Five hits with poison chance.',
+    description: '4×2 dmg at MEDIUM or LONG. On hit, Poison 3 for 2.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TOOL, SkillTag.WEAPON, SkillTag.PHYSICAL, SkillTag.MULTI_HIT],
     apCost: 2,
     chakraCost: 3,
     hpCost: 0,
     cooldown: 3,
     currentCooldown: 0,
-    baseDamage: 6,
-
+    baseDamage: 2,
+    hitCount: 4,
     scalingPerPoint: 1,
     scalingStat: PrimaryStat.ACCURACY,
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
-    effects: [{ type: EffectType.POISON, value: 5, duration: 3, chance: 0.2, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL }]
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    markEffects: [
+      {
+        id: 'poison',
+        duration: 2,
+        stacks: 3,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
   },
 
   EXPLOSIVE_TAG: {

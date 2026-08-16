@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-070 Senbon Rain:** SIDE AP2/CP3/CD3 deals 4×2 at MEDIUM/LONG. On hit, plants Poison 3 for 2 once. POISON 5×3 @20% packaging removed.
 - **T-069 Shuriken Barrage:** SIDE AP2/CP1/CD2 deals 3×3 at MEDIUM/LONG. On hit, next ATTACK +10% Setup. Single-6 “40% each” packaging removed.
 - **T-068 Basic Medical:** SUPPORT AP2/CP5/CD5 heals 25 HP and removes one Poison or Bleed. Mute HEAL 25 effects[] packaging removed.
 - **T-067 Focused Breathing:** SUPPORT AP1/CP0/CD2 grants +8 CP and arms a one-shot next CP Mode upkeep −2. CHAKRA_REGEN 10 packaging removed.
