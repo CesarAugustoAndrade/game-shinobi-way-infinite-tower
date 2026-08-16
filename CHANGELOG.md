@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-078 Demon Slash:** ATTACK AP3/CD2 CLOSE 15. Bleed 6 for 3 on hit. PIERCING / BLEED 15 packaging removed.
 - **T-077 Air Bullet:** SIDE AP2/CP5/CD2 deals 13 at MEDIUM/LONG. PUSH 1 and −1 ACC for 1 on hit. WIL −15% packaging removed.
 - **T-076 Sand Shield:** SUPPORT AP1/CP5/CD3 plants self Shield 45 until absorbed. SHIELD 80×2 effects[] packaging removed.
 - **T-075 Henge:** SUPPORT AP1/CP1/CD4 plants Misdirect 2, SIDE weight +2 next draw; next SIDE hit applies Exposed 10%. DEX +25% packaging removed.

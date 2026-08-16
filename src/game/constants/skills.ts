@@ -3184,35 +3184,40 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'demon_slash',
     name: 'Demon Slash',
     tier: SkillTier.FORBIDDEN,
-    description: 'A brutal, sweeping cleave with the Executioner Blade. Causes BLEED.',
+    description: '15 damage at CLOSE. On hit, Bleed 6 for 3 opportunities.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.WEAPON, SkillTag.PHYSICAL],
+    apCost: 3,
     chakraCost: 0,
     hpCost: 0,
     cooldown: 2,
     currentCooldown: 0,
     baseDamage: 15,
-
+    hitCount: 1,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.STRENGTH,
     damageType: DamageType.PHYSICAL,
-    damageProperty: DamageProperty.PIERCING,
+    damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE],
     requirements: {
       stats: {
         [PrimaryStat.STRENGTH]: 5,
         [PrimaryStat.DEXTERITY]: 5,
       },
     },
-    effects: [{
-      type: EffectType.BLEED,
-      value: 15,
-      duration: 3,
-      chance: 1.0,
-      damageType: DamageType.PHYSICAL,
-      damageProperty: DamageProperty.PIERCING
-    }]
+    markEffects: [
+      {
+        id: 'bleed',
+        duration: 3,
+        stacks: 6,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        perHit: true,
+      },
+    ],
   },
 
   BONE_DRILL: {

@@ -104,6 +104,7 @@ import { printBunshinProbe, runBunshinProbe } from './BunshinBalance';
 import { printHengeProbe, runHengeProbe } from './HengeBalance';
 import { printSandShieldProbe, runSandShieldProbe } from './SandShieldBalance';
 import { printAirBulletProbe, runAirBulletProbe } from './AirBulletBalance';
+import { printDemonSlashProbe, runDemonSlashProbe } from './DemonSlashBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -554,6 +555,7 @@ async function main() {
     printHengeProbe(runHengeProbe());
     printSandShieldProbe(runSandShieldProbe());
     printAirBulletProbe(runAirBulletProbe());
+    printDemonSlashProbe(runDemonSlashProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
