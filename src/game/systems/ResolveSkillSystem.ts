@@ -13,17 +13,21 @@ import {
   CardRole,
   CombatActor,
   CombatRange,
+  DerivedStats,
   EffectType,
+  ElementType,
   Mark,
   MarkConsumeTiming,
   MarkFamily,
   ModeDefinition,
+  PrimaryAttributes,
   PrimaryStat,
   ModeRuntimeState,
   Posture,
   RangeReactionDef,
   Skill,
 } from '../types';
+import type { CalculateDamageOptions } from './StatSystem';
 import { getApCost } from '../constants/combatCards';
 import { getModeDefinition, MODE_FAMILY } from '../constants/modes';
 import {
@@ -133,9 +137,22 @@ export interface ResolveSkillIntent {
   weightContext?: WeightContext;
 }
 
+/** Live/T-088 attacker+defender stats. Optional until hit-core consumes them. */
+export interface ResolveSkillCombatants {
+  attackerPrimary: PrimaryAttributes;
+  attackerDerived: DerivedStats;
+  defenderPrimary: PrimaryAttributes;
+  defenderDerived: DerivedStats;
+  attackerElement?: ElementType;
+  defenderElement?: ElementType;
+}
+
 export interface ResolveSkillPorts {
   rng?: () => number;
   rollHit?: () => HitRoll;
+  /** Live adapter passes combatants; T-088 uses them for calculateDamage. */
+  combatants?: ResolveSkillCombatants;
+  damageOptions?: CalculateDamageOptions;
   activateMode?: (
     board: ModeBoard,
     def: ModeDefinition,
