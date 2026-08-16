@@ -252,8 +252,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'henge',
     name: 'Transformation',
     tier: SkillTier.BASIC,
-    description: 'Transform into an object or person for a surprise attack.',
+    description:
+      'Misdirect 2: SIDE weight +2 next draw. Next SIDE applies Exposed 10%.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.MENTAL, SkillTag.MARK],
     apCost: 1,
     chakraCost: 1,
     hpCost: 0,
@@ -266,7 +269,17 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.DEXTERITY, value: 0.25, duration: 2, chance: 1.0 }]
+    nextDrawRoleBonus: { role: CardRole.SIDE_ATTACK, delta: 2 },
+    markEffects: [
+      {
+        id: 'misdirect',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   SHUNSHIN: {

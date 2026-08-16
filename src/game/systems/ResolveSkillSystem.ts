@@ -387,6 +387,7 @@ function applySkillMarkEffects(
 
 const LAUNCHED_SETUP_MULT = 1.2;
 const BARRAGE_SETUP_MULT = 1.1;
+const EXPOSED_10_MULT = 1.1;
 const GUARD_BREAK_PEN = 0.15;
 const WIRE_TRAP_ID = 'wire_trap';
 const WIRE_TRAP_MULT = 1.2;
@@ -400,6 +401,7 @@ function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   let mult = 1;
   if (ids.has('off_balance')) mult *= 1.2;
   if (ids.has('exposed') && skill.attackMethod === AttackMethod.RANGED) mult *= 1.15;
+  if (ids.has('exposed_10') && skill.attackMethod === AttackMethod.RANGED) mult *= EXPOSED_10_MULT;
   if (ids.has('launched') && skill.attackMethod === AttackMethod.MELEE) mult *= LAUNCHED_SETUP_MULT;
   if (ids.has('barrage_setup')) mult *= BARRAGE_SETUP_MULT;
   return mult;
@@ -804,6 +806,8 @@ export function resolveSkill(
           if (mark.id === 'feint') return role === CardRole.ATTACK;
           if (mark.id === 'barrage_setup') return role === CardRole.ATTACK;
           if (mark.id === 'exposed') return role === CardRole.ATTACK;
+          if (mark.id === 'exposed_10') return role === CardRole.ATTACK;
+          if (mark.id === 'misdirect') return role === CardRole.SIDE_ATTACK;
           if (mark.id === 'aim') return role === CardRole.ATTACK;
           if (mark.id === 'cloaked') return role === CardRole.ATTACK;
           if (mark.id === 'guard_break') return role === CardRole.ATTACK;
@@ -1146,6 +1150,23 @@ export function resolveSkill(
 
   if (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) {
     next = applySkillMarkEffects(next, skill, hitsLanded);
+  }
+  if (
+    role === CardRole.SIDE_ATTACK &&
+    hitsLanded >= 1 &&
+    afterAttempt.spent.some((mark) => mark.id === 'misdirect')
+  ) {
+    const planted = addMark(next.marks, {
+      id: 'exposed_10',
+      sourceSkillId: skill.id,
+      owner: CombatActor.PLAYER,
+      target: CombatActor.PLAYER,
+      duration: 2,
+      stacks: 1,
+      consume: MarkConsumeTiming.ATTEMPT,
+      family: MarkFamily.STAT,
+    });
+    next = { ...next, marks: planted.marks };
   }
 
   const supportWeightEntries = applySupportWeightOnPlay(skill, {
