@@ -716,8 +716,10 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'windmill_shuriken',
     name: 'Windmill Shuriken',
     tier: SkillTier.BASIC,
-    description: 'A large shuriken that ignores shields with armor penetration.',
+    description: '12 dmg at MEDIUM or LONG. PULL 1 on hit.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.TOOL, SkillTag.WEAPON, SkillTag.PHYSICAL],
     apCost: 2,
     chakraCost: 0,
     hpCost: 0,
@@ -727,10 +729,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.ACCURACY,
     damageType: DamageType.PHYSICAL,
-    damageProperty: DamageProperty.PIERCING,
+    damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
-    penetration: 0.2
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    bandMove: { kind: 'PULL', steps: 1, requireHit: true },
   },
 
   SENBON: {

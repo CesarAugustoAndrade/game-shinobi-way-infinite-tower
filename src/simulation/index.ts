@@ -97,6 +97,7 @@ import { printFocusedBreathingProbe, runFocusedBreathingProbe } from './FocusedB
 import { printBasicMedicalProbe, runBasicMedicalProbe } from './BasicMedicalBalance';
 import { printShurikenBarrageProbe, runShurikenBarrageProbe } from './ShurikenBarrageBalance';
 import { printSenbonRainProbe, runSenbonRainProbe } from './SenbonRainBalance';
+import { printWindmillShurikenProbe, runWindmillShurikenProbe } from './WindmillShurikenBalance';
 
 // ============================================================================
 // SIMULATION RUNNER
@@ -540,6 +541,7 @@ async function main() {
     printBasicMedicalProbe(runBasicMedicalProbe());
     printShurikenBarrageProbe(runShurikenBarrageProbe());
     printSenbonRainProbe(runSenbonRainProbe());
+    printWindmillShurikenProbe(runWindmillShurikenProbe());
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
