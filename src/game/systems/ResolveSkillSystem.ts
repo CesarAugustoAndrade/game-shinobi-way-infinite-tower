@@ -27,7 +27,8 @@ import {
   RangeReactionDef,
   Skill,
 } from '../types';
-import type { CalculateDamageOptions } from './StatSystem';
+import { calculateDamage, type CalculateDamageOptions } from './StatSystem';
+import { resolveSuccessfulHit } from './SkillResolutionSystem';
 import { getApCost } from '../constants/combatCards';
 import { getModeDefinition, MODE_FAMILY } from '../constants/modes';
 import {
@@ -991,29 +992,87 @@ export function resolveSkill(
       }
     }
   } else {
-    const rollHit =
-      ports.rollHit ??
-      (() => {
-        const roll = ports.rng?.() ?? 0;
-        const bonus = intent.enhanced ? Math.floor(Math.max(0, skill.baseDamage) * 0.5) : 0;
-        return {
-          hit: roll < 0.85,
-          damage: Math.max(0, skill.baseDamage) + bonus,
-        };
-      });
     const hitCount = (skill.hitCount ?? 1) + modeBonusHits;
-    const multi = resolveMultiHit({ hitCount, perHit: Boolean(skill.perHitEffects?.length) }, rollHit);
-    hitsLanded = multi.hitsLanded;
-    damageDealt = multi.totalDamage;
-    if (intent.enhanced && hitsLanded > 0 && !ports.rollHit) {
-      damageDealt += Math.floor(Math.max(0, skill.baseDamage) * 0.5) * hitsLanded;
-    }
     const impactSpec = skill.impactMarkConsume;
-    const cpStacksConsumed =
-      impactSpec && hitsLanded > 0
+    const cpStacksForMit =
+      impactSpec
         ? Math.min(impactSpec.maxStacks, enemyMarkStacks(next.marks, impactSpec.markId))
         : 0;
-    if (hitsLanded > 0 && (modeDamageBonus > 0 || cpStacksConsumed > 0)) {
+    const markMult = markDamageMultiplier(afterAttempt.spent, skill);
+    const setup = skill.setupRead;
+    const setupMult =
+      setup && hasEnemyMark(next.marks, setup.markId) ? 1 + setup.damageMultBonus : 1;
+    const wireMult =
+      role === CardRole.ATTACK && hasEnemyMark(next.marks, WIRE_TRAP_ID) ? WIRE_TRAP_MULT : 1;
+    const cloaked = afterAttempt.spent.some((mark) => mark.id === 'cloaked');
+    const lotus = afterAttempt.spent.some((mark) => mark.id === 'lotus_opening');
+    const preMits: number[] = [];
+    if (intent.enhanced) preMits.push(1.5);
+    if (modeDamageBonus > 0) preMits.push(1 + modeDamageBonus);
+    if (cpStacksForMit > 0) {
+      preMits.push(1 + (impactSpec?.damageMultPerStack ?? 0) * cpStacksForMit);
+    }
+    if (markMult !== 1) preMits.push(markMult);
+    if (setupMult !== 1) preMits.push(setupMult);
+    if (wireMult !== 1) preMits.push(wireMult);
+    if (cloaked) {
+      preMits.push(CLOAKED_CRIT_MULT);
+      if (skill.id === IAIDO_ID) preMits.push(IAIDO_SETUP_MULT);
+    }
+    if (lotus) preMits.push(1.25);
+
+    const useHitCore = Boolean(ports.combatants) && !ports.rollHit;
+    let multi: { hitsLanded: number; totalDamage: number; perHitProcs: number } = {
+      hitsLanded: 0,
+      totalDamage: 0,
+      perHitProcs: 0,
+    };
+    if (useHitCore && ports.combatants) {
+      const c = ports.combatants;
+      const opts = ports.damageOptions ?? {};
+      const attackerEl = c.attackerElement ?? ElementType.PHYSICAL;
+      const defenderEl = c.defenderElement ?? ElementType.PHYSICAL;
+      for (let i = 0; i < hitCount; i += 1) {
+        const rolled = calculateDamage(
+          c.attackerPrimary,
+          c.attackerDerived,
+          c.defenderPrimary,
+          c.defenderDerived,
+          skill,
+          attackerEl,
+          defenderEl,
+          opts,
+        );
+        if (rolled.isMiss || rolled.isEvaded) continue;
+        multi.hitsLanded += 1;
+        multi.totalDamage += resolveSuccessfulHit({
+          rawDamage: rolled.finalDamage,
+          preMitigationMultipliers: preMits,
+          defenderBuffs: next.enemyBuffs ?? [],
+          defenderLabel: 'enemy',
+        }).finalDamage;
+        if (skill.perHitEffects?.length) multi.perHitProcs += 1;
+      }
+    } else {
+      const rollHit =
+        ports.rollHit ??
+        (() => {
+          const roll = ports.rng?.() ?? 0;
+          const bonus = intent.enhanced ? Math.floor(Math.max(0, skill.baseDamage) * 0.5) : 0;
+          return {
+            hit: roll < 0.85,
+            damage: Math.max(0, skill.baseDamage) + bonus,
+          };
+        });
+      multi = resolveMultiHit({ hitCount, perHit: Boolean(skill.perHitEffects?.length) }, rollHit);
+    }
+    hitsLanded = multi.hitsLanded;
+    damageDealt = multi.totalDamage;
+    if (!useHitCore && intent.enhanced && hitsLanded > 0 && !ports.rollHit) {
+      damageDealt += Math.floor(Math.max(0, skill.baseDamage) * 0.5) * hitsLanded;
+    }
+    const cpStacksConsumed = impactSpec && hitsLanded > 0 ? cpStacksForMit : 0;
+    if (!useHitCore && hitsLanded > 0 && (modeDamageBonus > 0 || cpStacksConsumed > 0)) {
       const modeMult = 1 + modeDamageBonus;
       const cpMult = 1 + (impactSpec?.damageMultPerStack ?? 0) * cpStacksConsumed;
       damageDealt = Math.floor(damageDealt * modeMult * cpMult);
@@ -1021,25 +1080,26 @@ export function resolveSkill(
         damageDealt = applySkillPenetration(damageDealt, skill.penetration ?? 0);
       }
     }
-    const markMult = markDamageMultiplier(afterAttempt.spent, skill);
-    if (markMult !== 1 && hitsLanded > 0) {
+    if (!useHitCore && markMult !== 1 && hitsLanded > 0) {
       damageDealt = Math.floor(damageDealt * markMult);
     }
-    const setup = skill.setupRead;
-    if (setup && hitsLanded > 0 && hasEnemyMark(next.marks, setup.markId)) {
+    if (!useHitCore && setup && hitsLanded > 0 && hasEnemyMark(next.marks, setup.markId)) {
       damageDealt = Math.floor(damageDealt * (1 + setup.damageMultBonus));
     }
     if (
+      !useHitCore &&
       role === CardRole.ATTACK &&
       hitsLanded > 0 &&
       hasEnemyMark(next.marks, WIRE_TRAP_ID)
     ) {
       damageDealt = Math.floor(damageDealt * WIRE_TRAP_MULT);
     }
-    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'cloaked')) {
-      damageDealt = Math.floor(damageDealt * CLOAKED_CRIT_MULT);
-      if (skill.id === IAIDO_ID) {
-        damageDealt = Math.floor(damageDealt * IAIDO_SETUP_MULT);
+    if (hitsLanded > 0 && cloaked) {
+      if (!useHitCore) {
+        damageDealt = Math.floor(damageDealt * CLOAKED_CRIT_MULT);
+        if (skill.id === IAIDO_ID) {
+          damageDealt = Math.floor(damageDealt * IAIDO_SETUP_MULT);
+        }
       }
       damageDealt +=
         skill.scalingStat === PrimaryStat.DEXTERITY ? Math.max(0, skill.scalingPerPoint) : 1;
@@ -1055,7 +1115,7 @@ export function resolveSkill(
     if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'feint')) {
       damageDealt += 15;
     }
-    if (hitsLanded > 0 && afterAttempt.spent.some((mark) => mark.id === 'lotus_opening')) {
+    if (!useHitCore && hitsLanded > 0 && lotus) {
       damageDealt = Math.floor(damageDealt * 1.25);
     }
     const studied = next.marks.find(

@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-088 hit core:** `resolveSkill` ATTACK/SIDE uses `calculateDamage` + `resolveSuccessfulHit` when combatants are passed. Mode/mark mults are pre-mitigation. Injected `rollHit` catalog tests keep the stub.
 - **T-087 Combat mount:** Modes + Setup panels render on the board. Hand paints the Main ribbon. Toggle playability uses `canPlaySkill` with `modeAlreadyOn` + Mode `grantedRanges` (Chidori MEDIUM with Sharingan 3).
 - **T-086 Skill Config choke:** loot `learnSkill` (and existing activity/treasure handlers) go through `applyLearnSkill` / `applyForgetSkill`. Forgetting Main realigns `skillConfig.mainAttackId`.
 - **T-085 live weights:** `processUpkeep` consumes `pendingSupportWeights` once into the new-turn draw and writes an empty bag back. Discover is not consumed at upkeep.
