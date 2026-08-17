@@ -7,4 +7,4 @@
 - IMPLEMENT: done
 - REVIEW: APPROVE
 - VERIFY: PASS (typecheck + t093 3/3)
-- MERGE: pending → this fire (ff into wt/jp-08121518)
+- MERGE: ff `1456e5e..50256d1` into `wt/jp-08121518`
