@@ -2591,8 +2591,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'byakugan_scan',
     name: 'Tenketsu Scan',
     tier: SkillTier.HIDDEN,
-    description: 'Scan chakra points. Next attack ignores 30% defense.',
+    description:
+      'Requires Byakugan ON. Tenketsu Exposed 2: next Hyuga ATTACK ignores 30% defense. HYUGA ATTACK weight +2 next draw. No charge spend.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.HYUGA, SkillTag.MARK],
     apCost: 1,
     chakraCost: 3,
     hpCost: 0,
@@ -2605,13 +2608,31 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    modeInteraction: {
+      modeId: 'byakugan',
+      family: MODE_FAMILY.HYUGA,
+      requireOn: true,
+    },
+    markEffects: [
+      {
+        id: 'tenketsu_exposed',
+        duration: 2,
+        stacks: 30,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
+    nextDrawSkillBonuses: [
+      { skillId: 'gentle_fist', delta: 2 },
+      { skillId: '64_palms', delta: 2 },
+      { skillId: 'twin_lion_fists', delta: 2 },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.ACCURACY]: 3,
       },
       clan: Clan.HYUGA,
     },
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.ACCURACY, value: 0.3, duration: 1, chance: 1.0 }]
   },
 
   // ==========================================

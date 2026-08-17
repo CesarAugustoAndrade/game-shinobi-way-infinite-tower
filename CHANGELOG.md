@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-098 Byakugan Scan:** SUPPORT AP1/CP3/CD3 requires Byakugan ON (no charge spend). Plants Tenketsu Exposed 2 (next Hyuga ATTACK 30% pen) and +2 next-draw weight on Hyuga ATTACKs. Legacy mute ACC +30% removed.
 - **T-097 Adamantine Chains:** ATTACK AP3/CP6/CD4 deals 20 at MEDIUM/LONG. On hit: PULL up to CLOSE (2 steps), 70% Stun 1, and −1 SPD for 2. Legacy mute STUN 35% / CHAKRA −20% / AP2 packaging removed.
 - **T-096 Expansion:** ATTACK AP3/CP6/CD4 deals 16 at CLOSE and plants +2 STR (STAT mark, duration 1) until the next enemy response. Legacy mute STR +50%×2 / AP2 / Aggressive stanceShift removed.
 - **T-095 Great Breakthrough:** ATTACK AP3/CP5/CD3 deals 16 at MEDIUM/LONG. On hit: PUSH 1. +20% Setup damage only if the band actually changes (PUSH@LONG = no bonus). Legacy mute ACC −25% / AP2 packaging removed.

@@ -407,6 +407,8 @@ const LAUNCHED_SETUP_MULT = 1.2;
 const BARRAGE_SETUP_MULT = 1.1;
 const EXPOSED_10_MULT = 1.1;
 const GUARD_BREAK_PEN = 0.15;
+const TENKETSU_ID = 'tenketsu_exposed';
+const TENKETSU_PEN = 0.3;
 const WIRE_TRAP_ID = 'wire_trap';
 const WIRE_TRAP_MULT = 1.2;
 const COATED_ID = 'coated';
@@ -1147,14 +1149,33 @@ export function resolveSkill(
         mark.boundSkillId === skill.id,
     );
     const spentGuard = afterAttempt.spent.some((mark) => mark.id === 'guard_break');
+    const tenketsu = next.marks.find(
+      (mark) => mark.id === TENKETSU_ID && mark.target === CombatActor.PLAYER,
+    );
+    const tenketsuPen =
+      hitsLanded > 0 &&
+      tenketsu &&
+      role === CardRole.ATTACK &&
+      skill.modeInteraction?.family === MODE_FAMILY.HYUGA
+        ? TENKETSU_PEN
+        : 0;
     const defensePercent = next.enemyDefensePercent ?? 0;
-    if (hitsLanded > 0 && (studied || spentGuard || defensePercent > 0)) {
+    if (hitsLanded > 0 && (studied || spentGuard || defensePercent > 0 || tenketsuPen > 0)) {
       const pen = Math.max(
         studied ? 0.2 : 0,
         spentGuard ? GUARD_BREAK_PEN : 0,
         skill.penetration ?? 0,
+        tenketsuPen,
       );
       damageDealt = applySkillPenetration(damageDealt, pen, defensePercent);
+    }
+    if (tenketsuPen > 0) {
+      next = {
+        ...next,
+        marks: next.marks.filter(
+          (mark) => !(mark.id === TENKETSU_ID && mark.target === CombatActor.PLAYER),
+        ),
+      };
     }
     next = { ...next, enemyHp: Math.max(0, next.enemyHp - damageDealt) };
     if (skill.perHitEffects?.length) {
