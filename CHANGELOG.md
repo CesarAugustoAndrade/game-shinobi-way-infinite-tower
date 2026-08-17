@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-092 Water Clone:** SIDE AP2/CP6/CD4 deals 11 at CLOSE/MEDIUM. On hit: self Shield 15. Does not grant Shadow Clone charges. Legacy mute STR +40%×2 packaging removed.
 - **T-091 Bug Swarm:** SIDE AP2/CP6/CD4 deals 8 at MEDIUM/LONG. On hit: drain 6 enemy CP and plant Poison 3×3. Legacy mute CHAKRA_DRAIN 25 / POISON 8×3 packaging removed.
 - **T-090 Lightning Ball:** ATTACK AP2/CP5/CD3 deals 15 at MEDIUM/LONG + 45% Stun 1 on hit. Sharingan 3-Tomoe ON: +40% and 1 charge. Legacy mute Stun 40% / no Mode packaging removed.
 - **T-089 Dragon Flame:** ATTACK AP3/CP6/CD3 deals 17 at MEDIUM/LONG + Burn 5×3 on hit. Sharingan 2-Tomoe ON: +50% and 1 charge. Legacy AP2 / Burn 10×3@70% / no Mode packaging removed.

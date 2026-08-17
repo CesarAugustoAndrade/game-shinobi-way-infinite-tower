@@ -2023,8 +2023,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'water_clone',
     name: 'Water Clone Jutsu',
     tier: SkillTier.ADVANCED,
-    description: 'Creates a water clone for a strength buff.',
+    description:
+      '11 dmg at CLOSE or MEDIUM. On hit: self Shield 15. Does not grant Shadow Clone charges.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.WATER],
     apCost: 2,
     chakraCost: 6,
     hpCost: 0,
@@ -2037,13 +2040,23 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.WATER,
+    allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM],
+    markEffects: [
+      {
+        id: 'water_clone_shield',
+        duration: 99,
+        stacks: 15,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+        requireHit: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.4, duration: 2, chance: 1.0 }]
   },
 
   LIGHTNING_BALL: {
