@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-104 Ice Mirrors:** ATTACK AP3/CP7/CD4 deals 4×4 at ANY range. If ≥2 hits land, 40% Stun 1. Legacy mute 15 / AP2 / PIERCING / STUN 50% packaging removed.
 - **T-103 Water Vortex:** ATTACK AP4/CP8/CD5 deals 20 at MEDIUM/LONG. PUSH 1 toward LONG on hit. Plants −2 SPD for 2. Legacy mute AP2 / SPEED −40%×3 packaging removed.
 - **T-102 Puppet Crow:** ATTACK AP3/CP6/CD4 deals 22 at MEDIUM/LONG. On hit: Poison 4×2 and Bleed 4×2. Legacy mute AP2 / TRUE poison 10×3 / bleed 10×3 packaging removed.
 - **T-101 Sand Burial:** ATTACK AP3/CP6/CD3 deals 18 at MEDIUM/LONG. +50% Setup if the enemy is Coffined or Stunned. Consumes Coffined on hit, not Stun. Legacy mute 15 dmg / AP2 / +100% below 25% HP packaging removed.

@@ -587,9 +587,11 @@ function resolveImpactStun(
   skill: Skill,
   state: ResolveSkillState,
   rng: () => number,
+  hitsLanded: number,
 ): ResolveSkillState {
   const spec = skill.impactStun;
   if (!spec) return state;
+  if (hitsLanded < (spec.minHitsLanded ?? 1)) return state;
   if (rng() >= spec.chance) return state;
   let next: ResolveSkillState = {
     ...state,
@@ -1277,10 +1279,9 @@ export function resolveSkill(
 
   if (
     (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) &&
-    hitsLanded >= 1 &&
     skill.impactStun
   ) {
-    next = resolveImpactStun(skill, next, ports.rng ?? (() => 0));
+    next = resolveImpactStun(skill, next, ports.rng ?? (() => 0), hitsLanded);
   }
 
   if (

@@ -801,6 +801,8 @@ export interface ImpactStunSpec {
   duration: number;
   /** T-080: on stun success, plant self lock that blocks voluntary range-up. */
   lockVoluntaryRangeUp?: boolean;
+  /** T-104: require this many landed hits before the stun roll. Default 1. */
+  minHitsLanded?: number;
 }
 
 /** Offensive impact silence (T-058 Senbon): on ≥1 hit, rng < chance → enemy SILENCE. */

@@ -2976,28 +2976,31 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'ice_mirrors',
     name: 'Demonic Ice Mirrors',
     tier: SkillTier.HIDDEN,
-    description: 'Creates a dome of ice mirrors. Traps the target and deals multiple strikes.',
+    description:
+      '4×4 dmg at ANY range. If at least 2 hits land, 40% Stun 1.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.WATER, SkillTag.MULTI_HIT],
+    apCost: 3,
     chakraCost: 7,
     hpCost: 0,
     cooldown: 4,
     currentCooldown: 0,
-    baseDamage: 15,
-
+    baseDamage: 4,
+    hitCount: 4,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.SPEED,
     damageType: DamageType.ELEMENTAL,
-    damageProperty: DamageProperty.PIERCING,
+    damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.WATER,
+    impactStun: { chance: 0.4, duration: 1, minHitsLanded: 2 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
         [PrimaryStat.SPIRIT]: 3,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.5 }]
   },
 
   FALSE_SURROUNDINGS: {
