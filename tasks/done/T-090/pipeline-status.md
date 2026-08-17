@@ -4,7 +4,7 @@
 - Ring: R0 · Route: autonomous · Type: expand S
 - RESEARCH: skipped (mirror T-089 / T-032 / T-081 stun path)
 - PLAN: auto-approved
-- IMPLEMENT: done (this fire)
-- REVIEW: pending
-- VERIFY: pending
-- MERGE: pending
+- IMPLEMENT: done
+- REVIEW: APPROVE
+- VERIFY: PASS (typecheck + t090 5/5)
+- MERGE: pending → this fire (ff into wt/jp-08121518)
