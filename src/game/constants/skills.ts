@@ -2050,8 +2050,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'lightning_ball',
     name: 'Lightning Ball',
     tier: SkillTier.ADVANCED,
-    description: 'A ball of lightning with stun chance.',
+    description:
+      'Base 15 + 45% Stun 1 at MEDIUM or LONG. With Sharingan 3-Tomoe ON: +40% damage and consume 1 charge at attempt.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.LIGHTNING],
     apCost: 2,
     chakraCost: 5,
     hpCost: 0,
@@ -2064,13 +2067,20 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.LIGHTNING,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    modeInteraction: {
+      modeId: 'sharingan_3',
+      family: MODE_FAMILY.SHARINGAN,
+      consumeCharges: 1,
+      damageMultBonus: 0.4,
+    },
+    impactStun: { chance: 0.45, duration: 1 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.4 }]
   },
 
   EARTH_DECAPITATION: {
