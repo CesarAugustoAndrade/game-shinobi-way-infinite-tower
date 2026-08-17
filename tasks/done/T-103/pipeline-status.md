@@ -4,7 +4,7 @@
 - Ring: R0 · Route: autonomous · Type: expand S
 - RESEARCH: skipped (reuse T-095 PUSH + T-051 spd_down)
 - PLAN: auto-approved
-- IMPLEMENT: done (this fire)
-- REVIEW: pending
-- VERIFY: pending
+- IMPLEMENT: done
+- REVIEW: APPROVE
+- VERIFY: PASS (typecheck + t103 3/3)
 - MERGE: pending
