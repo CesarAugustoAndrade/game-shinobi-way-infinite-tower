@@ -2706,29 +2706,48 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'puppet_crow',
     name: 'Puppet: Crow',
     tier: SkillTier.HIDDEN,
-    description: 'Deploy puppet with poison and bleed.',
+    description:
+      '22 dmg at MEDIUM or LONG. On hit: Poison 4×2 and Bleed 4×2.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.WEAPON, SkillTag.PHYSICAL],
+    apCost: 3,
     chakraCost: 6,
     hpCost: 0,
     cooldown: 4,
     currentCooldown: 0,
     baseDamage: 22,
+    hitCount: 1,
     scalingPerPoint: 7,
     scalingStat: PrimaryStat.DEXTERITY,
     damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    markEffects: [
+      {
+        id: 'poison',
+        duration: 2,
+        stacks: 4,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+      {
+        id: 'bleed',
+        duration: 2,
+        stacks: 4,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.DEXTERITY]: 3,
       },
     },
-    effects: [
-      { type: EffectType.POISON, value: 10, duration: 3, chance: 1.0, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL },
-      { type: EffectType.BLEED, value: 10, duration: 3, chance: 1.0, damageType: DamageType.PHYSICAL, damageProperty: DamageProperty.NORMAL }
-    ]
   },
 
   // ==== HIDDEN ====
