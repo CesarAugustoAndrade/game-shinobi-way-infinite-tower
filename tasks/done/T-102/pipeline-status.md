@@ -4,7 +4,7 @@
 - Ring: R0 · Route: autonomous · Type: expand S
 - RESEARCH: skipped (reuse T-091 requireHit + T-048 bleed id)
 - PLAN: auto-approved
-- IMPLEMENT: done (this fire)
-- REVIEW: pending
-- VERIFY: pending
+- IMPLEMENT: done
+- REVIEW: APPROVE
+- VERIFY: PASS (typecheck + t102 3/3)
 - MERGE: pending
