@@ -2273,8 +2273,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'bug_swarm',
     name: 'Parasitic Insects',
     tier: SkillTier.ADVANCED,
-    description: 'Aburame insect attack. Drains chakra and poisons.',
+    description:
+      '8 dmg at MEDIUM or LONG. On hit: drain 6 enemy CP and plant Poison 3×3.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.PHYSICAL],
     apCost: 2,
     chakraCost: 6,
     hpCost: 0,
@@ -2287,15 +2290,23 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    impactChakraDrain: 6,
+    markEffects: [
+      {
+        id: 'poison',
+        duration: 3,
+        stacks: 3,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
       },
     },
-    effects: [
-      { type: EffectType.CHAKRA_DRAIN, value: 25, duration: 1, chance: 1.0 },
-      { type: EffectType.POISON, value: 8, duration: 3, chance: 1.0, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL }
-    ]
   },
 
   EXPANSION: {

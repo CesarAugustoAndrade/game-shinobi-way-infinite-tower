@@ -883,6 +883,11 @@ export interface Skill {
    */
   impactSilence?: ImpactSilenceSpec;
   /**
+   * SIDE/ATTACK flat enemy chakra drain on ≥1 hit (T-091 Bug Swarm).
+   * Independent of CP marks. Clamped to ≥0. Miss applies nothing.
+   */
+  impactChakraDrain?: number;
+  /**
    * ATTACK Setup-bucket mark read (T-042). Independent of Mode ON.
    * `consume` default false — lectura unless explicitly declared.
    */

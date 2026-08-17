@@ -1240,6 +1240,17 @@ export function resolveSkill(
     next = resolveImpactSilence(skill, next, ports.rng ?? (() => 0));
   }
 
+  if (
+    (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) &&
+    hitsLanded >= 1 &&
+    (skill.impactChakraDrain ?? 0) > 0
+  ) {
+    next = {
+      ...next,
+      enemyChakra: Math.max(0, (next.enemyChakra ?? 0) - (skill.impactChakraDrain ?? 0)),
+    };
+  }
+
   if (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) {
     next = applySkillMarkEffects(next, skill, hitsLanded);
   }
