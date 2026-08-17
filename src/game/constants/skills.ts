@@ -3166,9 +3166,18 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'clone_explosion',
     name: 'Clone Great Explosion',
     tier: SkillTier.FORBIDDEN,
-    description: 'Exploding clone. Cannot be evaded.',
+    description:
+      '20 dmg at ANY range. With Shadow Clones ON: +50%, consume 1 charge, Burn 5×2 on hit.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.FIRE, SkillTag.UZUMAKI],
+    modeInteraction: {
+      modeId: 'shadow_clone',
+      family: MODE_FAMILY.CLONES,
+      consumeCharges: 1,
+      damageMultBonus: 0.5,
+    },
+    apCost: 4,
     chakraCost: 7,
     hpCost: 10,
     cooldown: 5,
@@ -3178,8 +3187,19 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     scalingStat: PrimaryStat.CHAKRA,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
-    attackMethod: AttackMethod.AUTO,  // Cannot be evaded
+    attackMethod: AttackMethod.AUTO,
     element: ElementType.FIRE,
+    markEffects: [
+      {
+        id: 'burn',
+        duration: 2,
+        stacks: 5,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+        requireModeEnhance: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 5,

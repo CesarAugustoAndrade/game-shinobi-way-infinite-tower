@@ -448,6 +448,8 @@ export interface MarkSpec {
   perHit?: boolean;
   /** Plant once only if hitsLanded ≥ 1 (T-069 Barrage setup). */
   requireHit?: boolean;
+  /** T-105: plant only when Mode enhance applied (modeDamageBonus > 0). Default false. */
+  requireModeEnhance?: boolean;
   family?: MarkFamily;
   /** Default enemy (T-023/T-026). Rotation shield/reflect uses self. */
   targetActor?: 'self' | 'enemy';

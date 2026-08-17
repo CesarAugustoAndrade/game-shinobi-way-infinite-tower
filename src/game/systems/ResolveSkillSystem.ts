@@ -382,9 +382,11 @@ function applySkillMarkEffects(
   state: ResolveSkillState,
   skill: Skill,
   hitsLanded = 1,
+  modeEnhanced = false,
 ): ResolveSkillState {
   let marks = state.marks;
   for (const spec of skill.markEffects ?? []) {
+    if (spec.requireModeEnhance && !modeEnhanced) continue;
     const applies = spec.perHit
       ? hitsLanded
       : (spec.consume === MarkConsumeTiming.IMPACT || spec.requireHit) && hitsLanded < 1
@@ -1304,7 +1306,7 @@ export function resolveSkill(
   }
 
   if (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) {
-    next = applySkillMarkEffects(next, skill, hitsLanded);
+    next = applySkillMarkEffects(next, skill, hitsLanded, modeDamageBonus > 0);
   }
   if (
     role === CardRole.SIDE_ATTACK &&
