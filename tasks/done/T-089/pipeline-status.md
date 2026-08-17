@@ -6,5 +6,5 @@
 - PLAN: auto-approved
 - IMPLEMENT: done
 - REVIEW: APPROVE
-- VERIFY: PASS
-- MERGE: pending
+- VERIFY: PASS (reconfirmed this fire: typecheck + t089 4/4 + t032 4/4)
+- MERGE: pending → this fire (ff into wt/jp-08121518)
