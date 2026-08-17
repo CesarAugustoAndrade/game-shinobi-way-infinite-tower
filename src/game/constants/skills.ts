@@ -2652,9 +2652,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'summon_gamabunta',
     name: 'Summoning: Gamabunta',
     tier: SkillTier.HIDDEN,
-    description: 'Summon the great toad. Big water damage + shield.',
+    description:
+      '25 dmg at MEDIUM or LONG. Self Shield 35 on hit. Does not consume Mode.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.WATER],
+    apCost: 4,
     chakraCost: 11,
     hpCost: 0,
     cooldown: 8,
@@ -2666,13 +2669,23 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WATER,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    markEffects: [
+      {
+        id: 'gamabunta_shield',
+        duration: 99,
+        stacks: 35,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+        requireHit: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
         [PrimaryStat.CHAKRA]: 3,
       },
     },
-    effects: [{ type: EffectType.SHIELD, value: 80, duration: 3, chance: 1.0 }]
   },
 
   SUMMON_MANDA: {
