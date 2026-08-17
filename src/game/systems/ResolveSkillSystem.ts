@@ -329,6 +329,10 @@ function hasEnemyMark(marks: Mark[], markId: string): boolean {
   return marks.some((mark) => mark.id === markId && mark.target === CombatActor.ENEMY);
 }
 
+function hasEnemyStun(buffs: Buff[] | undefined): boolean {
+  return (buffs ?? []).some((buff) => buff.effect.type === EffectType.STUN && buff.duration > 0);
+}
+
 function hasPlayerMark(marks: Mark[], markId: string): boolean {
   return marks.some((mark) => mark.id === markId && mark.target === CombatActor.PLAYER);
 }
@@ -1016,8 +1020,12 @@ export function resolveSkill(
         : 0;
     const markMult = markDamageMultiplier(afterAttempt.spent, skill);
     const setup = skill.setupRead;
-    const setupMult =
-      setup && hasEnemyMark(next.marks, setup.markId) ? 1 + setup.damageMultBonus : 1;
+    const setupArmed = Boolean(
+      setup &&
+        (hasEnemyMark(next.marks, setup.markId) ||
+          (setup.alsoIfEnemyStunned === true && hasEnemyStun(next.enemyBuffs))),
+    );
+    const setupMult = setup && setupArmed ? 1 + setup.damageMultBonus : 1;
     const bandMovedSetup =
       (skill.setupMultIfBandMoved ?? 0) > 0 && wouldAuthoredBandMove(skill, next.range)
         ? 1 + (skill.setupMultIfBandMoved ?? 0)
@@ -1104,7 +1112,7 @@ export function resolveSkill(
     if (!useHitCore && markMult !== 1 && hitsLanded > 0) {
       damageDealt = Math.floor(damageDealt * markMult);
     }
-    if (!useHitCore && setup && hitsLanded > 0 && hasEnemyMark(next.marks, setup.markId)) {
+    if (!useHitCore && setup && hitsLanded > 0 && setupArmed) {
       damageDealt = Math.floor(damageDealt * (1 + setup.damageMultBonus));
     }
     if (!useHitCore && hitsLanded > 0 && bandMovedSetup !== 1) {

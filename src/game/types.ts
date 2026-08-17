@@ -818,6 +818,8 @@ export interface SetupReadSpec {
   markId: string;
   damageMultBonus: number;
   consume?: boolean;
+  /** T-101: also arm Setup if enemyBuffs has STUN. Consume still strips markId only. */
+  alsoIfEnemyStunned?: boolean;
 }
 
 export interface Skill {

@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-101 Sand Burial:** ATTACK AP3/CP6/CD3 deals 18 at MEDIUM/LONG. +50% Setup if the enemy is Coffined or Stunned. Consumes Coffined on hit, not Stun. Legacy mute 15 dmg / AP2 / +100% below 25% HP packaging removed.
 - **T-100 Sand Coffin:** SIDE AP2/CP7/CD5 deals 15 at MEDIUM/LONG. On hit: 70% Stun 1 and Coffined 2 (HARD_CONTROL). Prepares Sand Burial. Legacy mute ARMOR_BREAK / effects STUN 0.7 packaging removed.
 - **T-099 Water Dragon:** ATTACK AP3/CP6/CD4 deals 18 at MEDIUM/LONG. +20% Setup while the enemy has your Hidden Mist mark (read-only, mist stays). Legacy mute 15 dmg / AP2 / no Setup packaging removed.
 - **T-098 Byakugan Scan:** SUPPORT AP1/CP3/CD3 requires Byakugan ON (no charge spend). Plants Tenketsu Exposed 2 (next Hyuga ATTACK 30% pen) and +2 next-draw weight on Hyuga ATTACKs. Legacy mute ACC +30% removed.
