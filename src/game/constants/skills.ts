@@ -1840,10 +1840,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'suijinheki',
     name: 'Water Wall',
     tier: SkillTier.ADVANCED,
-    description: 'Expels water to form a defensive barrier. Creates a Shield.',
+    description:
+      'Shield 40 and +1 elemental defense until the next enemy response. No % SPIRIT.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.WATER],
     apCost: 1,
-    stanceShift: Posture.DEFENSIVE,
     chakraCost: 6,
     hpCost: 0,
     cooldown: 4,
@@ -1855,10 +1857,22 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.WATER,
-    effects: [
-      { type: EffectType.SHIELD, value: 60, duration: 2, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPIRIT, value: 0.3, duration: 2, chance: 1.0 }
-    ]
+    markEffects: [
+      {
+        id: 'suijinheki_shield',
+        duration: 1,
+        stacks: 40,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+      },
+      {
+        id: 'suijinheki_elem_def',
+        duration: 1,
+        stacks: 1,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   HELL_VIEWING: {
