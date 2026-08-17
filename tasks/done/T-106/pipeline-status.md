@@ -4,7 +4,7 @@
 - Ring: R0 · Route: autonomous · Type: expand S
 - RESEARCH: skipped (reuse T-091 poison mark + T-073 mist)
 - PLAN: auto-approved
-- IMPLEMENT: done (this fire)
-- REVIEW: pending
-- VERIFY: pending
+- IMPLEMENT: done
+- REVIEW: APPROVE
+- VERIFY: PASS (typecheck + t106 3/3 + t091 3/3)
 - MERGE: pending
