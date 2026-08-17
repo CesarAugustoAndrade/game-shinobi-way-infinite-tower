@@ -7,4 +7,4 @@
 - IMPLEMENT: done
 - REVIEW: APPROVE
 - VERIFY: PASS (typecheck + t101 3/3)
-- MERGE: pending
+- MERGE: ff `04acadb..deb551c` into `wt/jp-08121518`
