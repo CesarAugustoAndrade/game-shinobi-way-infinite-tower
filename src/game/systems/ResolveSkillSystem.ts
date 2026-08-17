@@ -58,7 +58,7 @@ import {
   resolveMultiHit,
   type HitRoll,
 } from './MarkSystem';
-import { resolveForcedMove } from './RangeSystem';
+import { applyForcedMove, resolveForcedMove } from './RangeSystem';
 import {
   effectiveChakraCost,
   getSkillBlockReason,
@@ -438,6 +438,20 @@ function skillForcedMove(skill: Skill): { kind: 'PUSH' | 'PULL' } | undefined {
   if (spec.kind === 'SELF_RETREAT') return { kind: 'PUSH' };
   if (spec.kind === 'SELF_APPROACH') return { kind: 'PULL' };
   return { kind: spec.kind };
+}
+
+/** Peek: would authored bandMove change the band from `range` (T-095 Setup bucket). */
+function wouldAuthoredBandMove(skill: Skill, range: CombatRange): boolean {
+  const movement = skillForcedMove(skill);
+  if (!movement) return false;
+  const steps = Math.max(1, skill.bandMove?.steps ?? 1);
+  let current = range;
+  for (let i = 0; i < steps; i += 1) {
+    const forced = applyForcedMove(current, movement.kind);
+    if (forced.moved) return true;
+    current = forced.range;
+  }
+  return false;
 }
 
 function modeGrantedRanges(skill: Skill, board: ModeBoard): CombatRange[] {
@@ -1002,6 +1016,10 @@ export function resolveSkill(
     const setup = skill.setupRead;
     const setupMult =
       setup && hasEnemyMark(next.marks, setup.markId) ? 1 + setup.damageMultBonus : 1;
+    const bandMovedSetup =
+      (skill.setupMultIfBandMoved ?? 0) > 0 && wouldAuthoredBandMove(skill, next.range)
+        ? 1 + (skill.setupMultIfBandMoved ?? 0)
+        : 1;
     const wireMult =
       role === CardRole.ATTACK && hasEnemyMark(next.marks, WIRE_TRAP_ID) ? WIRE_TRAP_MULT : 1;
     const cloaked = afterAttempt.spent.some((mark) => mark.id === 'cloaked');
@@ -1014,6 +1032,7 @@ export function resolveSkill(
     }
     if (markMult !== 1) preMits.push(markMult);
     if (setupMult !== 1) preMits.push(setupMult);
+    if (bandMovedSetup !== 1) preMits.push(bandMovedSetup);
     if (wireMult !== 1) preMits.push(wireMult);
     if (cloaked) {
       preMits.push(CLOAKED_CRIT_MULT);
@@ -1085,6 +1104,9 @@ export function resolveSkill(
     }
     if (!useHitCore && setup && hitsLanded > 0 && hasEnemyMark(next.marks, setup.markId)) {
       damageDealt = Math.floor(damageDealt * (1 + setup.damageMultBonus));
+    }
+    if (!useHitCore && hitsLanded > 0 && bandMovedSetup !== 1) {
+      damageDealt = Math.floor(damageDealt * bandMovedSetup);
     }
     if (
       !useHitCore &&

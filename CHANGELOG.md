@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-095 Great Breakthrough:** ATTACK AP3/CP5/CD3 deals 16 at MEDIUM/LONG. On hit: PUSH 1. +20% Setup damage only if the band actually changes (PUSH@LONG = no bonus). Legacy mute ACC −25% / AP2 packaging removed.
 - **T-094 Suijinheki:** SUPPORT AP1/CP6/CD4 plants Shield 40 and +1 elemental defense (STAT mark) until the next enemy response. Legacy mute Shield 60×2 / SPIRIT +30% / Defensive stanceShift removed.
 - **T-093 Earth Decapitation:** SIDE AP2/CP5/CD3 deals 13 at CLOSE/MEDIUM. On hit: PULL 1 toward CLOSE and 50% Stun 1. Legacy mute STUN 60% / no PULL packaging removed.
 - **T-092 Water Clone:** SIDE AP2/CP6/CD4 deals 11 at CLOSE/MEDIUM. On hit: self Shield 15. Does not grant Shadow Clone charges. Legacy mute STR +40%×2 packaging removed.

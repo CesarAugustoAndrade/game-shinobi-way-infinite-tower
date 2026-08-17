@@ -2146,27 +2146,33 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'great_breakthrough',
     name: 'Great Breakthrough',
     tier: SkillTier.ADVANCED,
-    description: 'A powerful gust of wind that reduces enemy accuracy.',
+    description:
+      '16 dmg at MEDIUM or LONG. PUSH 1 on hit. +20% Setup damage if the band changes.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.WIND],
+    apCost: 3,
     chakraCost: 5,
     hpCost: 0,
     cooldown: 3,
     currentCooldown: 0,
     baseDamage: 16,
+    hitCount: 1,
     scalingPerPoint: 5,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WIND,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    bandMove: { kind: 'PUSH', steps: 1, requireHit: true },
+    setupMultIfBandMoved: 0.2,
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [{ type: EffectType.DEBUFF, targetStat: PrimaryStat.ACCURACY, value: 0.25, duration: 2, chance: 1.0 }]
   },
 
   AIR_BULLET: {

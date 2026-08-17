@@ -860,6 +860,11 @@ export interface Skill {
   };
   /** Forced band shift after resolve (Wire PULL / Blastback PUSH / Backstep retreat). */
   bandMove?: BandMoveSpec;
+  /**
+   * ATTACK Setup-bucket mult when authored bandMove actually changes the band (T-095).
+   * PUSH@LONG / PULL@CLOSE → no move → no bonus. Applied only on ≥1 hit.
+   */
+  setupMultIfBandMoved?: number;
   modeInteraction?: ModeInteraction;
   perHitEffects?: EffectDefinition[];
   /**

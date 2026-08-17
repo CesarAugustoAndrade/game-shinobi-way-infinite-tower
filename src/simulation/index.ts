@@ -65,6 +65,7 @@ import { printBugSwarmProbe, runBugSwarmProbe } from './BugSwarmBalance';
 import { printWaterCloneProbe, runWaterCloneProbe } from './WaterCloneBalance';
 import { printEarthDecapitationProbe, runEarthDecapitationProbe } from './EarthDecapitationBalance';
 import { printSuijinhekiProbe, runSuijinhekiProbe } from './SuijinhekiBalance';
+import { printGreatBreakthroughProbe, runGreatBreakthroughProbe } from './GreatBreakthroughBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -532,6 +533,7 @@ async function main() {
     printWaterCloneProbe(runWaterCloneProbe());
     printEarthDecapitationProbe(runEarthDecapitationProbe());
     printSuijinhekiProbe(runSuijinhekiProbe());
+    printGreatBreakthroughProbe(runGreatBreakthroughProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());
