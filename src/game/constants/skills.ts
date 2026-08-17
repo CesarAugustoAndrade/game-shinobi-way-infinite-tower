@@ -3121,27 +3121,42 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'water_vortex',
     name: 'Giant Water Vortex',
     tier: SkillTier.FORBIDDEN,
-    description: 'Massive water attack that severely slows the enemy.',
+    description:
+      '20 dmg at MEDIUM or LONG. PUSH 1 toward LONG on hit. −2 SPD for 2 opportunities.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.WATER],
+    apCost: 4,
     chakraCost: 8,
     hpCost: 0,
     cooldown: 5,
     currentCooldown: 0,
     baseDamage: 20,
+    hitCount: 1,
     scalingPerPoint: 16,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.WATER,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    bandMove: { kind: 'PUSH', steps: 1, requireHit: true },
+    markEffects: [
+      {
+        id: 'spd_down',
+        duration: 2,
+        stacks: 2,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 5,
         [PrimaryStat.SPIRIT]: 5,
       },
     },
-    effects: [{ type: EffectType.DEBUFF, targetStat: PrimaryStat.SPEED, value: 0.4, duration: 3, chance: 1.0 }]
   },
 
   CLONE_EXPLOSION: {
