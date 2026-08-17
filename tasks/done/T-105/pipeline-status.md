@@ -4,7 +4,7 @@
 - Ring: R0 · Route: autonomous · Type: expand S
 - RESEARCH: skipped (reuse T-018 modeInteraction + T-089 Burn 5×N)
 - PLAN: auto-approved
-- IMPLEMENT: done (this fire)
-- REVIEW: pending
-- VERIFY: pending
+- IMPLEMENT: done
+- REVIEW: APPROVE
+- VERIFY: PASS (typecheck + t105 3/3 + t018 3/3)
 - MERGE: pending
