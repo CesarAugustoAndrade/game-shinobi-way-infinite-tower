@@ -2873,28 +2873,42 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'sand_coffin',
     name: 'Sand Coffin',
     tier: SkillTier.HIDDEN,
-    description: 'Encases the enemy in crushing waves of sand. ARMOR_BREAK ignores % defense.',
+    description:
+      '15 dmg at MEDIUM or LONG. On hit: 70% Stun 1 and Coffined 2. Prepares Sand Burial.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.EARTH, SkillTag.MARK],
     apCost: 2,
     chakraCost: 7,
     hpCost: 0,
     cooldown: 5,
     currentCooldown: 0,
     baseDamage: 15,
-
+    hitCount: 1,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
-    damageProperty: DamageProperty.ARMOR_BREAK, // Ignores % def!
+    damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
     element: ElementType.EARTH,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    impactStun: { chance: 0.7, duration: 1 },
+    markEffects: [
+      {
+        id: 'coffined',
+        duration: 2,
+        stacks: 1,
+        family: MarkFamily.HARD_CONTROL,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
         [PrimaryStat.SPIRIT]: 3,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.7 }]
   },
 
   WATER_DRAGON: {
