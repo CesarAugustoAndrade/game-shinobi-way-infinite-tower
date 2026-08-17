@@ -3476,8 +3476,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'poison_fog',
     name: 'Ibuse Poison Fog',
     tier: SkillTier.FORBIDDEN,
-    description: 'Exhales a cloud of toxic gas. POISON ignores 50% of defense.',
+    description:
+      '9 dmg at MEDIUM or LONG. Poison 6×3 on hit. +1 Poison duration if enemy Mist is active.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.FIRE],
     apCost: 2,
     chakraCost: 5,
     hpCost: 0,
@@ -3489,21 +3492,25 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.RANGED,
-    element: ElementType.FIRE, // Poison is Fire-adjacent
+    element: ElementType.FIRE,
+    allowedRanges: [CombatRange.MEDIUM, CombatRange.LONG],
+    markEffects: [
+      {
+        id: 'poison',
+        duration: 3,
+        stacks: 6,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+        durationBonusIfEnemyMark: { markId: 'mist', bonus: 1 },
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 5,
         [PrimaryStat.SPIRIT]: 5,
       },
     },
-    effects: [{
-      type: EffectType.POISON,
-      value: 18,
-      duration: 4,
-      chance: 1.0,
-      damageType: DamageType.TRUE, // Poison deals TRUE damage!
-      damageProperty: DamageProperty.NORMAL
-    }]
   },
 
   TSUKUYOMI: {

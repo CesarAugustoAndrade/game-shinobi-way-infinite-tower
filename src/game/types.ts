@@ -450,6 +450,8 @@ export interface MarkSpec {
   requireHit?: boolean;
   /** T-105: plant only when Mode enhance applied (modeDamageBonus > 0). Default false. */
   requireModeEnhance?: boolean;
+  /** T-106: add bonus to duration when the enemy already has this mark. */
+  durationBonusIfEnemyMark?: { markId: string; bonus: number };
   family?: MarkFamily;
   /** Default enemy (T-023/T-026). Rotation shield/reflect uses self. */
   targetActor?: 'self' | 'enemy';

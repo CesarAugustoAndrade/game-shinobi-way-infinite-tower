@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-106 Poison Fog:** SIDE AP2/CP5/CD3 deals 9 at MEDIUM/LONG. On hit: Poison 6×3. If enemy Mist is active, Poison duration is 4. Legacy mute TRUE poison 18×4 / “ignores 50% def” packaging removed.
 - **T-105 Clone Explosion:** ATTACK AP4/CP7/HP10/CD5 deals 20 at ANY range. With Shadow Clones ON: +50%, consume 1 charge at attempt, Burn 5×2 on hit. Playable without Mode. Legacy mute AP2 / no Mode / no Burn packaging removed.
 - **T-104 Ice Mirrors:** ATTACK AP3/CP7/CD4 deals 4×4 at ANY range. If ≥2 hits land, 40% Stun 1. Legacy mute 15 / AP2 / PIERCING / STUN 50% packaging removed.
 - **T-103 Water Vortex:** ATTACK AP4/CP8/CD5 deals 20 at MEDIUM/LONG. PUSH 1 toward LONG on hit. Plants −2 SPD for 2. Legacy mute AP2 / SPEED −40%×3 packaging removed.

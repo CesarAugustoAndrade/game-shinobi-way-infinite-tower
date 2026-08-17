@@ -393,12 +393,17 @@ function applySkillMarkEffects(
         ? 0
         : 1;
     if (applies < 1) continue;
+    const bonus =
+      spec.durationBonusIfEnemyMark &&
+      hasEnemyMark(state.marks, spec.durationBonusIfEnemyMark.markId)
+        ? spec.durationBonusIfEnemyMark.bonus
+        : 0;
     const added = addMark(marks, {
       id: spec.id,
       sourceSkillId: skill.id,
       owner: CombatActor.PLAYER,
       target: spec.targetActor === 'self' ? CombatActor.PLAYER : CombatActor.ENEMY,
-      duration: spec.duration,
+      duration: spec.duration + bonus,
       stacks: (spec.stacks ?? 1) * applies,
       consume: spec.consume,
       trigger: spec.trigger,

@@ -76,6 +76,7 @@ import { printPuppetCrowProbe, runPuppetCrowProbe } from './PuppetCrowBalance';
 import { printWaterVortexProbe, runWaterVortexProbe } from './WaterVortexBalance';
 import { printIceMirrorsProbe, runIceMirrorsProbe } from './IceMirrorsBalance';
 import { printCloneExplosionProbe, runCloneExplosionProbe } from './CloneExplosionBalance';
+import { printPoisonFogProbe, runPoisonFogProbe } from './PoisonFogBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -554,6 +555,7 @@ async function main() {
     printWaterVortexProbe(runWaterVortexProbe());
     printIceMirrorsProbe(runIceMirrorsProbe());
     printCloneExplosionProbe(runCloneExplosionProbe());
+    printPoisonFogProbe(runPoisonFogProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());
