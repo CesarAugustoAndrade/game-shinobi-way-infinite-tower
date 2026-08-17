@@ -2100,8 +2100,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'earth_decapitation',
     name: 'Inner Decapitation',
     tier: SkillTier.ADVANCED,
-    description: 'Pull enemy underground with high stun chance.',
+    description:
+      '13 dmg at CLOSE or MEDIUM. On hit: PULL 1 toward CLOSE and 50% Stun 1.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SIDE_ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.EARTH],
     apCost: 2,
     chakraCost: 5,
     hpCost: 0,
@@ -2114,13 +2117,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.EARTH,
+    allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM],
+    bandMove: { kind: 'PULL', steps: 1, requireHit: true },
+    impactStun: { chance: 0.5, duration: 1 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.6 }]
   },
 
   GREAT_BREAKTHROUGH: {

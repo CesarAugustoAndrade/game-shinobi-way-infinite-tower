@@ -63,6 +63,7 @@ import { printDragonFlameProbe, runDragonFlameProbe } from './DragonFlameBalance
 import { printLightningBallProbe, runLightningBallProbe } from './LightningBallBalance';
 import { printBugSwarmProbe, runBugSwarmProbe } from './BugSwarmBalance';
 import { printWaterCloneProbe, runWaterCloneProbe } from './WaterCloneBalance';
+import { printEarthDecapitationProbe, runEarthDecapitationProbe } from './EarthDecapitationBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -528,6 +529,7 @@ async function main() {
     printLightningBallProbe(runLightningBallProbe());
     printBugSwarmProbe(runBugSwarmProbe());
     printWaterCloneProbe(runWaterCloneProbe());
+    printEarthDecapitationProbe(runEarthDecapitationProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());
