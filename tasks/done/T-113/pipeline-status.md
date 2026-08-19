@@ -7,4 +7,4 @@
 - IMPLEMENT: done
 - REVIEW: APPROVE (1 gate fix: consumeAllCharges skips consumeCharges floor)
 - VERIFY: PASS (typecheck + t113 3/3 + t021/t031/t112/t030)
-- MERGE: pending
+- MERGE: ff `490256c..bad65d3` into `wt/jp-08121518`
