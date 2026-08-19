@@ -97,6 +97,7 @@ import { printReaperDeathSealProbe, runReaperDeathSealProbe } from './ReaperDeat
 import { printCounterStanceProbe, runCounterStanceProbe } from './CounterStanceBalance';
 import { printFocusedStanceProbe, runFocusedStanceProbe } from './FocusedStanceBalance';
 import { printDefensivePostureProbe, runDefensivePostureProbe } from './DefensivePostureBalance';
+import { printAggressiveStanceProbe, runAggressiveStanceProbe } from './AggressiveStanceBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -596,6 +597,7 @@ async function main() {
     printCounterStanceProbe(runCounterStanceProbe());
     printFocusedStanceProbe(runFocusedStanceProbe());
     printDefensivePostureProbe(runDefensivePostureProbe());
+    printAggressiveStanceProbe(runAggressiveStanceProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());

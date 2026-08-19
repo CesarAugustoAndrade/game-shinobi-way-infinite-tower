@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-127 Aggressive Stance:** SUPPORT AP1/CP3/CD5. Shifts to Aggressive. Next ATTACK +20% Setup (`aggressive_focus`). Plants `aggressive_open` 20/1 (+20% taken, plant-only). Not a toggle / upkeep STR-WIL buff.
 - **T-126 Defensive Posture:** SUPPORT AP1/CP3/CD5. Shifts to Defensive. Shield 25 until the next enemy response. Not a toggle / upkeep WIL-SPD buff.
 - **T-125 Focused Stance:** SUPPORT AP1/CP3/CD5. Shifts to Balanced. Focused 2: +20 crit on the next ATTACK (consumed at attempt). Not a toggle / upkeep ACC-DEX buff.
 - **T-124 Counter Stance:** SUPPORT AP1/CP1/CD4. Plants Counter 1 (30% first MELEE reflect). SIDE weight +1 next draw. No instant damage. Legacy mute AP2 / 8 dmg / 50% effects reflect packaging removed.

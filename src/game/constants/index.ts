@@ -194,8 +194,9 @@ export const CLAN_START_LOADOUT: Record<Clan, ClanLoadout> = {
       SKILLS.FOCUSED_BREATHING,
       SKILLS.BRACE,
       SKILLS.SHURIKEN,
+      SKILLS.AGGRESSIVE_STANCE,
     ],
-    toggle: [SKILLS.AGGRESSIVE_STANCE],
+    toggle: [],
     passive: [SKILLS.TAIJUTSU_TRAINING],
   },
 

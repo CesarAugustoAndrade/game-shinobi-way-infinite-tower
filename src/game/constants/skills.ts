@@ -1278,9 +1278,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'aggressive_stance',
     name: 'Aggressive Stance',
     tier: SkillTier.BASIC,
-    description: 'An offensive stance. +30% STR, -20% Defense.',
-    actionType: ActionType.TOGGLE,
-    apCost: 2,
+    description:
+      'Shift to Aggressive. Next ATTACK +20% Setup. +20% damage taken until next own start. Not a toggle.',
+    actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.TAIJUTSU],
+    apCost: 1,
     chakraCost: 3,
     hpCost: 0,
     cooldown: 5,
@@ -1292,12 +1295,24 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    isToggle: true,
-    upkeepCost: 5,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.3, duration: -1, chance: 1.0 },
-      { type: EffectType.DEBUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.2, duration: -1, chance: 1.0 }
-    ]
+    stanceShift: Posture.AGGRESSIVE,
+    markEffects: [
+      {
+        id: 'aggressive_focus',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+      {
+        id: 'aggressive_open',
+        duration: 1,
+        stacks: 20,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   // ==========================================
