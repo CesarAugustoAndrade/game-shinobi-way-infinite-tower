@@ -3339,8 +3339,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'curse_surge',
     name: 'Curse Mark Surge',
     tier: SkillTier.FORBIDDEN,
-    description: '+30% damage on next attack. HP cost.',
+    description:
+      'Requires CURSE Mode ON. Restore 2 charges without overcap. Self Vulnerable 10% for 2.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.MODE],
     apCost: 1,
     chakraCost: 0,
     hpCost: 10,
@@ -3353,13 +3356,27 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
+    modeInteraction: {
+      family: MODE_FAMILY.CURSE,
+      requireFamily: MODE_FAMILY.CURSE,
+      requireOn: true,
+      restoreCharges: 2,
+    },
+    markEffects: [
+      {
+        id: 'vulnerable',
+        duration: 2,
+        stacks: 10,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.WILLPOWER]: 5,
         [PrimaryStat.STRENGTH]: 5,
       },
     },
-    effects: [{ type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.3, duration: 1, chance: 1.0 }]
   },
 
   GATE_PREP: {
