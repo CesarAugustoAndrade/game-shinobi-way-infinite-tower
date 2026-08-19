@@ -3815,21 +3815,49 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'amaterasu',
     name: 'Amaterasu',
     tier: SkillTier.KINJUTSU,
-    description: 'Inextinguishable black flames. Deals initial PIERCING damage + massive TRUE DoT.',
+    description:
+      'Requires Sharingan ON. 20 dmg. TRUE Burn 8×4 on hit. Consumes 2 charges at attempt.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.UCHIHA, SkillTag.NINJUTSU, SkillTag.FIRE],
+    apCost: 5,
     chakraCost: 13,
     hpCost: 20,
     cooldown: 5,
     currentCooldown: 0,
-    baseDamage: 13,
-
+    baseDamage: 20,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
-    damageProperty: DamageProperty.PIERCING,
+    damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.FIRE,
+    modeInteraction: {
+      family: MODE_FAMILY.SHARINGAN,
+      requireFamily: MODE_FAMILY.SHARINGAN,
+      requireOn: true,
+      consumeCharges: 2,
+    },
+    markEffects: [
+      {
+        id: 'burn',
+        duration: 4,
+        stacks: 8,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
+    effects: [
+      {
+        type: EffectType.BURN,
+        value: 8,
+        duration: 4,
+        chance: 1.0,
+        damageType: DamageType.TRUE,
+        damageProperty: DamageProperty.NORMAL,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 7,
@@ -3837,14 +3865,6 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       },
       clan: Clan.UCHIHA,
     },
-    effects: [{
-      type: EffectType.BURN,
-      value: 50,
-      duration: 5,
-      chance: 1.0,
-      damageType: DamageType.TRUE, // Black flames deal TRUE damage
-      damageProperty: DamageProperty.NORMAL
-    }]
   },
 
   KIRIN: {

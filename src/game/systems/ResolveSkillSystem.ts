@@ -809,7 +809,9 @@ function validateIntent(
   const mi = skill.modeInteraction;
   if (mi?.requireOn) {
     const boundId = bindLiveModeId(state.modes, mi);
-    if (!boundId || modeChargesOnBoard(state.modes, boundId) <= 0) {
+    const charges = boundId ? modeChargesOnBoard(state.modes, boundId) : 0;
+    const need = mi.consumeAllCharges ? 1 : (mi.consumeCharges ?? 1);
+    if (!boundId || charges < need) {
       return { ok: false, reason: 'mode-required' };
     }
   }
