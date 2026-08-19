@@ -6,4 +6,4 @@
 - implement: done
 - review: APPROVE
 - verify: PASS
-- merge: pending
+- merge: closing to done
