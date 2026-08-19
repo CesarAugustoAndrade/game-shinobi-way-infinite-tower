@@ -7,4 +7,4 @@
 - IMPLEMENT: done
 - REVIEW: APPROVE
 - VERIFY: PASS (typecheck + t114 3/3 + t018 3/3 + t033 3/3)
-- MERGE: pending
+- MERGE: ff `8f0fbe3..1a06561` into `wt/jp-08121518`
