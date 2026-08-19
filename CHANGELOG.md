@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-124 Counter Stance:** SUPPORT AP1/CP1/CD4. Plants Counter 1 (30% first MELEE reflect). SIDE weight +1 next draw. No instant damage. Legacy mute AP2 / 8 dmg / 50% effects reflect packaging removed.
 - **T-123 Reaper Death Seal:** ATTACK AP6/CD99. Legal only if enemy HP ≤ 35% max. Mutual KO (both HP 0). Ignores Guts. Once per combat. Legacy mute AP2 always-on KO packaging removed.
 - **T-122 Kirin:** ATTACK AP6/CP27/CD8 deals 45 at LONG. Hard require Sharingan 3T ON and enemy Burn. Consume-all closes 3T. Burn consumed on hit only. Legacy mute AP2 / ARMOR_BREAK 15 packaging removed.
 - **T-121 Tengai Shinsei:** ATTACK AP6/CP27/CD8 deals 35 at LONG. Stun 1 on hit. PUSH 2 forces LONG. No Mode. Legacy mute AP2 / TRUE 27 packaging removed.
