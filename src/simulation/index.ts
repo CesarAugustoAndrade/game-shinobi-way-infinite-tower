@@ -79,6 +79,7 @@ import { printCloneExplosionProbe, runCloneExplosionProbe } from './CloneExplosi
 import { printPoisonFogProbe, runPoisonFogProbe } from './PoisonFogBalance';
 import { printSummonGamabuntaProbe, runSummonGamabuntaProbe } from './SummonGamabuntaBalance';
 import { printSummonMandaProbe, runSummonMandaProbe } from './SummonMandaBalance';
+import { printShukakuArmProbe, runShukakuArmProbe } from './ShukakuArmBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -560,6 +561,7 @@ async function main() {
     printPoisonFogProbe(runPoisonFogProbe());
     printSummonGamabuntaProbe(runSummonGamabuntaProbe());
     printSummonMandaProbe(runSummonMandaProbe());
+    printShukakuArmProbe(runShukakuArmProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());

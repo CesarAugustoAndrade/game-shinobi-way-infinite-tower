@@ -3668,9 +3668,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'shukaku_arm',
     name: 'Shukaku Arm',
     tier: SkillTier.KINJUTSU,
-    description: 'Partial Bijuu transformation. ARMOR_BREAK + shield, double damage if <30% HP.',
+    description:
+      '27 dmg at CLOSE or MEDIUM. Self Shield 30 on resolve, even on miss.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.EARTH],
+    apCost: 4,
     chakraCost: 8,
     hpCost: 0,
     cooldown: 6,
@@ -3679,16 +3682,25 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     scalingPerPoint: 21,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
-    damageProperty: DamageProperty.ARMOR_BREAK,
+    damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.EARTH,
+    allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM],
+    markEffects: [
+      {
+        id: 'shukaku_arm_shield',
+        duration: 99,
+        stacks: 30,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 7,
         [PrimaryStat.SPIRIT]: 7,
       },
     },
-    effects: [{ type: EffectType.SHIELD, value: 100, duration: 2, chance: 1.0 }]
   },
 
   COPY_JUTSU: {
