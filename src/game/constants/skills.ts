@@ -3072,9 +3072,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'temple_nirvana',
     name: 'Temple of Nirvana',
     tier: SkillTier.HIDDEN,
-    description: 'Descending feathers induce a deep, magical slumber. Guaranteed MENTAL stun.',
+    description: '80% Stun 2. SUPPORT. AP 3 / CP 8 / CD 6.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.GENJUTSU, SkillTag.MENTAL],
+    apCost: 3,
     chakraCost: 8,
     hpCost: 0,
     cooldown: 6,
@@ -3083,16 +3085,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     scalingPerPoint: 0,
     scalingStat: PrimaryStat.CALMNESS,
     damageType: DamageType.MENTAL,
-    damageProperty: DamageProperty.PIERCING,
+    damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    controlStun: { chance: 0.8, enemyDuration: 2 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
         [PrimaryStat.CALMNESS]: 3,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 2, chance: 1.0 }]
   },
 
   // ==========================================

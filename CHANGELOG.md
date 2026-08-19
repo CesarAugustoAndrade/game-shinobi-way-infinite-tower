@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-111 Temple of Nirvana:** SUPPORT AP3/CP8/CD6 rolls 80% Stun 2. Fail plants no Stun. Legacy mute AP2 / guaranteed STUN 100%×2 packaging removed.
 - **T-110 Curse Mark Surge:** SUPPORT AP1/HP10/CD4 requires CURSE Mode ON. Restores 2 charges (cap-safe) and plants self Vulnerable 10%×2. Legacy mute STR +30% buff packaging removed.
 - **T-109 Shukaku Arm:** ATTACK AP4/CP8/CD6 deals 27 at CLOSE/MEDIUM. Self Shield 30 on resolve, even on miss. Legacy mute AP2 / ARMOR_BREAK / SHIELD 100×2 packaging removed.
 - **T-108 Summon Manda:** ATTACK AP4/CP8/HP20/CD7 deals 25 at CLOSE/MEDIUM. On hit: Poison 6×3. HP 20 paid at attempt (miss still pays). Legacy mute AP2 / TRUE poison 15×4 packaging removed.
