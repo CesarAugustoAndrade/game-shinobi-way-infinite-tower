@@ -3503,28 +3503,32 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'bone_drill',
     name: 'Dance of Clematis',
     tier: SkillTier.FORBIDDEN,
-    description: 'A macabre dance manipulating bone density into a piercing spear. TRUE damage.',
+    description:
+      '18 dmg at CLOSE or MEDIUM. Pays 10 HP. Ignores 25% physical defense. Not full bypass. No Mode.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PHYSICAL],
+    apCost: 3,
     chakraCost: 0,
     hpCost: 10,
     cooldown: 3,
     currentCooldown: 0,
-    baseDamage: 15,
-
+    baseDamage: 18,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.STRENGTH,
-    damageType: DamageType.TRUE, // Bypasses ALL defense
+    damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM],
+    penetration: 0.25,
     requirements: {
       stats: {
         [PrimaryStat.STRENGTH]: 5,
         [PrimaryStat.WILLPOWER]: 5,
       },
     },
-    critBonus: 30
+    critBonus: 30,
   },
 
   POISON_FOG: {

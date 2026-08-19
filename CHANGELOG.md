@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-119 Bone Drill:** ATTACK AP3/HP10/CD3 deals 18 at CLOSE/MEDIUM and ignores 25% physical defense (`penetration: 0.25`). Not TRUE. Legacy mute AP2 / TRUE 15 packaging removed.
 - **T-118 Fang Over Fang:** ATTACK AP2/CP5/CD3 deals 2×7 at CLOSE. Independent rolls. +15% Setup if entered CLOSE this turn. Explicit `cardRole: ATTACK`. Legacy mute single 13 packaging removed.
 - **T-117 Basic Strike:** ATTACK AP2/CD0 deals 12 at CLOSE. No Mode. Explicit `cardRole: ATTACK`. Aggressive stance bonus kept.
 - **T-116 Heavy Kick:** ATTACK AP2/CD1 deals 14 at CLOSE. No Mode. Explicit `cardRole: ATTACK` so it is Main-eligible. Aggressive stance kept.
