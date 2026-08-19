@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-126 Defensive Posture:** SUPPORT AP1/CP3/CD5. Shifts to Defensive. Shield 25 until the next enemy response. Not a toggle / upkeep WIL-SPD buff.
 - **T-125 Focused Stance:** SUPPORT AP1/CP3/CD5. Shifts to Balanced. Focused 2: +20 crit on the next ATTACK (consumed at attempt). Not a toggle / upkeep ACC-DEX buff.
 - **T-124 Counter Stance:** SUPPORT AP1/CP1/CD4. Plants Counter 1 (30% first MELEE reflect). SIDE weight +1 next draw. No instant damage. Legacy mute AP2 / 8 dmg / 50% effects reflect packaging removed.
 - **T-123 Reaper Death Seal:** ATTACK AP6/CD99. Legal only if enemy HP ≤ 35% max. Mutual KO (both HP 0). Ignores Guts. Once per combat. Legacy mute AP2 always-on KO packaging removed.

@@ -1245,9 +1245,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'defensive_posture',
     name: 'Defensive Posture',
     tier: SkillTier.BASIC,
-    description: 'A defensive stance. +25% Defense, -15% Speed.',
-    actionType: ActionType.TOGGLE,
-    apCost: 2,
+    description:
+      'Shift to Defensive. Shield 25 until the next enemy response. Not a toggle buff.',
+    actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.TAIJUTSU],
+    apCost: 1,
     chakraCost: 3,
     hpCost: 0,
     cooldown: 5,
@@ -1259,12 +1262,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    isToggle: true,
-    upkeepCost: 3,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.WILLPOWER, value: 0.25, duration: -1, chance: 1.0 },
-      { type: EffectType.DEBUFF, targetStat: PrimaryStat.SPEED, value: 0.15, duration: -1, chance: 1.0 }
-    ]
+    stanceShift: Posture.DEFENSIVE,
+    markEffects: [
+      {
+        id: 'defensive_shield',
+        duration: 1,
+        stacks: 25,
+        family: MarkFamily.SHIELD,
+        targetActor: 'self',
+      },
+    ],
   },
 
   AGGRESSIVE_STANCE: {

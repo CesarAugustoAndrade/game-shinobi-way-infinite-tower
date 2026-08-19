@@ -149,8 +149,8 @@ const ACADEMY_CORE: Skill[] = [
 export const CLAN_START_LOADOUT: Record<Clan, ClanLoadout> = {
   // Uzumaki: sustain academy + medical; mid signatures learned in run
   [Clan.UZUMAKI]: {
-    active: [...ACADEMY_CORE, SKILLS.BASIC_MEDICAL],
-    toggle: [SKILLS.DEFENSIVE_POSTURE],
+    active: [...ACADEMY_CORE, SKILLS.BASIC_MEDICAL, SKILLS.DEFENSIVE_POSTURE],
+    toggle: [],
     passive: [SKILLS.CHAKRA_RESERVES],
   },
 
