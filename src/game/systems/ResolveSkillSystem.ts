@@ -430,6 +430,8 @@ const TENKETSU_ID = 'tenketsu_exposed';
 const TENKETSU_PEN = 0.3;
 const WIRE_TRAP_ID = 'wire_trap';
 const WIRE_TRAP_MULT = 1.2;
+const BOUND_ID = 'bound';
+const BOUND_MULT = 1.2;
 const COATED_ID = 'coated';
 const CLOAKED_CRIT_MULT = 1.5;
 const FOCUSED_CRIT_POINTS = 20;
@@ -677,6 +679,28 @@ function resolveControlSupport(
     ...state,
     playerBuffs: [...state.playerBuffs, stunControlBuff(skill.id, failSelf, 'self')],
   };
+}
+
+/** SUPPORT Bound: rng() < chance → enemy HARD_CONTROL mark. Fail plants nothing. Bound ≠ Stun. */
+function resolveControlBound(
+  skill: Skill,
+  state: ResolveSkillState,
+  rng: () => number,
+): ResolveSkillState {
+  const spec = skill.controlBound;
+  if (!spec) return state;
+  if (rng() >= spec.chance) return state;
+  const added = addMark(state.marks, {
+    id: spec.markId ?? BOUND_ID,
+    sourceSkillId: skill.id,
+    owner: CombatActor.PLAYER,
+    target: CombatActor.ENEMY,
+    duration: spec.enemyDuration,
+    stacks: 1,
+    consume: MarkConsumeTiming.IMPACT,
+    family: MarkFamily.HARD_CONTROL,
+  });
+  return { ...state, marks: added.marks };
 }
 
 function sealingSilenceBuff(sourceId: string): Buff {
@@ -1053,6 +1077,9 @@ export function resolveSkill(
     if (skill.controlStun) {
       next = resolveControlSupport(skill, next, ports.rng ?? (() => 0));
     }
+    if (skill.controlBound) {
+      next = resolveControlBound(skill, next, ports.rng ?? (() => 0));
+    }
     if (skill.controlConfusion) {
       next = resolveConfusionSupport(skill, next, ports.rng ?? (() => 0));
     }
@@ -1094,6 +1121,8 @@ export function resolveSkill(
         : 1;
     const wireMult =
       role === CardRole.ATTACK && hasEnemyMark(next.marks, WIRE_TRAP_ID) ? WIRE_TRAP_MULT : 1;
+    const boundMult =
+      role === CardRole.ATTACK && hasEnemyMark(next.marks, BOUND_ID) ? BOUND_MULT : 1;
     const cloaked = afterAttempt.spent.some((mark) => mark.id === 'cloaked');
     const lotus = afterAttempt.spent.some((mark) => mark.id === 'lotus_opening');
     const focusedCrit = afterAttempt.spent.some((mark) => mark.id === 'focused')
@@ -1114,6 +1143,7 @@ export function resolveSkill(
     if (bandMovedSetup !== 1) preMits.push(bandMovedSetup);
     if (enteredCloseSetup !== 1) preMits.push(enteredCloseSetup);
     if (wireMult !== 1) preMits.push(wireMult);
+    if (boundMult !== 1) preMits.push(boundMult);
     if (cloaked) {
       preMits.push(CLOAKED_CRIT_MULT);
       if (skill.id === IAIDO_ID) preMits.push(IAIDO_SETUP_MULT);
@@ -1199,6 +1229,14 @@ export function resolveSkill(
     ) {
       damageDealt = Math.floor(damageDealt * WIRE_TRAP_MULT);
     }
+    if (
+      !useHitCore &&
+      role === CardRole.ATTACK &&
+      hitsLanded > 0 &&
+      hasEnemyMark(next.marks, BOUND_ID)
+    ) {
+      damageDealt = Math.floor(damageDealt * BOUND_MULT);
+    }
     if (hitsLanded > 0 && cloaked) {
       if (!useHitCore) {
         damageDealt = Math.floor(damageDealt * CLOAKED_CRIT_MULT);
@@ -1267,10 +1305,10 @@ export function resolveSkill(
   if (hitsLanded >= 1) {
     const skipImpactId = skill.impactMarkConsume?.markId;
     const impactPool = next.marks.filter(
-      (mark) => mark.id !== skipImpactId && mark.id !== WIRE_TRAP_ID,
+      (mark) => mark.id !== skipImpactId && mark.id !== WIRE_TRAP_ID && mark.id !== BOUND_ID,
     );
     const reserved = next.marks.filter(
-      (mark) => mark.id === skipImpactId || mark.id === WIRE_TRAP_ID,
+      (mark) => mark.id === skipImpactId || mark.id === WIRE_TRAP_ID || mark.id === BOUND_ID,
     );
     const afterImpact = consumeOnImpact(impactPool, CombatActor.ENEMY, hitsLanded);
     next = { ...next, marks: [...afterImpact.marks, ...reserved.map((mark) => ({ ...mark }))] };
@@ -1319,6 +1357,14 @@ export function resolveSkill(
         family: MarkFamily.DOT,
       });
       next = { ...next, marks: planted.marks };
+    }
+    if (role === CardRole.ATTACK && hasEnemyMark(next.marks, BOUND_ID)) {
+      next = {
+        ...next,
+        marks: next.marks.filter(
+          (mark) => !(mark.id === BOUND_ID && mark.target === CombatActor.ENEMY),
+        ),
+      };
     }
     if (
       (role === CardRole.ATTACK || role === CardRole.SIDE_ATTACK) &&

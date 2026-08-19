@@ -2344,8 +2344,11 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'shadow_possession',
     name: 'Shadow Possession',
     tier: SkillTier.ADVANCED,
-    description: 'Nara shadow binding. High stun chance with reflect.',
+    description:
+      '80% Bound 1 on the enemy. Next ATTACK against a Bound target +20% Setup (consumed on hit). Not Stun or Reflect.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.GENJUTSU, SkillTag.MENTAL, SkillTag.MARK],
     apCost: 2,
     chakraCost: 6,
     hpCost: 0,
@@ -2358,16 +2361,13 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    controlBound: { chance: 0.8, enemyDuration: 1 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 2,
         [PrimaryStat.CALMNESS]: 2,
       },
     },
-    effects: [
-      { type: EffectType.STUN, duration: 2, chance: 0.8 },
-      { type: EffectType.REFLECTION, value: 0.3, duration: 2, chance: 1.0 }
-    ]
   },
 
   BUG_SWARM: {

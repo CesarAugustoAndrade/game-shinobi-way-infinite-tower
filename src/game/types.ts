@@ -798,6 +798,18 @@ export interface ControlStunSpec {
   failSelfDuration?: number;
 }
 
+/**
+ * SUPPORT Bound plant (T-128 Shadow Possession). Bound ≠ Stun.
+ * `rng() < chance` → enemy HARD_CONTROL mark `markId` (default `bound`) for `enemyDuration`.
+ * Fail plants nothing. No self-stun.
+ */
+export interface ControlBoundSpec {
+  chance: number;
+  enemyDuration: number;
+  /** Default `bound`. */
+  markId?: string;
+}
+
 /** SUPPORT control roll (False Surroundings): chance enemy Confusion; no fail self. */
 export interface ControlConfusionSpec {
   chance: number;
@@ -890,6 +902,11 @@ export interface Skill {
    * `rng() < chance` → enemy STUN `enemyDuration`; else self STUN if `failSelfDuration` ≥ 1.
    */
   controlStun?: ControlStunSpec;
+  /**
+   * SUPPORT Bound plant (T-128). `rng() < chance` → enemy Bound mark.
+   * Fail plants nothing. Not Stun.
+   */
+  controlBound?: ControlBoundSpec;
   /**
    * SUPPORT Confusion (T-041). `rng() < chance` → enemy CONFUSION `enemyDuration`.
    * ATTACK (T-042) uses the same helper only when ≥1 hit lands.
