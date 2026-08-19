@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-122 Kirin:** ATTACK AP6/CP27/CD8 deals 45 at LONG. Hard require Sharingan 3T ON and enemy Burn. Consume-all closes 3T. Burn consumed on hit only. Legacy mute AP2 / ARMOR_BREAK 15 packaging removed.
 - **T-121 Tengai Shinsei:** ATTACK AP6/CP27/CD8 deals 35 at LONG. Stun 1 on hit. PUSH 2 forces LONG. No Mode. Legacy mute AP2 / TRUE 27 packaging removed.
 - **T-120 Kamui Impact:** ATTACK AP5/CP11/CD4 deals 27 at ANY range and ignores 50% defenses. Plants Spatial Tear 2 (next ATTACK +20%). Not TRUE. Legacy mute AP2 / TRUE 27 / SPEED −50% packaging removed.
 - **T-119 Bone Drill:** ATTACK AP3/HP10/CD3 deals 18 at CLOSE/MEDIUM and ignores 25% physical defense (`penetration: 0.25`). Not TRUE. Legacy mute AP2 / TRUE 15 packaging removed.

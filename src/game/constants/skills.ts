@@ -3895,26 +3895,39 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'kirin',
     name: 'Kirin',
     tier: SkillTier.KINJUTSU,
-    description: 'Harnesses natural lightning from the heavens. Unavoidable ARMOR_BREAK strike.',
+    description:
+      '45 dmg at LONG. Hard require Sharingan 3T ON and enemy Burn. Consume-all closes 3T. Burn consumed on hit only. No TRUE.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.UCHIHA, SkillTag.NINJUTSU, SkillTag.LIGHTNING],
+    apCost: 6,
     chakraCost: 27,
     hpCost: 0,
     cooldown: 8,
     currentCooldown: 0,
-    baseDamage: 15,
-
+    baseDamage: 45,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.ELEMENTAL,
-    damageProperty: DamageProperty.ARMOR_BREAK, // Ignores % def
-    attackMethod: AttackMethod.AUTO, // Cannot be dodged
+    damageProperty: DamageProperty.NORMAL,
+    attackMethod: AttackMethod.AUTO,
     element: ElementType.LIGHTNING,
+    allowedRanges: [CombatRange.LONG],
+    modeInteraction: {
+      modeId: 'sharingan_3',
+      family: MODE_FAMILY.SHARINGAN,
+      requireOn: true,
+      consumeAllCharges: true,
+      requireMarkId: 'burn',
+      requireMarkHard: true,
+      consumeAllMatchingMarks: true,
+    },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 7,
         [PrimaryStat.SPIRIT]: 7,
       },
+      clan: Clan.UCHIHA,
     },
   },
 

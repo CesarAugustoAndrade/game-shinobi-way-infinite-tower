@@ -476,6 +476,11 @@ export interface ModeInteraction {
   damagePerChargeBonus?: number;
   /** Mode ON bonus also requires this enemy mark id (Twin Lion = chakra_point). */
   requireMarkId?: string;
+  /**
+   * When true with requireMarkId, validateIntent hard-rejects if the enemy mark is missing (T-122).
+   * Default false: Twin Lion / 64 Palms stay soft enhance-only.
+   */
+  requireMarkHard?: boolean;
   /** When set with requireMarkId, enhance+spend only if enemy stacks ≥ this (64 Palms = 2). */
   minMarkStacks?: number;
   /** Additive damage mult per enemy requireMarkId stack (64 Palms = 0.1). */

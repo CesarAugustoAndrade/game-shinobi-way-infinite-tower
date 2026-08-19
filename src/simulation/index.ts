@@ -92,6 +92,7 @@ import { printFangOverFangProbe, runFangOverFangProbe } from './FangOverFangBala
 import { printBoneDrillProbe, runBoneDrillProbe } from './BoneDrillBalance';
 import { printKamuiImpactProbe, runKamuiImpactProbe } from './KamuiImpactBalance';
 import { printTengaiShinseiProbe, runTengaiShinseiProbe } from './TengaiShinseiBalance';
+import { printKirinProbe, runKirinProbe } from './KirinBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -586,6 +587,7 @@ async function main() {
     printBoneDrillProbe(runBoneDrillProbe());
     printKamuiImpactProbe(runKamuiImpactProbe());
     printTengaiShinseiProbe(runTengaiShinseiProbe());
+    printKirinProbe(runKirinProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());

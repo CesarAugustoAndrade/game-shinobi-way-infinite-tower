@@ -198,6 +198,7 @@ export type ResolveRejectReason =
   | Exclude<SkillBlockReason, null>
   | 'not-ready'
   | 'mode-required'
+  | 'mark-required'
   | 'mode-family';
 
 export type ResolveSkillResult =
@@ -818,6 +819,9 @@ function validateIntent(
     if (!boundId || charges < need) {
       return { ok: false, reason: 'mode-required' };
     }
+  }
+  if (mi?.requireMarkHard && mi.requireMarkId && !hasEnemyMark(state.marks, mi.requireMarkId)) {
+    return { ok: false, reason: 'mark-required' };
   }
   return { ok: true, role: roleRes.role };
 }
