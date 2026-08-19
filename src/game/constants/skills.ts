@@ -3562,21 +3562,30 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'tsukuyomi',
     name: 'Tsukuyomi',
     tier: SkillTier.FORBIDDEN,
-    description: 'Traps the target in an illusion of torture. Massive TRUE MENTAL damage.',
+    description:
+      'Requires Sharingan ON. 30 mental. Stun 2 on hit. Consumes all charges and closes the Mode.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.UCHIHA, SkillTag.GENJUTSU, SkillTag.MENTAL],
+    apCost: 5,
     chakraCost: 13,
     hpCost: 15,
     cooldown: 6,
     currentCooldown: 0,
-    baseDamage: 15,
-
+    baseDamage: 30,
     scalingPerPoint: 3,
     scalingStat: PrimaryStat.CALMNESS,
-    damageType: DamageType.TRUE, // Bypasses mental defense too!
+    damageType: DamageType.MENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.MENTAL,
+    modeInteraction: {
+      family: MODE_FAMILY.SHARINGAN,
+      requireFamily: MODE_FAMILY.SHARINGAN,
+      requireOn: true,
+      consumeAllCharges: true,
+    },
+    impactStun: { chance: 1.0, duration: 2 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 5,
@@ -3584,7 +3593,6 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       },
       clan: Clan.UCHIHA,
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 1.0 }]
   },
 
   // ==========================================
