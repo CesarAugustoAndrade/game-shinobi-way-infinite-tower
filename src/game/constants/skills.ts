@@ -3908,9 +3908,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'shinra_tensei',
     name: 'Shinra Tensei',
     tier: SkillTier.KINJUTSU,
-    description: 'Almighty Push. Repels everything with crushing gravitational force. TRUE damage.',
+    description:
+      '23 dmg at ANY range. PUSH toward LONG on hit. 70% Stun 1.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.WIND],
+    apCost: 4,
     chakraCost: 13,
     hpCost: 0,
     cooldown: 5,
@@ -3918,17 +3921,18 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     baseDamage: 23,
     scalingPerPoint: 18,
     scalingStat: PrimaryStat.SPIRIT,
-    damageType: DamageType.TRUE,
+    damageType: DamageType.ELEMENTAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.WIND,
+    bandMove: { kind: 'PUSH', steps: 1, requireHit: true },
+    impactStun: { chance: 0.7, duration: 1 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 7,
         [PrimaryStat.SPIRIT]: 7,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.5 }]
   },
 
   KAMUI_IMPACT: {
