@@ -209,8 +209,9 @@ export const CLAN_START_LOADOUT: Record<Clan, ClanLoadout> = {
       SKILLS.ANALYZE,
       SKILLS.KAI,
       SKILLS.HELL_VIEWING,
+      SKILLS.FOCUSED_STANCE,
     ],
-    toggle: [SKILLS.FOCUSED_STANCE],
+    toggle: [],
     passive: [SKILLS.MENTAL_FORTITUDE],
   },
 };

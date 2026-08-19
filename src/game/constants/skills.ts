@@ -1211,9 +1211,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'focused_stance',
     name: 'Focused Stance',
     tier: SkillTier.BASIC,
-    description: 'A stance focused on precision. +20% ACC, +15% Crit.',
-    actionType: ActionType.TOGGLE,
-    apCost: 2,
+    description:
+      'Shift to Balanced. Focused 2: +20 crit on the next ATTACK. Not a toggle buff.',
+    actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.TAIJUTSU],
+    apCost: 1,
     chakraCost: 3,
     hpCost: 0,
     cooldown: 5,
@@ -1225,12 +1228,17 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    isToggle: true,
-    upkeepCost: 3,
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.ACCURACY, value: 0.2, duration: -1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.DEXTERITY, value: 0.15, duration: -1, chance: 1.0 }
-    ]
+    stanceShift: Posture.BALANCED,
+    markEffects: [
+      {
+        id: 'focused',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   DEFENSIVE_POSTURE: {

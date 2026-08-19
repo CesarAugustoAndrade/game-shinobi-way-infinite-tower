@@ -432,6 +432,7 @@ const WIRE_TRAP_ID = 'wire_trap';
 const WIRE_TRAP_MULT = 1.2;
 const COATED_ID = 'coated';
 const CLOAKED_CRIT_MULT = 1.5;
+const FOCUSED_CRIT_POINTS = 20;
 const IAIDO_ID = 'iaido';
 const IAIDO_SETUP_MULT = 1.5;
 
@@ -917,6 +918,7 @@ export function resolveSkill(
           if (mark.id === 'misdirect') return role === CardRole.SIDE_ATTACK;
           if (mark.id === 'aim') return role === CardRole.ATTACK;
           if (mark.id === 'cloaked') return role === CardRole.ATTACK;
+          if (mark.id === 'focused') return role === CardRole.ATTACK;
           if (mark.id === 'guard_break') return role === CardRole.ATTACK;
           if (mark.id === 'launched') {
             return role === CardRole.ATTACK && skill.attackMethod === AttackMethod.MELEE;
@@ -1092,6 +1094,13 @@ export function resolveSkill(
       role === CardRole.ATTACK && hasEnemyMark(next.marks, WIRE_TRAP_ID) ? WIRE_TRAP_MULT : 1;
     const cloaked = afterAttempt.spent.some((mark) => mark.id === 'cloaked');
     const lotus = afterAttempt.spent.some((mark) => mark.id === 'lotus_opening');
+    const focusedCrit = afterAttempt.spent.some((mark) => mark.id === 'focused')
+      ? FOCUSED_CRIT_POINTS
+      : 0;
+    const strikeForHit =
+      focusedCrit > 0
+        ? { ...skill, critBonus: (skill.critBonus ?? 0) + focusedCrit }
+        : skill;
     const preMits: number[] = [];
     if (intent.enhanced) preMits.push(1.5);
     if (modeDamageBonus > 0) preMits.push(1 + modeDamageBonus);
@@ -1126,7 +1135,7 @@ export function resolveSkill(
           c.attackerDerived,
           c.defenderPrimary,
           c.defenderDerived,
-          skill,
+          strikeForHit,
           attackerEl,
           defenderEl,
           opts,
