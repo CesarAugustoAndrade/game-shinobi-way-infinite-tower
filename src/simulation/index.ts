@@ -86,6 +86,7 @@ import { printTsukuyomiProbe, runTsukuyomiProbe } from './TsukuyomiBalance';
 import { printAmaterasuProbe, runAmaterasuProbe } from './AmaterasuBalance';
 import { printRasenshurikenProbe, runRasenshurikenProbe } from './RasenshurikenBalance';
 import { printShinraTenseiProbe, runShinraTenseiProbe } from './ShinraTenseiBalance';
+import { printHeavyKickProbe, runHeavyKickProbe } from './HeavyKickBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -574,6 +575,7 @@ async function main() {
     printAmaterasuProbe(runAmaterasuProbe());
     printRasenshurikenProbe(runRasenshurikenProbe());
     printShinraTenseiProbe(runShinraTenseiProbe());
+    printHeavyKickProbe(runHeavyKickProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());
