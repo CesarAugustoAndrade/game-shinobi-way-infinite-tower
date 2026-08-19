@@ -109,6 +109,8 @@ export interface ResolveSkillState {
   enemyBuffs?: Buff[];
   enemyModeUpkeepPriority?: string[];
   enemyHp: number;
+  /** Enemy max HP for mutual-KO fraction gates (T-123). */
+  enemyMaxHp?: number;
   /** Optional enemy chakra pool (T-045 Gentle Fist drain). */
   enemyChakra?: number;
   /** Optional enemy % defense for penetration fixtures (T-047 Studied). */
@@ -199,6 +201,7 @@ export type ResolveRejectReason =
   | 'not-ready'
   | 'mode-required'
   | 'mark-required'
+  | 'hp-threshold'
   | 'mode-family';
 
 export type ResolveSkillResult =
@@ -234,6 +237,7 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
     skills: state.skills.map((skill) => ({ ...skill })),
     playerBuffs: state.playerBuffs.map((buff) => ({ ...buff })),
     enemyHp: state.enemyHp,
+    enemyMaxHp: state.enemyMaxHp,
     enemyChakra: state.enemyChakra,
     enemyDefensePercent: state.enemyDefensePercent,
     skipFirstSkillCost: state.skipFirstSkillCost,
@@ -823,6 +827,13 @@ function validateIntent(
   if (mi?.requireMarkHard && mi.requireMarkId && !hasEnemyMark(state.marks, mi.requireMarkId)) {
     return { ok: false, reason: 'mark-required' };
   }
+  if (skill.mutualKo && skill.mutualKoMaxHpFraction != null) {
+    const maxHp = state.enemyMaxHp ?? 0;
+    const frac = maxHp > 0 ? state.enemyHp / maxHp : 1;
+    if (frac > skill.mutualKoMaxHpFraction) {
+      return { ok: false, reason: 'hp-threshold' };
+    }
+  }
   return { ok: true, role: roleRes.role };
 }
 
@@ -865,6 +876,29 @@ export function resolveSkill(
     next = {
       ...next,
       skills: [...next.skills, markSkillUsedOnTurn(skill, next.turnIndex)],
+    };
+  }
+
+  if (skill.mutualKo) {
+    const sealed = original.enemyHp;
+    next = {
+      ...next,
+      pools: { ...next.pools, hp: 0 },
+      enemyHp: 0,
+    };
+    return {
+      ok: true,
+      role,
+      state: next,
+      hitsLanded: 1,
+      damageDealt: sealed,
+      attemptSpent: [],
+      impactSpent: [],
+      modeActivations: 0,
+      perHitApplied: 0,
+      oncePerCardFired: true,
+      reactions: [],
+      pendingDiscover: next.pendingDiscover,
     };
   }
 

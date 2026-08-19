@@ -965,6 +965,8 @@ export interface Skill {
 
   /** Explicit mutual KO (Reaper Death Seal). Both actors defeated without damage pipeline. */
   mutualKo?: boolean;
+  /** Legal only while enemy HP / maxHp ≤ this fraction (T-123 Reaper = 0.35). */
+  mutualKoMaxHpFraction?: number;
 
   /**
    * Optional override of range bands where this skill can be used.

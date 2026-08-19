@@ -461,6 +461,7 @@ function toResolveSkillState(
   playerStats: CharacterStats,
   enemy: Enemy,
   combatState?: CombatState,
+  enemyStats?: CharacterStats,
 ): ResolveSkillState {
   return {
     pools: {
@@ -476,6 +477,7 @@ function toResolveSkillState(
     skills: player.skills,
     playerBuffs: player.activeBuffs,
     enemyHp: enemy.currentHp,
+    enemyMaxHp: enemyStats?.derived?.maxHp ?? enemy.currentHp,
     enemyChakra: enemy.currentChakra,
     skipFirstSkillCost: combatState?.skipFirstSkillCost,
     playerMoveUsedThisTurn: combatState?.playerMoveUsedThisTurn,
@@ -711,7 +713,7 @@ export function useSkill(
 
   const resolved = resolveSkill(
     toResolveSkillIntent(skill, player, combatState),
-    toResolveSkillState(player, playerStats, enemy, combatState),
+    toResolveSkillState(player, playerStats, enemy, combatState, enemyStats),
     toResolveSkillPorts(player, playerStats, enemy, enemyStats, skill, combatState),
   );
 
