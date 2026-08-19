@@ -3953,9 +3953,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'kamui_impact',
     name: 'Kamui',
     tier: SkillTier.KINJUTSU,
-    description: 'Space-Time Ninjutsu that warps reality. TRUE damage that cannot miss.',
+    description:
+      '27 dmg at ANY range. Ignores 50% defenses. Spatial Tear 2: next ATTACK +20%. No Mode.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.UCHIHA],
+    apCost: 5,
     chakraCost: 11,
     hpCost: 0,
     cooldown: 4,
@@ -3963,23 +3966,27 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     baseDamage: 27,
     scalingPerPoint: 21,
     scalingStat: PrimaryStat.INTELLIGENCE,
-    damageType: DamageType.TRUE,
+    damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
+    penetration: 0.5,
+    markEffects: [
+      {
+        id: 'spatial_tear',
+        duration: 2,
+        stacks: 1,
+        consume: MarkConsumeTiming.ATTEMPT,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 7,
         [PrimaryStat.CALMNESS]: 7,
       },
     },
-    effects: [{
-      type: EffectType.DEBUFF,
-      targetStat: PrimaryStat.SPEED,
-      value: 0.5,
-      duration: 2,
-      chance: 1.0
-    }]
   },
 
   TENGAI_SHINSEI: {

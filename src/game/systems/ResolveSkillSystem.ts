@@ -438,6 +438,7 @@ function markDamageMultiplier(spent: readonly Mark[], skill: Skill): number {
   if (ids.has('exposed_10') && skill.attackMethod === AttackMethod.RANGED) mult *= EXPOSED_10_MULT;
   if (ids.has('launched') && skill.attackMethod === AttackMethod.MELEE) mult *= LAUNCHED_SETUP_MULT;
   if (ids.has('barrage_setup')) mult *= BARRAGE_SETUP_MULT;
+  if (ids.has('spatial_tear')) mult *= 1.2;
   return mult;
 }
 
@@ -872,6 +873,7 @@ export function resolveSkill(
           if (mark.id === 'lotus_opening') return isGatesFinisher(skill);
           if (mark.id === 'feint') return role === CardRole.ATTACK;
           if (mark.id === 'barrage_setup') return role === CardRole.ATTACK;
+          if (mark.id === 'spatial_tear') return role === CardRole.ATTACK;
           if (mark.id === 'exposed') return role === CardRole.ATTACK;
           if (mark.id === 'exposed_10') return role === CardRole.ATTACK;
           if (mark.id === 'misdirect') return role === CardRole.SIDE_ATTACK;
