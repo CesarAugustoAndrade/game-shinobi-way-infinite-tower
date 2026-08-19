@@ -2692,9 +2692,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'summon_manda',
     name: 'Summoning: Manda',
     tier: SkillTier.HIDDEN,
-    description: 'Summon the great snake. High damage + TRUE poison.',
+    description:
+      '25 dmg at CLOSE or MEDIUM. Poison 6×3 on hit. HP 20 paid at attempt.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.PHYSICAL],
+    apCost: 4,
     chakraCost: 8,
     hpCost: 20,
     cooldown: 7,
@@ -2706,13 +2709,23 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.MELEE,
     element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM],
+    markEffects: [
+      {
+        id: 'poison',
+        duration: 3,
+        stacks: 6,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
         [PrimaryStat.SPIRIT]: 3,
       },
     },
-    effects: [{ type: EffectType.POISON, value: 15, duration: 4, chance: 1.0, damageType: DamageType.TRUE, damageProperty: DamageProperty.NORMAL }]
   },
 
   PUPPET_CROW: {
