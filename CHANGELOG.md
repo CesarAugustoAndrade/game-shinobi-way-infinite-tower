@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-114 Rasenshuriken:** ATTACK AP6/CP20/CD5 deals 6×5 at MEDIUM/LONG. Base viable. With Shadow Clones ON: +50% and consume 2 charges. Legacy mute AP2 / single TRUE 15 packaging removed.
 - **T-113 Amaterasu:** ATTACK AP5/CP13/HP20/CD5 requires Sharingan ON. Deals 20 and TRUE Burn 8×4 on hit. Consumes 2 charges at attempt. Legacy mute AP2 / PIERCING 13 / Burn 50×5 packaging removed.
 - **T-112 Tsukuyomi:** ATTACK AP5/CP13/HP15/CD6 requires Sharingan ON. Deals 30 mental and Stun 2 on hit. Consumes all charges and closes the Mode. Legacy mute AP2 / TRUE 15 / STUN 1 packaging removed.
 - **T-111 Temple of Nirvana:** SUPPORT AP3/CP8/CD6 rolls 80% Stun 2. Fail plants no Stun. Legacy mute AP2 / guaranteed STUN 100%×2 packaging removed.
