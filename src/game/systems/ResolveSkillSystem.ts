@@ -115,6 +115,8 @@ export interface ResolveSkillState {
   enemyDefensePercent?: number;
   skipFirstSkillCost?: boolean;
   playerMoveUsedThisTurn?: boolean;
+  /** True when the player entered CLOSE earlier this turn (T-118). Injected; not inferred. */
+  enteredCloseThisTurn?: boolean;
   reactionSources?: readonly RangeReactionDef[];
   hand?: Skill[];
   playablePool?: Skill[];
@@ -235,6 +237,7 @@ function cloneState(state: ResolveSkillState): ResolveSkillState {
     enemyDefensePercent: state.enemyDefensePercent,
     skipFirstSkillCost: state.skipFirstSkillCost,
     playerMoveUsedThisTurn: state.playerMoveUsedThisTurn,
+    enteredCloseThisTurn: state.enteredCloseThisTurn,
     reactionSources: state.reactionSources?.map((entry) => ({ ...entry })),
     hand: state.hand?.map((skill) => ({ ...skill })),
     playablePool: state.playablePool?.map((skill) => ({ ...skill })),
@@ -1041,6 +1044,10 @@ export function resolveSkill(
       (skill.setupMultIfBandMoved ?? 0) > 0 && wouldAuthoredBandMove(skill, next.range)
         ? 1 + (skill.setupMultIfBandMoved ?? 0)
         : 1;
+    const enteredCloseSetup =
+      (skill.setupMultIfEnteredCloseThisTurn ?? 0) > 0 && next.enteredCloseThisTurn === true
+        ? 1 + (skill.setupMultIfEnteredCloseThisTurn ?? 0)
+        : 1;
     const wireMult =
       role === CardRole.ATTACK && hasEnemyMark(next.marks, WIRE_TRAP_ID) ? WIRE_TRAP_MULT : 1;
     const cloaked = afterAttempt.spent.some((mark) => mark.id === 'cloaked');
@@ -1054,6 +1061,7 @@ export function resolveSkill(
     if (markMult !== 1) preMits.push(markMult);
     if (setupMult !== 1) preMits.push(setupMult);
     if (bandMovedSetup !== 1) preMits.push(bandMovedSetup);
+    if (enteredCloseSetup !== 1) preMits.push(enteredCloseSetup);
     if (wireMult !== 1) preMits.push(wireMult);
     if (cloaked) {
       preMits.push(CLOAKED_CRIT_MULT);
@@ -1128,6 +1136,9 @@ export function resolveSkill(
     }
     if (!useHitCore && hitsLanded > 0 && bandMovedSetup !== 1) {
       damageDealt = Math.floor(damageDealt * bandMovedSetup);
+    }
+    if (!useHitCore && hitsLanded > 0 && enteredCloseSetup !== 1) {
+      damageDealt = Math.floor(damageDealt * enteredCloseSetup);
     }
     if (
       !useHitCore &&

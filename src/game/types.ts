@@ -873,6 +873,11 @@ export interface Skill {
    * PUSH@LONG / PULL@CLOSE → no move → no bonus. Applied only on ≥1 hit.
    */
   setupMultIfBandMoved?: number;
+  /**
+   * ATTACK Setup-bucket mult when the player entered CLOSE this turn (T-118).
+   * Callers inject `ResolveSkillState.enteredCloseThisTurn`. Applied only on ≥1 hit.
+   */
+  setupMultIfEnteredCloseThisTurn?: number;
   modeInteraction?: ModeInteraction;
   perHitEffects?: EffectDefinition[];
   /**
