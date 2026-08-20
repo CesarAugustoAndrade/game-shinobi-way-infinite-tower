@@ -103,6 +103,7 @@ import { printKawarimiProbe, runKawarimiProbe } from './KawarimiBalance';
 import { printEdoTenseiProbe, runEdoTenseiProbe } from './EdoTenseiBalance';
 import { printC4KaruraProbe, runC4KaruraProbe } from './C4KaruraBalance';
 import { printBoundMovementLockProbe, runBoundMovementLockProbe } from './BoundMovementLockBalance';
+import { printDecoyMistLiveCutsProbe, runDecoyMistLiveCutsProbe } from './DecoyMistLiveCutsBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -608,6 +609,7 @@ async function main() {
     printEdoTenseiProbe(runEdoTenseiProbe());
     printC4KaruraProbe(runC4KaruraProbe());
     printBoundMovementLockProbe(runBoundMovementLockProbe());
+    printDecoyMistLiveCutsProbe(runDecoyMistLiveCutsProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());

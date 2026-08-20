@@ -142,7 +142,7 @@ export function applyReadWindowOutgoing(
 
 /**
  * First enemy offensive under Decoy: subtract stacks (default 20) once, then strip.
- * Live EnemyTurn wiring is optional; this is the R0 contract (T-074).
+ * Live EnemyTurn fires this via `applyOutgoingMarkCuts` (T-133).
  */
 export function applyDecoyOutgoing(
   damage: number,
@@ -313,7 +313,7 @@ export function stripC4(
 
 /**
  * First enemy offensive under Mist: subtract stacks (default 20) once, then strip.
- * Live EnemyTurn wiring is optional; this is the R0 contract (T-073).
+ * Live EnemyTurn fires this via `applyOutgoingMarkCuts` (T-133).
  */
 export function applyMistOutgoing(
   damage: number,
@@ -378,7 +378,8 @@ export function applyFearOutgoing(
 }
 
 /**
- * Fear → Smoke → Read Window on one outgoing enemy hit. Each helper still consume-once.
+ * Fear → Smoke → Mist → Decoy → Read Window on one outgoing enemy hit.
+ * Each helper still consume-once; sequential independent cuts (T-133).
  */
 export function applyOutgoingMarkCuts(
   damage: number,
@@ -386,11 +387,18 @@ export function applyOutgoingMarkCuts(
 ): { damage: number; marks: Mark[]; consumed: boolean } {
   const fear = applyFearOutgoing(damage, marks);
   const smoke = applySmokeOutgoing(fear.damage, fear.marks);
-  const window = applyReadWindowOutgoing(smoke.damage, smoke.marks);
+  const mist = applyMistOutgoing(smoke.damage, smoke.marks);
+  const decoy = applyDecoyOutgoing(mist.damage, mist.marks);
+  const window = applyReadWindowOutgoing(decoy.damage, decoy.marks);
   return {
     damage: window.damage,
     marks: window.marks,
-    consumed: fear.consumed || smoke.consumed || window.consumed,
+    consumed:
+      fear.consumed ||
+      smoke.consumed ||
+      mist.consumed ||
+      decoy.consumed ||
+      window.consumed,
   };
 }
 
