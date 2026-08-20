@@ -67,6 +67,7 @@ import {
   fireOnMoveReactions,
   MARK_REFLECT_BUFF_ID,
   reflectPercentFromMarks,
+  resolveC4AtEnemyOpportunity,
   tickDotMarksForActor,
 } from './MarkSystem';
 import { getApCost } from '../constants/combatCards';
@@ -1052,6 +1053,14 @@ export function processEnemyTurn(
   // Initialize guts tracking context
   let gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
   let boardMarks: Mark[] = (combatState?.marks ?? []).map((mark) => ({ ...mark }));
+
+  // T-142: C4 at start of enemy opportunity (35 TRUE, then strip). Stun does not cancel.
+  const c4Burst = resolveC4AtEnemyOpportunity(boardMarks);
+  boardMarks = c4Burst.marks;
+  if (c4Burst.fired) {
+    updatedEnemy.currentHp -= c4Burst.trueDamage;
+    logs.push(`C4 detonates for ${c4Burst.trueDamage} TRUE damage!`);
+  }
 
   // ============================================
   // Phase 1: Process DoT/Regen on Enemy (defer duration tick)

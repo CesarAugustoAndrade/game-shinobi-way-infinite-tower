@@ -283,7 +283,7 @@ function isEnemyC4(mark: Mark): boolean {
 
 /**
  * Next enemy opportunity under C4: deal 35 TRUE once, then strip.
- * Live EnemyTurn start-of-opportunity wiring is optional (T-074 bar); this is the R0 contract (T-131).
+ * Live `processEnemyTurn` calls this at opportunity start (T-142).
  */
 export function resolveC4AtEnemyOpportunity(
   marks: readonly Mark[],
