@@ -586,6 +586,23 @@ export function applyStatMarksToPrimaryStats(
   return next;
 }
 
+/** v1 derived elemental flat. Not a T-140 primary (spd_down / blinded / aim ignored). */
+export const ELEM_DEF_MARK_IDS = new Set(['suijinheki_elem_def']);
+
+/** Sum allowlisted STAT stacks as integer elementalDefenseFlat. Does not tick duration. */
+export function elementalDefenseFlatFromMarks(
+  marks: TacticalSetup,
+  target: CombatActor,
+): number {
+  let flat = 0;
+  for (const mark of marks) {
+    if (mark.family !== MarkFamily.STAT || mark.target !== target) continue;
+    if (!ELEM_DEF_MARK_IDS.has(mark.id)) continue;
+    flat += mark.stacks;
+  }
+  return flat;
+}
+
 export type TripwireMover = 'enemy' | 'player';
 
 export interface TripwireFireInput {

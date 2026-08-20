@@ -63,6 +63,7 @@ import {
   absorbWithShieldMarks,
   actorHasHardControlSkip,
   applyOutgoingMarkCuts,
+  elementalDefenseFlatFromMarks,
   fireOnMoveReactions,
   MARK_REFLECT_BUFF_ID,
   reflectPercentFromMarks,
@@ -460,11 +461,16 @@ export function executeEnemyAction(
   const roomEvasion = getTerrainEvasionBonus(combatState?.terrain ?? null);
   const roomModEvasion = combatState?.roomCombatEvasion ?? 0;
   const totalEvasionBonus = locEvasion + roomEvasion + roomModEvasion;
+  const markElemFlat = elementalDefenseFlatFromMarks(actionMarks, CombatActor.PLAYER);
   const defenderDerived =
-    totalEvasionBonus !== 0
+    totalEvasionBonus !== 0 || markElemFlat !== 0
       ? {
           ...playerStats.derived,
-          evasion: Math.min(0.75, playerStats.derived.evasion + totalEvasionBonus),
+          evasion:
+            totalEvasionBonus !== 0
+              ? Math.min(0.75, playerStats.derived.evasion + totalEvasionBonus)
+              : playerStats.derived.evasion,
+          elementalDefenseFlat: playerStats.derived.elementalDefenseFlat + markElemFlat,
         }
       : playerStats.derived;
 

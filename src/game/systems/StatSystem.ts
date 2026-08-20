@@ -80,7 +80,7 @@ import { ELEMENTAL_CYCLE } from '../constants';
 import { BALANCE, CESAR_DAMAGE_CONSTANT } from '../config';
 import { LaunchProperties } from '../../config/featureFlags';
 import { percentChance, chance } from '../utils/rng';
-import { applyStatMarksToPrimaryStats } from './MarkSystem';
+import { applyStatMarksToPrimaryStats, elementalDefenseFlatFromMarks } from './MarkSystem';
 
 // ============================================================================
 // PASSIVE SKILL BONUS AGGREGATOR
@@ -497,6 +497,7 @@ export function getPlayerFullStats(player: Player, marks: readonly Mark[] = []):
   // 4. Calculate derived stats (equipment primaries already in effectivePrimary;
   //    only flat/percent derived gear bonuses are applied inside)
   const derived = calculateDerivedStats(effectivePrimary, equipmentBonuses);
+  derived.elementalDefenseFlat += elementalDefenseFlatFromMarks(marks, CombatActor.PLAYER);
 
   // 5. Apply passive regen bonuses to derived stats
   derived.chakraRegen += passiveBonuses.chakraRegen;
@@ -539,6 +540,7 @@ export function getEnemyFullStats(enemy: Enemy, marks: readonly Mark[] = []): {
   const buffedPrimary = applyBuffsToPrimaryStats(enemy.primaryStats, enemy.activeBuffs);
   const effectivePrimary = applyStatMarksToPrimaryStats(buffedPrimary, marks, CombatActor.ENEMY);
   const derived = calculateDerivedStats(effectivePrimary, {});
+  derived.elementalDefenseFlat += elementalDefenseFlatFromMarks(marks, CombatActor.ENEMY);
 
   return {
     primary: enemy.primaryStats,
