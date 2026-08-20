@@ -8,6 +8,7 @@
 import {
   ApproachType,
   AttackMethod,
+  CombatActor,
   CombatRange,
   Enemy,
   Mark,
@@ -35,6 +36,9 @@ export const VOLUNTARY_MOVE_AP_COST = 1;
 /** T-080: self mark planted when Water Prison Stun lands. Blocks voluntary range-up. */
 export const WATER_PRISON_LOCK_ID = 'water_prison_lock';
 
+/** T-128/T-132: enemy HARD_CONTROL. Blocks all voluntary band changes (not Stun). */
+export const BOUND_MARK_ID = 'bound';
+
 /** True when the player is trying to step to a longer band (CLOSE→MEDIUM / MEDIUM→LONG). */
 export function isVoluntaryRangeIncrease(direction: RangeMoveDirection): boolean {
   return direction === RangeMoveDirection.RETREAT;
@@ -47,6 +51,16 @@ export function voluntaryRangeIncreaseBlocked(
 ): boolean {
   if (!isVoluntaryRangeIncrease(direction)) return false;
   return (marks ?? []).some((mark) => mark.id === WATER_PRISON_LOCK_ID);
+}
+
+/**
+ * T-132: Bound “impide movimiento” — enemy-targeted `bound` blocks voluntary APPROACH and RETREAT.
+ * Unlike Water Prison (`water_prison_lock`, player, RETREAT-only). Does not consume. Forced/card moves ignore this.
+ */
+export function enemyVoluntaryMoveBlocked(marks: readonly Mark[] | undefined): boolean {
+  return (marks ?? []).some(
+    (mark) => mark.id === BOUND_MARK_ID && mark.target === CombatActor.ENEMY,
+  );
 }
 
 // ============================================================================

@@ -56,6 +56,7 @@ import {
 import {
   shiftRange,
   VOLUNTARY_MOVE_AP_COST,
+  enemyVoluntaryMoveBlocked,
 } from './RangeSystem';
 import {
   applyOutgoingMarkCuts,
@@ -364,7 +365,7 @@ export function executeEnemyAction(
   });
 
   let enemyMoveUsed = false;
-  if (plan.moveDirection) {
+  if (plan.moveDirection && !enemyVoluntaryMoveBlocked(actionMarks)) {
     const { range: next, moved } = shiftRange(range, plan.moveDirection);
     if (moved) {
       range = next;
