@@ -78,6 +78,7 @@ import { getModeDefinition } from '../constants/modes';
 import { normalizeSkillConfig } from './SkillConfigLive';
 import type { WeightContext } from './DeckSystem';
 import { buildModeWeightBonuses } from './ModeWeightSystem';
+import { reanimationRoleBonuses } from './MarkSystem';
 import {
   consumeSupportWeightBonuses,
   type PendingSupportWeight,
@@ -154,6 +155,12 @@ export function buildUpkeepWeightContext(
   const config = normalizeSkillConfig(player.skillConfig);
   const activeModes = combatState.activeModes ?? [];
   const consumed = consumeSupportWeightBonuses(combatState.pendingSupportWeights ?? []);
+  const reanimRoles = reanimationRoleBonuses(combatState.marks ?? []);
+  const supportRoleBonuses: Partial<Record<CardRole, number>> = { ...consumed.roleBonuses };
+  for (const [role, delta] of Object.entries(reanimRoles)) {
+    const key = role as CardRole;
+    supportRoleBonuses[key] = (supportRoleBonuses[key] ?? 0) + (delta ?? 0);
+  }
   return {
     posture: combatState.posture,
     turnIndex: combatState.turnIndex,
@@ -163,7 +170,7 @@ export function buildUpkeepWeightContext(
       .map((mode) => mode.id),
     modeBonuses: buildModeWeightBonuses(activeModes),
     supportBonuses: consumed.bonuses,
-    supportRoleBonuses: consumed.roleBonuses,
+    supportRoleBonuses,
     supportMentalAttackBonus: consumed.mentalAttackBonus,
     supportTagBonuses: consumed.tagBonuses,
   };

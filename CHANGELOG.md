@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-144 Reanimation live:** First lethal hit with `reanimation` armed clamps HP to 1, plants Shield 40, and skips guts. ATTACK draw weight +1 while armed. Chip damage does not consume.
 - **T-143 Substitution live:** Player `substitution` (Kawarimi) nullifies the first enemy hit with damage>0, retreats 1 band toward LONG (forced, not a manual move), and consumes. Second hit is normal.
 - **T-142 C4 live opportunity:** Enemy-targeted `c4` detonates 35 TRUE at the start of the enemy opportunity (`processEnemyTurn`) and consumes. Stun does not cancel. No second engine.
 - **T-141 elem-def Marks live:** `suijinheki_elem_def` stacks fold into `elementalDefenseFlat` (Suijinheki +1). Primary STAT ids stay on the T-140 path. Physical hits unchanged.

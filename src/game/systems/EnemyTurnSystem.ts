@@ -63,6 +63,7 @@ import {
   absorbWithShieldMarks,
   actorHasHardControlSkip,
   applyOutgoingMarkCuts,
+  applyReanimationLethal,
   applySubstitutionIncoming,
   elementalDefenseFlatFromMarks,
   fireOnMoveReactions,
@@ -567,17 +568,27 @@ export function executeEnemyAction(
     actionMarks = shield.marks;
     const incomingDamage = shield.damage;
 
-    // Check lethal damage
+    // T-144: Reanimation guaranteed save before guts rng.
+    const reanim = applyReanimationLethal(updatedPlayer.currentHp, incomingDamage, actionMarks);
+    actionMarks = reanim.marks;
     const artifactGuts = checkGutsPassive(player);
-    const lethalCheck = checkLethalDamage(
-      updatedPlayer.currentHp,
-      incomingDamage,
-      playerStats.derived.gutsChance,
-      updatedGutsContext,
-      artifactGuts,
-      combatState?.artifactGutsUsed,
-      playerStats.derived.maxHp
-    );
+    const lethalCheck = reanim.consumed
+      ? {
+          survived: true,
+          newHp: reanim.newHp,
+          gutsTriggered: updatedGutsContext.triggered,
+          artifactGutsTriggered: updatedGutsContext.artifactTriggered,
+          log: 'Reanimation! You cling to 1 HP.',
+        }
+      : checkLethalDamage(
+          updatedPlayer.currentHp,
+          incomingDamage,
+          playerStats.derived.gutsChance,
+          updatedGutsContext,
+          artifactGuts,
+          combatState?.artifactGutsUsed,
+          playerStats.derived.maxHp
+        );
 
     updatedPlayer.currentHp = lethalCheck.newHp;
     updatedGutsContext.triggered = lethalCheck.gutsTriggered;

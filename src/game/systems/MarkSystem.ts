@@ -213,7 +213,7 @@ export function applySubstitutionIncoming(
 
 /**
  * First lethal source under Reanimation: HP → 1, plant Shield 40, then strip.
- * Guaranteed (no guts rng). Live EnemyTurn wiring is optional (T-074 bar); this is the R0 contract (T-130).
+ * Guaranteed (no guts rng). Live `executeEnemyAction` calls this before guts (T-144).
  * Non-lethal or unarmed: passthrough, do not consume.
  */
 export function applyReanimationLethal(
@@ -266,7 +266,7 @@ export function applyReanimationLethal(
 
 /**
  * ATTACK role +1 while a self Reanimation mark is armed (continuous, not a next-draw bag).
- * Merge into WeightContext.supportRoleBonuses at draw. Live upkeep feed is optional.
+ * Merge into WeightContext.supportRoleBonuses at draw (`buildUpkeepWeightContext`, T-144).
  */
 export function reanimationRoleBonuses(
   marks: readonly Mark[],

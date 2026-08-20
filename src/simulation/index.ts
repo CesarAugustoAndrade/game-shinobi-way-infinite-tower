@@ -114,6 +114,7 @@ import { printStatMarksLiveProbe, runStatMarksLiveProbe } from './StatMarksLiveB
 import { printElemDefMarksLiveProbe, runElemDefMarksLiveProbe } from './ElemDefMarksLiveBalance';
 import { printC4LiveOpportunityProbe, runC4LiveOpportunityProbe } from './C4LiveOpportunityBalance';
 import { printSubstitutionLiveProbe, runSubstitutionLiveProbe } from './SubstitutionLiveBalance';
+import { printReanimationLiveProbe, runReanimationLiveProbe } from './ReanimationLiveBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -630,6 +631,7 @@ async function main() {
     printElemDefMarksLiveProbe(runElemDefMarksLiveProbe());
     printC4LiveOpportunityProbe(runC4LiveOpportunityProbe());
     printSubstitutionLiveProbe(runSubstitutionLiveProbe());
+    printReanimationLiveProbe(runReanimationLiveProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());
