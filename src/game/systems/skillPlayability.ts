@@ -10,6 +10,7 @@ import { Buff, CombatRange, EffectType, Skill } from '../types';
 import { getApCost } from '../constants/combatCards';
 import { canActivateModeAt, skillAllowedAt } from './RangeSystem';
 import { canAffordHpCost } from './StatSystem';
+import { isSkillReadyOnTurn } from './TurnClockSystem';
 
 // ============================================================================
 // TYPES
@@ -33,6 +34,11 @@ export interface SkillPlayContext {
   modeAlreadyOn?: boolean;
   /** Extra bands granted while a Mode payoff is live (Chidori + Sharingan 3). */
   grantedRanges?: readonly CombatRange[];
+  /**
+   * Combat turn index. When set, cooldown uses `readyOnTurn` (T-145).
+   * When omitted, legacy `currentCooldown > 0` still blocks.
+   */
+  turnIndex?: number;
 }
 
 /**
@@ -61,7 +67,7 @@ export type SkillBlockReason =
  * Mode activation uses canActivateModeAt. FREE_FIRST waives chakra only.
  *
  * Gates mirror useSkill:
- * - cooldown > 0
+ * - cooldown: readyOnTurn vs turnIndex when provided, else currentCooldown > 0
  * - STUN buff present
  * - SILENCE && skill.chakraCost > 0 (base cost; free-first does not bypass silence)
  * - effective chakra (0 when skipFirstSkillCost)
@@ -86,7 +92,11 @@ export function getSkillBlockReason(ctx: SkillPlayContext): SkillBlockReason {
     return 'silence';
   }
 
-  if (skill.currentCooldown > 0) {
+  if (ctx.turnIndex !== undefined) {
+    if (!isSkillReadyOnTurn(skill.readyOnTurn, ctx.turnIndex)) {
+      return 'cooldown';
+    }
+  } else if (skill.currentCooldown > 0) {
     return 'cooldown';
   }
 

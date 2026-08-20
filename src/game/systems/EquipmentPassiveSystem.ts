@@ -423,10 +423,10 @@ export function processPassivesOnKill(
 
     switch (passive.type) {
       case PassiveEffectType.COOLDOWN_RESET_ON_KILL: {
-        // Reset all skill cooldowns
-        result.player.skills = result.player.skills.map(skill => ({
+        result.player.skills = result.player.skills.map((skill) => ({
           ...skill,
           currentCooldown: 0,
+          readyOnTurn: 0,
         }));
         result.logs.push(`${item.name}: All cooldowns reset!`);
         break;

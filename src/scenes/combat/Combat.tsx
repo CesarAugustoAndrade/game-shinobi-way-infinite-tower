@@ -118,6 +118,8 @@ interface CombatProps {
   hand: Skill[];
   /** Action Points remaining this turn. */
   currentAp: number;
+  /** Combat turn index for readyOnTurn playability (T-145). */
+  turnIndex?: number;
   /** Action Point budget for the turn. */
   maxAp: number;
   /**
@@ -195,6 +197,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   turnState,
   hand,
   currentAp,
+  turnIndex,
   maxAp,
   baseMaxAp,
   posture,
@@ -375,9 +378,10 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         modeAlreadyOn,
         modeActivation: isModeSkill && !modeAlreadyOn,
         grantedRanges: grantedRangesForSkill(skill),
+        turnIndex,
       };
     },
-    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost, activeModes, grantedRangesForSkill],
+    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost, activeModes, grantedRangesForSkill, turnIndex],
   );
 
   /** Card playability — single path through skillPlayability (incl. Mode ON range skip). */

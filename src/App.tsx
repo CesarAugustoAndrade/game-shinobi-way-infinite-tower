@@ -1996,6 +1996,7 @@ const App: React.FC = () => {
                 turnState={turnState}
                 hand={hand}
                 currentAp={currentAp}
+                turnIndex={combatState?.turnIndex}
                 maxAp={maxAp}
                 baseMaxAp={playerStats?.derived.actionPointsPerTurn}
                 posture={posture}

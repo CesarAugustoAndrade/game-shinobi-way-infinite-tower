@@ -163,6 +163,7 @@ function buildSkillPlayContext(
     modeActivation: modeSkill && !modeAlreadyOn,
     modeAlreadyOn,
     grantedRanges: grantedRangesForSkill(skill, combatState),
+    turnIndex: combatState.turnIndex,
   };
 }
 
