@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-138 Setup panel labels:** Tactical Setup rows show human Mark names (Bleed, Mud Wall, Counter, …) instead of raw `mark.id`.
 - **T-137 DoT Marks live:** `MarkFamily.DOT` ticks `stacks` damage on the affected actor’s opportunity (duration still owned by TurnClock). Bleed/Poison/Burn Marks are no longer decorative.
 - **T-136 Modes panel labels:** Combat Modes rows show skill display names and upkeep (`4 CP` / `8 HP`) instead of raw `mode.id`.
 - **T-135 Shield Marks live:** `MarkFamily.SHIELD` absorbs before HP (oldest-first stack drain, strip at 0). Mud Wall / Sand Shield / siblings are no longer decorative.

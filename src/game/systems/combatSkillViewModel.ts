@@ -274,15 +274,43 @@ export function chargeConsumeWarning(skill: Pick<Skill, 'modeInteraction'>): str
   return `Consumes ${n} Mode charge${n === 1 ? '' : 's'}`;
 }
 
-/** Human Mode name: skill registry name, else title-cased id (never a fake number). */
-export function modePanelDisplayName(modeId: string, skillName?: string): string {
-  const trimmed = skillName?.trim();
-  if (trimmed) return trimmed;
-  return modeId
+/** Title-case machine ids (`custom_foo_bar` → `Custom Foo Bar`). T-136/T-138. */
+export function prettifyId(id: string): string {
+  return id
     .split('_')
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+/** Human Mode name: skill registry name, else title-cased id (never a fake number). */
+export function modePanelDisplayName(modeId: string, skillName?: string): string {
+  const trimmed = skillName?.trim();
+  if (trimmed) return trimmed;
+  return prettifyId(modeId);
+}
+
+const KNOWN_MARK_LABELS: Readonly<Record<string, string>> = {
+  bleed: 'Bleed',
+  poison: 'Poison',
+  burn: 'Burn',
+  mud_wall_shield: 'Mud Wall',
+  sand_shield: 'Sand Shield',
+  counter_reflect: 'Counter',
+  rotation_reflect: 'Rotation',
+  bound: 'Bound',
+  decoy: 'Decoy',
+  mist: 'Mist',
+  substitution: 'Substitution',
+  reanimation: 'Reanimation',
+  c4: 'C4',
+};
+
+/** Human Mark name: known CTS map, else prettifyId. */
+export function markPanelDisplayName(markId: string, override?: string): string {
+  const trimmed = override?.trim();
+  if (trimmed) return trimmed;
+  return KNOWN_MARK_LABELS[markId] ?? prettifyId(markId);
 }
 
 /** Upkeep as `4 CP` / `8 HP` / `4 CP + 8 HP`. Empty/unknown → undefined (panel hides). */

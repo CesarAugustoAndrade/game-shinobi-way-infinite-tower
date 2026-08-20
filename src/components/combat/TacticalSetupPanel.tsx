@@ -1,5 +1,6 @@
 import React from 'react';
 import { CombatActor, type Mark } from '../../game/types';
+import { markPanelDisplayName } from '../../game/systems/combatSkillViewModel';
 import './CombatModesPanel.css';
 
 interface TacticalSetupPanelProps {
@@ -15,8 +16,13 @@ export const TacticalSetupPanel: React.FC<TacticalSetupPanelProps> = ({ marks })
       ) : (
         <ul className="tactical-setup-panel__list">
           {marks.map((mark) => (
-            <li key={`${mark.id}-${mark.owner}-${mark.target}`} className="tactical-setup-panel__row" data-testid="setup-mark-row">
-              <span>{mark.id}</span>
+            <li
+              key={`${mark.id}-${mark.owner}-${mark.target}`}
+              className="tactical-setup-panel__row"
+              data-testid="setup-mark-row"
+              data-mark-id={mark.id}
+            >
+              <span className="tactical-setup-panel__name">{markPanelDisplayName(mark.id)}</span>
               <span data-testid="mark-owner">{mark.owner === CombatActor.PLAYER ? 'own' : 'enemy'}</span>
               <span data-testid="mark-stacks">×{mark.stacks}</span>
               <span data-testid="mark-duration">{mark.duration}t</span>
