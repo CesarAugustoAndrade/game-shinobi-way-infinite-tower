@@ -31,6 +31,8 @@ export const C4_MARK_ID = 'c4';
 export const C4_TRUE_DAMAGE = 35;
 export const COUNTER_REFLECT_MARK_ID = 'counter_reflect';
 export const ROTATION_REFLECT_MARK_ID = 'rotation_reflect';
+/** Tripwire / HARD_CONTROL skip allowlist. Bound is HARD_CONTROL but not a skip (T-139). */
+export const STUN_SKIP_MARK_ID = 'stun';
 /** Temp buff id so EnemyTurn can drop it from lasting player buffs (T-134). */
 export const MARK_REFLECT_BUFF_ID = 'mark_reflect';
 
@@ -523,15 +525,27 @@ export function tickMarkDurations(setup: TacticalSetup): Mark[] {
     .filter((mark) => mark.duration > 0);
 }
 
+function isStunSkipMark(mark: Mark, target?: CombatActor): boolean {
+  if (mark.family !== MarkFamily.HARD_CONTROL) return false;
+  if (mark.id !== STUN_SKIP_MARK_ID) return false;
+  if (target !== undefined && mark.target !== target) return false;
+  return true;
+}
+
 /**
- * Stub: two HARD_CONTROL Stun-1 instances collapse to one skipped action.
- * Turn systems may call this; they still own skip application.
+ * Stun-type HARD_CONTROL skips: two Stun-1 instances collapse to one skip (SOUL §9).
+ * Bound and other HARD_CONTROL ids do not skip. Optional `target` filters by mark.target.
+ * Turn systems own skip application; this helper does not tick duration.
  */
-export function resolveHardControlSkips(setup: TacticalSetup): number {
-  const control = setup.filter((mark) => mark.family === MarkFamily.HARD_CONTROL);
-  if (control.length === 0) return 0;
-  const totalStacks = control.reduce((sum, mark) => sum + mark.stacks, 0);
+export function resolveHardControlSkips(setup: TacticalSetup, target?: CombatActor): number {
+  const totalStacks = setup
+    .filter((mark) => isStunSkipMark(mark, target))
+    .reduce((sum, mark) => sum + mark.stacks, 0);
   return Math.min(1, totalStacks);
+}
+
+export function actorHasHardControlSkip(setup: TacticalSetup, actor: CombatActor): boolean {
+  return resolveHardControlSkips(setup, actor) > 0;
 }
 
 export type TripwireMover = 'enemy' | 'player';
@@ -558,7 +572,7 @@ function cloneSetup(setup: TacticalSetup): Mark[] {
 
 function tripwireStunMark(sourceSkillId: string): Mark {
   return {
-    id: 'stun',
+    id: STUN_SKIP_MARK_ID,
     sourceSkillId,
     owner: CombatActor.PLAYER,
     target: CombatActor.ENEMY,
@@ -576,7 +590,7 @@ function isOnMoveReaction(mark: Mark): boolean {
 /**
  * First real enemy band change consumes one ON_MOVE mark (tripwire or trigger).
  * Payload: 8 chip + 60% Stun 1. Player moves and non-moves leave marks/HP unchanged.
- * Stun is a HARD_CONTROL mark — live skip still reads STUN buffs (residual).
+ * Stun is a HARD_CONTROL mark — live skip ORs this with STUN buffs (T-139).
  */
 export function fireTripwireOnEnemyMove(input: TripwireFireInput): TripwireFireResult {
   const marks = cloneSetup(input.marks);

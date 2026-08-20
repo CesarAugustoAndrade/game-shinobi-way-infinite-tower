@@ -119,8 +119,8 @@ describe('T-004 duration and terrain isolation', () => {
     expect(second.marks[0].stacks).toBe(5);
     expect(clearMarks(second.marks)).toEqual([]);
     expect(resolveHardControlSkips([
-      mark({ id: 'stun-a', family: MarkFamily.HARD_CONTROL, stacks: 1 }),
-      mark({ id: 'stun-b', family: MarkFamily.HARD_CONTROL, stacks: 1 }),
+      mark({ id: 'stun', family: MarkFamily.HARD_CONTROL, stacks: 1 }),
+      mark({ id: 'stun', family: MarkFamily.HARD_CONTROL, stacks: 1 }),
     ])).toBe(1);
   });
 });

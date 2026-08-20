@@ -61,6 +61,7 @@ import {
 } from './RangeSystem';
 import {
   absorbWithShieldMarks,
+  actorHasHardControlSkip,
   applyOutgoingMarkCuts,
   fireOnMoveReactions,
   MARK_REFLECT_BUFF_ID,
@@ -300,8 +301,10 @@ export function executeEnemyAction(
   const updatedGutsContext = { ...gutsContext };
   let actionMarks: Mark[] = (combatState?.marks ?? []).map((mark) => ({ ...mark }));
 
-  // Check for stun
-  const isStunned = enemy.activeBuffs.some(b => b?.effect?.type === EffectType.STUN);
+  // Check for stun — buff path (T-036) OR stun HARD_CONTROL Mark (T-139). Bound does not skip.
+  const isStunned =
+    enemy.activeBuffs.some(b => b?.effect?.type === EffectType.STUN) ||
+    actorHasHardControlSkip(actionMarks, CombatActor.ENEMY);
   if (isStunned) {
     logs.push(`${enemy.name} is STUNNED and cannot act!`);
     return {
