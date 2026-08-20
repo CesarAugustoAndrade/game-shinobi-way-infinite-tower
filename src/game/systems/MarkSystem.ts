@@ -7,6 +7,7 @@
  */
 
 import {
+  CardRole,
   CombatActor,
   CombatRange,
   CombatTrigger,
@@ -22,6 +23,9 @@ export const TRIPWIRE_MARK_ID = 'tripwire';
 export const TRIPWIRE_DAMAGE = 8;
 export const TRIPWIRE_STUN_CHANCE = 0.6;
 export const SUBSTITUTION_MARK_ID = 'substitution';
+export const REANIMATION_MARK_ID = 'reanimation';
+export const REANIMATION_SHIELD_MARK_ID = 'reanimation_shield';
+export const REANIMATION_SHIELD_STACKS = 40;
 
 export type TacticalSetup = readonly Mark[];
 
@@ -195,6 +199,72 @@ export function applySubstitutionIncoming(
     retreatSteps: 1,
     range: range !== undefined ? applyForcedMove(range, 'PUSH').range : range,
   };
+}
+
+/**
+ * First lethal source under Reanimation: HP → 1, plant Shield 40, then strip.
+ * Guaranteed (no guts rng). Live EnemyTurn wiring is optional (T-074 bar); this is the R0 contract (T-130).
+ * Non-lethal or unarmed: passthrough, do not consume.
+ */
+export function applyReanimationLethal(
+  currentHp: number,
+  incomingDamage: number,
+  marks: readonly Mark[],
+): {
+  newHp: number;
+  marks: Mark[];
+  consumed: boolean;
+  grantShield: number;
+  survived: boolean;
+} {
+  const reanimation = marks.find(
+    (mark) => mark.id === REANIMATION_MARK_ID && mark.target === CombatActor.PLAYER,
+  );
+  const hpAfter = currentHp - incomingDamage;
+  const lethal = incomingDamage > 0 && hpAfter <= 0;
+  if (!reanimation || !lethal) {
+    return {
+      newHp: hpAfter,
+      marks: marks.map((mark) => ({ ...mark })),
+      consumed: false,
+      grantShield: 0,
+      survived: hpAfter > 0,
+    };
+  }
+  const stripped = marks
+    .filter(
+      (mark) => !(mark.id === REANIMATION_MARK_ID && mark.target === CombatActor.PLAYER),
+    )
+    .map((mark) => ({ ...mark }));
+  const { marks: withShield } = addMark(stripped, {
+    id: REANIMATION_SHIELD_MARK_ID,
+    sourceSkillId: 'edo_tensei',
+    owner: CombatActor.PLAYER,
+    target: CombatActor.PLAYER,
+    duration: 99,
+    stacks: REANIMATION_SHIELD_STACKS,
+    family: MarkFamily.SHIELD,
+  });
+  return {
+    newHp: 1,
+    marks: withShield,
+    consumed: true,
+    grantShield: REANIMATION_SHIELD_STACKS,
+    survived: true,
+  };
+}
+
+/**
+ * ATTACK role +1 while a self Reanimation mark is armed (continuous, not a next-draw bag).
+ * Merge into WeightContext.supportRoleBonuses at draw. Live upkeep feed is optional.
+ */
+export function reanimationRoleBonuses(
+  marks: readonly Mark[],
+): Readonly<Partial<Record<CardRole, number>>> {
+  const armed = marks.some(
+    (mark) => mark.id === REANIMATION_MARK_ID && mark.target === CombatActor.PLAYER,
+  );
+  return armed ? { [CardRole.ATTACK]: 1 } : {};
 }
 
 /**

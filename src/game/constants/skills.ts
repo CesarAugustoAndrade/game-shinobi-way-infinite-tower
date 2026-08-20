@@ -3694,9 +3694,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'edo_tensei',
     name: 'Edo Tensei',
     tier: SkillTier.KINJUTSU,
-    description: 'Summon an ally at 50% stats for 5 turns.',
+    description:
+      'Reanimation 3: first lethal source leaves 1 HP, grants Shield 40, and consumes. ATTACK weight +1 while armed.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.MENTAL, SkillTag.MARK],
+    apCost: 4,
     chakraCost: 18,
     hpCost: 30,
     cooldown: 10,
@@ -3713,10 +3716,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.INTELLIGENCE]: 7,
       },
     },
-    effects: [
-      { type: EffectType.BUFF, targetStat: PrimaryStat.STRENGTH, value: 0.5, duration: 5, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.5, duration: 5, chance: 1.0 }
-    ]
+    markEffects: [
+      {
+        id: 'reanimation',
+        duration: 3,
+        stacks: 1,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   GATE_OF_LIMIT: {
