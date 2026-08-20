@@ -450,6 +450,36 @@ export function reflectPercentFromMarks(
   };
 }
 
+/**
+ * Player MarkFamily.SHIELD absorbs before HP (SOUL §9). Oldest-first (array order).
+ * Drain stacks; strip at ≤0. Duration-99 “until absorbed” breaks via stacks (T-135).
+ * Live EnemyTurn applies this after buff mit + outgoing cuts, before lethal HP.
+ */
+export function absorbWithShieldMarks(
+  damage: number,
+  marks: readonly Mark[],
+): { damage: number; marks: Mark[]; absorbed: number } {
+  let remaining = Math.max(0, damage);
+  let absorbed = 0;
+  const next: Mark[] = [];
+  for (const mark of marks) {
+    const isPlayerShield =
+      mark.family === MarkFamily.SHIELD && mark.target === CombatActor.PLAYER;
+    if (!isPlayerShield || remaining <= 0) {
+      next.push({ ...mark });
+      continue;
+    }
+    const take = Math.min(remaining, Math.max(0, mark.stacks));
+    remaining -= take;
+    absorbed += take;
+    const stacks = mark.stacks - take;
+    if (stacks > 0) {
+      next.push({ ...mark, stacks });
+    }
+  }
+  return { damage: remaining, marks: next, absorbed };
+}
+
 /** IMPACT marks on the target spent only when ≥1 hit landed. */
 export function consumeOnImpact(
   setup: TacticalSetup,

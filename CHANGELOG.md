@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-135 Shield Marks live:** `MarkFamily.SHIELD` absorbs before HP (oldest-first stack drain, strip at 0). Mud Wall / Sand Shield / siblings are no longer decorative.
 - **T-134 Reflect Marks live:** `counter_reflect` / `rotation_reflect` feed REFLECTION mit (stacks/100) on the first qualifying enemy hit and consume. Counter is MELEE-only; Rotation any offensive.
 - **T-133 Decoy/Mist live cuts:** `applyOutgoingMarkCuts` now runs Fear → Smoke → Mist → Decoy → Read Window so Bunshin/Hidden Mist fire on the live enemy-hit path.
 - **T-132 Bound movement-lock:** Enemy-targeted `bound` blocks voluntary APPROACH and RETREAT. Forced/card moves and Water Prison retreat-only lock unchanged. Not Stun.

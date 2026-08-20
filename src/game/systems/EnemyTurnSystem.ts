@@ -59,6 +59,7 @@ import {
   enemyVoluntaryMoveBlocked,
 } from './RangeSystem';
 import {
+  absorbWithShieldMarks,
   applyOutgoingMarkCuts,
   fireOnMoveReactions,
   MARK_REFLECT_BUFF_ID,
@@ -543,7 +544,9 @@ export function executeEnemyAction(
     }
     const outgoing = applyOutgoingMarkCuts(hit.finalDamage, actionMarks);
     actionMarks = outgoing.marks;
-    const incomingDamage = outgoing.damage;
+    const shield = absorbWithShieldMarks(outgoing.damage, actionMarks);
+    actionMarks = shield.marks;
+    const incomingDamage = shield.damage;
 
     // Check lethal damage
     const artifactGuts = checkGutsPassive(player);
