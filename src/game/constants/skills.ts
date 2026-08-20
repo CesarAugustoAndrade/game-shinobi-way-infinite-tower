@@ -199,11 +199,12 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'kawarimi',
     name: 'Body Replacement',
     tier: SkillTier.BASIC,
-    description: 'Switch places with a log. The log absorbs damage while you reposition.',
+    description:
+      'Substitution 2: ignore the first enemy hit and retreat one band toward LONG. Consumes on fire.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.NINJUTSU, SkillTag.MARK],
     apCost: 1,
-    stanceShift: Posture.DEFENSIVE,
-    stanceBonus: { posture: Posture.DEFENSIVE, apDiscount: 1 },
     chakraCost: 3,
     hpCost: 0,
     cooldown: 4,
@@ -215,10 +216,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
-    effects: [
-      { type: EffectType.SHIELD, value: 30, duration: 1, chance: 1.0 },
-      { type: EffectType.BUFF, targetStat: PrimaryStat.SPEED, value: 0.3, duration: 2, chance: 1.0 }
-    ]
+    markEffects: [
+      {
+        id: 'substitution',
+        duration: 2,
+        stacks: 1,
+        family: MarkFamily.STAT,
+        targetActor: 'self',
+      },
+    ],
   },
 
   BUNSHIN: {

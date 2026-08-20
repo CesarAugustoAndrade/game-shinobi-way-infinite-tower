@@ -99,6 +99,7 @@ import { printFocusedStanceProbe, runFocusedStanceProbe } from './FocusedStanceB
 import { printDefensivePostureProbe, runDefensivePostureProbe } from './DefensivePostureBalance';
 import { printAggressiveStanceProbe, runAggressiveStanceProbe } from './AggressiveStanceBalance';
 import { printShadowPossessionProbe, runShadowPossessionProbe } from './ShadowPossessionBalance';
+import { printKawarimiProbe, runKawarimiProbe } from './KawarimiBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -600,6 +601,7 @@ async function main() {
     printDefensivePostureProbe(runDefensivePostureProbe());
     printAggressiveStanceProbe(runAggressiveStanceProbe());
     printShadowPossessionProbe(runShadowPossessionProbe());
+    printKawarimiProbe(runKawarimiProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());

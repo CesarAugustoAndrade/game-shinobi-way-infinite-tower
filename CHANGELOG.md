@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-129 Kawarimi:** SUPPORT AP1/CP3/CD4. Substitution 2 ignores the first enemy hit, retreats one band toward LONG, and consumes. Not Shield 30 / SPEED +30%.
 - **T-128 Shadow Possession:** SUPPORT AP2/CP6/CD5. 80% Bound 1 (HARD_CONTROL). Next ATTACK +20% Setup vs Bound (consumed on hit, kept on miss). Not Stun 2 / Reflect 0.3.
 - **T-127 Aggressive Stance:** SUPPORT AP1/CP3/CD5. Shifts to Aggressive. Next ATTACK +20% Setup (`aggressive_focus`). Plants `aggressive_open` 20/1 (+20% taken, plant-only). Not a toggle / upkeep STR-WIL buff.
 - **T-126 Defensive Posture:** SUPPORT AP1/CP3/CD5. Shifts to Defensive. Shield 25 until the next enemy response. Not a toggle / upkeep WIL-SPD buff.

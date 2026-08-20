@@ -16,11 +16,12 @@ import {
   RangeMoveDirection,
   TerrainDefinition,
 } from '../types';
-import { shiftRange } from './RangeSystem';
+import { applyForcedMove, shiftRange } from './RangeSystem';
 
 export const TRIPWIRE_MARK_ID = 'tripwire';
 export const TRIPWIRE_DAMAGE = 8;
 export const TRIPWIRE_STUN_CHANCE = 0.6;
+export const SUBSTITUTION_MARK_ID = 'substitution';
 
 export type TacticalSetup = readonly Mark[];
 
@@ -152,6 +153,47 @@ export function applyDecoyOutgoing(
       .filter((mark) => !(mark.id === 'decoy' && mark.target === CombatActor.ENEMY))
       .map((mark) => ({ ...mark })),
     consumed: true,
+  };
+}
+
+/**
+ * First enemy hit under Substitution: nullify damage, signal retreat 1 toward LONG, then strip.
+ * Live EnemyTurn wiring is optional (same bar as T-074 Decoy); this is the R0 contract (T-129).
+ * `damage <= 0` does not consume (first hit, not first incoming 0).
+ */
+export function applySubstitutionIncoming(
+  damage: number,
+  marks: readonly Mark[],
+  range?: CombatRange,
+): {
+  damage: number;
+  marks: Mark[];
+  consumed: boolean;
+  retreatSteps: number;
+  range: CombatRange | undefined;
+} {
+  const substitution = marks.find(
+    (mark) => mark.id === SUBSTITUTION_MARK_ID && mark.target === CombatActor.PLAYER,
+  );
+  if (!substitution || damage <= 0) {
+    return {
+      damage,
+      marks: marks.map((mark) => ({ ...mark })),
+      consumed: false,
+      retreatSteps: 0,
+      range,
+    };
+  }
+  return {
+    damage: 0,
+    marks: marks
+      .filter(
+        (mark) => !(mark.id === SUBSTITUTION_MARK_ID && mark.target === CombatActor.PLAYER),
+      )
+      .map((mark) => ({ ...mark })),
+    consumed: true,
+    retreatSteps: 1,
+    range: range !== undefined ? applyForcedMove(range, 'PUSH').range : range,
   };
 }
 
