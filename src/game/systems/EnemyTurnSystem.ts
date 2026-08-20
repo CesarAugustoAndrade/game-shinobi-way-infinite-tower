@@ -61,6 +61,8 @@ import {
 import {
   applyOutgoingMarkCuts,
   fireOnMoveReactions,
+  MARK_REFLECT_BUFF_ID,
+  reflectPercentFromMarks,
 } from './MarkSystem';
 import { getApCost } from '../constants/combatCards';
 import {
@@ -504,15 +506,41 @@ export function executeEnemyAction(
       postureDefenseMod: postureMod,
     });
 
+    // T-134: Mark reflect → temp REFLECTION buff for this hit only (not a lasting player buff).
+    const reflect = reflectPercentFromMarks(actionMarks, selectedSkill.attackMethod);
+    const defenderBuffs =
+      reflect.percent > 0
+        ? [
+            {
+              id: MARK_REFLECT_BUFF_ID,
+              name: 'Mark Reflect',
+              duration: 1,
+              source: MARK_REFLECT_BUFF_ID,
+              effect: {
+                type: EffectType.REFLECTION,
+                value: reflect.percent,
+                duration: 1,
+                chance: 1,
+              },
+            },
+            ...updatedPlayer.activeBuffs,
+          ]
+        : updatedPlayer.activeBuffs;
+
     // Shared hit pipeline: pre-mult → mitigation → post-mult
     const hit = resolveSuccessfulHit({
       rawDamage: damageResult.finalDamage,
       preMitigationMultipliers,
-      defenderBuffs: updatedPlayer.activeBuffs,
+      defenderBuffs,
       defenderLabel: 'You',
       postMitigationMultipliers,
     });
-    updatedPlayer.activeBuffs = hit.updatedDefenderBuffs;
+    updatedPlayer.activeBuffs = hit.updatedDefenderBuffs.filter(
+      (buff) => buff.id !== MARK_REFLECT_BUFF_ID,
+    );
+    if (reflect.consumed && hit.reflectedDamage > 0) {
+      actionMarks = reflect.marks;
+    }
     const outgoing = applyOutgoingMarkCuts(hit.finalDamage, actionMarks);
     actionMarks = outgoing.marks;
     const incomingDamage = outgoing.damage;

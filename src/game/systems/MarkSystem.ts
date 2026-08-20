@@ -7,6 +7,7 @@
  */
 
 import {
+  AttackMethod,
   CardRole,
   CombatActor,
   CombatRange,
@@ -28,6 +29,10 @@ export const REANIMATION_SHIELD_MARK_ID = 'reanimation_shield';
 export const REANIMATION_SHIELD_STACKS = 40;
 export const C4_MARK_ID = 'c4';
 export const C4_TRUE_DAMAGE = 35;
+export const COUNTER_REFLECT_MARK_ID = 'counter_reflect';
+export const ROTATION_REFLECT_MARK_ID = 'rotation_reflect';
+/** Temp buff id so EnemyTurn can drop it from lasting player buffs (T-134). */
+export const MARK_REFLECT_BUFF_ID = 'mark_reflect';
 
 export type TacticalSetup = readonly Mark[];
 
@@ -399,6 +404,49 @@ export function applyOutgoingMarkCuts(
       mist.consumed ||
       decoy.consumed ||
       window.consumed,
+  };
+}
+
+function isSelfReflectMark(mark: Mark, attackMethod?: AttackMethod): boolean {
+  if (mark.target !== CombatActor.PLAYER) return false;
+  if (mark.id === ROTATION_REFLECT_MARK_ID) return true;
+  if (mark.id === COUNTER_REFLECT_MARK_ID) {
+    return attackMethod === undefined || attackMethod === AttackMethod.MELEE;
+  }
+  return false;
+}
+
+/**
+ * Self counter_reflect / rotation_reflect → stacks/100 reflection percent.
+ * Winner is max stacks if both armed. Counter is MELEE-only when attackMethod is passed;
+ * Rotation applies to any offensive. Returned marks are stripped; caller assigns them
+ * only if reflectedDamage > 0 (T-134).
+ */
+export function reflectPercentFromMarks(
+  marks: readonly Mark[],
+  attackMethod?: AttackMethod,
+): { percent: number; marks: Mark[]; consumed: boolean } {
+  const eligible = marks.filter((mark) => isSelfReflectMark(mark, attackMethod));
+  if (eligible.length === 0) {
+    return {
+      percent: 0,
+      marks: marks.map((mark) => ({ ...mark })),
+      consumed: false,
+    };
+  }
+  const winner = eligible.reduce((best, mark) =>
+    (mark.stacks ?? 0) > (best.stacks ?? 0) ? mark : best,
+  );
+  const percent = Math.min(1, Math.max(0, (winner.stacks ?? 0) / 100));
+  return {
+    percent,
+    marks: marks
+      .filter(
+        (mark) =>
+          !(mark.id === winner.id && mark.target === CombatActor.PLAYER),
+      )
+      .map((mark) => ({ ...mark })),
+    consumed: true,
   };
 }
 
