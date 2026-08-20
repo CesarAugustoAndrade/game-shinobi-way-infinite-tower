@@ -26,6 +26,8 @@ export const SUBSTITUTION_MARK_ID = 'substitution';
 export const REANIMATION_MARK_ID = 'reanimation';
 export const REANIMATION_SHIELD_MARK_ID = 'reanimation_shield';
 export const REANIMATION_SHIELD_STACKS = 40;
+export const C4_MARK_ID = 'c4';
+export const C4_TRUE_DAMAGE = 35;
 
 export type TacticalSetup = readonly Mark[];
 
@@ -265,6 +267,48 @@ export function reanimationRoleBonuses(
     (mark) => mark.id === REANIMATION_MARK_ID && mark.target === CombatActor.PLAYER,
   );
   return armed ? { [CardRole.ATTACK]: 1 } : {};
+}
+
+function isEnemyC4(mark: Mark): boolean {
+  return mark.id === C4_MARK_ID && mark.target === CombatActor.ENEMY;
+}
+
+/**
+ * Next enemy opportunity under C4: deal 35 TRUE once, then strip.
+ * Live EnemyTurn start-of-opportunity wiring is optional (T-074 bar); this is the R0 contract (T-131).
+ */
+export function resolveC4AtEnemyOpportunity(
+  marks: readonly Mark[],
+): { trueDamage: number; marks: Mark[]; fired: boolean } {
+  const c4 = marks.find(isEnemyC4);
+  if (!c4) {
+    return {
+      trueDamage: 0,
+      marks: marks.map((mark) => ({ ...mark })),
+      fired: false,
+    };
+  }
+  return {
+    trueDamage: C4_TRUE_DAMAGE,
+    marks: marks.filter((mark) => !isEnemyC4(mark)).map((mark) => ({ ...mark })),
+    fired: true,
+  };
+}
+
+/**
+ * Strip enemy C4 without firing the TRUE payload (Seal/Medical/Kai cleanse sibling).
+ */
+export function stripC4(
+  marks: readonly Mark[],
+): { marks: Mark[]; stripped: boolean } {
+  const armed = marks.some(isEnemyC4);
+  if (!armed) {
+    return { marks: marks.map((mark) => ({ ...mark })), stripped: false };
+  }
+  return {
+    marks: marks.filter((mark) => !isEnemyC4(mark)).map((mark) => ({ ...mark })),
+    stripped: true,
+  };
 }
 
 /**

@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-131 C4 Karura:** ATTACK AP5/CP18/CD6. Plants C4 1 (35 TRUE at next enemy opportunity, consume). Cast deals 0. Not instant TRUE 17.
 - **T-130 Edo Tensei:** SUPPORT AP4/CP18/HP30/CD10. Reanimation 3: first lethal source leaves 1 HP, grants Shield 40, and consumes. ATTACK weight +1 while armed. Not STR/SPD +50%×5.
 - **T-129 Kawarimi:** SUPPORT AP1/CP3/CD4. Substitution 2 ignores the first enemy hit, retreats one band toward LONG, and consumes. Not Shield 30 / SPEED +30%.
 - **T-128 Shadow Possession:** SUPPORT AP2/CP6/CD5. 80% Bound 1 (HARD_CONTROL). Next ATTACK +20% Setup vs Bound (consumed on hit, kept on miss). Not Stun 2 / Reflect 0.3.

@@ -3833,15 +3833,18 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'c4_karura',
     name: 'C4 Karura',
     tier: SkillTier.FORBIDDEN,
-    description: 'Microscopic clay spiders that disintegrate the target on a cellular level. TRUE damage.',
+    description:
+      'C4 1: at the start of the next enemy opportunity deal 35 TRUE and consume. Cleansable. Not instant 17.',
     actionType: ActionType.ACTIVE,
-    apCost: 2,
+    cardRole: CardRole.ATTACK,
+    tags: [SkillTag.NINJUTSU, SkillTag.EARTH, SkillTag.MARK],
+    apCost: 5,
     chakraCost: 18,
     hpCost: 0,
     cooldown: 6,
     currentCooldown: 0,
-    baseDamage: 17,
-    scalingPerPoint: 14,
+    baseDamage: 0,
+    scalingPerPoint: 0,
     scalingStat: PrimaryStat.SPIRIT,
     damageType: DamageType.TRUE,
     damageProperty: DamageProperty.NORMAL,
@@ -3853,6 +3856,15 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.SPIRIT]: 5,
       },
     },
+    markEffects: [
+      {
+        id: 'c4',
+        duration: 1,
+        stacks: 35,
+        family: MarkFamily.STAT,
+        targetActor: 'enemy',
+      },
+    ],
   },
 
   RASENSHURIKEN: {
