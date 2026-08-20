@@ -478,6 +478,7 @@ const App: React.FC = () => {
     currentRange,
     moveInRange,
     playerMoveUsedThisTurn,
+    commitDiscover,
   } = useCombat({
     player,
     playerStats,
@@ -2034,6 +2035,8 @@ const App: React.FC = () => {
                 skipFirstSkillCost={combatState?.skipFirstSkillCost ?? false}
                 roomTerrain={combatState?.terrain ?? null}
                 roomConditionNames={combatState?.roomConditionNames ?? null}
+                pendingDiscover={combatState?.pendingDiscover}
+                onCommitDiscover={commitDiscover}
               />
             </ErrorBoundary>
           )}

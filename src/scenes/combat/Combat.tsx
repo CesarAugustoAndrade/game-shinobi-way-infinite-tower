@@ -37,6 +37,8 @@ import CombatSenStrip from '../../components/combat/CombatSenStrip';
 import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
 import { CombatModesPanel } from '../../components/combat/CombatModesPanel';
 import { TacticalSetupPanel } from '../../components/combat/TacticalSetupPanel';
+import { DiscoverPicker } from '../../components/combat/DiscoverPicker';
+import type { PendingDiscover } from '../../game/systems/ResolveSkillSystem';
 import { PostureIndicator } from '../../components/combat/PostureIndicator';
 import { RangeControlPanel } from '../../components/combat/RangeControlPanel';
 import { FeatureFlags, LaunchProperties } from '../../config/featureFlags';
@@ -187,6 +189,9 @@ interface CombatProps {
   marks?: Mark[];
   /** Skill Config upkeep order. Falls back to `player.skillConfig`. */
   modeUpkeepPriority?: readonly string[];
+  /** T-146: Discover 3 offer; picker until the player chooses. */
+  pendingDiscover?: PendingDiscover;
+  onCommitDiscover?: (skillId: string) => void;
 }
 
 const Combat = forwardRef<CombatRef, CombatProps>(({
@@ -228,6 +233,8 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   activeModes = [],
   marks = [],
   modeUpkeepPriority,
+  pendingDiscover,
+  onCommitDiscover,
 }, ref) => {
   // Floating text state
   const [floatingTexts, setFloatingTexts] = useState<FloatingTextItem[]>([]);
@@ -745,6 +752,9 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
             />
             <TacticalSetupPanel marks={marks} />
           </div>
+          {pendingDiscover && pendingDiscover.candidates.length > 0 && onCommitDiscover && (
+            <DiscoverPicker pending={pendingDiscover} onChoose={onCommitDiscover} />
+          )}
           <div className="combat__econ-bar">
             <div className="combat__ap" aria-label={`Action Points ${currentAp} of ${maxAp}`}>
               <span className="combat__ap-label">AP</span>
@@ -815,8 +825,10 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           enemy={enemy}
           enemyStats={enemyStats}
           posture={posture}
-          isPlayerTurn={turnState === 'PLAYER'}
-          canUseSkill={canUseSkill}
+          isPlayerTurn={turnState === 'PLAYER' && !(pendingDiscover && pendingDiscover.candidates.length > 0)}
+          canUseSkill={(skill) =>
+            !(pendingDiscover && pendingDiscover.candidates.length > 0) && canUseSkill(skill)
+          }
           getSkillBlockReason={getSkillBlockReason}
           onUseSkill={onUseSkill}
           getDamageTypeColor={getDamageTypeColor}

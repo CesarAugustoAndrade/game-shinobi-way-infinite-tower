@@ -38,6 +38,7 @@ import {
   type SkillPlayContext,
 } from '../game/systems/skillPlayability';
 import { formatSkillBlockReason } from '../game/systems/combatSkillViewModel';
+import { commitDiscoverOnCombatState } from './discoverCommit';
 import { ApproachResult, getCombatModifiers } from '../game/systems/ApproachSystem';
 import { applyRoomCombatModifiers } from '../game/systems/RoomCombatModifierSystem';
 import type { CombatModifierType } from '../game/types';
@@ -112,6 +113,8 @@ export interface UseCombatReturn {
   /** F2: voluntary approach/retreat (1 AP, once/turn) */
   moveInRange: (direction: RangeMoveDirection) => void;
   playerMoveUsedThisTurn: boolean;
+  /** T-146: commit a Discover 3 candidate into the hand. */
+  commitDiscover: (chosenSkillId: string) => void;
 }
 
 function isModeSkill(skill: Skill): boolean {
@@ -253,6 +256,11 @@ export function useCombat({
       // PASSIVE skills are always active and never played as cards
       if (skill.actionType === ActionType.PASSIVE) {
         addLog('Passive abilities are always active!', 'info');
+        return;
+      }
+
+      if ((combatState.pendingDiscover?.candidates.length ?? 0) > 0) {
+        addLog('Choose a Discover technique first.', 'info');
         return;
       }
 
@@ -1017,6 +1025,26 @@ export function useCombat({
     }
   }, [turnState, combatState?.currentAp, combatState?.hand]);
 
+  const commitDiscover = useCallback(
+    (chosenSkillId: string) => {
+      if (!combatState || !player) return;
+      const result = commitDiscoverOnCombatState(combatState, chosenSkillId, player.skills);
+      if (result.refused) {
+        addLog('That technique is not in the Discover offer.', 'info');
+        return;
+      }
+      setCombatState(result.combatState);
+      const picked = result.combatState.hand.find((card) => card.id === chosenSkillId);
+      addLog(
+        picked
+          ? `Discover: ${picked.name} added to hand.`
+          : 'Discover: technique added to hand.',
+        'info',
+      );
+    },
+    [combatState, player, addLog, setCombatState],
+  );
+
   return {
     enemy,
     enemyStats,
@@ -1040,5 +1068,6 @@ export function useCombat({
     currentRange: combatState?.currentRange ?? null,
     moveInRange,
     playerMoveUsedThisTurn: combatState?.playerMoveUsedThisTurn ?? false,
+    commitDiscover,
   };
 }
