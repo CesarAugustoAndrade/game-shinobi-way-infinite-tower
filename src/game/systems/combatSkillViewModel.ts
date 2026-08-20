@@ -15,6 +15,7 @@ import {
   TerrainDefinition,
   CardRole,
   ActionType,
+  type TypedCost,
 } from '../types';
 import { getApCost } from '../constants/combatCards';
 import { getElementEffectiveness } from '../constants';
@@ -271,4 +272,25 @@ export function chargeConsumeWarning(skill: Pick<Skill, 'modeInteraction'>): str
   const n = skill.modeInteraction?.consumeCharges;
   if (!n || n <= 0) return null;
   return `Consumes ${n} Mode charge${n === 1 ? '' : 's'}`;
+}
+
+/** Human Mode name: skill registry name, else title-cased id (never a fake number). */
+export function modePanelDisplayName(modeId: string, skillName?: string): string {
+  const trimmed = skillName?.trim();
+  if (trimmed) return trimmed;
+  return modeId
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+/** Upkeep as `4 CP` / `8 HP` / `4 CP + 8 HP`. Empty/unknown → undefined (panel hides). */
+export function formatModeUpkeep(upkeep: TypedCost | undefined): string | undefined {
+  if (!upkeep) return undefined;
+  const parts: string[] = [];
+  if ((upkeep.chakra ?? 0) > 0) parts.push(`${upkeep.chakra} CP`);
+  if ((upkeep.hp ?? 0) > 0) parts.push(`${upkeep.hp} HP`);
+  if ((upkeep.ap ?? 0) > 0) parts.push(`${upkeep.ap} AP`);
+  return parts.length > 0 ? parts.join(' + ') : undefined;
 }

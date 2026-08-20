@@ -22,7 +22,13 @@ import {
   getSkillBlockReason as getMachineBlockReason,
   type SkillPlayContext,
 } from '../../game/systems/skillPlayability';
-import { formatSkillBlockReason } from '../../game/systems/combatSkillViewModel';
+import {
+  formatModeUpkeep,
+  formatSkillBlockReason,
+  modePanelDisplayName,
+} from '../../game/systems/combatSkillViewModel';
+import { SKILLS } from '../../game/constants/skills';
+import { getModeDefinition } from '../../game/constants/modes';
 import StatBar from '../../components/shared/StatBar';
 import Tooltip from '../../components/shared/Tooltip';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
@@ -721,7 +727,16 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         <div className="combat__command">
           <div className="combat__board">
             <CombatModesPanel
-              modes={activeModes}
+              modes={activeModes.map((mode) => {
+                const def = getModeDefinition(mode.id);
+                const skillName = Object.values(SKILLS).find((skill) => skill.id === mode.id)?.name;
+                return {
+                  ...mode,
+                  displayName: modePanelDisplayName(mode.id, skillName),
+                  upkeepLabel: formatModeUpkeep(def?.upkeep),
+                  maxCharges: def?.maxCharges,
+                };
+              })}
               upkeepPriority={resolvedUpkeepPriority}
             />
             <TacticalSetupPanel marks={marks} />

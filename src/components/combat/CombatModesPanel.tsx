@@ -5,6 +5,8 @@ import './CombatModesPanel.css';
 export interface CombatModePanelEntry extends ActiveModeRuntime {
   maxCharges?: number;
   upkeepLabel?: string;
+  /** Human skill name; visible text. Raw id stays on data-mode-id (T-136). */
+  displayName?: string;
 }
 
 interface CombatModesPanelProps {
@@ -26,9 +28,14 @@ export const CombatModesPanel: React.FC<CombatModesPanelProps> = ({
           {modes.map((mode, index) => {
             const priority = upkeepPriority.indexOf(mode.id);
             return (
-              <li key={mode.id} className="combat-modes-panel__row" data-testid="combat-mode-row">
+              <li
+                key={mode.id}
+                className="combat-modes-panel__row"
+                data-testid="combat-mode-row"
+                data-mode-id={mode.id}
+              >
                 <span className="combat-modes-panel__name">
-                  {mode.id}
+                  {mode.displayName ?? mode.id}
                   {mode.stage != null ? ` · stage ${mode.stage}` : ''}
                 </span>
                 <span data-testid="mode-charges">
