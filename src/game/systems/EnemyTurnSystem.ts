@@ -63,6 +63,7 @@ import {
   absorbWithShieldMarks,
   actorHasHardControlSkip,
   applyOutgoingMarkCuts,
+  applySubstitutionIncoming,
   elementalDefenseFlatFromMarks,
   fireOnMoveReactions,
   MARK_REFLECT_BUFF_ID,
@@ -556,7 +557,13 @@ export function executeEnemyAction(
     }
     const outgoing = applyOutgoingMarkCuts(hit.finalDamage, actionMarks);
     actionMarks = outgoing.marks;
-    const shield = absorbWithShieldMarks(outgoing.damage, actionMarks);
+    const substitution = applySubstitutionIncoming(outgoing.damage, actionMarks, range);
+    actionMarks = substitution.marks;
+    if (substitution.consumed) {
+      if (substitution.range !== undefined) range = substitution.range;
+      logs.push('Substitution! The hit is ignored — you retreat.');
+    }
+    const shield = absorbWithShieldMarks(substitution.damage, actionMarks);
     actionMarks = shield.marks;
     const incomingDamage = shield.damage;
 

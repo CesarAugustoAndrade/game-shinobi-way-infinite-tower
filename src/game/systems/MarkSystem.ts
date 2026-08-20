@@ -172,7 +172,7 @@ export function applyDecoyOutgoing(
 
 /**
  * First enemy hit under Substitution: nullify damage, signal retreat 1 toward LONG, then strip.
- * Live EnemyTurn wiring is optional (same bar as T-074 Decoy); this is the R0 contract (T-129).
+ * Live `executeEnemyAction` calls this after outgoing cuts (T-143).
  * `damage <= 0` does not consume (first hit, not first incoming 0).
  */
 export function applySubstitutionIncoming(

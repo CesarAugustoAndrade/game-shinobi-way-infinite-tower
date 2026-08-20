@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-143 Substitution live:** Player `substitution` (Kawarimi) nullifies the first enemy hit with damage>0, retreats 1 band toward LONG (forced, not a manual move), and consumes. Second hit is normal.
 - **T-142 C4 live opportunity:** Enemy-targeted `c4` detonates 35 TRUE at the start of the enemy opportunity (`processEnemyTurn`) and consumes. Stun does not cancel. No second engine.
 - **T-141 elem-def Marks live:** `suijinheki_elem_def` stacks fold into `elementalDefenseFlat` (Suijinheki +1). Primary STAT ids stay on the T-140 path. Physical hits unchanged.
 - **T-140 STAT Marks live:** Allowlisted STAT Marks (`spd_down`, `blinded`, `air_acc_down`, `adamantine_spd`, `expansion_str`) fold integer primary deltas into combat stats. `aim` / decoy / cloaked stay non-primary. Floor 1.
