@@ -107,6 +107,7 @@ import { printDecoyMistLiveCutsProbe, runDecoyMistLiveCutsProbe } from './DecoyM
 import { printReflectMarksLiveProbe, runReflectMarksLiveProbe } from './ReflectMarksLiveBalance';
 import { printShieldMarksLiveProbe, runShieldMarksLiveProbe } from './ShieldMarksLiveBalance';
 import { printModesPanelLabelsProbe, runModesPanelLabelsProbe } from './ModesPanelLabelsBalance';
+import { printDotMarksLiveProbe, runDotMarksLiveProbe } from './DotMarksLiveBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -616,6 +617,7 @@ async function main() {
     printReflectMarksLiveProbe(runReflectMarksLiveProbe());
     printShieldMarksLiveProbe(runShieldMarksLiveProbe());
     printModesPanelLabelsProbe(runModesPanelLabelsProbe());
+    printDotMarksLiveProbe(runDotMarksLiveProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());

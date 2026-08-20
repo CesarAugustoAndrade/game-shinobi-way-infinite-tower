@@ -480,6 +480,27 @@ export function absorbWithShieldMarks(
   return { damage: remaining, marks: next, absorbed };
 }
 
+/**
+ * DoT opportunity tick: sum stacks of MarkFamily.DOT on `target`.
+ * Does not decrement duration (TurnClock `tickMarkDurations` owns the clock) (T-137).
+ */
+export function tickDotMarksForActor(
+  marks: readonly Mark[],
+  target: CombatActor,
+): { damage: number; marks: Mark[]; logs: string[] } {
+  let damage = 0;
+  const logs: string[] = [];
+  const next = marks.map((mark) => ({ ...mark }));
+  for (const mark of next) {
+    if (mark.family !== MarkFamily.DOT || mark.target !== target) continue;
+    const tick = Math.max(0, mark.stacks);
+    if (tick <= 0) continue;
+    damage += tick;
+    logs.push(`${mark.id} deals ${tick}`);
+  }
+  return { damage, marks: next, logs };
+}
+
 /** IMPACT marks on the target spent only when ≥1 hit landed. */
 export function consumeOnImpact(
   setup: TacticalSetup,

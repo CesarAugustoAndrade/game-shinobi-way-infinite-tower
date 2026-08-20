@@ -33,6 +33,7 @@ import {
   CombatRange,
   RangeMoveDirection,
   Mark,
+  CombatActor,
 } from '../types';
 import {
   resistStatus,
@@ -64,6 +65,7 @@ import {
   fireOnMoveReactions,
   MARK_REFLECT_BUFF_ID,
   reflectPercentFromMarks,
+  tickDotMarksForActor,
 } from './MarkSystem';
 import { getApCost } from '../constants/combatCards';
 import {
@@ -1040,6 +1042,7 @@ export function processEnemyTurn(
 
   // Initialize guts tracking context
   let gutsContext: GutsContext = { triggered: false, artifactTriggered: false };
+  let boardMarks: Mark[] = (combatState?.marks ?? []).map((mark) => ({ ...mark }));
 
   // ============================================
   // Phase 1: Process DoT/Regen on Enemy (defer duration tick)
@@ -1062,6 +1065,13 @@ export function processEnemyTurn(
   updatedEnemy.activeBuffs = enemyTickResult.updatedBuffs;
   logs.push(...enemyTickResult.logs);
 
+  const enemyDots = tickDotMarksForActor(boardMarks, CombatActor.ENEMY);
+  boardMarks = enemyDots.marks;
+  if (enemyDots.damage > 0) {
+    updatedEnemy.currentHp -= enemyDots.damage;
+    logs.push(...enemyDots.logs.map((line) => `${line} to ${enemy.name}`));
+  }
+
   // ============================================
   // Phase 2: Process DoT/Regen on Player
   // ============================================
@@ -1083,6 +1093,15 @@ export function processEnemyTurn(
   updatedPlayer.currentChakra = playerTickResult.newChakra;
   updatedPlayer.activeBuffs = playerTickResult.updatedBuffs;
   logs.push(...playerTickResult.logs);
+
+  const playerDots = tickDotMarksForActor(boardMarks, CombatActor.PLAYER);
+  boardMarks = playerDots.marks;
+  if (playerDots.damage > 0) {
+    const shielded = absorbWithShieldMarks(playerDots.damage, boardMarks);
+    boardMarks = shielded.marks;
+    updatedPlayer.currentHp -= shielded.damage;
+    logs.push(...playerDots.logs.map((line) => `${line} to You`));
+  }
 
   // ============================================
   // Phase 3: Check DoT Deaths
@@ -1112,7 +1131,7 @@ export function processEnemyTurn(
       dotDeath.playerDefeated,
       dotDeath.enemyDefeated,
       gutsContext.artifactTriggered,
-      { marks: combatState?.marks }
+      { marks: boardMarks }
     );
   }
 
@@ -1125,7 +1144,7 @@ export function processEnemyTurn(
     updatedEnemy,
     enemyStats,
     gutsContext,
-    combatState
+    combatState ? { ...combatState, marks: boardMarks } : combatState
   );
 
   updatedPlayer = actionResult.player;
