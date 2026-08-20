@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-140 STAT Marks live:** Allowlisted STAT Marks (`spd_down`, `blinded`, `air_acc_down`, `adamantine_spd`, `expansion_str`) fold integer primary deltas into combat stats. `aim` / decoy / cloaked stay non-primary. Floor 1.
 - **T-139 HARD_CONTROL skip live:** Stun Marks (`id: stun`) skip one enemy action (two Stun-1 → one skip). Bound stays movement-lock, not a skip. Buff STUN path unchanged.
 - **T-138 Setup panel labels:** Tactical Setup rows show human Mark names (Bleed, Mud Wall, Counter, …) instead of raw `mark.id`.
 - **T-137 DoT Marks live:** `MarkFamily.DOT` ticks `stacks` damage on the affected actor’s opportunity (duration still owned by TurnClock). Bleed/Poison/Burn Marks are no longer decorative.

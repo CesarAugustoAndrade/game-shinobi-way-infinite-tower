@@ -110,6 +110,7 @@ import { printModesPanelLabelsProbe, runModesPanelLabelsProbe } from './ModesPan
 import { printDotMarksLiveProbe, runDotMarksLiveProbe } from './DotMarksLiveBalance';
 import { printSetupPanelLabelsProbe, runSetupPanelLabelsProbe } from './SetupPanelLabelsBalance';
 import { printHardControlSkipLiveProbe, runHardControlSkipLiveProbe } from './HardControlSkipLiveBalance';
+import { printStatMarksLiveProbe, runStatMarksLiveProbe } from './StatMarksLiveBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -622,6 +623,7 @@ async function main() {
     printDotMarksLiveProbe(runDotMarksLiveProbe());
     printSetupPanelLabelsProbe(runSetupPanelLabelsProbe());
     printHardControlSkipLiveProbe(runHardControlSkipLiveProbe());
+    printStatMarksLiveProbe(runStatMarksLiveProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());

@@ -203,11 +203,11 @@ export function useCombat({
   /** Blocks double victory (double XP/ryo / double reward modal) until next startCombat. */
   const victoryLockRef = useRef(false);
 
-  // Compute enemy stats when enemy changes
+  // Compute enemy stats when enemy or STAT Marks change (T-140)
   const enemyStats = useMemo(() => {
     if (!enemy) return null;
-    return getEnemyFullStats(enemy);
-  }, [enemy]);
+    return getEnemyFullStats(enemy, combatState?.marks);
+  }, [enemy, combatState?.marks]);
 
   /**
    * Handle victory - called when enemy HP reaches 0
@@ -976,7 +976,7 @@ export function useCombat({
         if (!prev) return prev;
         let eMax = prev.enemyMaxAp;
         if (enemy) {
-          let budget = getEnemyFullStats(enemy).derived.actionPointsPerTurn;
+          let budget = getEnemyFullStats(enemy, prev.marks).derived.actionPointsPerTurn;
           budget = applyRoomMovementCostToMaxAp(budget, prev.terrain);
           budget = applyMovementPenaltyToMaxAp(budget, prev.locationTerrainMods);
           eMax = budget;

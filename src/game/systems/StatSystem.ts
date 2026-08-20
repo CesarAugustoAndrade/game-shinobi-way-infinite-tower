@@ -72,12 +72,15 @@ import {
   ElementType,
   STAT_FORMULAS,
   ActionType,
-  PassiveBonuses
+  PassiveBonuses,
+  CombatActor,
+  Mark,
 } from '../types';
 import { ELEMENTAL_CYCLE } from '../constants';
 import { BALANCE, CESAR_DAMAGE_CONSTANT } from '../config';
 import { LaunchProperties } from '../../config/featureFlags';
 import { percentChance, chance } from '../utils/rng';
+import { applyStatMarksToPrimaryStats } from './MarkSystem';
 
 // ============================================================================
 // PASSIVE SKILL BONUS AGGREGATOR
@@ -472,7 +475,7 @@ export function canAffordHpCost(
 // Gets the complete stat picture for a player
 // Calculation order: Base -> Equipment -> Passive Skills -> Buffs
 // ============================================================================
-export function getPlayerFullStats(player: Player): {
+export function getPlayerFullStats(player: Player, marks: readonly Mark[] = []): {
   primary: PrimaryAttributes;
   effectivePrimary: PrimaryAttributes;
   derived: DerivedStats;
@@ -485,10 +488,11 @@ export function getPlayerFullStats(player: Player): {
   // 2. Passive skill bonuses
   const passiveBonuses = aggregatePassiveSkillBonuses(player.skills);
 
-  // 3. Apply bonuses in order: Base -> Equipment -> Passive -> Buffs
+  // 3. Apply bonuses in order: Base -> Equipment -> Passive -> Buffs -> STAT Marks
   const withEquipment = applyEquipmentToPrimaryStats(player.primaryStats, equipmentBonuses);
   const withPassives = applyPassiveBonusesToStats(withEquipment, passiveBonuses);
-  const effectivePrimary = applyBuffsToPrimaryStats(withPassives, player.activeBuffs);
+  const withBuffs = applyBuffsToPrimaryStats(withPassives, player.activeBuffs);
+  const effectivePrimary = applyStatMarksToPrimaryStats(withBuffs, marks, CombatActor.PLAYER);
 
   // 4. Calculate derived stats (equipment primaries already in effectivePrimary;
   //    only flat/percent derived gear bonuses are applied inside)
@@ -527,17 +531,18 @@ export function getPlayerFullStats(player: Player): {
 // ============================================================================
 // ENEMY STATS CALCULATOR
 // ============================================================================
-export function getEnemyFullStats(enemy: Enemy): {
+export function getEnemyFullStats(enemy: Enemy, marks: readonly Mark[] = []): {
   primary: PrimaryAttributes;
   effectivePrimary: PrimaryAttributes;
   derived: DerivedStats;
 } {
   const buffedPrimary = applyBuffsToPrimaryStats(enemy.primaryStats, enemy.activeBuffs);
-  const derived = calculateDerivedStats(buffedPrimary, {});
+  const effectivePrimary = applyStatMarksToPrimaryStats(buffedPrimary, marks, CombatActor.ENEMY);
+  const derived = calculateDerivedStats(effectivePrimary, {});
 
   return {
     primary: enemy.primaryStats,
-    effectivePrimary: buffedPrimary,
+    effectivePrimary,
     derived
   };
 }

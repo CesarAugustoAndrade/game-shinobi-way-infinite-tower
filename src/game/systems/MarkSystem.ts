@@ -15,6 +15,7 @@ import {
   Mark,
   MarkConsumeTiming,
   MarkFamily,
+  PrimaryAttributes,
   RangeMoveDirection,
   TerrainDefinition,
 } from '../types';
@@ -546,6 +547,43 @@ export function resolveHardControlSkips(setup: TacticalSetup, target?: CombatAct
 
 export function actorHasHardControlSkip(setup: TacticalSetup, actor: CombatActor): boolean {
   return resolveHardControlSkips(setup, actor) > 0;
+}
+
+/** v1 integer primary map. Unknown STAT ids (aim, decoy, cloaked, …) are ignored. */
+export const STAT_MARK_PRIMARY: Record<string, { key: keyof PrimaryAttributes; sign: 1 | -1 }> = {
+  spd_down: { key: 'speed', sign: -1 },
+  adamantine_spd: { key: 'speed', sign: -1 },
+  air_acc_down: { key: 'accuracy', sign: -1 },
+  blinded: { key: 'accuracy', sign: -1 },
+  expansion_str: { key: 'strength', sign: 1 },
+};
+
+export function primaryDeltasFromStatMarks(
+  marks: TacticalSetup,
+  target: CombatActor,
+): Partial<PrimaryAttributes> {
+  const deltas: Partial<PrimaryAttributes> = {};
+  for (const mark of marks) {
+    if (mark.family !== MarkFamily.STAT || mark.target !== target) continue;
+    const spec = STAT_MARK_PRIMARY[mark.id];
+    if (!spec) continue;
+    deltas[spec.key] = (deltas[spec.key] ?? 0) + spec.sign * mark.stacks;
+  }
+  return deltas;
+}
+
+/** Apply allowlisted STAT Marks as integer primaries. Floor 1. Does not tick duration. */
+export function applyStatMarksToPrimaryStats(
+  base: PrimaryAttributes,
+  marks: TacticalSetup,
+  target: CombatActor,
+): PrimaryAttributes {
+  const deltas = primaryDeltasFromStatMarks(marks, target);
+  const next = { ...base };
+  (Object.keys(deltas) as (keyof PrimaryAttributes)[]).forEach((key) => {
+    next[key] = Math.max(1, next[key] + (deltas[key] ?? 0));
+  });
+  return next;
 }
 
 export type TripwireMover = 'enemy' | 'player';
