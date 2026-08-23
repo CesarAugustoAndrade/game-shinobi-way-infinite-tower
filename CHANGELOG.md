@@ -3,6 +3,7 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **T-148 Skill Config mount:** Combat dock mounts `SkillConfigInspector` (Main, upkeep order, weight toggle). Combat-locked; collapsed by default.
 - **T-147 Bound sim parity:** `BattleSimulator` enemy voluntary moves call `enemyVoluntaryMoveBlocked` before `shiftRange`. Bound enemies no longer walk the band in sim.
 - **T-146 Discover picker:** After a Discover SUPPORT, a picker lists up to 3 candidates. Choosing one commits via `commitDiscoverChoice` into the hand (CD entries insert disabled). Other plays wait until the choice.
 - **T-145 CD SoT:** Hand playability uses `readyOnTurn` vs combat `turnIndex` (legacy `currentCooldown` only if turnIndex omitted). Kill cooldown-reset clears both `currentCooldown` and `readyOnTurn`.

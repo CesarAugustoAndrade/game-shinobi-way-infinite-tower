@@ -118,6 +118,7 @@ import { printReanimationLiveProbe, runReanimationLiveProbe } from './Reanimatio
 import { printReadyOnTurnPlayabilityProbe, runReadyOnTurnPlayabilityProbe } from './ReadyOnTurnPlayabilityBalance';
 import { printDiscoverLiveProbe, runDiscoverLiveProbe } from './DiscoverLiveBalance';
 import { printBoundSimParityProbe, runBoundSimParityProbe } from './BoundSimParityBalance';
+import { printSkillConfigMountProbe, runSkillConfigMountProbe } from './SkillConfigMountBalance';
 import { printPhoenixFlowerProbe, runPhoenixFlowerProbe } from './PhoenixFlowerBalance';
 import { printChidoriStreamProbe, runChidoriStreamProbe } from './ChidoriStreamBalance';
 import { printSixtyFourPalmsProbe, runSixtyFourPalmsProbe } from './SixtyFourPalmsBalance';
@@ -638,6 +639,7 @@ async function main() {
     printReadyOnTurnPlayabilityProbe(runReadyOnTurnPlayabilityProbe());
     printDiscoverLiveProbe(runDiscoverLiveProbe());
     printBoundSimParityProbe(runBoundSimParityProbe());
+    printSkillConfigMountProbe(runSkillConfigMountProbe());
     printPhoenixFlowerProbe(runPhoenixFlowerProbe());
     printChidoriStreamProbe(runChidoriStreamProbe());
     printSixtyFourPalmsProbe(runSixtyFourPalmsProbe());

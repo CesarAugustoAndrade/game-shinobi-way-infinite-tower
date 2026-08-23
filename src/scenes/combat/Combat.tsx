@@ -37,6 +37,7 @@ import CombatSenStrip from '../../components/combat/CombatSenStrip';
 import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
 import { CombatModesPanel } from '../../components/combat/CombatModesPanel';
 import { TacticalSetupPanel } from '../../components/combat/TacticalSetupPanel';
+import { SkillConfigInspector } from '../../components/combat/SkillConfigInspector';
 import { DiscoverPicker } from '../../components/combat/DiscoverPicker';
 import type { PendingDiscover } from '../../game/systems/ResolveSkillSystem';
 import { PostureIndicator } from '../../components/combat/PostureIndicator';
@@ -751,6 +752,11 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
               upkeepPriority={resolvedUpkeepPriority}
             />
             <TacticalSetupPanel marks={marks} />
+            <SkillConfigInspector
+              config={player.skillConfig ?? { mainAttackId: null, modeUpkeepPriority: [] }}
+              combatLocked={true}
+              defaultOpen={false}
+            />
           </div>
           {pendingDiscover && pendingDiscover.candidates.length > 0 && onCommitDiscover && (
             <DiscoverPicker pending={pendingDiscover} onChoose={onCommitDiscover} />
