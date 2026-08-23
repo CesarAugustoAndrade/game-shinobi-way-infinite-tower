@@ -24,6 +24,7 @@ import {
   CombatModifierType,
   CombatRange,
   RangeMoveDirection,
+  Mark,
 } from '../game/types';
 import {
   calculateDerivedStats,
@@ -34,7 +35,12 @@ import {
   getEnemyFullStats,
   resolvePassiveDamageBonus,
 } from '../game/systems/StatSystem';
-import { resolveInitialRange, shiftRange, skillAllowedAt } from '../game/systems/RangeSystem';
+import {
+  resolveInitialRange,
+  shiftRange,
+  skillAllowedAt,
+  enemyVoluntaryMoveBlocked,
+} from '../game/systems/RangeSystem';
 import { planEnemyAction } from '../game/systems/EnemyAISystem';
 import { SKILLS } from '../game/constants';
 import { getApCost } from '../game/constants/combatCards';
@@ -249,6 +255,8 @@ export interface BattleContext {
   maxAp: number;               // Action Points granted each turn (speed-derived)
   /** F2 engagement band (seeded via resolveInitialRange; enemy may shift once/turn) */
   currentRange: CombatRange;
+  /** T-147: Marks board for Bound voluntary-move parity (default []). */
+  marks: Mark[];
   logs: TurnLog[];
   metrics: {
     totalDamageDealt: number;
@@ -758,6 +766,20 @@ function executeSkill(ctx: BattleContext, skill: Skill, isPlayer: boolean): bool
 }
 
 /**
+ * T-147: sim voluntary move uses the live Bound helper before shiftRange.
+ */
+export function applySimEnemyVoluntaryMove(
+  currentRange: CombatRange,
+  moveDirection: RangeMoveDirection | undefined,
+  marks: readonly Mark[] | undefined,
+): { range: CombatRange; moved: boolean } {
+  if (!moveDirection || enemyVoluntaryMoveBlocked(marks)) {
+    return { range: currentRange, moved: false };
+  }
+  return shiftRange(currentRange, moveDirection);
+}
+
+/**
  * Execute enemy turn using live EnemyAISystem.planEnemyAction (same as EnemyTurnSystem).
  */
 function executeEnemyTurn(ctx: BattleContext): void {
@@ -810,8 +832,12 @@ function executeEnemyTurn(ctx: BattleContext): void {
     enemyAp,
   });
 
-  if (plan.moveDirection) {
-    const { range: next, moved } = shiftRange(ctx.currentRange, plan.moveDirection);
+  if (plan.moveDirection && !enemyVoluntaryMoveBlocked(ctx.marks)) {
+    const { range: next, moved } = applySimEnemyVoluntaryMove(
+      ctx.currentRange,
+      plan.moveDirection,
+      ctx.marks,
+    );
     if (moved) {
       ctx.currentRange = next;
       ctx.logs.push({
@@ -1031,6 +1057,7 @@ export function resolveBattle(
     currentAp: 0,
     maxAp: playerStats.derived.actionPointsPerTurn,
     currentRange,
+    marks: [],
     logs: [],
     metrics: {
       totalDamageDealt: 0,
