@@ -30,6 +30,8 @@ interface ArtIconProps {
   size?: ArtIconSize;
   className?: string;
   title?: string;
+  /** Removes duplicate image semantics when the surrounding control owns the label. */
+  decorative?: boolean;
   /** Force emoji even if src exists (e.g. dense tooltips). */
   emojiOnly?: boolean;
 }
@@ -40,6 +42,7 @@ const ArtIcon: React.FC<ArtIconProps> = ({
   size = 'md',
   className = '',
   title,
+  decorative = false,
   emojiOnly = false,
 }) => {
   const [imageError, setImageError] = useState(false);
@@ -63,8 +66,9 @@ const ArtIcon: React.FC<ArtIconProps> = ({
       <img
         key={artIdentity || srcKey}
         src={art.src}
-        alt={label}
-        title={label}
+        alt={decorative ? '' : label}
+        title={decorative ? undefined : label}
+        aria-hidden={decorative || undefined}
         className={`${sizeClass} ${isCutout ? 'art-icon--cutout' : ''} ${className}`.trim()}
         style={
           isFill
@@ -80,9 +84,10 @@ const ArtIcon: React.FC<ArtIconProps> = ({
   return (
     <span
       className={`${sizeClass} art-icon--emoji ${className}`.trim()}
-      title={label}
-      role="img"
-      aria-label={label}
+      title={decorative ? undefined : label}
+      role={decorative ? undefined : 'img'}
+      aria-label={decorative ? undefined : label}
+      aria-hidden={decorative || undefined}
     >
       {art.emoji || '?'}
     </span>

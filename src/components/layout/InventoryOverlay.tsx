@@ -18,6 +18,8 @@ interface InventoryOverlayProps extends RightSidebarPanelProps {
   showBackdrop?: boolean;
   /** Focus trap only when this is the sole open panel. */
   trapFocus?: boolean;
+  /** Only the top overlay in a paired stack should own Escape. */
+  escapeEnabled?: boolean;
 }
 
 const InventoryOverlay: React.FC<InventoryOverlayProps> = ({
@@ -25,6 +27,7 @@ const InventoryOverlay: React.FC<InventoryOverlayProps> = ({
   side = 'right',
   showBackdrop = true,
   trapFocus = true,
+  escapeEnabled = true,
   ...panelProps
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -34,14 +37,14 @@ const InventoryOverlay: React.FC<InventoryOverlayProps> = ({
   // (Merchant-style Esc layers). stopPropagation still blocks App map Esc.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.repeat) return;
+      if (!escapeEnabled || e.key !== 'Escape' || e.repeat) return;
       e.preventDefault();
       e.stopPropagation();
       onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [escapeEnabled, onClose]);
 
   return (
     <div
@@ -56,6 +59,11 @@ const InventoryOverlay: React.FC<InventoryOverlayProps> = ({
       role="dialog"
       aria-modal={trapFocus ? true : undefined}
       aria-label="Bag and equipment"
+      onKeyDown={(event) => {
+        if (!['Escape', 'i', 'I', 'c', 'C', 'a', 'A'].includes(event.key)) {
+          event.stopPropagation();
+        }
+      }}
     >
       {showBackdrop && (
         <button

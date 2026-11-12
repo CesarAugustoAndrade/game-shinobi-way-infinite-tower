@@ -197,90 +197,53 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({
             <Tooltip
               key={clan}
               className="clan-card__tip-host"
+              interactive
               content={
                 <div className="clan-tooltip">
                   <div className="clan-tooltip__skill">
-                    Starting loadout ({startingSkills.length})
+                    {clanMeta?.strategy ?? `Starting loadout · ${startingSkills.length} techniques`}
                   </div>
                   <div className="clan-tooltip__loadout">
-                    {loadout.active.length > 0 && (
+                    {signatureSkills.length > 0 && (
                       <div className="clan-tooltip__loadout-row">
                         <span className="clan-tooltip__loadout-label">Active</span>
-                        <span className="clan-tooltip__loadout-skills">
-                          {loadout.active.map((s) => (
-                            <span key={s.id} className="clan-tooltip__loadout-skill">
-                              <ArtIcon art={getSkillArt(s)} size="xs" title={s.name} />
-                              {s.name}
-                            </span>
-                          ))}
+                        <span>{signatureSkills.map((skill) => skill.name).join(' · ')}</span>
+                      </div>
+                    )}
+                    {(loadout.toggle.length > 0 || loadout.passive.length > 0) && (
+                      <div className="clan-tooltip__loadout-row">
+                        <span className="clan-tooltip__loadout-label">Traits</span>
+                        <span>
+                          {[...loadout.toggle, ...loadout.passive].map((skill) => skill.name).join(' · ')}
                         </span>
                       </div>
                     )}
-                    {loadout.toggle.length > 0 && (
-                      <div className="clan-tooltip__loadout-row">
-                        <span className="clan-tooltip__loadout-label">Toggle</span>
-                        <span>{loadout.toggle.map(s => s.name).join(', ')}</span>
-                      </div>
-                    )}
-                    {loadout.passive.length > 0 && (
-                      <div className="clan-tooltip__loadout-row">
-                        <span className="clan-tooltip__loadout-label">Passive</span>
-                        <span>{loadout.passive.map(s => s.name).join(', ')}</span>
-                      </div>
-                    )}
                   </div>
 
                   <div className="clan-tooltip__category">
-                    <div className="clan-tooltip__category-title clan-tooltip__category-title--body">
-                      The Body
-                    </div>
                     <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--wil">WIL</span>
-                      <span className="clan-tooltip__stat-value">{stats.willpower}</span>
-                    </div>
-                    <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--cha">CHA</span>
-                      <span className="clan-tooltip__stat-value">{stats.chakra}</span>
-                    </div>
-                    <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--str">STR</span>
-                      <span className="clan-tooltip__stat-value">{stats.strength}</span>
+                      <span className="clan-tooltip__category-title clan-tooltip__category-title--body">Body</span>
+                      <span className="clan-tooltip__stat-values">
+                        WIL {stats.willpower} · CHA {stats.chakra} · STR {stats.strength}
+                      </span>
                     </div>
                   </div>
 
                   <div className="clan-tooltip__category">
-                    <div className="clan-tooltip__category-title clan-tooltip__category-title--mind">
-                      The Mind
-                    </div>
                     <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spi">SPI</span>
-                      <span className="clan-tooltip__stat-value">{stats.spirit}</span>
-                    </div>
-                    <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--int">INT</span>
-                      <span className="clan-tooltip__stat-value">{stats.intelligence}</span>
-                    </div>
-                    <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--cal">CAL</span>
-                      <span className="clan-tooltip__stat-value">{stats.calmness}</span>
+                      <span className="clan-tooltip__category-title clan-tooltip__category-title--mind">Mind</span>
+                      <span className="clan-tooltip__stat-values">
+                        SPI {stats.spirit} · INT {stats.intelligence} · CAL {stats.calmness}
+                      </span>
                     </div>
                   </div>
 
                   <div className="clan-tooltip__category">
-                    <div className="clan-tooltip__category-title clan-tooltip__category-title--technique">
-                      The Technique
-                    </div>
                     <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--spd">SPD</span>
-                      <span className="clan-tooltip__stat-value">{stats.speed}</span>
-                    </div>
-                    <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--acc">ACC</span>
-                      <span className="clan-tooltip__stat-value">{stats.accuracy}</span>
-                    </div>
-                    <div className="clan-tooltip__stat">
-                      <span className="clan-tooltip__stat-name clan-tooltip__stat-name--dex">DEX</span>
-                      <span className="clan-tooltip__stat-value">{stats.dexterity}</span>
+                      <span className="clan-tooltip__category-title clan-tooltip__category-title--technique">Tech</span>
+                      <span className="clan-tooltip__stat-values">
+                        SPD {stats.speed} · ACC {stats.accuracy} · DEX {stats.dexterity}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -308,20 +271,20 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({
                 <div className="clan-card__body">
                   <h3 className="clan-card__name">{clan}</h3>
                   {clanMeta && (
-                    <p className="clan-card__role" title={clanMeta.strategy}>
+                    <p className="clan-card__role">
                       {clanMeta.role}
                     </p>
                   )}
 
-                  <div className="clan-card__skill" title={`${startingSkills.length} starting jutsu`}>
+                  <div className="clan-card__skill">
                     <div className="clan-card__skill-arts" aria-hidden={signatureSkills.length === 0}>
                       {signatureSkills.map((skill) => (
-                        <span key={skill.id} className="clan-card__skill-chip" title={skill.name}>
+                        <span key={skill.id} className="clan-card__skill-chip">
                           <ArtIcon
                             art={getSkillArt(skill)}
                             size="sm"
                             className="clan-card__skill-art"
-                            title={skill.name}
+                            decorative
                           />
                         </span>
                       ))}
@@ -330,7 +293,7 @@ const CharacterSelect: React.FC<CharacterSelectProps> = ({
                   </div>
 
                   {clanMeta && (
-                    <p className="clan-card__weak" title={clanMeta.desc}>
+                    <p className="clan-card__weak">
                       Soft spot: {clanMeta.weakness}
                     </p>
                   )}

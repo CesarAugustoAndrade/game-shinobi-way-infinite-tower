@@ -27,6 +27,10 @@ interface SkillCardProps {
   chakraShort?: boolean;
   /** Player cannot currently afford HP toll (display-only short signal). */
   hpShort?: boolean;
+  /** Forwarded by the shared Tooltip when this custom trigger is described. */
+  'aria-describedby'?: string;
+  'aria-controls'?: string;
+  'aria-expanded'?: boolean;
 }
 
 /** BEM element-tint modifier from ElementType / string. */
@@ -88,6 +92,9 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   freeChakra = false,
   chakraShort = false,
   hpShort = false,
+  'aria-describedby': ariaDescribedBy,
+  'aria-controls': ariaControls,
+  'aria-expanded': ariaExpanded,
 }) => {
   const actionType = skill.actionType || ActionType.ACTIVE;
   const isPassive = actionType === ActionType.PASSIVE || showAsPassive;
@@ -152,18 +159,21 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   // FREE_FIRST or naturally free CP skills both read as free on the face.
   const cpIsFree = freeChakra || skill.chakraCost <= 0;
   const cpIsWaived = freeChakra && skill.chakraCost > 0;
+  const showBlockReason = !effectivelyUsable && !isPassive && Boolean(blockReason)
+    && skill.currentCooldown === 0;
+  const blockReasonId = showBlockReason
+    ? `skill-card-block-${skill.id}`
+    : undefined;
 
   return (
     <button
       type="button"
       onClick={effectivelyUsable ? onClick : undefined}
       className={getCardClasses()}
-      title={
-        !effectivelyUsable && blockReason
-          ? blockReason
-          : skill.name
-      }
       aria-disabled={!effectivelyUsable}
+      aria-describedby={[ariaDescribedBy, blockReasonId].filter(Boolean).join(' ') || undefined}
+      aria-controls={ariaControls}
+      aria-expanded={ariaExpanded}
       data-element={skill.element}
       data-damage-type={skill.damageType}
       data-free-chakra={freeChakra ? 'true' : undefined}
@@ -329,8 +339,8 @@ export const SkillCard: React.FC<SkillCardProps> = ({
       )}
 
       {/* Trade-off gate: why this card cannot be played (readable before confirm) */}
-      {!effectivelyUsable && !isPassive && blockReason && skill.currentCooldown === 0 && (
-        <span className="skill-card__block-reason" aria-hidden="true">
+      {showBlockReason && blockReason && (
+        <span id={blockReasonId} className="skill-card__block-reason">
           {blockReason}
         </span>
       )}

@@ -177,11 +177,26 @@ export function buildOutcomeChanges(
     }
   }
 
-  // Narrative flags: surfaced quietly so the player knows a decision was recorded.
+  // Narrative flags are implementation detail. Surface one readable acknowledgement,
+  // never raw ids such as `mist_showdown` or `subject_freed`.
   if (effects.setFlags) {
-    for (const flag of Object.keys(effects.setFlags)) {
-      changes.push({ key: `flag-${flag}`, icon: 'MK', label: 'Mark', value: flag.replace(/_/g, ' '), tone: 'flag' });
-    }
+    changes.push({
+      key: 'path-remembered',
+      icon: 'MK',
+      label: 'Path',
+      value: 'Decision remembered',
+      tone: 'flag',
+    });
+  }
+
+  if (effects.heatDelta) {
+    changes.push({
+      key: 'heat',
+      icon: 'AL',
+      label: 'Alert',
+      value: signed(effects.heatDelta),
+      tone: effects.heatDelta > 0 ? 'down' : 'up',
+    });
   }
 
   if (effects.triggerCombat) {

@@ -310,7 +310,7 @@ export const ROGUE_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Harvest the Specimen',
-        description: 'HIGH RISK - Extract Orochimaru\'s serum for yourself (needs 22 Intelligence)',
+        description: 'HIGH RISK — Extract Orochimaru\'s serum for yourself',
         riskLevel: RiskLevel.HIGH,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'The Sannin\'s gifts always demand flesh in return.',

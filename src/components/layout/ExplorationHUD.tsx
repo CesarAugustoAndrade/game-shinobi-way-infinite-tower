@@ -33,6 +33,8 @@ interface ExplorationHUDProps {
   dangerLevel?: number | null;
   /** Active treasure-map hunt progress shown below the top HUD strip. */
   treasureHunt?: TreasureHunt | null;
+  /** A higher dialog owns interaction; keep status visible but disable toolbar controls. */
+  controlsDisabled?: boolean;
 }
 
 const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
@@ -49,6 +51,7 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
   locationLabel = null,
   dangerLevel = null,
   treasureHunt = null,
+  controlsDisabled = false,
 }) => {
   void _lootTheme;
   const hpPct = maxHp > 0 ? Math.min(100, (player.currentHp / maxHp) * 100) : 0;
@@ -143,6 +146,7 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
             type="button"
             className={`explore-hud__btn explore-hud__btn--approach ${approachOpen ? 'explore-hud__btn--active' : ''}`}
             onClick={onOpenApproach}
+            disabled={controlsDisabled}
             title={`Approach: ${approachDef?.name ?? 'Frontal Assault'} (A) — applies to all encounters`}
             aria-pressed={approachOpen}
             aria-label={`Set approach, currently ${approachDef?.name ?? 'Frontal Assault'}`}
@@ -169,6 +173,7 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
           type="button"
           className={`explore-hud__btn ${bagOpen ? 'explore-hud__btn--active' : ''} ${bagFull ? 'explore-hud__btn--warn' : ''}`}
           onClick={onOpenBag}
+          disabled={controlsDisabled}
           title={`Bag ${bagUsed}/${MAX_BAG_SLOTS} (I)${bagFull ? ' — full' : ''}`}
           aria-pressed={bagOpen}
           aria-label={`Open bag, ${bagUsed} of ${MAX_BAG_SLOTS} slots used${bagFull ? ', full' : ''}`}
@@ -183,6 +188,7 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
           type="button"
           className={`explore-hud__btn ${characterOpen ? 'explore-hud__btn--active' : ''}`}
           onClick={onOpenCharacter}
+          disabled={controlsDisabled}
           title="Character sheet (C)"
           aria-pressed={characterOpen}
           aria-label="Open character sheet"

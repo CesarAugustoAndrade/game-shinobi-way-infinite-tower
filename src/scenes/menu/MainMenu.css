@@ -222,6 +222,11 @@
   outline: none;
 }
 
+.main-menu__slider:focus-visible {
+  outline: 3px solid var(--sw-focus-ring, #e8b84a);
+  outline-offset: 4px;
+}
+
 .main-menu__slider::-webkit-slider-thumb {
   appearance: none;
   width: 1.25rem;

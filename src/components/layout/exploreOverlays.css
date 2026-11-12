@@ -14,6 +14,11 @@
   pointer-events: none;
 }
 
+/* Bag-full recovery deliberately elevates the bag above its suspended alertdialog. */
+body:has(.treasure-bagfull) .explore-overlay--end {
+  z-index: 90;
+}
+
 /* Dual open: character left, bag right */
 .explore-overlay--start {
   justify-content: flex-start;

@@ -1112,3 +1112,10 @@
   from { opacity: 0; transform: translateX(-50%) translateY(10px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .bag__slot--combinable,
+  .bag-toast {
+    animation: none !important;
+  }
+}

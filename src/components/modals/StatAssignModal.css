@@ -45,6 +45,13 @@
   overflow: hidden;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .stat-assign,
+  .stat-assign__panel {
+    animation: none;
+  }
+}
+
 /* ===========================================
    Top Ribbon / Header
    =========================================== */

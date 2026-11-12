@@ -22,6 +22,11 @@ import { CombatModifierType } from '../../game/types';
 import { formatHeatTier, tierFromHeat } from '../../game/systems/HeatSystem';
 import { resolveLaminaPaths } from '../../utils/colorHelpers';
 import { queryBlockingModal } from '../../game/ui/overlayStack';
+import {
+  isInteractiveKeyboardTarget,
+  isTextEntryKeyboardTarget,
+} from '../../game/ui/keyboardTarget';
+import Tooltip from '../shared/Tooltip';
 import './exploration.css';
 
 interface LocationMapProps {
@@ -38,6 +43,8 @@ interface LocationMapProps {
   onLeaveLocation?: () => void;
   /** R1-009: authored location name (title); biome stays as subtitle */
   locationName?: string;
+  /** False while an overlay or higher-priority dialog owns interaction. */
+  interactionEnabled?: boolean;
 }
 
 const LocationMap: React.FC<LocationMapProps> = ({
@@ -47,6 +54,7 @@ const LocationMap: React.FC<LocationMapProps> = ({
   onRoomEnter,
   onLeaveLocation,
   locationName,
+  interactionEnabled = true,
 }) => {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
@@ -161,26 +169,30 @@ const LocationMap: React.FC<LocationMapProps> = ({
 
   // Handle room click
   const handleRoomClick = (room: BranchingRoom) => {
+    if (!interactionEnabled) return;
     setSelectedRoomId(room.id);
     onRoomSelect(room);
   };
 
   // Handle enter button (parity with keyboard: block under result/approach modals)
   const handleEnterRoom = useCallback(() => {
-    if (queryBlockingModal()) return;
+    if (!interactionEnabled || queryBlockingModal()) return;
     if (selectedRoom && selectedRoom.isAccessible && !selectedRoom.isCleared) {
       onRoomEnter(selectedRoom);
     }
-  }, [selectedRoom, onRoomEnter]);
+  }, [interactionEnabled, selectedRoom, onRoomEnter]);
 
   // Keyboard: SPACE/ENTER enter room; 1/2 (and numpad) select child paths
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!interactionEnabled || e.defaultPrevented) return;
+      // Space/Enter hold re-fires keydown — same-tick double enter double-heals rest /
+      // double-grants intel / re-opens approach on a stale floor snapshot.
       // Space/Enter hold re-fires keydown — same-tick double enter double-heals rest /
       // double-grants intel / re-opens approach on a stale floor snapshot.
       if (e.repeat) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if ((e.target as HTMLElement | null)?.isContentEditable) return;
+      if ((e.target as HTMLElement | null)?.closest('.tooltip')) return;
+      if (isTextEntryKeyboardTarget(e.target)) return;
       // Leave Enter/Space to reward / approach / complete modals (DOM fallback)
       if (queryBlockingModal()) {
         return;
@@ -200,7 +212,15 @@ const LocationMap: React.FC<LocationMapProps> = ({
         return;
       }
 
+      if (e.key === 'Escape' && floorComplete && onLeaveLocation) {
+        e.preventDefault();
+        e.stopPropagation();
+        onLeaveLocation();
+        return;
+      }
+
       if (e.code !== 'Space' && e.code !== 'Enter') return;
+      if (isInteractiveKeyboardTarget(e.target)) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -244,6 +264,7 @@ const LocationMap: React.FC<LocationMapProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [
     selectedRoom,
+    interactionEnabled,
     selectedRoomId,
     currentRoom,
     childRooms,
@@ -294,6 +315,8 @@ const LocationMap: React.FC<LocationMapProps> = ({
   return (
     <div
       className={`location-map ${getArcModifier()}`}
+      aria-hidden={!interactionEnabled ? true : undefined}
+      inert={!interactionEnabled ? true : undefined}
       style={{
         ...locationStageBg,
         backgroundSize: 'cover',
@@ -400,23 +423,36 @@ const LocationMap: React.FC<LocationMapProps> = ({
               const heat = branchingFloor.heat ?? 0;
               const tier = tierFromHeat(heat);
               const armed = branchingFloor.hunterArmed ?? false;
+              const tierLabel = formatHeatTier(tier);
               return (
-                <div
-                  className={`location-map__heat${armed ? ' location-map__heat--armed' : ''}`}
-                  title="Visit heat — optional rewards raise alert; does not buff ordinary foes"
+                <Tooltip
+                  position="top"
+                  className="location-map__heat-tip"
+                  content={
+                    <div className="location-map__heat-tooltip">
+                      <strong>Heat: {tierLabel} · {heat}/100</strong>
+                      <span>Optional rewards can expose your trail. Ordinary foes gain no stat bonus.</span>
+                      {(armed || heat >= 100) && <span>A Hunter now guards the exit.</span>}
+                    </div>
+                  }
                 >
-                  <span className="location-map__heat-icon" aria-hidden="true">HT</span>
-                  <div className="location-map__heat-bar">
-                    <div
-                      className="location-map__heat-fill"
-                      style={{ width: `${heat}%` }}
-                    />
+                  <div
+                    className={`location-map__heat${armed ? ' location-map__heat--armed' : ''}`}
+                    aria-label={`Heat ${tierLabel}, ${heat} of 100${armed || heat >= 100 ? ', Hunter armed' : ''}`}
+                  >
+                    <span className="location-map__heat-icon" aria-hidden="true">HT</span>
+                    <div className="location-map__heat-bar">
+                      <div
+                        className="location-map__heat-fill"
+                        style={{ width: `${heat}%` }}
+                      />
+                    </div>
+                    <span className="location-map__heat-value">
+                      {tierLabel} {heat}
+                      {armed || heat >= 100 ? ' · HUNTER ARMED' : ''}
+                    </span>
                   </div>
-                  <span className="location-map__heat-value">
-                    {formatHeatTier(tier)} {heat}
-                    {armed || heat >= 100 ? ' · HUNTER ARMED' : ''}
-                  </span>
-                </div>
+                </Tooltip>
               );
             })()}
             <p className="location-map__hint">
@@ -470,6 +506,11 @@ const LocationMap: React.FC<LocationMapProps> = ({
                                 room={room}
                                 isSelected={selectedRoomId === room.id}
                                 onClick={() => handleRoomClick(room)}
+                                onActivate={() => {
+                                  if (interactionEnabled && room.isAccessible && !room.isCleared) {
+                                    onRoomEnter(room);
+                                  }
+                                }}
                               />
                             </div>
                           ))}
@@ -511,6 +552,11 @@ const LocationMap: React.FC<LocationMapProps> = ({
                         room={child}
                         isSelected={selectedRoomId === child.id}
                         onClick={() => handleRoomClick(child)}
+                        onActivate={() => {
+                          if (interactionEnabled && child.isAccessible && !child.isCleared) {
+                            onRoomEnter(child);
+                          }
+                        }}
                       />
                       <span className="location-map__branch-hotkey" aria-hidden="true">
                         {branchIndex + 1}
@@ -538,6 +584,15 @@ const LocationMap: React.FC<LocationMapProps> = ({
                   room={currentRoom}
                   isSelected={selectedRoomId === currentRoom.id}
                   onClick={() => handleRoomClick(currentRoom)}
+                  onActivate={() => {
+                    if (
+                      interactionEnabled &&
+                      currentRoom.isAccessible &&
+                      !currentRoom.isCleared
+                    ) {
+                      onRoomEnter(currentRoom);
+                    }
+                  }}
                 />
               )}
               {currentRoom?.isCleared && !currentRoom.isExit && (

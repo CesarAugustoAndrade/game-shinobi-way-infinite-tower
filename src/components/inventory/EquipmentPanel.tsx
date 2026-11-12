@@ -61,6 +61,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
   // toast → slot menu → let overlay/parent close
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement | null)?.closest('.tooltip')) return;
       if (e.key !== 'Escape' || e.repeat) return;
       if (actionToast) {
         e.preventDefault();
@@ -179,15 +180,15 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
         <div className={`equipment-panel__tooltip-name ${getRarityColor(item.rarity)}`}>
           {item.name}
           {isFocusItem && (
-            <span className="equipment-panel__tooltip-focus" title="Matches region Focus">
-              {' '}· Focus
+            <span className="equipment-panel__tooltip-focus">
+              {' '}· Region Focus
             </span>
           )}
         </div>
         <div className="equipment-panel__tooltip-type">
           {item.rarity} {item.isComponent ? 'Component' : (item.type || 'Artifact')}
         </div>
-        {item.description && (
+        {item.description && !item.passive && (
           <div className="equipment-panel__tooltip-desc">{item.description}</div>
         )}
         {item.passive && (
@@ -222,7 +223,7 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 
     return (
       <div key={slot} className="equipment-panel__slot-wrapper">
-        <Tooltip content={tooltipContent} position="left">
+        <Tooltip content={tooltipContent} position="left" interactive>
           <div
             ref={combinedRef}
             style={style}

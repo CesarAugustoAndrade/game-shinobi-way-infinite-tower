@@ -283,6 +283,31 @@
    ROOM CARD
    =========================================== */
 
+.room-card__tooltip-host {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.room-card__tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-1);
+}
+
+.room-card__tooltip-title {
+  font-family: var(--sw-font-display);
+  color: var(--sw-bone, #e8e4dc);
+  text-transform: uppercase;
+  letter-spacing: var(--sw-tracking-wide);
+}
+
+.room-card__tooltip-state,
+.room-card__tooltip-legend {
+  color: var(--sw-text-muted);
+}
+
 .room-card {
   --room-accent: #a7b5bd;
   --room-border: #52636f;
@@ -669,6 +694,29 @@
  * Accent = CRT instrument phosphor (thin, dim) — not party neon climate.
  * Palette: void #050608 · metal #2d3d4a · fog #8a9199 · rust #a65d3f · bone #e8e4dc
  */
+.location-card__tooltip-host {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+}
+
+.location-card__tooltip-host > .location-card {
+  flex: 1;
+}
+
+.location-card__tooltip {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.location-card__tooltip strong {
+  color: var(--sw-bone, #e8e4dc);
+}
+
+.location-card__tooltip span {
+  display: block;
+}
+
 .location-card {
   --card-accent: #7a8f9c; /* muted instrument metal-fog */
   --card-accent-soft: rgba(45, 61, 74, 0.85);
@@ -2407,6 +2455,44 @@
   justify-content: center;
   gap: 6px;
   margin-bottom: var(--sw-space-2);
+}
+
+.location-map__heat-tip {
+  width: 100%;
+}
+
+.location-map__heat-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-1);
+}
+
+.location-map__heat-tooltip strong {
+  color: var(--sw-bone, #e8e4dc);
+}
+
+.location-map__foresight-slot .room-card__tooltip-host,
+.location-map__branch-choice .room-card__tooltip-host {
+  width: 100%;
+}
+
+.location-map__foresight-slot .room-card__tooltip-host {
+  height: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-icons__icon--special,
+  .room-card__glow--current,
+  .room-card__glow--boss,
+  .location-card__glitch-mark,
+  .location-card__selection-glow,
+  .region-map__enter-glow,
+  .location-map__intel-fill,
+  .location-map__heat-fill,
+  .region-map__progress-fill {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 .region-map__preview-chip {

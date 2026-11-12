@@ -129,6 +129,18 @@
   animation: sd-group-in 0.38s steps(5) both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .scroll-discovery__poster,
+  .scroll-discovery__decision--enter {
+    animation: none;
+  }
+
+  .scroll-discovery__decision {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .scroll-discovery__path-bar {
   display: flex;
   align-items: center;

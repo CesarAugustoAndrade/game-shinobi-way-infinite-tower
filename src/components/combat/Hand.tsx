@@ -123,6 +123,7 @@ export const Hand: React.FC<HandProps> = ({
       <Tooltip
         key={skill.id}
         position="top"
+        interactive
         content={
           <div className="combat-tooltip combat-tooltip--wide">
             {/* Header — T-038: Imagine skill tile */}

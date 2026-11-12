@@ -60,7 +60,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Buy Her Freedom',
-        description: 'MEDIUM RISK — Pay 200 ryo (needs 14 Intelligence); deal may sour',
+        description: 'MEDIUM RISK — Pay 200 ryo; the deal may sour',
         riskLevel: RiskLevel.MEDIUM,
         costs: { ryo: 200 },
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
@@ -165,7 +165,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Sabotage Quietly',
-        description: 'MEDIUM RISK — Needs 18 Dexterity; ruin supplies, risk a scout',
+        description: 'MEDIUM RISK — Ruin their supplies; a scout may hear',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Cut straps. Spoil grain. Leave no signature.',
@@ -268,7 +268,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Negotiate Better Terms',
-        description: 'LOW RISK — Needs 16 Intelligence; squeeze the rate or sour the deal',
+        description: 'LOW RISK — Press for a fairer rate; the deal may sour',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Fear talks if you price it carefully.',
@@ -351,7 +351,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Press Him for Threats',
-        description: 'LOW RISK — Needs 12 Intelligence; intel on Gato / shrine (no escort chain)',
+        description: 'LOW RISK — Draw out intelligence on Gato and the shrine',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Fear talks if you give it structure.',
@@ -428,7 +428,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Scout the Tree Line',
-        description: 'MEDIUM RISK — Needs 14 Speed; ambush chance vs. better pay',
+        description: 'MEDIUM RISK — Scout for better pay; risk an ambush',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.SPEED, value: 1 } },
         hintText: 'Something uses the mist the way fish use water.',
@@ -529,7 +529,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Rally the Villagers',
-        description: 'MEDIUM RISK — Needs 14 Intelligence; organize a trap',
+        description: 'MEDIUM RISK — Turn frightened villagers into a trap',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Nets, pots, quiet signals — Wave hands can close.',
@@ -715,7 +715,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Show What a Body Can Do',
-        description: 'LOW RISK — Needs 15 Willpower; skill without spectacle',
+        description: 'LOW RISK — Prove your discipline without spectacle',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.WILLPOWER, value: 1 } },
         hintText: 'A kunai in a post. Breath held. No applause.',
@@ -808,7 +808,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Clear the Mist with Chakra',
-        description: 'MEDIUM RISK — Needs 16 Chakra; expose stalkers or draw them',
+        description: 'MEDIUM RISK — Expose the stalkers; your chakra may draw them closer',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.CHAKRA, value: 1 } },
         hintText: 'Push the grey. Count what blinks first.',
@@ -980,7 +980,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Read the Senbon Paths',
-        description: 'MEDIUM RISK — Needs 18 Speed; slip the needles or get pinned',
+        description: 'MEDIUM RISK — Trace the needle paths; one mistake leaves you pinned',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.SPEED, value: 1 } },
         hintText: 'Needles prefer the space you just left.',
@@ -1081,7 +1081,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Infiltrate via the Roof',
-        description: 'MEDIUM RISK — Needs 20 Dexterity; silent path or sniper contact',
+        description: 'MEDIUM RISK — Take the silent roofline; a sniper may be waiting',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Rafter dust. One breath. No second chance.',
@@ -1479,7 +1479,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Investigate the Names',
-        description: 'LOW RISK — Needs 12 Intelligence; map who is owned',
+        description: 'LOW RISK — Trace which families Gato owns',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Ink smudges like fingerprints. Fear is neat handwriting.',
@@ -1529,7 +1529,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Sabotage the Pages',
-        description: 'MEDIUM RISK — Needs 14 Dexterity; cook sums, risk a guard',
+        description: 'MEDIUM RISK — Corrupt the sums; a guard may notice',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Wrong totals. Wet ink. No signature.',
@@ -1617,7 +1617,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Read the Tide Marks',
-        description: 'LOW RISK — Needs 13 Intelligence; map where the mist will kill',
+        description: 'LOW RISK — Read where the mist turns lethal',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Patterns in salt. Corpses as compass needles.',
@@ -1742,7 +1742,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Follow the Whisper',
-        description: 'LOW RISK — Needs 14 Spirit; listen without opening',
+        description: 'LOW RISK — Listen without opening yourself to it',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 1 } },
         hintText: 'The drowned keep better books than the living.',
@@ -1807,7 +1807,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Quiet the Hold',
-        description: 'MEDIUM RISK — Needs 15 Calmness; still the voices, risk a rebound',
+        description: 'MEDIUM RISK — Still the voices; risk a violent rebound',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.CALMNESS, value: 1 } },
         hintText: 'Some debts prefer silence to coin.',
@@ -1871,7 +1871,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Name the Debt',
-        description: 'LOW RISK — Needs 14 Spirit; speak the sale into the open air',
+        description: 'LOW RISK — Speak the sale into the open air',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 1 } },
         hintText: 'Houses keep better ledgers than banks.',
@@ -1987,7 +1987,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Investigate the Weight',
-        description: 'LOW RISK — Needs 12 Intelligence; prove the cut without steel',
+        description: 'LOW RISK — Expose Gato\'s cut without drawing steel',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Lead painted to look like iron. Fear is a denser metal.',
@@ -2037,7 +2037,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Sabotage the Counterweight',
-        description: 'MEDIUM RISK — Needs 13 Dexterity; ruin the lie, risk hired muscle',
+        description: 'MEDIUM RISK — Break the rigged scale; hired muscle may answer',
         riskLevel: RiskLevel.MEDIUM,
         requirements: { minStat: { stat: PrimaryStat.DEXTERITY, value: 1 } },
         hintText: 'Swap the stone. Leave the seal. Let arithmetic do violence.',
@@ -2101,7 +2101,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Investigate Their Maps',
-        description: 'LOW RISK — Needs 13 Intelligence; read what the ash hides',
+        description: 'LOW RISK — Read what the ash conceals',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Fish-skin holds ink that water cannot erase.',
@@ -2216,7 +2216,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Investigate the Roster',
-        description: 'LOW RISK — Needs 14 Intelligence; learn who is bought, who is hungry',
+        description: 'LOW RISK — Learn who is bought and who is hungry',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Payroll boards crack when the numbers do not match the faces.',
@@ -2332,7 +2332,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Read the Manifest',
-        description: 'LOW RISK — Needs 14 Intelligence; map the silent schedule',
+        description: 'LOW RISK — Reconstruct the silent schedule',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Ink that dries under salt still names a gate.',
@@ -2447,7 +2447,7 @@ export const WAVES_ARC_EVENTS: GameEvent[] = [
     choices: [
       {
         label: 'Read the Tide Script',
-        description: 'LOW RISK — Needs 15 Spirit; translate salt debt without kneeling',
+        description: 'LOW RISK — Translate the salt debt without kneeling',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.SPIRIT, value: 1 } },
         hintText: 'Pillars keep better vault maps than walls do.',

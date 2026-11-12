@@ -187,7 +187,10 @@ const PlayerHUD = forwardRef<HTMLDivElement, PlayerHUDProps>(({ player, playerSt
                     </div>
                   }
                 >
-                  <div className={`player-hud__buff ${isPositive ? 'player-hud__buff--positive' : 'player-hud__buff--negative'}`}>
+                  <div
+                    className={`player-hud__buff ${isPositive ? 'player-hud__buff--positive' : 'player-hud__buff--negative'}`}
+                    tabIndex={0}
+                  >
                     <span className="player-hud__buff-icon">{buff.effect ? getEffectIcon(buff.effect.type) : '✨'}</span>
                     {buff.duration !== undefined && buff.duration > 0 && (
                       <span className={`player-hud__buff-duration ${buff.duration <= 1 ? 'player-hud__buff-duration--expiring' : ''}`}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   TreasureActivity,
   TreasureHunt,
@@ -26,6 +26,7 @@ import { resolveItemArt, getSkillArt } from '../../game/constants/artRegistry';
 import { itemMatchesEquipmentFocus } from '../../game/utils/itemFocusMatch';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
 import ArtIcon from '../../components/shared/ArtIcon';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './treasure.css';
 
 interface TreasureChoiceProps {
@@ -40,6 +41,11 @@ interface TreasureChoiceProps {
   onPickRandom?: () => void;
   onTakeMapPiece: () => void;
   pendingBagFullItem: PendingBagFullItem | null;
+  /** True while the global bag overlay is above this recovery dialog. */
+  bagOverlayOpen?: boolean;
+  /** Suspends scene-level shortcuts while a global overlay owns focus. */
+  shortcutsEnabled?: boolean;
+  onOpenBag?: () => void;
   onBagFullSell: () => void;
   onBagFullLeave: () => void;
   onBagFullStash?: () => void;
@@ -106,6 +112,9 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   onPickRandom,
   onTakeMapPiece,
   pendingBagFullItem,
+  bagOverlayOpen = false,
+  shortcutsEnabled = true,
+  onOpenBag,
   onBagFullSell,
   onBagFullLeave,
   onBagFullStash,
@@ -113,6 +122,13 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
   lootTheme = null,
 }) => {
   const [enter, setEnter] = useState(false);
+  const bagFullDialogRef = useRef<HTMLDivElement>(null);
+  const bagFullHeadingRef = useRef<HTMLHeadingElement>(null);
+  useFocusTrap(
+    bagFullDialogRef,
+    Boolean(pendingBagFullItem) && !bagOverlayOpen,
+    bagFullHeadingRef,
+  );
   const bagHasSpace = player.bag.some((s) => s === null);
   const phase = treasure.phase ?? (treasure.isRevealed ? 'vault' : 'entry');
   const options = useMemo(() => ensureVaultOptions(treasure), [treasure]);
@@ -132,10 +148,12 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (!shortcutsEnabled) return;
       if (e.repeat) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       if (pendingBagFullItem) {
+        if (bagOverlayOpen) return;
         if ((e.key === 't' || e.key === 'T') && bagHasSpace && onBagFullStash) {
           onBagFullStash();
           return;
@@ -181,7 +199,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [
-    phase, canOpen, canReveal, showMap, options, pendingBagFullItem, bagHasSpace,
+    shortcutsEnabled, phase, canOpen, canReveal, showMap, options, pendingBagFullItem, bagOverlayOpen, bagHasSpace,
     onOpenVault, onTakeMapPiece, onRevealFace, onPickOption, onPickRandom, onBagFullSell,
     onBagFullLeave, onBagFullStash,
   ]);
@@ -199,14 +217,29 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
     <SceneBackdrop background={background} dim={0.22}>
       <div className="treasure-scene" role="region" aria-label="Treasure vault">
         {pendingBagFullItem && (
-          <div className="treasure-bagfull" role="alertdialog" aria-label="Bag full">
+          <div
+            ref={bagFullDialogRef}
+            className="treasure-bagfull"
+            role="alertdialog"
+            aria-modal={bagOverlayOpen ? undefined : true}
+            aria-hidden={bagOverlayOpen ? true : undefined}
+            aria-labelledby="treasure-bagfull-title"
+            aria-describedby="treasure-bagfull-body treasure-bagfull-hint"
+          >
             <div className="treasure-bagfull__panel">
               <AlertTriangle size={22} />
-              <h3>Bag is full</h3>
-              <p>
+              <h3 ref={bagFullHeadingRef} id="treasure-bagfull-title" tabIndex={-1}>
+                Bag is full
+              </h3>
+              <p id="treasure-bagfull-body">
                 No room for <strong>{pendingBagFullItem.item.name}</strong>.
               </p>
               <div className="treasure-bagfull__actions">
+                {onOpenBag && (
+                  <button type="button" onClick={onOpenBag}>
+                    Manage Bag [I]
+                  </button>
+                )}
                 {bagHasSpace && onBagFullStash && (
                   <button type="button" onClick={onBagFullStash}>
                     Stash [T]
@@ -215,7 +248,7 @@ const TreasureChoice: React.FC<TreasureChoiceProps> = ({
                 <button type="button" onClick={onBagFullLeave}>
                   Leave it [L]
                 </button>
-                <p className="treasure-bagfull__hint">
+                <p id="treasure-bagfull-hint" className="treasure-bagfull__hint">
                   Free a bag slot (equip/discard) or leave the relic. Sell only at the merchant.
                 </p>
               </div>

@@ -44,8 +44,14 @@ const MainMenu: React.FC<MainMenuProps> = ({
       if (inField) return;
       e.preventDefault();
       onInfiniteEnter();
+      return;
     }
-  }, [onEnter, infiniteUnlocked, onInfiniteEnter]);
+    if ((e.key === 'h' || e.key === 'H' || e.key === 'g' || e.key === 'G') && onGuide) {
+      if (inField) return;
+      e.preventDefault();
+      onGuide();
+    }
+  }, [onEnter, infiniteUnlocked, onInfiniteEnter, onGuide]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -129,6 +135,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
           <button type="button" onClick={onGuide} className="main-menu__secondary">
             <BookOpen size={14} />
             <span>Shinobi Handbook</span>
+            <span className="sw-shortcut">H</span>
           </button>
         </div>
       </div>

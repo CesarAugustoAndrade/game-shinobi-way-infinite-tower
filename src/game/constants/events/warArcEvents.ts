@@ -223,7 +223,7 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
       },
       {
         label: 'Bind Him to Your Will',
-        description: 'HIGH RISK - Seize the reanimation for yourself (needs 20 Intelligence)',
+        description: 'HIGH RISK — Seize control of the reanimated envoy',
         riskLevel: RiskLevel.HIGH,
         requirements: { minStat: { stat: PrimaryStat.INTELLIGENCE, value: 1 } },
         hintText: 'Stolen power is never freely given.',
@@ -391,8 +391,8 @@ export const WAR_ARC_EVENTS: GameEvent[] = [
         ],
       },
       {
-        label: 'Ask for Their Blade',
-        description: 'LOW RISK - Request a war-forged weapon (needs 18 Strength)',
+        label: 'Test Their War Blade',
+        description: 'LOW RISK — Learn its balance from a veteran',
         riskLevel: RiskLevel.LOW,
         requirements: { minStat: { stat: PrimaryStat.STRENGTH, value: 1 } },
         outcomes: [

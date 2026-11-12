@@ -338,6 +338,19 @@
   animation-delay: calc(var(--face-stagger, 0) * 50ms);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .treasure-scene__poster,
+  .treasure-scene__decision--enter,
+  .treasure-face {
+    animation: none;
+  }
+
+  .treasure-scene__decision {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .treasure-face__index {
   width: 1.25rem;
   align-self: center;
@@ -458,6 +471,11 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.65);
+}
+
+.treasure-bagfull[aria-hidden='true'] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .treasure-bagfull__panel {

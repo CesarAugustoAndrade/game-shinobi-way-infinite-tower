@@ -456,12 +456,12 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         }
       }
 
-      // Z/X/C/V play the 4 hand slots
+      // Z/X/C/V or 1/2/3/4 play the 4 hand slots
       const handKeyMap: Record<string, number> = {
-        'KeyZ': 0, 'z': 0, 'Z': 0,
-        'KeyX': 1, 'x': 1, 'X': 1,
-        'KeyC': 2, 'c': 2, 'C': 2,
-        'KeyV': 3, 'v': 3, 'V': 3,
+        'KeyZ': 0, 'z': 0, 'Z': 0, 'Digit1': 0, 'Numpad1': 0, '1': 0,
+        'KeyX': 1, 'x': 1, 'X': 1, 'Digit2': 1, 'Numpad2': 1, '2': 1,
+        'KeyC': 2, 'c': 2, 'C': 2, 'Digit3': 2, 'Numpad3': 2, '3': 2,
+        'KeyV': 3, 'v': 3, 'V': 3, 'Digit4': 3, 'Numpad4': 3, '4': 3,
       };
 
       const handIndex = handKeyMap[e.code] ?? handKeyMap[e.key];

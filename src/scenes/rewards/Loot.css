@@ -381,6 +381,12 @@
   animation: sw-ready-pulse 2s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .loot-card__name--forbidden {
+    animation: none;
+  }
+}
+
 /* Item details (stats/description/passive/synthesis) live in the shared
    item-tile tooltip — see src/styles/item-tile.css (T-018 a3). */
 

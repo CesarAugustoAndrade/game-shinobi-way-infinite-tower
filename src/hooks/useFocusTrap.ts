@@ -63,13 +63,14 @@ export function useFocusTrap(
       const first = nodes[0];
       const last = nodes[nodes.length - 1];
       const current = document.activeElement as HTMLElement | null;
+      const isListed = Boolean(current && nodes.includes(current));
 
       if (e.shiftKey) {
-        if (!current || current === first || !root.contains(current)) {
+        if (!current || current === first || !root.contains(current) || !isListed) {
           e.preventDefault();
           last.focus();
         }
-      } else if (!current || current === last || !root.contains(current)) {
+      } else if (!current || current === last || !root.contains(current) || !isListed) {
         e.preventDefault();
         first.focus();
       }

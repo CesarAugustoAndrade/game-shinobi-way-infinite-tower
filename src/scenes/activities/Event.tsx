@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import {
   GameEvent,
   Player,
@@ -17,8 +17,10 @@ import {
 import { applyVisibilityToIntelGain } from '../../game/systems/LocationTerrainSystem';
 import type { LocationTerrainMods } from '../../game/systems/LocationTerrainSystem';
 import { getEventArt } from '../../game/constants/artRegistry';
+import { SKILLS } from '../../game/constants/skills';
 import ArtIcon from '../../components/shared/ArtIcon';
 import { SceneBackdrop } from '../../components/layout/SceneBackdrop';
+import Tooltip from '../../components/shared/Tooltip';
 import { CheckCircle, Lock, Info } from 'lucide-react';
 import './Event.css';
 
@@ -37,6 +39,8 @@ interface EventProps {
   locationTerrainMods?: LocationTerrainMods | null;
   /** Biome plate — location BG take via SceneBackdrop (same as Merchant/Training). */
   background?: string;
+  /** False while a higher overlay owns keyboard input. */
+  shortcutsEnabled?: boolean;
 }
 
 /* ===========================================
@@ -102,28 +106,48 @@ const getPlayerStatValue = (player: Player, stat: PrimaryStat): number => {
   return player.primaryStats[statKey] || 0;
 };
 
-const getOutcomeType = (outcome: EventOutcome): 'reward' | 'danger' | 'neutral' => {
+const getOutcomeType = (outcome: EventOutcome): 'reward' | 'danger' | 'mixed' | 'neutral' => {
   const { effects } = outcome;
 
-  if (effects.triggerCombat || effects.curse || effects.removeRandomItem) return 'danger';
-  if (
-    effects.hpChange &&
-    ((typeof effects.hpChange === 'number' && effects.hpChange < 0) ||
-      (typeof effects.hpChange === 'object' && effects.hpChange.percent < 0))
-  )
-    return 'danger';
+  const hasDanger = Boolean(
+    effects.triggerCombat ||
+    effects.curse ||
+    effects.removeRandomItem ||
+    (effects.heatDelta && effects.heatDelta > 0) ||
+    (effects.hpChange &&
+      ((typeof effects.hpChange === 'number' && effects.hpChange < 0) ||
+        (typeof effects.hpChange === 'object' && effects.hpChange.percent < 0))) ||
+    (effects.chakraChange &&
+      ((typeof effects.chakraChange === 'number' && effects.chakraChange < 0) ||
+        (typeof effects.chakraChange === 'object' && effects.chakraChange.percent < 0))) ||
+    (effects.statChanges &&
+      Object.values(effects.statChanges).some(
+        (value) => typeof value === 'number' && value < 0,
+      )) ||
+    (effects.ryo && effects.ryo < 0)
+  );
 
-  if (
+  const hasReward = Boolean(
     effects.exp ||
     (effects.ryo && effects.ryo > 0) ||
     effects.grantSkillById ||
-    effects.statChanges ||
+    (effects.statChanges && Object.values(effects.statChanges).some((value) => value && value > 0)) ||
+    effects.buffs?.length ||
+    (effects.hpChange &&
+      ((typeof effects.hpChange === 'number' && effects.hpChange > 0) ||
+        (typeof effects.hpChange === 'object' && effects.hpChange.percent > 0))) ||
+    (effects.chakraChange &&
+      ((typeof effects.chakraChange === 'number' && effects.chakraChange > 0) ||
+        (typeof effects.chakraChange === 'object' && effects.chakraChange.percent > 0))) ||
+    (effects.heatDelta && effects.heatDelta < 0) ||
     effects.upgradeTreasureQuality ||
-    effects.addMerchantSlot
-  ) {
-    return 'reward';
-  }
+    effects.addMerchantSlot ||
+    effects.intelGain
+  );
 
+  if (hasDanger && hasReward) return 'mixed';
+  if (hasDanger) return 'danger';
+  if (hasReward) return 'reward';
   return 'neutral';
 };
 
@@ -144,16 +168,42 @@ const formatOutcomeText = (
       parts.push(`${effects.hpChange.percent > 0 ? '+' : ''}${effects.hpChange.percent}% HP`);
     }
   }
+  if (effects.chakraChange) {
+    if (typeof effects.chakraChange === 'number') {
+      parts.push(`${effects.chakraChange > 0 ? '+' : ''}${effects.chakraChange} Chakra`);
+    } else {
+      parts.push(
+        `${effects.chakraChange.percent > 0 ? '+' : ''}${effects.chakraChange.percent}% Chakra`,
+      );
+    }
+  }
   if (effects.statChanges) {
     Object.entries(effects.statChanges).forEach(([stat, value]) => {
       if (value) parts.push(`${value > 0 ? '+' : ''}${value} ${stat.toUpperCase()}`);
     });
   }
-  if (effects.grantSkillById) parts.push('Learn Jutsu');
-  if (effects.curse) parts.push('Curse');
+  if (effects.grantSkillById) {
+    const skill = Object.values(SKILLS).find((entry) => entry.id === effects.grantSkillById);
+    parts.push(`Learn ${skill?.name ?? 'Jutsu'}`);
+  }
+  if (effects.buffs?.length) {
+    effects.buffs.slice(0, 2).forEach((buff) => parts.push(`${buff.name} · ${buff.duration}t`));
+    if (effects.buffs.length > 2) parts.push(`+${effects.buffs.length - 2} more`);
+  }
+  if (effects.curse) {
+    const curseValue = Math.round((effects.curse.value ?? 0.5) * 100);
+    parts.push(`Curse · +${curseValue}% harm · ${effects.curse.duration ?? 3}t`);
+  }
   if (effects.removeRandomItem) parts.push('Lose item');
   if (effects.upgradeTreasureQuality) parts.push('Treasure ↑');
   if (effects.addMerchantSlot) parts.push('+1 Merchant slot');
+  if (effects.heatDelta) {
+    parts.push(
+      effects.heatDelta > 0
+        ? `+${effects.heatDelta} Alert`
+        : `${effects.heatDelta} Alert`,
+    );
+  }
   if (effects.intelGain) {
     const base = effects.intelGain;
     const effective = applyVisibilityToIntelGain(base, locationTerrainMods);
@@ -163,6 +213,8 @@ const formatOutcomeText = (
       parts.push(`+${effective}% Intel`);
     }
   }
+  if (effects.chainTo) parts.push('Story continues');
+  if (effects.setFlags && !effects.chainTo) parts.push('Path remembered');
 
   return parts.length > 0 ? parts.join(' · ') : 'The story continues…';
 };
@@ -243,6 +295,7 @@ interface ChoiceCardProps {
   onSelect: () => void;
   onConfirm: () => void;
   locationTerrainMods?: LocationTerrainMods | null;
+  cardRef?: React.Ref<HTMLDivElement>;
 }
 
 const ChoiceCard: React.FC<ChoiceCardProps> = ({
@@ -257,7 +310,12 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
   onSelect,
   onConfirm,
   locationTerrainMods,
+  cardRef,
 }) => {
+  const descriptionId = useId();
+  const requirementId = useId();
+  const gateId = useId();
+  const costId = useId();
   const meetsRequirements = checkRequirements(player, choice.requirements, playerStats);
   const canAffordCost = checkEventCost(player, choice.costs);
   const isDisabled = !meetsRequirements || !canAffordCost;
@@ -284,97 +342,124 @@ const ChoiceCard: React.FC<ChoiceCardProps> = ({
     else onSelect();
   }, [isDisabled, isDimmed, isSelected, onSelect, onConfirm]);
 
-  const stopClick = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
-
   const statRequirement = choice.requirements?.minStat;
   const playerStatValue = statRequirement ? getPlayerStatValue(player, statRequirement.stat) : 0;
   const statCategory = statRequirement ? getStatCategory(statRequirement.stat) : 'body';
+  const ryoCost = choice.costs?.ryo ?? 0;
+  const describedBy = [
+    descriptionId,
+    statRequirement ? requirementId : null,
+    ryoCost > 0 ? costId : null,
+    isDisabled ? gateId : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
+      role="listitem"
       className={`choice-card choice-card--${riskClass} ${
         isSelected ? 'choice-card--selected' : ''
       } ${isDimmed ? 'choice-card--dimmed' : ''} ${isDisabled ? 'choice-card--disabled' : ''} ${
         enter ? 'choice-card--enter' : ''
       }`}
       style={{ ['--choice-stagger' as string]: String(staggerIndex) }}
-      onClick={handleCardClick}
-      role="button"
-      aria-pressed={isSelected}
-      tabIndex={isDisabled || isDimmed ? -1 : 0}
-      onKeyDown={(e) => {
-        if ((e.key === 'Enter' || e.key === ' ') && !isDisabled && !isDimmed && !isSelected) {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
     >
-      <div className="choice-card__header">
-        <div className="choice-card__header-left">
-          <span className="choice-card__index">{['A', 'S', 'D', 'Z', 'X', 'C'][index] ?? (index + 1)}</span>
-          <span className="choice-card__label">{choice.label}</span>
+      <div
+        ref={cardRef}
+        className="choice-card__action"
+        onClick={handleCardClick}
+        role="button"
+        aria-pressed={isSelected}
+        aria-disabled={isDisabled || isDimmed}
+        aria-label={`${index + 1}. ${choice.label}. ${choice.riskLevel} risk`}
+        aria-describedby={describedBy}
+        tabIndex={isDisabled || isDimmed ? -1 : 0}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !isDisabled && !isDimmed) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isSelected) onConfirm();
+            else onSelect();
+          }
+        }}
+      >
+        <div className="choice-card__header">
+          <div className="choice-card__header-left">
+            <span className="choice-card__index">{index + 1}</span>
+            <span className="choice-card__label">{choice.label}</span>
+          </div>
+          <RiskMeter riskLevel={choice.riskLevel} />
         </div>
-        <RiskMeter riskLevel={choice.riskLevel} />
-      </div>
 
-      <div className="choice-card__body">
-        <p className="choice-card__description">{choice.description}</p>
+        <div className="choice-card__body">
+          <p id={descriptionId} className="choice-card__description">{choice.description}</p>
 
-        {choice.hintText && <p className="choice-card__hint">"{choice.hintText}"</p>}
+          {choice.hintText && <p className="choice-card__hint">"{choice.hintText}"</p>}
 
-        {statRequirement && (
-          <div className="choice-card__requirements">
-            <span
-              className={`choice-card__requirement ${
-                meetsRequirements
-                  ? 'choice-card__requirement--met'
-                  : 'choice-card__requirement--unmet'
-              }`}
-            >
-              {meetsRequirements ? <CheckCircle size={12} /> : <Lock size={12} />}
-              <span>
-                {statRequirement.stat} {statRequirement.value}+
+          {statRequirement && (
+            <div id={requirementId} className="choice-card__requirements">
+              <span
+                className={`choice-card__requirement ${
+                  meetsRequirements
+                    ? 'choice-card__requirement--met'
+                    : 'choice-card__requirement--unmet'
+                }`}
+              >
+                {meetsRequirements ? <CheckCircle size={12} /> : <Lock size={12} />}
+                <span>
+                  {statRequirement.stat} {statRequirement.value}+
+                </span>
               </span>
-            </span>
-            <span className={`choice-card__stat-value choice-card__stat-value--${statCategory}`}>
-              You: {playerStatValue}
-            </span>
-          </div>
-        )}
-
-        {isDisabled && (
-          <div className="choice-card__gate">
-            <Lock size={13} />
-            <span>{gateReason}</span>
-          </div>
-        )}
-
-        {!isDisabled && choice.outcomes && choice.outcomes.length > 0 && (
-          <div
-            className="choice-card__outcomes-wrap"
-            onClick={stopClick}
-            tabIndex={0}
-            aria-label="Show possible outcomes"
-          >
-            <span className="choice-card__outcomes-cue">
-              <Info size={13} />
-              <span>Possible Outcomes</span>
-            </span>
-            <div className="choice-card__tooltip" role="tooltip">
-              <OutcomePreview
-                outcomes={choice.outcomes}
-                locationTerrainMods={locationTerrainMods}
-              />
+              <span className={`choice-card__stat-value choice-card__stat-value--${statCategory}`}>
+                You: {playerStatValue}
+              </span>
             </div>
-          </div>
-        )}
+          )}
 
-        {isSelected && !isDisabled && (
-          <span className="choice-card__confirm-tag" aria-hidden="true">
-            Confirm ▸
-          </span>
-        )}
+          {ryoCost > 0 && (
+            <div id={costId} className="choice-card__cost" aria-label={`Costs ${ryoCost} Ryo`}>
+              −{ryoCost} Ryo
+            </div>
+          )}
+
+          {isDisabled && (
+            <div id={gateId} className="choice-card__gate">
+              <Lock size={13} />
+              <span>{gateReason}</span>
+            </div>
+          )}
+
+          {isSelected && !isDisabled && (
+            <span className="choice-card__confirm-tag" aria-hidden="true">
+              Confirm ▸
+            </span>
+          )}
+        </div>
       </div>
+
+      {!isDisabled && choice.outcomes && choice.outcomes.length > 0 && (
+        <Tooltip
+          position="top"
+          openOnClick
+          className="choice-card__outcomes-host"
+          content={
+            <OutcomePreview
+              outcomes={choice.outcomes}
+              locationTerrainMods={locationTerrainMods}
+            />
+          }
+        >
+          <button
+            type="button"
+            className="choice-card__outcomes-cue"
+            aria-label="Inspect possible outcomes"
+          >
+            <Info size={13} />
+            <span>Possible Outcomes</span>
+          </button>
+        </Tooltip>
+      )}
     </div>
   );
 };
@@ -391,10 +476,12 @@ const Event: React.FC<EventProps> = ({
   cameFromChain = false,
   locationTerrainMods = null,
   background,
+  shortcutsEnabled = true,
 }) => {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [choiceLocked, setChoiceLocked] = useState(false);
   const choiceLockRef = useRef(false);
+  const choiceRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [choicesEnter, setChoicesEnter] = useState(() => prefersReducedMotion());
 
   const availableChoices = useMemo(() => {
@@ -404,6 +491,7 @@ const Event: React.FC<EventProps> = ({
 
   const hasHiddenPaths = availableChoices.length < activeEvent.choices.length;
   const eventArt = useMemo(() => getEventArt(activeEvent.id), [activeEvent.id]);
+  const lastChoiceShortcut = Math.min(availableChoices.length, 9);
 
   useEffect(() => {
     setSelectedIndex(null);
@@ -450,23 +538,53 @@ const Event: React.FC<EventProps> = ({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      if (!player || choiceLocked || choiceLockRef.current) return;
+      if (!shortcutsEnabled || !player || choiceLocked || choiceLockRef.current) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable ||
+        target?.closest('.tooltip')
+      ) {
+        return;
+      }
       const key = e.key;
+      const interactiveTarget = target?.closest(
+        'button, a, select, [role="button"], [role="link"], [tabindex]',
+      );
+      if (key === 'Enter' && interactiveTarget) return;
+      const isArrowKey = key === 'ArrowDown' || key === 'ArrowUp';
+      if (e.repeat && !isArrowKey) return;
 
-      const optionKeys = ['A', 'S', 'D', 'Z', 'X', 'C'];
-      const upperKey = key.toUpperCase();
       let index = -1;
-      if (key >= '1' && key <= '6') {
-        index = parseInt(key, 10) - 1;
-      } else if (optionKeys.includes(upperKey)) {
-        index = optionKeys.indexOf(upperKey);
+      if (/^[1-9]$/.test(key)) {
+        index = Number.parseInt(key, 10) - 1;
       }
 
       if (index >= 0 && index < availableChoices.length) {
-        if (isChoiceAvailable(availableChoices[index])) {
+        const choice = availableChoices[index];
+        if (isChoiceAvailable(choice)) {
           e.preventDefault();
-          handleSelect(index);
+          if (selectedIndex === index) {
+            handleConfirm(choice);
+          } else {
+            handleSelect(index);
+            requestAnimationFrame(() => choiceRefs.current[index]?.focus());
+          }
+        }
+      }
+
+      if (isArrowKey && availableChoices.length > 0) {
+        e.preventDefault();
+        const direction = key === 'ArrowDown' ? 1 : -1;
+        const start = selectedIndex ?? (direction > 0 ? -1 : 0);
+        for (let offset = 1; offset <= availableChoices.length; offset += 1) {
+          const nextIndex = (start + direction * offset + availableChoices.length) % availableChoices.length;
+          if (isChoiceAvailable(availableChoices[nextIndex])) {
+            setSelectedIndex(nextIndex);
+            requestAnimationFrame(() => choiceRefs.current[nextIndex]?.focus());
+            break;
+          }
         }
       }
 
@@ -481,7 +599,16 @@ const Event: React.FC<EventProps> = ({
         setSelectedIndex(null);
       }
     },
-    [player, availableChoices, selectedIndex, isChoiceAvailable, handleSelect, handleConfirm, choiceLocked],
+    [
+      shortcutsEnabled,
+      player,
+      availableChoices,
+      selectedIndex,
+      isChoiceAvailable,
+      handleSelect,
+      handleConfirm,
+      choiceLocked,
+    ],
   );
 
   useEffect(() => {
@@ -529,9 +656,20 @@ const Event: React.FC<EventProps> = ({
             <div className="event__path-bar">
               <div className="event__divider">▸ Choose Your Path</div>
               <div className="event__hints">
-                <span className="event__hint">
-                  <span className="sw-shortcut">A</span>–<span className="sw-shortcut">C</span> Select
-                </span>
+                {lastChoiceShortcut > 0 && (
+                  <>
+                    <span className="event__hint">
+                      <span className="sw-shortcut">1</span>
+                      {lastChoiceShortcut > 1 && (
+                        <>–<span className="sw-shortcut">{lastChoiceShortcut}</span></>
+                      )}{' '}
+                      Select
+                    </span>
+                    <span className="event__hint">
+                      <span className="sw-shortcut">↑↓</span> Browse
+                    </span>
+                  </>
+                )}
                 <span className="event__hint">
                   <span className="sw-shortcut">Enter</span> Confirm
                 </span>
@@ -564,6 +702,9 @@ const Event: React.FC<EventProps> = ({
                     index={idx}
                     staggerIndex={idx}
                     enter={choicesEnter}
+                    cardRef={(node) => {
+                      choiceRefs.current[idx] = node;
+                    }}
                     onSelect={() => handleSelect(idx)}
                     onConfirm={() => handleConfirm(choice)}
                     locationTerrainMods={locationTerrainMods}

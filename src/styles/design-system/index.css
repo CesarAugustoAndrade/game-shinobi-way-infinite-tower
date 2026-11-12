@@ -218,7 +218,32 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rarity-text--pulse { animation: none; }
+  html {
+    scroll-behavior: auto;
+  }
+
+  .rarity-text--pulse,
+  .sw-animate-select-pulse,
+  .sw-animate-ready-pulse,
+  .sw-animate-fade-in,
+  .sw-animate-slide-in-up,
+  .sw-animate-slide-in-down,
+  .sw-animate-scale-in,
+  .sw-animate-spin,
+  .sw-animate-bounce,
+  .sw-animate-shake,
+  .sw-animate-current-pulse,
+  .sw-animate-exit-pulse,
+  .sw-animate-boss-pulse,
+  .sw-animate-combine-pulse,
+  .sw-animate-drag-float,
+  .sw-animate-drop-highlight,
+  .sw-bg--pulse::after,
+  .sw-card--selected,
+  .sw-button--ready,
+  .sw-tooltip {
+    animation: none !important;
+  }
 }
 
 .rarity-border--broken { border-color: var(--sw-rarity-broken); }

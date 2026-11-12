@@ -5,13 +5,15 @@ import { resolveLaminaPaths } from '../../utils/colorHelpers';
 import LocationIcon from '../shared/LocationIcon';
 import DangerLevelBar from './DangerLevelBar';
 import WealthLevelBar from './WealthLevelBar';
-import ActivityIcons from './ActivityIcons';
+import ActivityIcons, { getActivityDisplayEntries } from './ActivityIcons';
+import Tooltip from '../shared/Tooltip';
 import './exploration.css';
 
 interface LocationCardDisplayProps {
   card: LocationCard;
   isSelected: boolean;
   onClick: () => void;
+  onActivate?: () => void;
   cardIndex: number;
 }
 
@@ -34,6 +36,7 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
   card,
   isSelected,
   onClick,
+  onActivate,
   cardIndex,
 }) => {
   const displayInfo = getCardDisplayInfo(card);
@@ -67,15 +70,61 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
     ? String(card.location.terrain).replace(/_/g, ' ')
     : null;
 
+  const activityEntries = getActivityDisplayEntries(displayInfo.activities);
+  const activitySummary = activityEntries
+    .map(({ label, isSpecial }) => (isSpecial ? `Possible ${label}` : label))
+    .join(' · ');
+  const locationDescription = isMystery
+    ? `${displayInfo.name}. Threat unreadable${isSecret ? '. Veiled route' : ''}`
+    : [
+        displayInfo.name,
+        displayInfo.dangerLevel != null ? `Danger ${displayInfo.dangerLevel}` : null,
+        displayInfo.wealthLevel != null ? `Wealth ${displayInfo.wealthLevel}` : null,
+        displayInfo.minRooms != null ? `${displayInfo.minRooms} or more rooms` : null,
+        terrainLabel ? `Terrain ${terrainLabel}` : null,
+        activitySummary ? `Known activities: ${activitySummary}` : null,
+        displayInfo.specialFeature,
+        displayInfo.revisitBadge ? 'Previously cleared, reduced rewards' : null,
+      ].filter(Boolean).join('. ');
+
+  const tooltipContent = (
+    <div className="location-card__tooltip">
+      <strong>{displayInfo.name}</strong>
+      {isMystery ? (
+        <span>Fog conceals the threat. Advance your intel to reveal reliable details.</span>
+      ) : (
+        <>
+          <span>
+            {displayInfo.dangerLevel != null ? `Danger ${displayInfo.dangerLevel}` : 'Danger unknown'}
+            {displayInfo.wealthLevel != null ? ` · Wealth ${displayInfo.wealthLevel}` : ''}
+            {displayInfo.minRooms != null ? ` · ${displayInfo.minRooms}+ rooms` : ''}
+            {terrainLabel ? ` · ${terrainLabel}` : ''}
+            {displayInfo.revisitBadge ? ' · Scarred (reduced rewards)' : ''}
+          </span>
+          {activitySummary && <span>Known: {activitySummary}</span>}
+          {displayInfo.specialFeature && <span>{displayInfo.specialFeature}</span>}
+        </>
+      )}
+      {isSecret && <span>Veiled route · absent from the official path.</span>}
+    </div>
+  );
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      onFocus={onClick}
-      data-card-index={cardIndex}
-      className={cardClasses}
-      aria-pressed={isSelected}
-    >
+    <Tooltip content={tooltipContent} position="top" className="location-card__tooltip-host">
+      <button
+        type="button"
+        onClick={onClick}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' || !isSelected || !onActivate) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onActivate();
+        }}
+        data-card-index={cardIndex}
+        className={cardClasses}
+        aria-label={locationDescription}
+        aria-pressed={isSelected}
+      >
       {/* Revisit scar — top-right, rust heat */}
       {displayInfo.revisitBadge && (
         <div className="location-card__revisit-badge">
@@ -101,7 +150,6 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
             <div className="location-card__identity" aria-label="Fogged location intel">
               <span
                 className="location-card__id-chip location-card__id-chip--fog"
-                title="Fog hides true danger — no fabricated number"
               >
                 Threat unreadable
               </span>
@@ -109,7 +157,6 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
               {isSecret && (
                 <span
                   className="location-card__id-chip location-card__id-chip--secret"
-                  title="Unmarked path — not on the official route"
                 >
                   Veiled signal
                 </span>
@@ -120,7 +167,6 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
               {displayInfo.dangerLevel != null && (
                 <span
                   className={`location-card__d-badge location-card__d-badge--d${displayInfo.dangerLevel}`}
-                  title={`Danger ${displayInfo.dangerLevel}`}
                 >
                   D{displayInfo.dangerLevel}
                 </span>
@@ -128,18 +174,17 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
               {card.location.biome && (
                 <span
                   className="location-card__id-chip location-card__id-chip--biome"
-                  title={card.location.biome}
                 >
                   {card.location.biome}
                 </span>
               )}
               {isSecret && (
-                <span className="location-card__id-chip location-card__id-chip--secret" title="Veiled destination">
+                <span className="location-card__id-chip location-card__id-chip--secret">
                   Veiled
                 </span>
               )}
               {displayInfo.revisitBadge && (
-                <span className="location-card__id-chip location-card__id-chip--scar" title="Already cleared">
+                <span className="location-card__id-chip location-card__id-chip--scar">
                   Scar
                 </span>
               )}
@@ -185,7 +230,7 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
           </span>
         </div>
         {!isMystery && terrainLabel && (
-          <div className="location-card__terrain-tag" title="Terrain identity">
+          <div className="location-card__terrain-tag">
             <span className="location-card__terrain-label">Terrain</span>
             <span className="location-card__terrain-value">{terrainLabel}</span>
           </div>
@@ -226,7 +271,8 @@ const LocationCardDisplay: React.FC<LocationCardDisplayProps> = ({
       </div>
 
       {isSelected && <div className="location-card__selection-glow" />}
-    </button>
+      </button>
+    </Tooltip>
   );
 };
 

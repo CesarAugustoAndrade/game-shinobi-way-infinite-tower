@@ -9,6 +9,10 @@ import {
 import { getCardDisplayInfo } from '../../game/systems/RegionSystem';
 import LocationCardDisplay from './LocationCardDisplay';
 import { queryBlockingModal } from '../../game/ui/overlayStack';
+import {
+  isInteractiveKeyboardTarget,
+  isTextEntryKeyboardTarget,
+} from '../../game/ui/keyboardTarget';
 import './exploration.css';
 
 // ============================================================================
@@ -31,6 +35,8 @@ interface RegionMapProps {
   selectedIndex: number | null;
   onCardSelect: (index: number) => void;
   onEnterLocation: () => void;
+  /** False while an overlay or higher-priority dialog owns interaction. */
+  interactionEnabled?: boolean;
 }
 
 const RegionMap: React.FC<RegionMapProps> = ({
@@ -40,6 +46,7 @@ const RegionMap: React.FC<RegionMapProps> = ({
   selectedIndex,
   onCardSelect,
   onEnterLocation,
+  interactionEnabled = true,
 }) => {
   // First-time / post-redraw affordance: auto-pick card 1 when nothing selected
   useEffect(() => {
@@ -59,10 +66,11 @@ const RegionMap: React.FC<RegionMapProps> = ({
 
   // Handle keyboard shortcuts (capture so focused card buttons don't swallow Enter/Space)
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!interactionEnabled || e.defaultPrevented) return;
     // Hold re-fires keydown — double enterLocationFromCard / double intel reset
     if (e.repeat) return;
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    if ((e.target as HTMLElement | null)?.isContentEditable) return;
+    if ((e.target as HTMLElement | null)?.closest('.tooltip')) return;
+    if (isTextEntryKeyboardTarget(e.target)) return;
     // Never steal keys from result / approach modals (DOM fallback via shared selector)
     if (queryBlockingModal()) {
       return;
@@ -87,6 +95,7 @@ const RegionMap: React.FC<RegionMapProps> = ({
 
     // Space/Enter deploys — works even if selection state lags auto-pick by a frame
     if (e.code === 'Space' || e.code === 'Enter') {
+      if (isInteractiveKeyboardTarget(e.target)) return;
       if (!canDeploy) return;
       e.preventDefault();
       e.stopPropagation();
@@ -95,7 +104,15 @@ const RegionMap: React.FC<RegionMapProps> = ({
       }
       onEnterLocation();
     }
-  }, [drawnCards, selectedIndex, resolvedIndex, canDeploy, onCardSelect, onEnterLocation]);
+  }, [
+    interactionEnabled,
+    drawnCards,
+    selectedIndex,
+    resolvedIndex,
+    canDeploy,
+    onCardSelect,
+    onEnterLocation,
+  ]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown, true);
@@ -155,7 +172,7 @@ const RegionMap: React.FC<RegionMapProps> = ({
     : undefined;
 
   const handleDeployClick = () => {
-    if (!canDeploy || resolvedIndex === null) return;
+    if (!interactionEnabled || !canDeploy || resolvedIndex === null) return;
     if (selectedIndex !== resolvedIndex) onCardSelect(resolvedIndex);
     onEnterLocation();
   };
@@ -163,6 +180,8 @@ const RegionMap: React.FC<RegionMapProps> = ({
   return (
     <div
       className={`region-map ${getArcModifier()}`}
+      aria-hidden={!interactionEnabled ? true : undefined}
+      inert={!interactionEnabled ? true : undefined}
       style={{
         // Void underplate always — map plate never leaves an empty panel.
         backgroundColor: '#050608',
@@ -231,7 +250,17 @@ const RegionMap: React.FC<RegionMapProps> = ({
               key={`${card.locationId}-${index}`}
               card={card}
               isSelected={resolvedIndex === index}
-              onClick={() => onCardSelect(index)}
+              onClick={() => {
+                if (interactionEnabled) onCardSelect(index);
+              }}
+              onActivate={() => {
+                if (!interactionEnabled) return;
+                if (resolvedIndex !== index) {
+                  onCardSelect(index);
+                  return;
+                }
+                onEnterLocation();
+              }}
               cardIndex={index}
             />
           ))}
@@ -253,11 +282,11 @@ const RegionMap: React.FC<RegionMapProps> = ({
           <button
             type="button"
             onClick={handleDeployClick}
-            disabled={!canDeploy}
+            disabled={!canDeploy || !interactionEnabled}
             title={enterDisabledReason}
             className={`region-map__enter-btn ${canDeploy ? 'region-map__enter-btn--active' : 'region-map__enter-btn--disabled'}`}
             aria-label={canDeploy ? enterLabel : enterDisabledReason}
-            aria-disabled={!canDeploy}
+            aria-disabled={!canDeploy || !interactionEnabled}
           >
             {/* Glow effect */}
             {canDeploy && (

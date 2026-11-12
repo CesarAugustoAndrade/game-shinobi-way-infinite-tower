@@ -172,6 +172,7 @@ interface ServiceButtonProps {
   onClick: () => void;
   disabled: boolean;
   label: string;
+  shortcutKey?: string;
 }
 
 const ServiceButton: React.FC<ServiceButtonProps> = ({
@@ -180,6 +181,7 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({
   onClick,
   disabled,
   label,
+  shortcutKey,
 }) => {
   const icons = {
     reroll: <RefreshCw size={14} />,
@@ -196,6 +198,7 @@ const ServiceButton: React.FC<ServiceButtonProps> = ({
     >
       <span className="service-button__icon">{icons[variant]}</span>
       <span>{label}</span>
+      {shortcutKey && <span className="sw-shortcut">{shortcutKey}</span>}
       <span className="service-button__cost">({cost} Ryo)</span>
     </button>
   );
@@ -697,25 +700,107 @@ const Merchant: React.FC<MerchantProps> = ({
     return () => clearTimeout(t);
   }, [purchaseToast]);
 
-  // ESC: dismiss toast → close selection → leave shop (R1 friction)
+  // Full keyboard shortcuts: 1..6 select/buy, Enter/B buy selected, R reroll, U upgrade, L/Esc leave
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
-      e.preventDefault();
-      if (purchaseToast) {
-        setPurchaseToast(null);
+      const target = e.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
         return;
       }
-      if (selectedItemId) {
-        setSelectedItemId(null);
+
+      const key = e.key.toLowerCase();
+
+      if (key === 'escape') {
+        e.preventDefault();
+        if (purchaseToast) {
+          setPurchaseToast(null);
+          return;
+        }
+        if (selectedItemId) {
+          setSelectedItemId(null);
+          return;
+        }
+        onLeave();
         return;
       }
-      onLeave();
+
+      if (key === 'l') {
+        e.preventDefault();
+        onLeave();
+        return;
+      }
+
+      if (key === 'r') {
+        if (!isProcessing && player && player.ryo >= rerollCost) {
+          e.preventDefault();
+          onReroll();
+        }
+        return;
+      }
+
+      if (key === 'u') {
+        if (!isProcessing && player) {
+          const slotCost = MERCHANT.SLOT_COSTS[player.merchantSlots] || 999999;
+          const qualityCost =
+            player.treasureQuality === TreasureQuality.BROKEN
+              ? MERCHANT.QUALITY_UPGRADE_COSTS.COMMON
+              : MERCHANT.QUALITY_UPGRADE_COSTS.RARE;
+          if (player.merchantSlots < MAX_MERCHANT_SLOTS && player.ryo >= slotCost) {
+            e.preventDefault();
+            onBuySlot();
+          } else if (player.treasureQuality !== TreasureQuality.RARE && player.ryo >= qualityCost) {
+            e.preventDefault();
+            onUpgradeQuality();
+          }
+        }
+        return;
+      }
+
+      if (key === 'b' || key === 'enter') {
+        if (selectedItem) {
+          e.preventDefault();
+          handleConfirmPurchase();
+        }
+        return;
+      }
+
+      if (key >= '1' && key <= '6') {
+        const index = parseInt(key, 10) - 1;
+        if (index < merchantItems.length) {
+          e.preventDefault();
+          const targetItem = merchantItems[index];
+          if (selectedItemId === targetItem.id) {
+            tryBuy(targetItem);
+          } else {
+            handleSelect(targetItem.id);
+          }
+        }
+      }
     };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [selectedItemId, purchaseToast, onLeave]);
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    selectedItemId,
+    selectedItem,
+    purchaseToast,
+    merchantItems,
+    player,
+    rerollCost,
+    isProcessing,
+    onLeave,
+    onReroll,
+    onBuySlot,
+    onUpgradeQuality,
+    handleConfirmPurchase,
+    tryBuy,
+    handleSelect,
+  ]);
 
   if (!player) {
     return null;
@@ -901,6 +986,7 @@ const Merchant: React.FC<MerchantProps> = ({
               variant="reroll"
               cost={rerollCost}
               label="Reroll stock"
+              shortcutKey="R"
               onClick={onReroll}
               disabled={isProcessing || player.ryo < rerollCost}
             />
@@ -909,6 +995,7 @@ const Merchant: React.FC<MerchantProps> = ({
                 variant="slot"
                 cost={slotCost}
                 label="+1 Slot"
+                shortcutKey="U"
                 onClick={onBuySlot}
                 disabled={isProcessing || player.ryo < slotCost}
               />
@@ -918,6 +1005,7 @@ const Merchant: React.FC<MerchantProps> = ({
                 variant="quality"
                 cost={qualityCost}
                 label="Quality ↑"
+                shortcutKey="U"
                 onClick={onUpgradeQuality}
                 disabled={isProcessing || player.ryo < qualityCost}
               />
@@ -926,7 +1014,7 @@ const Merchant: React.FC<MerchantProps> = ({
 
           <button type="button" className="merchant__leave-button" onClick={onLeave}>
             Leave shop
-            <span className="sw-shortcut">Esc</span>
+            <span className="sw-shortcut">Esc / L</span>
           </button>
         </div>
       </div>

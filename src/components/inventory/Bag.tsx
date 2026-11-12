@@ -159,6 +159,7 @@ const BagSlot: React.FC<BagSlotProps> = ({
     <div className="bag__slot-wrapper">
       <Tooltip
         position="left"
+        interactive
         content={
           item ? (
             <div className="bag__tooltip">
@@ -166,7 +167,7 @@ const BagSlot: React.FC<BagSlotProps> = ({
                 <ArtIcon art={resolveItemArt(item)} size="sm" className="bag__tooltip-art" />
                 {' '}{item.name}
                 {isFocusItem && (
-                  <span className="bag__tooltip-focus" title="Matches region Focus"> · Focus</span>
+                  <span className="bag__tooltip-focus"> · Region Focus</span>
                 )}
               </div>
               <div className="bag__tooltip-desc">{item.description}</div>
@@ -331,6 +332,7 @@ const Bag: React.FC<BagProps> = ({
   // toast → craft reveal → slot menu → synthesis → let overlay/parent close
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement | null)?.closest('.tooltip')) return;
       if (e.key !== 'Escape' || e.repeat) return;
       if (actionToast) {
         e.preventDefault();

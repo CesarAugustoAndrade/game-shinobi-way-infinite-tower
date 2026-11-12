@@ -48,10 +48,10 @@ const GameOver: React.FC<GameOverProps> = ({
     onRetry();
   }, [onRetry]);
 
-  // Keyboard shortcut — Enter or Escape rises again (Esc parity Victory / continue-family)
+  // Keyboard shortcut — Enter, Space, or Escape rises again (Esc parity Victory / continue-family)
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.repeat) return;
-    if (e.key === 'Enter' || e.key === 'Escape') {
+    if (e.key === 'Enter' || e.code === 'Space' || e.key === 'Escape') {
       e.preventDefault();
       handleRetry();
     }

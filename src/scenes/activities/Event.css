@@ -298,7 +298,6 @@
   border-radius: 2px;
   box-shadow: 4px 4px 0 0 var(--ev-hard);
   padding: var(--sw-space-3) var(--sw-space-4);
-  cursor: pointer;
   text-align: left;
   opacity: 0;
   transform: translateX(10px);
@@ -328,7 +327,15 @@
   box-shadow: 1px 1px 0 0 var(--ev-hard);
 }
 
-.choice-card:focus-visible {
+.choice-card__action {
+  cursor: pointer;
+}
+
+.choice-card--disabled .choice-card__action {
+  cursor: not-allowed;
+}
+
+.choice-card__action:focus-visible {
   outline: 2px solid var(--ev-gold);
   outline-offset: 2px;
 }
@@ -620,6 +627,24 @@
   color: var(--ev-risk-high);
 }
 
+.choice-card__cost {
+  align-self: flex-start;
+  padding: var(--sw-space-1) var(--sw-space-2);
+  font-family: var(--sw-font-display);
+  font-size: var(--sw-text-2xs);
+  letter-spacing: var(--sw-tracking-wide);
+  text-transform: uppercase;
+  color: var(--ev-gold);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid color-mix(in srgb, var(--ev-gold) 55%, var(--ev-border));
+  border-radius: 2px;
+}
+
+.choice-card__outcome-type--mixed {
+  background: rgba(232, 168, 37, 0.18);
+  color: var(--ev-gold);
+}
+
 .choice-card__outcome-type--neutral {
   background: rgba(90, 100, 116, 0.25);
   color: var(--ev-body);
@@ -630,13 +655,15 @@
   color: var(--ev-body);
 }
 
-.choice-card__outcomes-wrap {
+.choice-card__outcomes-host {
   position: relative;
   align-self: flex-start;
+  display: inline-flex;
   margin-top: var(--sw-space-1);
 }
 
 .choice-card__outcomes-cue {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   gap: var(--sw-space-1);
@@ -649,49 +676,14 @@
   border: 1px solid var(--ev-border);
   border-radius: 2px;
   cursor: help;
+  background: transparent;
 }
 
-.choice-card__outcomes-wrap:hover .choice-card__outcomes-cue,
-.choice-card__outcomes-wrap:focus-within .choice-card__outcomes-cue {
+.choice-card__outcomes-host:hover .choice-card__outcomes-cue,
+.choice-card__outcomes-host:focus-within .choice-card__outcomes-cue,
+.choice-card__outcomes-cue[aria-expanded='true'] {
   color: var(--ev-gold);
   border-color: var(--ev-gold);
-}
-
-.choice-card__tooltip {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + var(--sw-space-2));
-  z-index: var(--sw-z-popover);
-  min-width: 16rem;
-  width: max-content;
-  max-width: min(24rem, 70vw);
-  padding: var(--sw-space-3);
-  background: var(--ev-panel);
-  border: 2px solid var(--ev-gold);
-  border-radius: 2px;
-  box-shadow: 5px 5px 0 0 var(--ev-hard);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(4px);
-  transition: opacity var(--sw-transition-fast), transform var(--sw-transition-fast),
-    visibility var(--sw-transition-fast);
-  pointer-events: none;
-}
-
-.choice-card__outcomes-wrap:hover .choice-card__tooltip,
-.choice-card__outcomes-wrap:focus-within .choice-card__tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
-}
-
-.choice-card__tooltip::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: var(--sw-space-4);
-  border: 6px solid transparent;
-  border-top-color: var(--ev-gold);
 }
 
 .choice-card__confirm-tag {

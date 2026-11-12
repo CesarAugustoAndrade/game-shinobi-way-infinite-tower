@@ -213,7 +213,7 @@
   border-radius: var(--sw-radius-sm);
   padding: var(--sw-space-3);
   box-shadow: var(--sw-pix-shadow, 4px 4px 0 0 var(--sw-hard));
-  pointer-events: none;
+  pointer-events: auto;
   min-width: 200px;
   max-width: min(300px, calc(100vw - 16px));
   /* Residual: tall sheets (clan loadout, bag recipes) stay inside the viewport */
@@ -221,31 +221,33 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sw-rust-border, rgba(154, 52, 18, 0.65)) var(--sw-abyss-deep, #0a0c10);
+  touch-action: pan-y;
   font-family: var(--sw-font-pixel, 'VT323', monospace);
   font-size: var(--sw-text-sm);
   line-height: var(--sw-leading-snug);
 }
 
-/* Pre-clamp: CSS transform anchors the portal to the trigger.
-   After layout clamp (`.tooltip--clamped`), transform is disabled
-   because top/left are already absolute viewport coords. */
-.tooltip--bottom:not(.tooltip--clamped) {
+/* Before measurement, CSS anchors the first portal layout to the trigger.
+   Once measured, top/left already include the side offset and viewport clamp. */
+.tooltip--bottom:not(.tooltip--measured) {
   transform: translateX(-50%);
 }
 
-.tooltip--top:not(.tooltip--clamped) {
+.tooltip--top:not(.tooltip--measured) {
   transform: translate(-50%, -100%);
 }
 
-.tooltip--left:not(.tooltip--clamped) {
+.tooltip--left:not(.tooltip--measured) {
   transform: translate(-100%, -50%);
 }
 
-.tooltip--right:not(.tooltip--clamped) {
+.tooltip--right:not(.tooltip--measured) {
   transform: translateY(-50%);
 }
 
-.tooltip--clamped {
+.tooltip--measured {
   transform: none;
 }
 

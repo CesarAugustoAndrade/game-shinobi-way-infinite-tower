@@ -32,12 +32,14 @@ import {
   getRoomMovementCost,
   getRoomVisibilityRange,
 } from '../../game/systems/LocationTerrainSystem';
+import Tooltip from '../shared/Tooltip';
 import './exploration.css';
 
 interface RoomCardProps {
   room: BranchingRoom;
   isSelected: boolean;
   onClick: () => void;
+  onActivate?: () => void;
 }
 
 // Icon mapping for branching room types
@@ -73,6 +75,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
   room,
   isSelected,
   onClick,
+  onActivate,
 }) => {
   // Get the appropriate icon for the room type
   const getRoomIcon = (): React.ReactNode => {
@@ -80,40 +83,38 @@ const RoomCard: React.FC<RoomCardProps> = ({
   };
 
   // Get activity icons for the room
-  const getActivityIcons = (): React.ReactNode[] => {
-    const icons: React.ReactNode[] = [];
-    const wrap = (key: string, label: string, node: React.ReactNode) => (
-      <span key={key} className="room-card__activity-wrap" title={label} aria-label={label}>
-        {node}
-      </span>
-    );
+  const getActivityIcons = (): Array<{ key: string; label: string; node: React.ReactNode }> => {
+    const icons: Array<{ key: string; label: string; node: React.ReactNode }> = [];
+    const add = (key: string, label: string, node: React.ReactNode) => {
+      icons.push({ key, label, node });
+    };
 
     if (room.activities.combat && !room.activities.combat.completed) {
-      icons.push(wrap('combat', 'Combat', <Sword className="room-card__activity room-card__activity--combat" />));
+      add('combat', 'Combat', <Sword className="room-card__activity room-card__activity--combat" />);
     }
     if (room.activities.merchant && !room.activities.merchant.completed) {
-      icons.push(wrap('merchant', 'Merchant', <ShoppingBag className="room-card__activity room-card__activity--merchant" />));
+      add('merchant', 'Merchant', <ShoppingBag className="room-card__activity room-card__activity--merchant" />);
     }
     if (room.activities.event && !room.activities.event.completed) {
-      icons.push(wrap('event', 'Event', <Scroll className="room-card__activity room-card__activity--event" />));
+      add('event', 'Event', <Scroll className="room-card__activity room-card__activity--event" />);
     }
     if (room.activities.scrollDiscovery && !room.activities.scrollDiscovery.completed) {
-      icons.push(wrap('scrollDiscovery', 'Scroll Discovery', <BookOpen className="room-card__activity room-card__activity--scroll" />));
+      add('scrollDiscovery', 'Scroll Discovery', <BookOpen className="room-card__activity room-card__activity--scroll" />);
     }
     if (room.activities.rest && !room.activities.rest.completed) {
-      icons.push(wrap('rest', 'Rest', <Heart className="room-card__activity room-card__activity--rest" />));
+      add('rest', 'Rest', <Heart className="room-card__activity room-card__activity--rest" />);
     }
     if (room.activities.training && !room.activities.training.completed) {
-      icons.push(wrap('training', 'Training', <Dumbbell className="room-card__activity room-card__activity--training" />));
+      add('training', 'Training', <Dumbbell className="room-card__activity room-card__activity--training" />);
     }
     if (room.activities.treasure && !room.activities.treasure.collected) {
-      icons.push(wrap('treasure', 'Treasure', <Gift className="room-card__activity room-card__activity--treasure" />));
+      add('treasure', 'Treasure', <Gift className="room-card__activity room-card__activity--treasure" />);
     }
     if (room.activities.eliteChallenge && !room.activities.eliteChallenge.completed) {
-      icons.push(wrap('eliteChallenge', 'Elite Challenge', <Skull className="room-card__activity room-card__activity--elite" />));
+      add('eliteChallenge', 'Elite Challenge', <Skull className="room-card__activity room-card__activity--elite" />);
     }
     if (room.activities.infoGathering && !room.activities.infoGathering.completed) {
-      icons.push(wrap('infoGathering', 'Info Gathering', <Radio className="room-card__activity room-card__activity--info" />));
+      add('infoGathering', 'Info Gathering', <Radio className="room-card__activity room-card__activity--info" />);
     }
 
     return icons;
@@ -136,12 +137,12 @@ const RoomCard: React.FC<RoomCardProps> = ({
     return {
       name: def.name,
       chips,
-      title: [
+      details: [
         def.name,
         sight !== 2 ? `Sight ${sight}` : null,
         secretsPct !== 0 ? `Secrets ${secretsPct > 0 ? '+' : ''}${secretsPct}%` : null,
         pace !== 1 ? `Pace ×${pace.toFixed(1)}` : null,
-      ].filter(Boolean).join(' · '),
+      ].filter((detail): detail is string => Boolean(detail)),
     };
   }, [room.terrain]);
 
@@ -158,7 +159,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
     if (names.length === 0) return null;
     return {
       short: names[0].slice(0, 6),
-      title: names.join(' · '),
+      names,
     };
   }, [room.activities.combat?.modifiers, room.activities.eliteChallenge?.modifiers]);
 
@@ -178,7 +179,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
   ].filter(Boolean).join(' ');
 
   // Honest titles — never claim Guardian lives once exit is cleared (W7/W8 residual)
-  const lockTitle = isLocked
+  const stateDescription = isLocked
     ? 'Locked — clear the room you are in to open this path'
     : room.isCleared && room.isExit
       ? 'Guardian fallen — location exit cleared'
@@ -190,14 +191,54 @@ const RoomCard: React.FC<RoomCardProps> = ({
             ? 'Exit room — defeat the Guardian to clear the location'
             : undefined;
 
+  const activityLabels = activityIcons.map((activity) => activity.label);
+  const roomDescription = [
+    room.name,
+    stateDescription,
+    terrainHint?.name,
+    fightCondition?.names.join(', '),
+    activityLabels.length > 0 ? `Activities: ${activityLabels.join(', ')}` : null,
+  ].filter(Boolean).join('. ');
+
+  const tooltipContent = (
+    <div className="room-card__tooltip">
+      <div className="room-card__tooltip-title">{room.name}</div>
+      {stateDescription && <div className="room-card__tooltip-state">{stateDescription}</div>}
+      {terrainHint && (
+        <div>
+          Terrain: {terrainHint.details.join(' · ')}
+          {terrainHint.chips.length > 0 && (
+            <div className="room-card__tooltip-legend">S Sight · X Secrets · P Pace</div>
+          )}
+        </div>
+      )}
+      {fightCondition && <div>Fight: {fightCondition.names.join(' · ')}</div>}
+      {activityLabels.length > 0 && <div>Open: {activityLabels.join(' · ')}</div>}
+    </div>
+  );
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={isLocked}
-      className={cardClasses}
-      title={lockTitle}
-    >
+    <Tooltip content={tooltipContent} position="top" className="room-card__tooltip-host">
+      <button
+        type="button"
+        onClick={onClick}
+        onKeyDown={(event) => {
+          if (
+            event.key !== 'Enter' ||
+            !isSelected ||
+            !onActivate ||
+            !canClick ||
+            room.isCleared
+          ) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onActivate();
+        }}
+        disabled={isLocked}
+        className={cardClasses}
+        aria-label={roomDescription}
+        aria-pressed={isSelected}
+      >
       {/* Background pattern */}
       <div className="room-card__bg">
         <div className="room-card__bg-gradient" />
@@ -219,7 +260,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
 
         {/* T-085: terrain micro-hint (scan before select) */}
         {terrainHint && !isLocked && (
-          <div className="room-card__terrain" title={terrainHint.title}>
+          <div className="room-card__terrain">
             <span className="room-card__terrain-name">{terrainHint.name}</span>
             {terrainHint.chips.length > 0 && (
               <span className="room-card__terrain-chips">
@@ -230,7 +271,7 @@ const RoomCard: React.FC<RoomCardProps> = ({
         )}
         {/* T-106: fight condition chip */}
         {fightCondition && !isLocked && (
-          <div className="room-card__fight" title={fightCondition.title}>
+          <div className="room-card__fight">
             {fightCondition.short}
           </div>
         )}
@@ -238,7 +279,11 @@ const RoomCard: React.FC<RoomCardProps> = ({
         {/* Activity indicators */}
         {activityIcons.length > 0 && (
           <div className="room-card__activities">
-            {activityIcons}
+            {activityIcons.map((activity) => (
+              <span key={activity.key} className="room-card__activity-wrap" aria-hidden="true">
+                {activity.node}
+              </span>
+            ))}
           </div>
         )}
 
@@ -276,7 +321,8 @@ const RoomCard: React.FC<RoomCardProps> = ({
       {room.type === BranchingRoomType.BOSS_GATE && !room.isCleared && (
         <div className="room-card__glow room-card__glow--boss" />
       )}
-    </button>
+      </button>
+    </Tooltip>
   );
 };
 

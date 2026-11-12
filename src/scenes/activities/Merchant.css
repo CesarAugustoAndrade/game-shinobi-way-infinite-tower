@@ -1433,6 +1433,22 @@
   font-family: var(--sw-font-display, Silkscreen, monospace);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .merchant__poster,
+  .merchant__decision,
+  .merchant__ware,
+  .preview-panel,
+  .preview-panel__confirm:not(:disabled),
+  .merchant-toast {
+    animation: none !important;
+  }
+
+  .merchant__decision {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .merchant-toast__art {
   width: 2.25rem !important;
   height: 2.25rem !important;

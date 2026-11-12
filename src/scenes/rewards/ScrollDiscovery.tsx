@@ -16,6 +16,7 @@ import { canLearnSkill } from '../../game/systems/StatSystem';
 import { canAddPlayableSkill } from '../../game/systems/DeckSystem';
 import { LaunchProperties } from '../../config/featureFlags';
 import { getPlayableDeckSize } from '../../game/systems/DeckSystem';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './ScrollDiscovery.css';
 
 interface ScrollDiscoveryProps {
@@ -25,6 +26,10 @@ interface ScrollDiscoveryProps {
   onLearnScroll: (skill: Skill, slotIndex?: number) => void;
   onForgetSkill: (skillId: string) => void;
   onSkip: () => void;
+  /** Suspends scene-level shortcuts while a global overlay owns focus. */
+  shortcutsEnabled?: boolean;
+  /** Reports nested confirmation ownership to the global chrome. */
+  onDecisionDialogChange?: (open: boolean) => void;
   background?: string;
   lootTheme?: RegionLootTheme | null;
 }
@@ -57,6 +62,8 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   onLearnScroll,
   onForgetSkill,
   onSkip,
+  shortcutsEnabled = true,
+  onDecisionDialogChange,
   background,
 }) => {
   const mode = scrollDiscovery.mode ?? 'vendor';
@@ -64,6 +71,18 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
   const [forgetOpen, setForgetOpen] = useState(false);
   const [enter, setEnter] = useState(false);
   const lockRef = useRef(false);
+  const forgetDialogRef = useRef<HTMLDivElement>(null);
+  const forgetCancelRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap(forgetDialogRef, forgetOpen, forgetCancelRef);
+
+  useEffect(() => {
+    onDecisionDialogChange?.(forgetOpen);
+  }, [forgetOpen, onDecisionDialogChange]);
+
+  useEffect(
+    () => () => onDecisionDialogChange?.(false),
+    [onDecisionDialogChange],
+  );
 
   const forgetCost = scrollDiscovery.forgetCostRyo ?? 40;
   const clanChoices = scrollDiscovery.clanSkillChoices ?? [];
@@ -119,21 +138,21 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
     [player, playerStats],
   );
 
-  const handleBuy = (skill: Skill) => {
+  const handleBuy = useCallback((skill: Skill) => {
     if (lockRef.current) return;
     const gate = canBuy(skill);
     if (!gate.ok) return;
     lockRef.current = true;
     onLearnScroll(skill);
-  };
+  }, [canBuy, onLearnScroll]);
 
-  const handleClanPick = (skill: Skill) => {
+  const handleClanPick = useCallback((skill: Skill) => {
     if (lockRef.current) return;
     const gate = canClanPick(skill);
     if (!gate.ok) return;
     lockRef.current = true;
     onLearnScroll(skill);
-  };
+  }, [canClanPick, onLearnScroll]);
 
   const handleForget = (skillId: string) => {
     if (lockRef.current) return;
@@ -144,6 +163,7 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (!shortcutsEnabled) return;
       if (e.repeat) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === 'Escape') {
@@ -176,7 +196,18 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  });
+  }, [
+    shortcutsEnabled,
+    forgetOpen,
+    isClan,
+    clanChoices,
+    vendorScrolls,
+    canClanPick,
+    canBuy,
+    handleClanPick,
+    handleBuy,
+    onSkip,
+  ]);
 
   const poster = isClan ? CLAN_POSTER : VENDOR_POSTER;
   const title = isClan ? 'Clan Rite' : 'Scroll Vendor';
@@ -188,10 +219,19 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
     <SceneBackdrop background={background} dim={0.22}>
       <div className={`scroll-discovery scroll-discovery--${mode}`} role="region" aria-label={title}>
         {forgetOpen && (
-          <div className="scroll-forget" role="dialog" aria-modal="true" aria-label="Forget a skill">
+          <div
+            ref={forgetDialogRef}
+            className="scroll-forget"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scroll-forget-title"
+            aria-describedby="scroll-forget-cost"
+          >
             <div className="scroll-forget__panel">
-              <h3>Forget a technique</h3>
-              <p className="scroll-forget__cost">Costs {forgetCost} Ryo</p>
+              <h3 id="scroll-forget-title">Forget a technique</h3>
+              <p id="scroll-forget-cost" className="scroll-forget__cost">
+                Costs {forgetCost} Ryo. Choose the technique to release, or cancel.
+              </p>
               <ul className="scroll-forget__list">
                 {player.skills.map((s) => (
                   <li key={s.id}>
@@ -208,7 +248,12 @@ const ScrollDiscovery: React.FC<ScrollDiscoveryProps> = ({
                   </li>
                 ))}
               </ul>
-              <button type="button" className="scroll-forget__cancel" onClick={() => setForgetOpen(false)}>
+              <button
+                ref={forgetCancelRef}
+                type="button"
+                className="scroll-forget__cancel"
+                onClick={() => setForgetOpen(false)}
+              >
                 Cancel [Esc]
               </button>
             </div>

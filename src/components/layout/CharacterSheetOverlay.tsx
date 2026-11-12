@@ -32,6 +32,8 @@ interface CharacterSheetOverlayProps {
   showBackdrop?: boolean;
   /** Focus trap only when this is the sole open panel. */
   trapFocus?: boolean;
+  /** Only the top overlay in a paired stack should own Escape. */
+  escapeEnabled?: boolean;
 }
 
 const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
@@ -42,6 +44,7 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
   side = 'left',
   showBackdrop = true,
   trapFocus = true,
+  escapeEnabled = true,
 }) => {
   const flagMods = getEventFlagRunModifiers(player);
   const runFlagLabels = flagMods.activeLabels;
@@ -50,7 +53,7 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.repeat) return;
+      if (!escapeEnabled || e.key !== 'Escape' || e.repeat) return;
       e.preventDefault();
       e.stopPropagation();
       onClose();
@@ -58,7 +61,7 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
     // Bubble (not capture) so bag Esc can fire first when both open
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [escapeEnabled, onClose]);
 
   return (
     <div
@@ -73,6 +76,11 @@ const CharacterSheetOverlay: React.FC<CharacterSheetOverlayProps> = ({
       role="dialog"
       aria-modal={trapFocus ? true : undefined}
       aria-label="Character sheet"
+      onKeyDown={(event) => {
+        if (!['Escape', 'i', 'I', 'c', 'C', 'a', 'A'].includes(event.key)) {
+          event.stopPropagation();
+        }
+      }}
     >
       {showBackdrop && (
         <button

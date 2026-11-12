@@ -160,12 +160,51 @@ import {
 } from './game/utils/explorationDebug';
 import { FeatureFlags, LaunchProperties } from './config/featureFlags';
 import { isBlockingExploreChrome } from './game/ui/overlayStack';
+import { isTextEntryKeyboardTarget } from './game/ui/keyboardTarget';
 
 // Center-stage void plate + left-panel chrome
 import './App.css';
 
+const PAINTED_BIOME_SLUGS = new Set([
+  'coastal_harbor',
+  'dense_forest',
+  'foggy_shoreline',
+  'fortified_camp',
+  'fortified_mansion',
+  'great_bridge',
+  'mist_covered_bridge',
+  'river_banks',
+  'ruined_estate',
+  'rural_village',
+  'secret_harbor',
+  'shipwreck',
+  'underground_cavern',
+  'underwater_temple',
+]);
+
+const ARC_VISUAL_FALLBACKS: Record<string, string> = {
+  WAVES_ARC: 'Coastal Harbor',
+  EXAMS_ARC: 'Dense Forest',
+  ROGUE_ARC: 'River Banks',
+  WAR_ARC: 'Fortified Camp',
+};
+
+const getPaintedLamina = (biome: string, arc?: string) => {
+  const requested = resolveLaminaPaths(biome);
+  const requestedSlug = requested.background.match(
+    /\/assets\/locations\/location_([^?]+)\.png(?:\?|$)/,
+  )?.[1];
+  if (requestedSlug && PAINTED_BIOME_SLUGS.has(requestedSlug)) return requested;
+
+  // Later arcs currently lack bespoke plates. Reuse one intentional arc-level
+  // environment instead of issuing three broken asset requests per scene.
+  return resolveLaminaPaths(ARC_VISUAL_FALLBACKS[arc ?? ''] ?? 'Coastal Harbor');
+};
+
 const getFullCombatBackground = (locationBackground: string): string => {
-  const match = locationBackground.match(/\/assets\/location_([^?]+)\.png/);
+  const match = locationBackground.match(
+    /\/assets\/locations\/location_([^?]+)\.png(?:\?|$)/,
+  );
   const slug = match?.[1] ?? 'coastal_harbor';
   return slug === 'coastal_harbor'
     ? '/assets/backgrounds/combat_background_coastal_harbor_v3.png'
@@ -257,6 +296,7 @@ const App: React.FC = () => {
   const [currentTreasureHunt, setCurrentTreasureHunt] = useState<TreasureHunt | null>(null);
   const [treasureHuntReward, setTreasureHuntReward] = useState<TreasureHuntRewardData | null>(null);
   const [pendingBagFullItem, setPendingBagFullItem] = useState<PendingBagFullItem | null>(null);
+  const [rewardDecisionDialogOpen, setRewardDecisionDialogOpen] = useState(false);
   const [showStatAssign, setShowStatAssign] = useState(false);
 
   // Automatically show mandatory stat assignment modal when player has unspent stat points
@@ -421,11 +461,11 @@ const App: React.FC = () => {
   }, [region, difficulty]);
 
   // Biome parallax láminas for combat stage (CinematicViewscreen) + scene backdrops.
-  // Always resolve a painted plate (defaults to Coastal Harbor) so EVENT/LOOT never sit on empty void.
-  // Mid/fg may be missing — CinematicViewscreen / SceneBackdrop hide layers on error.
+  // Keep each arc on an existing painted plate so scenes never issue known 404s.
+  // Bespoke later-arc environments remain an art-production gap in the polish ledger.
   const combatLamina = useMemo(() => {
     const biome = currentLocation?.biome || region?.biome || 'Coastal Harbor';
-    return resolveLaminaPaths(biome);
+    return getPaintedLamina(biome, region?.arc);
   }, [currentLocation, region]);
   const combatBackground = combatLamina.background;
   const fullCombatBackground = useMemo(
@@ -1622,6 +1662,18 @@ const App: React.FC = () => {
   ]
     .filter(Boolean)
     .join(' ');
+  const exploreInteractionBlocked =
+    isBlockingExploreChrome({
+      combatReward: Boolean(combatReward),
+      eventOutcome: Boolean(eventOutcome),
+      intelResult: Boolean(intelResult),
+      restResult: Boolean(restResult),
+      locationCompleteResult: Boolean(locationCompleteResult),
+      showApproachSelector,
+    }) ||
+    rewardDecisionDialogOpen ||
+    Boolean(pendingBagFullItem) ||
+    showStatAssign;
 
   // Close explore overlays when leaving a run shell (no player / full-screen exit)
   useEffect(() => {
@@ -1661,14 +1713,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!showExploreChrome) return;
     const onKey = (event: KeyboardEvent) => {
-      const t = event.target as HTMLElement | null;
-      if (
-        t instanceof HTMLInputElement ||
-        t instanceof HTMLTextAreaElement ||
-        t?.isContentEditable
-      ) {
-        return;
-      }
+      if (event.defaultPrevented || event.repeat || isTextEntryKeyboardTarget(event.target)) return;
       // Pure React flags (prefer over document.querySelector for known modals)
       const chromeBlocked = isBlockingExploreChrome({
         combatReward: Boolean(combatReward),
@@ -1679,6 +1724,10 @@ const App: React.FC = () => {
         showApproachSelector,
       });
       const key = event.key.toLowerCase();
+      const guardedRewardDecisionOpen = rewardDecisionDialogOpen;
+      const treasureBagFullOpen = Boolean(pendingBagFullItem);
+      if (guardedRewardDecisionOpen && (key === 'a' || key === 'i' || key === 'c')) return;
+      if (treasureBagFullOpen && (key === 'a' || key === 'c')) return;
       if (key === 'a') {
         // Toggle approach preference (A is free on explore; combat uses number keys for hand)
         if (isCombat) return;
@@ -1691,12 +1740,14 @@ const App: React.FC = () => {
       } else if (key === 'i') {
         if (chromeBlocked) return;
         event.preventDefault();
+        setExploreCharacterOpen(false);
         setExploreBagOpen((prev) => !prev);
       } else if (key === 'c') {
         // Combat hand uses C for the 3rd skill card
         if (isCombat) return;
         if (chromeBlocked) return;
         event.preventDefault();
+        setExploreBagOpen(false);
         setExploreCharacterOpen((prev) => !prev);
       } else if (event.key === 'Escape' && (exploreBagOpen || exploreCharacterOpen)) {
         // Progressive close: bag first, then character (overlays may also handle Esc)
@@ -1718,6 +1769,8 @@ const App: React.FC = () => {
     intelResult,
     restResult,
     locationCompleteResult,
+    rewardDecisionDialogOpen,
+    pendingBagFullItem,
   ]);
 
   // --- Full-screen scenes (no game shell) — only after all hooks ---
@@ -1922,14 +1975,7 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col relative bg-zinc-950">
         {/* T-022: minimal HUD on exploration maps */}
         {showExploreChrome && player && playerStats && (() => {
-          const exploreModalBlocksHud = isBlockingExploreChrome({
-            combatReward: Boolean(combatReward),
-            eventOutcome: Boolean(eventOutcome),
-            intelResult: Boolean(intelResult),
-            restResult: Boolean(restResult),
-            locationCompleteResult: Boolean(locationCompleteResult),
-            showApproachSelector,
-          });
+          const exploreModalBlocksHud = exploreInteractionBlocked;
           return (
           <ExplorationHUD
             player={player}
@@ -1937,10 +1983,12 @@ const App: React.FC = () => {
             maxChakra={playerStats.derived.maxChakra}
             onOpenBag={() => {
               if (exploreModalBlocksHud) return;
+              setExploreCharacterOpen(false);
               setExploreBagOpen((p) => !p);
             }}
             onOpenCharacter={() => {
               if (exploreModalBlocksHud) return;
+              setExploreBagOpen(false);
               setExploreCharacterOpen((p) => !p);
             }}
             onOpenApproach={() => {
@@ -1953,6 +2001,7 @@ const App: React.FC = () => {
             bagOpen={exploreBagOpen}
             characterOpen={exploreCharacterOpen}
             approachOpen={showApproachSelector}
+            controlsDisabled={exploreModalBlocksHud}
             lootTheme={region?.lootTheme}
             locationLabel={
               gameState === GameState.LOCATION_EXPLORE || isMissionScene
@@ -1998,6 +2047,8 @@ const App: React.FC = () => {
                 onToggleAutoCombat={() => setAutoCombatEnabled(prev => !prev)}
                 autoPassTimeRemaining={autoPassTimeRemaining}
                 background={fullCombatBackground}
+                midgroundImage={combatLamina.midground}
+                foregroundImage={combatLamina.foreground}
                 logs={logs}
                 approachResult={approachResult}
                 locationTerrainLines={(() => {
@@ -2034,6 +2085,16 @@ const App: React.FC = () => {
               cameFromChain={cameFromChain}
               locationTerrainMods={getLocationTerrainMods(currentLocation?.terrainEffects)}
               background={combatBackground}
+              shortcutsEnabled={
+                !exploreBagOpen &&
+                !exploreCharacterOpen &&
+                !showApproachSelector &&
+                !combatReward &&
+                !eventOutcome &&
+                !intelResult &&
+                !restResult &&
+                !locationCompleteResult
+              }
             />
           )}
 
@@ -2085,6 +2146,8 @@ const App: React.FC = () => {
                 getRarityColor={getRarityColor}
                 getDamageTypeColor={getDamageTypeColor}
                 isProcessing={isProcessingLoot}
+                shortcutsEnabled={!exploreBagOpen && !exploreCharacterOpen}
+                onDecisionDialogChange={setRewardDecisionDialogOpen}
                 background={combatBackground}
                 lootTheme={region?.lootTheme}
               />
@@ -2132,6 +2195,8 @@ const App: React.FC = () => {
               onLearnScroll={handleLearnScroll}
               onForgetSkill={handleForgetScrollSkill}
               onSkip={handleScrollDiscoverySkip}
+              shortcutsEnabled={!exploreBagOpen && !exploreCharacterOpen}
+              onDecisionDialogChange={setRewardDecisionDialogOpen}
               background={combatBackground}
               lootTheme={region?.lootTheme}
             />
@@ -2152,6 +2217,12 @@ const App: React.FC = () => {
                 onPickRandom={handlePickRandom}
                 onTakeMapPiece={handleTakeMapPiece}
                 pendingBagFullItem={pendingBagFullItem}
+                bagOverlayOpen={exploreBagOpen}
+                shortcutsEnabled={!exploreBagOpen && !exploreCharacterOpen}
+                onOpenBag={() => {
+                  setExploreCharacterOpen(false);
+                  setExploreBagOpen(true);
+                }}
                 onBagFullSell={handleBagFullSell}
                 onBagFullLeave={handleBagFullLeave}
                 onBagFullStash={handleBagFullStash}
@@ -2186,6 +2257,9 @@ const App: React.FC = () => {
                 playerStats={playerStats}
                 drawnCards={drawnCards}
                 selectedIndex={selectedCardIndex}
+                interactionEnabled={
+                  !exploreBagOpen && !exploreCharacterOpen && !exploreInteractionBlocked
+                }
                 onCardSelect={handleCardSelect}
                 onEnterLocation={handleEnterSelectedLocation}
               />
@@ -2235,6 +2309,9 @@ const App: React.FC = () => {
                   playerStats={playerStats}
                   currentIntel={currentIntel}
                   locationName={locationName}
+                  interactionEnabled={
+                    !exploreBagOpen && !exploreCharacterOpen && !exploreInteractionBlocked
+                  }
                   onRoomSelect={handleLocationRoomSelect}
                   onRoomEnter={(room) => {
                     // Click path does not always see DOM dialogs yet; block while
@@ -2340,6 +2417,7 @@ const App: React.FC = () => {
           side="right"
           showBackdrop={!exploreCharacterOpen}
           trapFocus={!exploreCharacterOpen}
+          escapeEnabled
         />
       )}
       {showExploreChrome && exploreCharacterOpen && player && playerStats && (
@@ -2351,6 +2429,7 @@ const App: React.FC = () => {
           side="left"
           showBackdrop={!exploreBagOpen}
           trapFocus={!exploreBagOpen}
+          escapeEnabled={!exploreBagOpen}
         />
       )}
 

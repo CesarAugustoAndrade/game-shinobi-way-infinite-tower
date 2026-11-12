@@ -43,6 +43,7 @@ import {
 
 import ArtIcon from '../../components/shared/ArtIcon';
 import { alignItemTileTooltip } from '../../utils/itemTileTooltip';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import './Loot.css';
 
 /** Max synthesis recipe names shown in component tooltip (TFT readability). */
@@ -62,6 +63,10 @@ interface LootProps {
   getRarityColor: (rarity: Rarity) => string;
   getDamageTypeColor: (dt: DamageType) => string;
   isProcessing?: boolean;
+  /** Suspends scene-level shortcuts while a global overlay owns focus. */
+  shortcutsEnabled?: boolean;
+  /** Reports nested confirmation ownership to the global chrome. */
+  onDecisionDialogChange?: (open: boolean) => void;
   /** Biome background image — fills the scene like CinematicViewscreen. */
   background?: string;
   /**
@@ -106,11 +111,25 @@ const Loot: React.FC<LootProps> = ({
   onLeaveAll,
   getDamageTypeColor,
   isProcessing = false,
+  shortcutsEnabled = true,
+  onDecisionDialogChange,
   background,
   lootTheme = null,
 }) => {
   // T-052: confirm before abandoning unclaimed spoils
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const confirmDialogRef = useRef<HTMLDivElement>(null);
+  const keepTakingRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap(confirmDialogRef, confirmLeave, keepTakingRef);
+
+  useEffect(() => {
+    onDecisionDialogChange?.(confirmLeave);
+  }, [confirmLeave, onDecisionDialogChange]);
+
+  useEffect(
+    () => () => onDecisionDialogChange?.(false),
+    [onDecisionDialogChange],
+  );
   /**
    * Sync mutex — isProcessing alone lags; double Enter / Leave them behind
    * can call returnToMap twice (re-chain activity / double floor-complete).
@@ -161,8 +180,10 @@ const Loot: React.FC<LootProps> = ({
   // Capture phase so other shell listeners cannot swallow Z/X first.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!shortcutsEnabled) return;
       if (e.repeat) return;
       const t = e.target;
+      if ((t as HTMLElement | null)?.closest('.tooltip')) return;
       if (
         t instanceof HTMLInputElement ||
         t instanceof HTMLTextAreaElement ||
@@ -180,11 +201,8 @@ const Loot: React.FC<LootProps> = ({
       }
 
       if (confirmLeave) {
-        if (e.code === 'Space' || e.code === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          confirmLeaveAll();
-        }
+        // Confirmation now follows the focused button. A global Enter must
+        // never abandon spoils while focus is still on the safe action.
         return;
       }
 
@@ -220,7 +238,7 @@ const Loot: React.FC<LootProps> = ({
 
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [isProcessing, confirmLeave, confirmLeaveAll, requestLeave]);
+  }, [isProcessing, shortcutsEnabled, confirmLeave, requestLeave]);
 
   return (
     <SceneBackdrop background={background}>
@@ -681,10 +699,17 @@ const Loot: React.FC<LootProps> = ({
 
       {/* T-052: confirm abandoning unclaimed spoils */}
       {confirmLeave && (
-        <div className="loot-confirm" role="dialog" aria-modal="true" aria-label="Confirm leave spoils">
+        <div
+          ref={confirmDialogRef}
+          className="loot-confirm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="loot-confirm-title"
+          aria-describedby="loot-confirm-body"
+        >
           <div className="loot-confirm__panel">
-            <h3 className="loot-confirm__title">Leave unclaimed spoils?</h3>
-            <p className="loot-confirm__body">
+            <h3 id="loot-confirm-title" className="loot-confirm__title">Leave unclaimed spoils?</h3>
+            <p id="loot-confirm-body" className="loot-confirm__body">
               You still have <strong>{remainingCount}</strong> unclaimed
               {remainingCount === 1 ? ' spoil' : ' spoils'}
               {droppedSkill ? ` (includes skill: ${droppedSkill.name})` : ''}.
@@ -692,6 +717,7 @@ const Loot: React.FC<LootProps> = ({
             </p>
             <div className="loot-confirm__actions">
               <button
+                ref={keepTakingRef}
                 type="button"
                 className="loot-confirm__btn loot-confirm__btn--cancel"
                 onClick={() => setConfirmLeave(false)}

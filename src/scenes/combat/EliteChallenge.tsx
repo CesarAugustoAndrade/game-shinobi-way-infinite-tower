@@ -112,17 +112,19 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
     return () => cancelAnimationFrame(id);
   }, [enemy.name, enemy.tier, enemy.element]);
 
-  // Keyboard shortcuts: F for Fight, E for Escape
+  // Keyboard shortcuts: 1/F/Enter for Fight, 2/E/Esc for Escape
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       // Hold re-fires; parent eliteResolveLockRef is belt — still skip repeat noise
       if (e.repeat) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      if (e.key.toLowerCase() === 'f') {
+      const key = e.key.toLowerCase();
+
+      if (key === 'f' || key === '1' || e.key === 'Enter') {
         e.preventDefault();
         onFight();
-      } else if (e.key.toLowerCase() === 'e' && onEscape) {
+      } else if ((key === 'e' || key === '2' || e.key === 'Escape') && onEscape) {
         e.preventDefault();
         onEscape();
       }
@@ -223,7 +225,7 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
                 <div className="elite-challenge__choice-content">
                   <div className="elite-challenge__choice-header">
                     <div className="elite-challenge__choice-header-left">
-                      <span className="elite-challenge__choice-index">F</span>
+                      <span className="elite-challenge__choice-index">1 / F</span>
                       <Swords
                         size={18}
                         className="elite-challenge__choice-icon--fight"
@@ -255,7 +257,7 @@ const EliteChallenge: React.FC<EliteChallengeProps> = ({
                   <div className="elite-challenge__choice-content">
                     <div className="elite-challenge__choice-header">
                       <div className="elite-challenge__choice-header-left">
-                        <span className="elite-challenge__choice-index">E</span>
+                        <span className="elite-challenge__choice-index">2 / E</span>
                         <Wind
                           size={18}
                           className="elite-challenge__choice-icon--escape"

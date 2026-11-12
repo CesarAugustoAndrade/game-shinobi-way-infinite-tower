@@ -1,5 +1,5 @@
 import React from 'react';
-import { LocationActivities, ActivityStatus } from '../../game/types';
+import { LocationActivities } from '../../game/types';
 import { ACTIVITY_LABELS } from '../../game/constants/activityLabels';
 import { getActivityArt } from '../../game/constants/artRegistry';
 import ArtIcon from '../shared/ArtIcon';
@@ -33,6 +33,25 @@ const ACTIVITY_COLOR: Record<string, string> = {
   infoGathering: 'activity-icons__icon--info',
 };
 
+export interface ActivityDisplayEntry {
+  key: keyof LocationActivities;
+  label: string;
+  isSpecial: boolean;
+}
+
+export const getActivityDisplayEntries = (
+  activities: LocationActivities | null,
+): ActivityDisplayEntry[] => {
+  if (!activities) return [];
+  return ACTIVITY_KEYS
+    .filter((key) => activities[key] !== false)
+    .map((key) => ({
+      key,
+      label: ACTIVITY_LABELS[key as keyof typeof ACTIVITY_LABELS],
+      isSpecial: activities[key] === 'special',
+    }));
+};
+
 const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
   if (!activities) {
     return (
@@ -44,7 +63,7 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
     );
   }
 
-  const activeActivities = ACTIVITY_KEYS.filter((key) => activities[key] !== false);
+  const activeActivities = getActivityDisplayEntries(activities);
 
   return (
     <div className="activity-icons">
@@ -54,10 +73,7 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
         // a lie — every site still generates combat, treasure and events.
         <span className="activity-icons__empty">No amenities confirmed</span>
       ) : (
-        activeActivities.map((key) => {
-          const status: ActivityStatus = activities[key];
-          const isSpecial = status === 'special';
-          const label = ACTIVITY_LABELS[key as keyof typeof ACTIVITY_LABELS];
+        activeActivities.map(({ key, label, isSpecial }) => {
           const art = getActivityArt(key);
           const classes = [
             'activity-icons__icon',
@@ -74,12 +90,13 @@ const ActivityIcons: React.FC<ActivityIconsProps> = ({ activities }) => {
             <span
               key={key}
               className={classes}
-              title={title}
+              role="img"
+              aria-label={title}
             >
               <ArtIcon
                 art={art}
                 size="xs"
-                title={title}
+                decorative
               />
               {isSpecial ? <span className="activity-icons__special-mark" aria-hidden>≈</span> : null}
             </span>

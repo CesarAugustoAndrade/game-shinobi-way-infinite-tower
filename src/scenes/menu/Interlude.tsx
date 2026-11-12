@@ -109,16 +109,22 @@ const Interlude: React.FC<InterludeProps> = ({
       if (e.key >= '1' && e.key <= '3') {
         e.preventDefault();
         const i = parseInt(e.key, 10) - 1;
-        if (boons[i]) setSelected(i);
+        if (boons[i]) {
+          if (selected === i) {
+            confirm();
+          } else {
+            setSelected(i);
+          }
+        }
       }
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' || e.code === 'Space') {
         e.preventDefault();
         confirm();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [boons, confirm]);
+  }, [boons, selected, confirm]);
 
   const renderBoonArt = (boon: CampaignBoon) => {
     if (boon.kind === 'item' && boon.item) {

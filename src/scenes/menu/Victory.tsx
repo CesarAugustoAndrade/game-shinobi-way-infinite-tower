@@ -56,7 +56,7 @@ const Victory: React.FC<VictoryProps> = ({
       // Let focused CTA (Return / Infinite) use native activation — do not
       // force onMenu when Infinite Ascent is focused.
       if (e.repeat) return;
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' || e.code === 'Space') {
         if (e.target instanceof HTMLElement && e.target.closest('button, a[href], [role="button"]')) {
           return;
         }

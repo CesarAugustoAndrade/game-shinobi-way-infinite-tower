@@ -67,6 +67,12 @@
   animation: sw-ready-pulse 2s ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .skill-card--toggle.skill-card--active {
+    animation: none;
+  }
+}
+
 .skill-card--passive {
   border-color: var(--sw-metal, #2d3d4a);
   opacity: 0.6;

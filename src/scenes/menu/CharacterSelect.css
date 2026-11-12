@@ -532,18 +532,6 @@
   font-size: 9px;
 }
 
-.clan-tooltip__loadout-skills {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.clan-tooltip__loadout-skill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .clan-tooltip__stat {
   display: flex;
   justify-content: space-between;
@@ -552,18 +540,11 @@
   color: var(--sw-text-secondary);
 }
 
-.clan-tooltip__stat-name { opacity: 0.8; }
-.clan-tooltip__stat-value { font-weight: 600; }
-
-.clan-tooltip__stat-name--wil { color: #ef4444; }
-.clan-tooltip__stat-name--cha { color: var(--sw-chakra-color, #3b82f6); }
-.clan-tooltip__stat-name--spi { color: var(--sw-category-mind, #a855f7); }
-.clan-tooltip__stat-name--int { color: var(--sw-category-mind-light, #c084fc); }
-.clan-tooltip__stat-name--cal { color: #818cf8; }
-.clan-tooltip__stat-name--acc { color: var(--sw-rust-light, #c47a52); }
-.clan-tooltip__stat-name--str { color: var(--sw-category-body, #f97316); }
-.clan-tooltip__stat-name--spd { color: var(--sw-category-technique, #10b981); }
-.clan-tooltip__stat-name--dex { color: #ec4899; }
+.clan-tooltip__stat-values {
+  color: var(--sw-bone-dim, #b8b4a8);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    RESPONSIVE
