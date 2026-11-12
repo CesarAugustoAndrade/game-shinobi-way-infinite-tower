@@ -185,14 +185,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       },
     },
     stanceBonus: { posture: Posture.AGGRESSIVE, damageMultBonus: 0.15 },
-    effects: [{
-      type: EffectType.BURN,
-      value: 4,
-      duration: 2,
-      chance: 1.0,
-      damageType: DamageType.ELEMENTAL,
-      damageProperty: DamageProperty.NORMAL
-    }]
+    markEffects: [
+      {
+        id: 'burn',
+        duration: 2,
+        stacks: 4,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
   },
 
   KAWARIMI: {
@@ -1328,8 +1330,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'weapon_proficiency',
     name: 'Weapon Proficiency',
     tier: SkillTier.BASIC,
-    description: '+10% weapon damage.',
+    description: '+10% damage to techniques with the WEAPON tag. Outside the playable hand.',
     actionType: ActionType.PASSIVE,
+    tags: [SkillTag.WEAPON, SkillTag.PASSIVE],
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -1347,7 +1350,8 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       },
     },
     passiveEffect: {
-      damageBonus: 0.1
+      damageBonus: 0.1,
+      damageBonusTag: SkillTag.WEAPON,
     }
   },
 
@@ -1355,8 +1359,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'taijutsu_training',
     name: 'Taijutsu Training',
     tier: SkillTier.BASIC,
-    description: '+10% taijutsu damage.',
+    description: '+10% damage to techniques with the TAIJUTSU tag. Outside the playable hand.',
     actionType: ActionType.PASSIVE,
+    tags: [SkillTag.TAIJUTSU, SkillTag.PASSIVE],
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -1374,7 +1379,8 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       },
     },
     passiveEffect: {
-      damageBonus: 0.1
+      damageBonus: 0.1,
+      damageBonusTag: SkillTag.TAIJUTSU,
     }
   },
 
@@ -1382,8 +1388,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'quick_reflexes',
     name: 'Quick Reflexes',
     tier: SkillTier.BASIC,
-    description: '+5% Evasion.',
+    description: '+1 SPD. Outside the playable hand.',
     actionType: ActionType.PASSIVE,
+    tags: [SkillTag.PASSIVE, SkillTag.PHYSICAL],
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -1409,8 +1416,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'iron_body',
     name: 'Iron Body',
     tier: SkillTier.BASIC,
-    description: '+5% Defense (all types).',
+    description: '+5% physicalDefensePercent. Outside the playable hand.',
     actionType: ActionType.PASSIVE,
+    tags: [SkillTag.PASSIVE, SkillTag.PHYSICAL],
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -1437,8 +1445,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'chakra_reserves',
     name: 'Chakra Reserves',
     tier: SkillTier.BASIC,
-    description: '+3 CP regen/turn.',
+    description: '+3 CP regeneration per turn. Outside the playable hand.',
     actionType: ActionType.PASSIVE,
+    tags: [SkillTag.PASSIVE],
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -1464,8 +1473,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'mental_fortitude',
     name: 'Mental Fortitude',
     tier: SkillTier.BASIC,
-    description: '+10% Genjutsu Resistance.',
+    description: '+2 CAL. Outside the playable hand.',
     actionType: ActionType.PASSIVE,
+    tags: [SkillTag.PASSIVE, SkillTag.MENTAL],
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -1492,8 +1502,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'precision',
     name: 'Precision',
     tier: SkillTier.BASIC,
-    description: '+5% Critical Chance.',
+    description: '+1 ACC. Outside the playable hand.',
     actionType: ActionType.PASSIVE,
+    tags: [SkillTag.PASSIVE],
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -1519,8 +1530,9 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'fire_affinity',
     name: 'Fire Affinity',
     tier: SkillTier.BASIC,
-    description: '+15% Fire damage.',
+    description: '+15% FIRE damage only (by element/tag FIRE). Outside the playable hand.',
     actionType: ActionType.PASSIVE,
+    tags: [SkillTag.PASSIVE, SkillTag.FIRE, SkillTag.UCHIHA],
     chakraCost: 0,
     hpCost: 0,
     cooldown: 0,
@@ -1701,14 +1713,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [{
-      type: EffectType.BURN,
-      value: 5,
-      duration: 2,
-      chance: 1.0,
-      damageType: DamageType.ELEMENTAL,
-      damageProperty: DamageProperty.NORMAL
-    }]
+    markEffects: [
+      {
+        id: 'burn',
+        duration: 2,
+        stacks: 5,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
   },
 
   ROTATION: {
@@ -2048,14 +2062,16 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
         [PrimaryStat.SPIRIT]: 2,
       },
     },
-    effects: [{
-      type: EffectType.BURN,
-      value: 5,
-      duration: 3,
-      chance: 1.0,
-      damageType: DamageType.ELEMENTAL,
-      damageProperty: DamageProperty.NORMAL,
-    }],
+    markEffects: [
+      {
+        id: 'burn',
+        duration: 3,
+        stacks: 5,
+        family: MarkFamily.DOT,
+        targetActor: 'enemy',
+        requireHit: true,
+      },
+    ],
   },
 
   HIDDEN_MIST: {
@@ -2972,13 +2988,13 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
       consumeCharges: 1,
       damageMultBonus: 0.4,
     },
+    impactStun: { chance: 0.6, duration: 1 },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 3,
         [PrimaryStat.SPIRIT]: 3,
       },
     },
-    effects: [{ type: EffectType.STUN, duration: 1, chance: 0.6 }],
   },
 
   SAND_COFFIN: {
@@ -3805,21 +3821,31 @@ const SKILLS_CLASSIC: Record<string, Skill> = {
     id: 'copy_jutsu',
     name: 'Sharingan: Copy',
     tier: SkillTier.KINJUTSU,
-    description: 'Copy enemy\'s last skill at 80% power.',
+    description:
+      'Requires Sharingan ON. Copies the enemy telegraphed technique as a one-use temporary card (keeps its costs/range). Does not spend a Mode charge. Live spawn of the temp card is follow-up wiring.',
     actionType: ActionType.ACTIVE,
+    cardRole: CardRole.SUPPORT,
+    tags: [SkillTag.UCHIHA, SkillTag.DISCOVER, SkillTag.MENTAL, SkillTag.NINJUTSU],
+    baseWeight: defaultBaseWeight(),
+    discover: { count: 1 },
     apCost: 2,
     chakraCost: 6,
     hpCost: 0,
     cooldown: 8,
     currentCooldown: 0,
-    baseDamage: 15,
-
-    scalingPerPoint: 3,
+    baseDamage: 0,
+    scalingPerPoint: 0,
     scalingStat: PrimaryStat.INTELLIGENCE,
-    damageType: DamageType.PHYSICAL,  // Variable
+    damageType: DamageType.PHYSICAL,
     damageProperty: DamageProperty.NORMAL,
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
+    allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM, CombatRange.LONG],
+    modeInteraction: {
+      family: MODE_FAMILY.SHARINGAN,
+      requireOn: true,
+      consumeCharges: 0,
+    },
     requirements: {
       stats: {
         [PrimaryStat.INTELLIGENCE]: 7,

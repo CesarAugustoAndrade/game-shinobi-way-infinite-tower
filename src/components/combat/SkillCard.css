@@ -305,6 +305,12 @@
   padding-left: 1.5rem;
 }
 
+.skill-card__title-block {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding-right: var(--sw-space-2);
+}
+
 .skill-card__name {
   font-size: var(--sw-text-xs);
   font-weight: 700;
@@ -316,14 +322,42 @@
 
 .skill-card__type-row {
   display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: var(--sw-space-2);
   margin-top: var(--sw-space-0-5);
+  min-width: 0;
 }
 
 .skill-card__damage-type {
   font-size: var(--sw-text-3xs);
   font-weight: 700;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.skill-card__hits,
+.skill-card__cd {
+  font-size: var(--sw-text-3xs);
+  font-weight: 700;
+  color: var(--sw-fog, #8a9199);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.skill-card__range {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.5rem;
+  font-weight: 700;
+  font-family: var(--sw-font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sw-fog, #8a9199);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .skill-card__damage-type--physical {

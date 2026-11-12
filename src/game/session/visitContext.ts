@@ -5,7 +5,7 @@
  * Zero React; safe to import from hooks without circular ESM edges.
  */
 
-import { completeActivity } from '../systems/LocationSystem';
+import { completeActivity, getCurrentActivity } from '../systems/LocationSystem';
 import type { BranchingFloor, RoomActivities } from '../types';
 import { GameState } from '../types';
 
@@ -96,4 +96,16 @@ export function resolvePostActivityGameState(
     return GameState.LOCATION_EXPLORE;
   }
   return GameState.REGION_MAP;
+}
+
+/**
+ * Next incomplete activity on a room after completeActivity, or null when
+ * the room is spent. Callers skip rest/intel/event Continue when this is set.
+ */
+export function getPendingActivityOnFloor(
+  floor: BranchingFloor,
+  roomId: string,
+): keyof RoomActivities | null {
+  const room = floor.rooms.find((r) => r.id === roomId);
+  return room ? getCurrentActivity(room) : null;
 }

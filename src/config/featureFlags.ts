@@ -15,10 +15,10 @@ export const FeatureFlags = {
   // ─────────────────────────────────────────────────────────────
 
   /** Log combat calculations to console (`combatDebug.ts`) */
-  DEBUG_COMBAT_LOG: false,
+  DEBUG_COMBAT_LOG: true,
 
   /** Log exploration/state transitions (`explorationDebug.ts`). Off by default on mainline. */
-  DEBUG_STATE_TRANSITIONS: false,
+  DEBUG_STATE_TRANSITIONS: true,
 
   /** Skip character selection (use DEFAULT_CLAN) */
   SKIP_CHAR_SELECT: false,

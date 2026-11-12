@@ -1,0 +1,194 @@
+/**
+ * Combat HUD glyphs — modes / marks / status (24–32px, glanceable)
+ */
+
+.combat-hud-icon {
+  display: block;
+  width: 1.7rem;
+  height: 1.7rem;
+  object-fit: cover;
+  image-rendering: auto;
+  pointer-events: none;
+}
+
+.combat-hud-icon--emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  line-height: 1;
+  background: #121820;
+}
+
+.combat-hud-icon-btn {
+  position: relative;
+  display: inline-flex;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #3a4555;
+  background: #0c1014;
+  box-shadow: 1px 1px 0 #0a0c10;
+  cursor: help;
+  outline: none;
+}
+
+.combat-hud-icon-btn:hover,
+.combat-hud-icon-btn:focus-visible {
+  border-color: #8a94a4;
+}
+
+.combat-hud-icon-btn--on {
+  border-color: #c45a3a;
+  box-shadow: 1px 1px 0 #0a0c10, 0 0 0 1px rgba(196, 90, 58, 0.45);
+}
+
+.combat-hud-icon-btn--enemy {
+  border-color: rgba(220, 80, 70, 0.55);
+}
+
+.combat-hud-icon__badge {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  z-index: 1;
+  font-family: var(--sw-font-mono, ui-monospace, monospace);
+  font-size: 0.48rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #e6ebf2;
+  text-shadow: 0 1px 0 #000;
+  pointer-events: none;
+}
+
+.combat-hud-icon__badge--top {
+  top: 0;
+  bottom: auto;
+  right: 1px;
+}
+
+.combat-hud-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.combat-hud-tip {
+  display: block;
+  width: fit-content;
+}
+
+.combat-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.combat-status-strip--rail {
+  padding: 0.12rem 0.2rem;
+  background: rgba(8, 10, 14, 0.82);
+  border: 1px solid #2a3340;
+  box-shadow: 2px 2px 0 #0a0c10;
+}
+
+.combat-status-strip--under-hp {
+  margin-top: 0.28rem;
+}
+
+.combat-status-strip__row {
+  position: relative;
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.combat-modes-panel__list,
+.tactical-setup-panel__list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.combat-modes-panel__row,
+.tactical-setup-panel__row {
+  position: relative;
+  width: auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+  overflow: visible;
+}
+
+.combat-modes-panel__name,
+.combat-modes-panel__upkeep,
+.combat-modes-panel__pri,
+.tactical-setup-panel__name,
+.tactical-setup-panel__row [data-testid='mark-owner'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tactical-setup-panel__meta[data-testid='mark-stacks'],
+.tactical-setup-panel__meta[data-testid='mark-duration'] {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--sw-font-mono, ui-monospace, monospace);
+  font-size: 0.48rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #e6ebf2;
+  text-shadow: 0 1px 0 #000;
+  pointer-events: none;
+}
+
+.tactical-setup-panel__meta[data-testid='mark-stacks'] {
+  right: 1px;
+  bottom: 0;
+}
+
+.tactical-setup-panel__meta[data-testid='mark-duration'] {
+  left: 1px;
+  top: 0;
+}
+
+.skill-config-inspector__body p[data-testid] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tactical-setup-panel__meta:not([data-testid]) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

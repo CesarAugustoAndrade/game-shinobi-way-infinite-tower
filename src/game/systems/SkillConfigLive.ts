@@ -3,7 +3,7 @@
  * Reuses CardContractSystem. Never infers Main from damage.
  */
 
-import { GameState, Player, Skill, SkillConfig } from '../types';
+import { CardRole, GameState, Player, Skill, SkillConfig } from '../types';
 import { ensureMainAttack, withAddedSkill } from './CardContractSystem';
 
 export const EMPTY_SKILL_CONFIG: SkillConfig = {
@@ -36,6 +36,35 @@ export function bootstrapPlayerSkillConfig(
   return {
     player: { ...player, skillConfig: ensured.config },
     notified: ensured.notified,
+    refused: false,
+  };
+}
+
+/**
+ * Designate a loadout ATTACK as Main. Combat-locked. Refuses non-ATTACK / missing ids.
+ */
+export function setMainAttack(
+  player: Player,
+  skillId: string,
+  gameState: GameState,
+): SkillConfigMutation {
+  if (!isSkillConfigEditable(gameState)) {
+    return { player, notified: false, refused: true };
+  }
+  const skill = player.skills.find((entry) => entry.id === skillId);
+  if (!skill || skill.cardRole !== CardRole.ATTACK) {
+    return { player, notified: false, refused: true };
+  }
+  const current = normalizeSkillConfig(player.skillConfig);
+  if (current.mainAttackId === skillId) {
+    return { player, notified: false, refused: false };
+  }
+  return {
+    player: {
+      ...player,
+      skillConfig: { ...current, mainAttackId: skillId },
+    },
+    notified: false,
     refused: false,
   };
 }

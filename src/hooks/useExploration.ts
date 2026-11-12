@@ -211,6 +211,11 @@ export function useExploration(
   /** Latest location floor for activity-chain timer (avoid re-open from stale snapshot). */
   const locationFloorRef = useRef(locationFloor);
   locationFloorRef.current = locationFloor;
+  /**
+   * Rest/intel complete in the same tick as setFloor — returnToMap would read a
+   * stale locationFloor. Filled after returnToMapActivityComplete is defined.
+   */
+  const sameRoomChainRef = useRef<(updatedFloor: BranchingFloor) => void>(() => {});
 
   const cancelActivityChain = useCallback(() => {
     if (activityChainTimerRef.current != null) {
@@ -249,6 +254,7 @@ export function useExploration(
     onEngageCombat,
     onAutoCombat,
     onAutoEliteCombat,
+    onSameRoomActivityChain: (floor) => sameRoomChainRef.current(floor),
   });
 
   // Location cards - card selection and location navigation
@@ -534,6 +540,8 @@ export function useExploration(
     setDroppedItems, setDroppedSkill, setEnemy, setSelectedBranchingRoom, setGameState,
     executeRoomActivity, setLocationFloor, completeLocationAndReturnToRegion,
   ]);
+
+  sameRoomChainRef.current = returnToMapActivityComplete;
 
   const resetExplorationUi = useCallback(() => {
     cancelActivityChain();

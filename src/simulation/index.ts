@@ -3,7 +3,8 @@
  * Run with: npx ts-node src/simulation/index.ts
  */
 
-import { ApproachType } from '../game/types';
+import { dangerToFloor } from '../game/systems/ScalingSystem';
+import { filterBuildsByClan, parseSharedSimFlags } from './simCli';
 import {
   SimulationConfig,
   SimulationOutput,
@@ -189,8 +190,10 @@ export async function runFullSimulation(
 ): Promise<SimulationOutput> {
   const startTime = Date.now();
 
-  // Generate builds to test
-  const builds = generateAllBuilds(config.playerLevel);
+  const builds = filterBuildsByClan(generateAllBuilds(config.playerLevel), config.clan);
+  if (builds.length === 0) {
+    throw new Error(`No simulation builds for clan ${config.clan ?? '(none)'}`);
+  }
   const archetypes = getAllArchetypes();
 
   console.log('\n╔════════════════════════════════════════════════════════════╗');
@@ -203,6 +206,9 @@ export async function runFullSimulation(
   console.log(`  Player Level: ${config.playerLevel}`);
   console.log(`  Floor: ${config.floorNumber}`);
   console.log(`  Difficulty: ${config.difficulty}`);
+  console.log(`  Approach: ${config.approach ?? 'none'}`);
+  console.log(`  Heat: ${config.visitHeat}`);
+  console.log(`  Clan filter: ${config.clan ?? 'all'}`);
   console.log(`  Builds to test: ${builds.length}`);
   console.log(`  Enemy archetypes: ${archetypes.length}`);
   console.log(`  Total matchups: ${builds.length * archetypes.length}`);
@@ -342,14 +348,20 @@ export function runLocationSimulation(
   config: LocationRunConfig,
   seed: number
 ): void {
-  const builds = generateAllBuilds(config.playerLevel);
-  const dangerLevels = [1, 2, 3, 4, 5, 6, 7];
+  const builds = filterBuildsByClan(generateAllBuilds(config.playerLevel), config.clan);
+  if (builds.length === 0) {
+    throw new Error(`No simulation builds for clan ${config.clan ?? '(none)'}`);
+  }
+  const dangerLevels = config.pinnedDanger
+    ? [config.pinnedDanger]
+    : [1, 2, 3, 4, 5, 6, 7];
 
   console.log('\n╔════════════════════════════════════════════════════════════╗');
   console.log('║      SHINOBI WAY - LOCATION CLEAR SIMULATION (attrition)    ║');
   console.log('╚════════════════════════════════════════════════════════════╝\n');
   console.log(`  Seed: ${seed}`);
-  console.log(`  Builds: ${builds.length}   Danger levels: 1-7   Runs/cell: ${runsPerCell}`);
+  console.log(`  Builds: ${builds.length}   Danger: ${dangerLevels.join(',')}   Runs/cell: ${runsPerCell}`);
+  console.log(`  Approach: ${config.approach ?? 'none'}   Heat: ${config.visitHeat ?? 0}   Clan: ${config.clan ?? 'all'}`);
   console.log(`  Total location runs: ${builds.length * dangerLevels.length * runsPerCell}`);
 
   const aggregates: LocationAggregate[] = [];
@@ -382,7 +394,11 @@ export function runCampaignSimulationCLI(
   config: CampaignConfig,
   seed: number
 ): void {
-  const builds = generateAllBuilds(config.playerLevel);
+  const builds = filterBuildsByClan(generateAllBuilds(config.playerLevel), config.clan);
+  if (builds.length === 0) {
+    throw new Error(`No simulation builds for clan ${config.clan ?? '(none)'}`);
+  }
+  console.log(`  Approach: ${config.approach ?? 'none'}   Heat: ${config.visitHeat ?? 0}   Clan: ${config.clan ?? 'all'}`);
   runCampaignSimulation(runsPerBatch, config, seed, builds);
 }
 
@@ -408,6 +424,12 @@ function parseSeed(args: string[]): number {
 async function main() {
   // Parse command line arguments
   const args = process.argv.slice(2);
+
+  const shared = parseSharedSimFlags(args);
+  if ('error' in shared) {
+    console.error(shared.error);
+    process.exit(1);
+  }
 
   // Make the entire simulation process deterministic: install a seeded PRNG
   // over the global Math.random BEFORE any battle runs. This covers every
@@ -445,6 +467,11 @@ async function main() {
       }
     }
 
+    if (shared.clan) config.clan = shared.clan;
+    if (shared.approachProvided) config.approach = shared.approach ?? null;
+    if (shared.heat !== undefined) config.visitHeat = shared.heat;
+    if (shared.danger !== undefined) config.startDangerLevel = shared.danger;
+
     try {
       runCampaignSimulationCLI(runsPerBatch, config, seed);
       console.log('\nCampaign simulation complete!');
@@ -478,6 +505,11 @@ async function main() {
         return;
       }
     }
+
+    if (shared.clan) config.clan = shared.clan;
+    if (shared.approachProvided) config.approach = shared.approach ?? null;
+    if (shared.heat !== undefined) config.visitHeat = shared.heat;
+    if (shared.danger !== undefined) config.pinnedDanger = shared.danger;
 
     try {
       runLocationSimulation(runsPerCell, config, seed);
@@ -517,6 +549,8 @@ async function main() {
       }
     }
 
+    if (shared.clan) progressionConfig.clan = shared.clan;
+
     try {
       console.log(`\nSeed: ${seed} (use --seed <n> to change)`);
       const summaries = await runFullProgressionSimulation(progressionConfig);
@@ -552,7 +586,20 @@ async function main() {
     }
   }
 
+  if (shared.clan) config.clan = shared.clan;
+  if (shared.approachProvided) config.approach = shared.approach ?? null;
+  if (shared.heat !== undefined) config.visitHeat = shared.heat;
+  if (shared.danger !== undefined && !shared.floorProvided) {
+    config.floorNumber = dangerToFloor(shared.danger, config.difficulty);
+  }
+
   try {
+    const pinState =
+      Boolean(shared.clan) ||
+      shared.approachProvided ||
+      shared.heat !== undefined ||
+      shared.danger !== undefined;
+    if (!pinState) {
     const probeTrials = args.includes('--quick') || args.includes('-q') ? 200 : 400;
     printResolveSkillProbe(runResolveSkillBalanceProbe(probeTrials));
     printCatalogV1Probe(runCatalogV1Probe());
@@ -696,6 +743,9 @@ async function main() {
     printSkillConfigChokeProbe(runSkillConfigChokeProbe());
     printCombatMountProbe(runCombatMountProbe());
     printHitCoreProbe(runHitCoreProbe());
+    } else {
+      console.log('\nSkipping skill probes (--clan/--approach/--heat/--danger pin).');
+    }
 
     // Run simulation
     const output = await runFullSimulation(config, seed);
@@ -730,6 +780,10 @@ Options:
   -d, --difficulty <n>  Enemy difficulty 0-100 (default: 50)
   -q, --quick           Quick mode (100 battles per matchup)
   -s, --seed <n>        PRNG seed for deterministic runs (default: 12345)
+  --clan <name>         Filter builds: uzumaki|uchiha|hyuga|lee|yamanaka
+  --approach <name>     frontal|stealth|genjutsu|trap|iron|bypass|none (default none)
+  --heat <0-100>        Visit heat for approach PP + opening range (default 0)
+  --danger <1-7>        Derive floor from danger+difficulty (ignored if --floor)
   -h, --help            Show this help message
 
 Examples:
@@ -737,6 +791,7 @@ Examples:
   npx tsx src/simulation/index.ts --battles 500 --level 15
   npx tsx src/simulation/index.ts --quick
   npx tsx src/simulation/index.ts --quick --seed 777   (reproducible run)
+  npx tsx src/simulation/index.ts --quick --clan uchiha --approach stealth --heat 50 --danger 4
 
 === CAMPAIGN MODE (multi-location run with itemization) ===
 Chains N locations with carry-over of HP/chakra/ryo/equipment/XP and runs
@@ -754,6 +809,10 @@ Options:
   --no-elite            Skip optional eliteChallenge rooms
   -q, --quick           Quick mode (10 runs per batch)
   -s, --seed <n>        PRNG seed for deterministic runs (default: 12345)
+  --clan <name>         Filter builds
+  --approach <name>     Opening approach per fight (default none)
+  --heat <0-100>        Visit heat (default 0)
+  --danger <1-7>        Alias of --start-danger
 
 npm scripts:
   npm run simulate:campaign         # Full campaign simulation
@@ -777,6 +836,10 @@ Options:
   --no-elite            Skip optional eliteChallenge rooms (still fight Guardian)
   -q, --quick           Quick mode (25 runs per cell)
   -s, --seed <n>        PRNG seed for deterministic runs (default: 12345)
+  --clan <name>         Filter builds
+  --approach <name>     Opening approach per fight (default none)
+  --heat <0-100>        Visit heat (default 0)
+  --danger <1-7>        Pin a single danger (default: sweep 1-7)
 
 Examples:
   npx tsx src/simulation/index.ts --location
@@ -794,6 +857,7 @@ Options:
   --battles-per-skill <n>   Battles before skill gain (default: 3)
   -q, --quick               Quick mode (10 runs, 100 battles max)
   -s, --seed <n>            PRNG seed for deterministic runs (default: 12345)
+  --clan <name>             Run a single clan
 
 Examples:
   npx tsx src/simulation/index.ts --progression

@@ -14,6 +14,7 @@ import {
   ActionType,
   CardRole,
   ModeRuntimeState,
+  CombatActor,
   type ActiveModeRuntime,
   type Mark,
 } from '../../game/types';
@@ -30,14 +31,16 @@ import {
 import { SKILLS } from '../../game/constants/skills';
 import { getModeDefinition } from '../../game/constants/modes';
 import StatBar from '../../components/shared/StatBar';
-import Tooltip from '../../components/shared/Tooltip';
 import { CinematicViewscreen } from '../../components/layout/CinematicViewscreen';
 import FloatingText, { FloatingTextItem, FloatingTextType } from '../../components/combat/FloatingText';
 import CombatSenStrip from '../../components/combat/CombatSenStrip';
+import GameLog from '../../components/combat/GameLog';
 import { Hand, HAND_SHORTCUTS } from '../../components/combat/Hand';
 import { CombatModesPanel } from '../../components/combat/CombatModesPanel';
 import { TacticalSetupPanel } from '../../components/combat/TacticalSetupPanel';
 import { SkillConfigInspector } from '../../components/combat/SkillConfigInspector';
+import { CombatStatusStrip } from '../../components/combat/CombatStatusStrip';
+import { TacticalDock } from '../../components/combat/TacticalDock';
 import { DiscoverPicker } from '../../components/combat/DiscoverPicker';
 import type { PendingDiscover } from '../../game/systems/ResolveSkillSystem';
 import { PostureIndicator } from '../../components/combat/PostureIndicator';
@@ -47,26 +50,8 @@ import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
 import { ApproachResult } from '../../game/systems/ApproachSystem';
 import { describePosture } from '../../game/systems/PostureSystem';
 import { Hourglass } from 'lucide-react';
-import { formatPercent } from '../../game/systems/StatSystem';
-import {
-  getEffectColor,
-  getEffectIcon,
-  getBuffDescription,
-  getCategoryRanks,
-  getRankColor,
-  getDetailedEffectMechanics,
-  getEffectTip,
-  getEffectSeverity,
-  getSeverityColor,
-  isPositiveEffect,
-} from '../../game/utils/tooltipFormatters';
 import { getEnemyArt, deriveEnemyCutoutPath } from '../../game/constants/artRegistry';
-import {
-  ARCHETYPE_DESCRIPTIONS,
-  ELEMENT_ICONS,
-  ELEMENT_AFFINITY_ART,
-  ELEMENT_COLORS,
-} from '../../game/constants/enemyArchetypes';
+import { ELEMENT_COLORS } from '../../game/constants/enemyArchetypes';
 import './Combat.css';
 
 /** Fallback chakra aura when element color is missing/malformed (rust heat). */
@@ -387,9 +372,11 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
         modeActivation: isModeSkill && !modeAlreadyOn,
         grantedRanges: grantedRangesForSkill(skill),
         turnIndex,
+        activeModes,
+        marks,
       };
     },
-    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost, activeModes, grantedRangesForSkill, turnIndex],
+    [player, playerStats.derived.maxHp, currentAp, currentRange, skipFirstSkillCost, activeModes, marks, grantedRangesForSkill, turnIndex],
   );
 
   /** Card playability — single path through skillPlayability (incl. Mode ON range skip). */
@@ -524,10 +511,9 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
   // Buff chips (previously top-right of stage) are now in the STATUS EFFECTS
   // section of this panel.
 
-  const activeEffects = enemy.activeBuffs.filter(b => b?.effect);
   const elementColor = ELEMENT_COLORS[enemy.element] ?? '#a1a1aa';
-  const elementIcon = ELEMENT_ICONS[enemy.element] ?? '◈';
-  const elementArtSrc = ELEMENT_AFFINITY_ART[enemy.element];
+  const enemyMarks = marks.filter((mark) => mark.target === CombatActor.ENEMY);
+  const playerMarks = marks.filter((mark) => mark.target === CombatActor.PLAYER);
 
   // ── Portrait + cutout + chakra aura (T-013) ──────────────────────────────
   // Resolve display portrait once (explicit enemy.image, else art registry).
@@ -546,10 +532,6 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
 
   // Chakra aura: elemental glow at 65% opacity for cutout drop-shadow.
   const chakraAuraColor = hexColorToRgba(elementColor, 0.65);
-
-  const archetypeDesc = enemy.archetype
-    ? (ARCHETYPE_DESCRIPTIONS[enemy.archetype] ?? '')
-    : '';
 
   const floatingPanel = (
     <div className="combat__ip">
@@ -576,6 +558,12 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
             showValue={false}
           />
         </div>
+        <CombatStatusStrip
+          buffs={enemy.activeBuffs}
+          marks={enemyMarks}
+          side="enemy"
+          placement="under-hp"
+        />
       </div>
 
       {/* Next Attack */}
@@ -732,36 +720,61 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
           hitFlash={hitFlash}
           intentLabel={enemy.intendedSkillName}
         />
+        <div className="combat__mini-log">
+          <GameLog logs={logs} maxLines={6} compact />
+        </div>
       </div>
 
-      {/* ROW 2: AP + stance + End Turn over hand — no dark plates / no player HUD */}
+      {/* ROW 2: left tactical column + AP/stance/hand — no dark plates / no player HUD */}
       <div className="combat__deck" ref={playerFloatRef}>
-        <div className="combat__command">
-          <div className="combat__board">
-            <CombatModesPanel
-              modes={activeModes.map((mode) => {
-                const def = getModeDefinition(mode.id);
-                const skillName = Object.values(SKILLS).find((skill) => skill.id === mode.id)?.name;
-                return {
-                  ...mode,
-                  displayName: modePanelDisplayName(mode.id, skillName),
-                  upkeepLabel: formatModeUpkeep(def?.upkeep),
-                  maxCharges: def?.maxCharges,
-                };
-              })}
-              upkeepPriority={resolvedUpkeepPriority}
-            />
-            <TacticalSetupPanel marks={marks} />
-            <SkillConfigInspector
-              config={player.skillConfig ?? { mainAttackId: null, modeUpkeepPriority: [] }}
-              combatLocked={true}
-              defaultOpen={false}
-            />
-          </div>
+        <aside className="combat__board" aria-label="Tactical rail">
+          <TacticalDock
+            render={() => (
+              <>
+                <CombatStatusStrip
+                  buffs={player.activeBuffs}
+                  marks={playerMarks}
+                  side="player"
+                  placement="rail"
+                />
+                <CombatModesPanel
+                  modes={activeModes
+                    .filter((mode) => mode.state === ModeRuntimeState.ON || mode.state === undefined)
+                    .map((mode) => {
+                      const def = getModeDefinition(mode.id);
+                      const skillName = Object.values(SKILLS).find((skill) => skill.id === mode.id)?.name;
+                      return {
+                        ...mode,
+                        displayName: modePanelDisplayName(mode.id, skillName),
+                        upkeepLabel: formatModeUpkeep(def?.upkeep),
+                        maxCharges: def?.maxCharges,
+                        effectLabel: def?.enhancements[0]?.note,
+                      };
+                    })}
+                  upkeepPriority={resolvedUpkeepPriority}
+                />
+                <TacticalSetupPanel marks={marks} />
+                <SkillConfigInspector
+                  config={player.skillConfig ?? { mainAttackId: null, modeUpkeepPriority: [] }}
+                  mainAttackLabel={
+                    player.skillConfig?.mainAttackId
+                      ? SKILLS[player.skillConfig.mainAttackId]?.name ??
+                        player.skills.find((s) => s.id === player.skillConfig?.mainAttackId)?.name
+                      : null
+                  }
+                  combatLocked={true}
+                  defaultOpen={false}
+                />
+              </>
+            )}
+          />
+        </aside>
+        <div className="combat__deck-main">
           {pendingDiscover && pendingDiscover.candidates.length > 0 && onCommitDiscover && (
             <DiscoverPicker pending={pendingDiscover} onChoose={onCommitDiscover} />
           )}
-          <div className="combat__econ-bar">
+          <div className="combat__command">
+            <div className="combat__econ-bar">
             <div className="combat__ap" aria-label={`Action Points ${currentAp} of ${maxAp}`}>
               <span className="combat__ap-label">AP</span>
               <div className="combat__ap-pips">
@@ -821,6 +834,7 @@ const Combat = forwardRef<CombatRef, CombatProps>(({
                       : 'End Turn'}
               </span>
             </button>
+          </div>
           </div>
         </div>
 

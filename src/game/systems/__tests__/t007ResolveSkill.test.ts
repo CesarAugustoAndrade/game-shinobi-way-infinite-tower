@@ -204,7 +204,16 @@ describe('T-007 roles', () => {
           calls += 1;
           expect(def.id).toBe('byakugan');
           expect(turn).toBe(3);
-          return { ok: true, board, pools };
+          // Cold activate: port is the sole payer (skill front-door cost skipped).
+          return {
+            ok: true,
+            board,
+            pools: {
+              ...pools,
+              ap: pools.ap - (def.activationCost?.ap ?? 2),
+              chakra: pools.chakra - (def.activationCost?.chakra ?? 4),
+            },
+          };
         },
       },
     );

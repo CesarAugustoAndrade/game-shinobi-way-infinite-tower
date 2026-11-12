@@ -3,9 +3,9 @@
  *
  * Layout: 2-row CSS grid
  *   stage (1fr) — cinematic viewscreen, full-width, floating panel inside
- *   deck  (auto) — FULL-width player action panel, 2 visual bands:
- *     command bar (compact PlayerHUD + AP/stance/auto/end-turn cluster)
- *     hand (full-width card grid, taller cards on desktop)
+ *   deck  (auto) — transparent over the painted dock:
+ *     row 1: tactical rail (left) beside the command cluster (right)
+ *     row 2: hand spans the full width under both
  *
  * Dead CSS removed vs v3:
  *   .combat__hints / .combat__hint  (keyboard hints row — cards carry Z/X/C/V
@@ -698,7 +698,7 @@
 
 /* ============================================================
    Deck — player interaction panel (row 2, auto)
-   FULL width (no cap): 2 visual bands — command bar, then hand.
+   FULL width: left tactical column + command bar / hand.
    ============================================================ */
 
 .combat__deck {
@@ -706,15 +706,62 @@
   border-top: none;
   box-shadow: none;
   padding: var(--cb-deck-pad-y) var(--cb-deck-pad-x);
-  display: flex;
-  flex-direction: column;
-  gap: var(--cb-deck-gap);
+  display: grid;
+  /* Rail only beside the command cluster. Cards span the full dock. */
+  grid-template-columns: minmax(9.25rem, 12rem) minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: end;
+  gap: var(--cb-deck-gap) var(--sw-space-3);
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  /* Hand + controls float over the bright stage */
+  /* Hand + controls float over the painted dock */
   position: relative;
   z-index: 5;
+}
+
+/* Left of the command cluster: fixed tactical plate.
+   Height is locked so marks/modes cannot change the deck row. */
+.combat__board {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: none;
+  height: 11.25rem;
+  min-height: 11.25rem;
+  max-height: 11.25rem;
+  overflow: visible;
+}
+
+.combat__board > * {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: 100%;
+}
+
+.combat__deck-main {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: var(--cb-deck-gap);
+  min-width: 0;
+}
+
+.combat__deck > .hand {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
 }
 
 /* ============================================================
@@ -724,23 +771,9 @@
 .combat__command {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: var(--sw-space-3);
-  min-width: 0;
-}
-
-/* T-087: Modes + Setup mount — layout only, panels keep their own chrome */
-.combat__board {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cb-deck-gap);
-  flex: 1 1 16rem;
-  min-width: 0;
-}
-
-.combat__board > * {
-  flex: 1 1 12rem;
   min-width: 0;
 }
 
@@ -1031,6 +1064,29 @@
     --cb-panel-gap: var(--sw-space-1-5);
   }
 
+  /* Phone: panels, then command cluster, then the card strip */
+  .combat__deck {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .combat__board,
+  .combat__deck-main,
+  .combat__deck > .hand {
+    grid-column: 1;
+  }
+
+  .combat__board {
+    grid-row: 1;
+    align-self: end;
+    height: 11.25rem;
+    min-height: 11.25rem;
+    max-height: 11.25rem;
+    overflow: visible;
+  }
+  .combat__deck-main { grid-row: 2; align-items: stretch; }
+  .combat__deck > .hand { grid-row: 3; }
+
   /* Economy cluster: tighten and spread across the full row */
   .combat__econ-bar {
     gap: var(--sw-space-2);
@@ -1126,6 +1182,44 @@
 
 .combat-tooltip--wide {
   max-width: 300px;
+}
+
+.combat-tooltip--compact {
+  max-width: 240px;
+  gap: var(--sw-space-1);
+}
+
+.combat-tooltip__blurb {
+  margin: 0;
+  font-size: var(--sw-text-2xs);
+  line-height: 1.35;
+  color: var(--sw-bone-dim, #b8b4a8);
+  font-style: normal;
+}
+
+.combat-tooltip__kw--stun { color: #facc15; font-weight: 700; }
+.combat-tooltip__kw--bleed { color: #f87171; font-weight: 700; }
+.combat-tooltip__kw--turn { color: #7dd3fc; font-weight: 700; }
+.combat-tooltip__kw--def { color: #67e8f9; font-weight: 700; }
+.combat-tooltip__kw--burn { color: #fb923c; font-weight: 700; }
+.combat-tooltip__kw--poison { color: #86efac; font-weight: 700; }
+.combat-tooltip__kw--silence { color: #a1a1aa; font-weight: 700; }
+.combat-tooltip__kw--heal { color: #4ade80; font-weight: 700; }
+.combat-tooltip__kw--drain { color: #c4b5fd; font-weight: 700; }
+.combat-tooltip__kw--reflect { color: #67e8f9; font-weight: 700; }
+.combat-tooltip__kw--curse { color: #d8b4fe; font-weight: 700; }
+.combat-tooltip__kw--confuse { color: #f9a8d4; font-weight: 700; }
+.combat-tooltip__kw--invuln { color: #fde68a; font-weight: 700; }
+.combat-tooltip__kw--mode { color: #c4b5fd; font-weight: 700; }
+
+.combat-tooltip--compact .combat-tooltip__cost-row,
+.combat-tooltip--compact .combat-tooltip__preview-row {
+  gap: var(--sw-space-1);
+}
+
+.combat-tooltip--compact .combat-tooltip__preview-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 .combat-tooltip__header {
@@ -1227,6 +1321,15 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sw-space-3);
+}
+
+.combat-tooltip__range {
+  font-size: var(--sw-text-3xs);
+  font-family: var(--sw-font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sw-fog, #8a9199);
 }
 
 .combat-tooltip__mechanics {

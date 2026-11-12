@@ -63,11 +63,12 @@ describe('T-033 authoring', () => {
       }),
     );
     expect(phoenix.modeInteraction?.requireOn).toBeFalsy();
-    expect(phoenix.effects).toEqual(
+    expect(phoenix.markEffects).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: EffectType.BURN, value: 4, duration: 2 }),
+        expect.objectContaining({ id: 'burn', stacks: 4, duration: 2, requireHit: true }),
       ]),
     );
+    expect(phoenix.effects ?? []).toEqual([]);
   });
 });
 

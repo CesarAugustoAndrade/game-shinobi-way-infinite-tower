@@ -33,6 +33,7 @@ export {
   visitToFloorPatch,
   applyVisitActivityComplete,
   resolvePostActivityGameState,
+  getPendingActivityOnFloor,
 } from './visitContext';
 
 export {

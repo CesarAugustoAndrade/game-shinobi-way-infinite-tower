@@ -12,7 +12,6 @@ import {
   CombatTrigger,
   DamageProperty,
   DamageType,
-  EffectType,
   ElementType,
   MarkConsumeTiming,
   PrimaryStat,
@@ -112,7 +111,6 @@ export const SKILLS_COMBAT_V1_NEW: Record<string, Skill> = {
     attackMethod: AttackMethod.AUTO,
     element: ElementType.PHYSICAL,
     allowedRanges: [CombatRange.CLOSE, CombatRange.MEDIUM, CombatRange.LONG],
-    effects: [{ type: EffectType.CHAKRA_REGEN, value: 4, duration: 1, chance: 1 }],
   },
 
   WIRE_KUNAI_REEL: {

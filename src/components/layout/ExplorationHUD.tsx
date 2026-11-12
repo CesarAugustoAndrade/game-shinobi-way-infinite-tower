@@ -1,16 +1,75 @@
 /**
  * Minimal persistent HUD for cinematic exploration (T-022).
- * name/Lv · HP/CP compact · ryo · approach (A) · bag (I) · character sheet (C)
+ * name/Lv · HP/CP compact · ryo · main attack (M) · approach (A) · bag (I) · character sheet (C)
  * T-040: story-run flag chips (eventFlags → combat/loot mods, same as T-037 combat HUD)
  */
 
-import React from 'react';
-import { Player, RegionLootTheme, TreasureHunt, MAX_BAG_SLOTS, ApproachType } from '../../game/types';
-import { Coins, Backpack, ScrollText, Crosshair, Map } from 'lucide-react';
-import { APPROACH_DEFINITIONS } from '../../game/constants/approaches';
-import { getApproachArt } from '../../game/constants/artRegistry';
+import React, { useEffect, useRef } from 'react';
+import {
+  Player,
+  RegionLootTheme,
+  TreasureHunt,
+  MAX_BAG_SLOTS,
+  ApproachType,
+  ApproachOption,
+  CardRole,
+} from '../../game/types';
+import { Coins, Backpack, ScrollText, Crosshair, Map, Swords } from 'lucide-react';
+import {
+  APPROACH_DEFINITIONS,
+  getApproachBenefitTags,
+  getApproachFailureTags,
+} from '../../game/constants/approaches';
+import { getApproachArt, getSkillArt } from '../../game/constants/artRegistry';
 import { getEventFlagRunModifiers } from '../../game/systems/EventSystem';
+import ArtIcon from '../shared/ArtIcon';
+import Tooltip from '../shared/Tooltip';
 import './ExplorationHUD.css';
+
+function approachReqLine(def: ApproachOption): string | null {
+  const req = def.requirements;
+  const parts: string[] = [];
+  if (req.minStats && req.minStats.length > 0) {
+    for (const gate of req.minStats) {
+      parts.push(`${gate.stat} ${gate.value}+`);
+    }
+  } else if (req.minStat) {
+    parts.push(`${req.minStat.stat} ${req.minStat.value}+`);
+  }
+  if (req.requiredSkill) parts.push(req.requiredSkill);
+  return parts.length > 0 ? `Needs ${parts.join(', ')}` : null;
+}
+
+function ApproachTip({ type }: { type: ApproachType }) {
+  const def = APPROACH_DEFINITIONS[type];
+  const win = getApproachBenefitTags(type);
+  const fail = getApproachFailureTags(type);
+  const cp = def.successEffects.chakraCost;
+  const hp = def.successEffects.hpCost;
+  const need = approachReqLine(def);
+  return (
+    <div className="explore-hud__tip">
+      <div className="explore-hud__tip-name">{def.name}</div>
+      <p className="explore-hud__tip-body">{def.description}</p>
+      {need && <p className="explore-hud__tip-need">{need}</p>}
+      {(cp > 0 || hp > 0) && (
+        <p className="explore-hud__tip-cost">
+          {cp > 0 ? `${cp} CP` : ''}
+          {cp > 0 && hp > 0 ? ' · ' : ''}
+          {hp > 0 ? `${hp} HP` : ''}
+        </p>
+      )}
+      <p className="explore-hud__tip-row">
+        <span className="explore-hud__tip-k">Win</span> {win.join(' · ')}
+      </p>
+      {fail.length > 0 && (
+        <p className="explore-hud__tip-row explore-hud__tip-row--fail">
+          <span className="explore-hud__tip-k">Fail</span> {fail.join(' · ')}
+        </p>
+      )}
+    </div>
+  );
+}
 
 interface ExplorationHUDProps {
   player: Player;
@@ -18,11 +77,20 @@ interface ExplorationHUDProps {
   maxChakra: number;
   onOpenBag: () => void;
   onOpenCharacter: () => void;
-  /** Open preferred-approach picker (applies to all encounters) */
-  onOpenApproach?: () => void;
+  /** Set preferred approach for all encounters. */
+  onChangeApproach?: (approach: ApproachType) => void;
+  onToggleApproachMenu?: () => void;
+  onCloseApproachMenu?: () => void;
+  /** Designate Main Attack (out of combat). */
+  onChangeMainAttack?: (skillId: string) => void;
+  onToggleMainMenu?: () => void;
+  onCloseMainMenu?: () => void;
   bagOpen?: boolean;
   characterOpen?: boolean;
-  approachOpen?: boolean;
+  approachMenuOpen?: boolean;
+  mainMenuOpen?: boolean;
+  /** Combat lock — Main cannot be rewritten in COMBAT. */
+  mainLocked?: boolean;
   /**
    * T-100: region lootTheme for cinematic chrome (sidebars often hidden).
    * Same Affinity / Focus / Ryo language as LocationPanel (T-099).
@@ -41,10 +109,17 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
   maxChakra,
   onOpenBag,
   onOpenCharacter,
-  onOpenApproach,
+  onChangeApproach,
+  onToggleApproachMenu,
+  onCloseApproachMenu,
+  onChangeMainAttack,
+  onToggleMainMenu,
+  onCloseMainMenu,
   bagOpen = false,
   characterOpen = false,
-  approachOpen = false,
+  approachMenuOpen = false,
+  mainMenuOpen = false,
+  mainLocked = false,
   lootTheme: _lootTheme = null,
   locationLabel = null,
   dangerLevel = null,
@@ -61,6 +136,43 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
   const approachDef = APPROACH_DEFINITIONS[preferred];
   const approachShort =
     approachDef?.name?.split(' ')[0] ?? 'Approach';
+  const attackSkills = player.skills
+    .filter((skill) => skill.cardRole === CardRole.ATTACK)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const mainId = player.skillConfig?.mainAttackId ?? null;
+  const mainSkill =
+    attackSkills.find((skill) => skill.id === mainId) ??
+    player.skills.find((skill) => skill.id === mainId) ??
+    null;
+  const mainName = mainSkill?.name ?? (mainId || '—');
+  const mainArt = mainSkill ? getSkillArt(mainSkill) : mainId ? getSkillArt(mainId) : null;
+  const canEditMain = Boolean(onChangeMainAttack) && !mainLocked && attackSkills.length > 0;
+  const mainMenuRef = useRef<HTMLDivElement>(null);
+  const approachMenuRef = useRef<HTMLDivElement>(null);
+  const approachList = Object.values(APPROACH_DEFINITIONS);
+
+  useEffect(() => {
+    if (!mainMenuOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!mainMenuRef.current?.contains(event.target as Node)) {
+        onCloseMainMenu?.();
+      }
+    };
+    window.addEventListener('pointerdown', onPointer);
+    return () => window.removeEventListener('pointerdown', onPointer);
+  }, [mainMenuOpen, onCloseMainMenu]);
+
+  useEffect(() => {
+    if (!approachMenuOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!approachMenuRef.current?.contains(event.target as Node)) {
+        onCloseApproachMenu?.();
+      }
+    };
+    window.addEventListener('pointerdown', onPointer);
+    return () => window.removeEventListener('pointerdown', onPointer);
+  }, [approachMenuOpen, onCloseApproachMenu]);
 
   return (
     <div className="explore-hud-stack">
@@ -136,35 +248,139 @@ const ExplorationHUD: React.FC<ExplorationHUDProps> = ({
       </div>
 
         <div className="explore-hud__actions">
-        {onOpenApproach && (() => {
-          const approachArt = getApproachArt(preferred);
-          return (
-          <button
-            type="button"
-            className={`explore-hud__btn explore-hud__btn--approach ${approachOpen ? 'explore-hud__btn--active' : ''}`}
-            onClick={onOpenApproach}
-            title={`Approach: ${approachDef?.name ?? 'Frontal Assault'} (A) — applies to all encounters`}
-            aria-pressed={approachOpen}
-            aria-label={`Set approach, currently ${approachDef?.name ?? 'Frontal Assault'}`}
-          >
-            {approachArt.src ? (
-              <img
-                src={approachArt.src}
-                alt=""
-                className="explore-hud__approach-icon"
-                aria-hidden
-                draggable={false}
-              />
-            ) : (
-              <Crosshair size={16} aria-hidden />
+        {onChangeMainAttack && (
+          <div className="explore-hud__main" ref={mainMenuRef}>
+            <button
+              type="button"
+              className={`explore-hud__btn explore-hud__btn--main ${mainMenuOpen ? 'explore-hud__btn--active' : ''}`}
+              onClick={() => {
+                if (!canEditMain) return;
+                onToggleMainMenu?.();
+              }}
+              disabled={!canEditMain}
+              title={
+                mainLocked
+                  ? `Main Attack: ${mainName} — locked in combat`
+                  : attackSkills.length === 0
+                    ? 'No ATTACK skills in loadout'
+                    : `Main Attack: ${mainName} (M)`
+              }
+              aria-haspopup="listbox"
+              aria-expanded={mainMenuOpen}
+              aria-label={`Main Attack, currently ${mainName}`}
+            >
+              {mainArt ? (
+                <ArtIcon art={mainArt} size="sm" className="explore-hud__main-icon" title={mainName} />
+              ) : (
+                <Swords size={16} aria-hidden />
+              )}
+              <span className="explore-hud__btn-label" aria-hidden="true">
+                {mainSkill?.name ?? 'MAIN'}
+              </span>
+              <span className="explore-hud__btn-key">M</span>
+            </button>
+            {mainMenuOpen && canEditMain && (
+              <ul className="explore-hud__main-menu" role="listbox" aria-label="Choose Main Attack">
+                {attackSkills.map((skill) => {
+                  const selected = skill.id === mainId;
+                  const art = getSkillArt(skill);
+                  return (
+                    <li key={skill.id} role="presentation">
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        className={`explore-hud__main-option ${selected ? 'explore-hud__main-option--current' : ''}`}
+                        onClick={() => {
+                          onChangeMainAttack(skill.id);
+                          onCloseMainMenu?.();
+                        }}
+                      >
+                        <ArtIcon art={art} size="sm" className="explore-hud__main-icon" title={skill.name} />
+                        <span className="explore-hud__main-option-name">{skill.name}</span>
+                        {selected && <span className="explore-hud__main-option-mark">MAIN</span>}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
-            <span className="explore-hud__btn-label" aria-hidden="true">
-              {approachShort}
-            </span>
-            <span className="explore-hud__btn-key">A</span>
-          </button>
-          );
-        })()}
+          </div>
+        )}
+        {onChangeApproach && (
+          <div className="explore-hud__approach" ref={approachMenuRef}>
+            <button
+              type="button"
+              className={`explore-hud__btn explore-hud__btn--approach ${approachMenuOpen ? 'explore-hud__btn--active' : ''}`}
+              onClick={() => onToggleApproachMenu?.()}
+              title={`Approach: ${approachDef?.name ?? 'Frontal Assault'} (A)`}
+              aria-haspopup="listbox"
+              aria-expanded={approachMenuOpen}
+              aria-label={`Approach, currently ${approachDef?.name ?? 'Frontal Assault'}`}
+            >
+              {(() => {
+                const approachArt = getApproachArt(preferred);
+                return approachArt.src ? (
+                  <img
+                    src={approachArt.src}
+                    alt=""
+                    className="explore-hud__approach-icon"
+                    aria-hidden
+                    draggable={false}
+                  />
+                ) : (
+                  <Crosshair size={16} aria-hidden />
+                );
+              })()}
+              <span className="explore-hud__btn-label" aria-hidden="true">
+                {approachShort}
+              </span>
+              <span className="explore-hud__btn-key">A</span>
+            </button>
+            {approachMenuOpen && (
+              <ul className="explore-hud__main-menu" role="listbox" aria-label="Choose approach">
+                {approachList.map((def) => {
+                  const selected = def.type === preferred;
+                  const art = getApproachArt(def.type);
+                  return (
+                    <li key={def.type} role="presentation">
+                      <Tooltip
+                        content={<ApproachTip type={def.type} />}
+                        position="left"
+                        className="explore-hud__tip-host"
+                      >
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          className={`explore-hud__main-option ${selected ? 'explore-hud__main-option--current' : ''}`}
+                          onClick={() => {
+                            onChangeApproach(def.type);
+                            onCloseApproachMenu?.();
+                          }}
+                        >
+                          {art.src ? (
+                            <img
+                              src={art.src}
+                              alt=""
+                              className="explore-hud__approach-icon"
+                              aria-hidden
+                              draggable={false}
+                            />
+                          ) : (
+                            <Crosshair size={14} aria-hidden />
+                          )}
+                          <span className="explore-hud__main-option-name">{def.name}</span>
+                          {selected && <span className="explore-hud__main-option-mark">ON</span>}
+                        </button>
+                      </Tooltip>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
         <button
           type="button"
           className={`explore-hud__btn ${bagOpen ? 'explore-hud__btn--active' : ''} ${bagFull ? 'explore-hud__btn--warn' : ''}`}

@@ -5,7 +5,7 @@ import {
   Skill,
   DamageType,
   CharacterStats,
-  ActionType,
+  CardRole,
   Posture,
   type TerrainDefinition,
 } from '../../game/types';
@@ -14,20 +14,15 @@ import { SkillCard } from './SkillCard';
 import { getApCost } from '../../game/constants/combatCards';
 import type { LocationTerrainMods } from '../../game/systems/LocationTerrainSystem';
 import { previewSkillDamageForUi } from '../../game/systems/combatSkillViewModel';
+import { formatCombatRange } from '../../game/systems/RangeSystem';
 import { getElementEffectiveness } from '../../game/constants';
-import { getSkillArt } from '../../game/constants/artRegistry';
-import ArtIcon from '../shared/ArtIcon';
 import {
-  formatScalingStat,
-  getStatColor,
   getElementColor,
   getEffectColor,
   getEffectIcon,
   formatEffectDescription,
-  getAttackMethodDescription,
-  getDamagePropertyDescription,
-  getDamageTypeDescription,
 } from '../../game/utils/tooltipFormatters';
+import { compactSkillBlurb, highlightSkillKeywords } from './highlightSkillKeywords';
 import './Hand.css';
 
 /** Keyboard shortcuts for the (up to 4) hand slots. Shared with Combat.tsx. */
@@ -103,7 +98,6 @@ export const Hand: React.FC<HandProps> = ({
       player.currentChakra < skill.chakraCost;
     const hpShort = skill.hpCost > 0 && player.currentHp <= skill.hpCost;
 
-    const skillArt = getSkillArt(skill);
     // Pure UI damage stack (clan traits, event flags, passives, first-hit,
     // terrain, launch mult, posture) — forces hit + non-crit for stable preview.
     const { predictedDamage, isSuperEffective } = previewSkillDamageForUi({
@@ -127,167 +121,67 @@ export const Hand: React.FC<HandProps> = ({
         key={skill.id}
         position="top"
         content={
-          <div className="combat-tooltip combat-tooltip--wide">
-            {/* Header — T-038: Imagine skill tile */}
-            <div className="combat-tooltip__header">
-              <div className="combat-tooltip__header-main">
-                <ArtIcon
-                  art={skillArt}
-                  size="md"
-                  className="combat-tooltip__skill-art"
-                  title={skill.name}
-                />
-                <div>
-                  <div className="combat-tooltip__title">{skill.name}</div>
-                  <div className="combat-tooltip__subtitle">
-                    <span className="combat-tooltip__tier">{skill.tier}</span>
-                    <span className={
-                      skill.actionType === ActionType.TOGGLE ? 'combat-tooltip__action--toggle' :
-                      'combat-tooltip__action--active'
-                    }>
-                      {skill.actionType || ActionType.ACTIVE} · {apCost} AP
+          <div className="combat-tooltip combat-tooltip--compact">
+            <div className="combat-tooltip__title">{skill.name}</div>
+            {skill.description && (
+              <p className="combat-tooltip__blurb">
+                {highlightSkillKeywords(compactSkillBlurb(skill.description))}
+              </p>
+            )}
+            <div className="combat-tooltip__cost-row">
+              <span className="combat-tooltip__cost--ap">{apCost} AP</span>
+              <span className={effectiveChakra > 0 ? 'combat-tooltip__cost--cp' : 'combat-tooltip__cost--none'}>
+                {skipFirstSkillCost && skill.chakraCost > 0
+                  ? '0 CP (waived)'
+                  : `${skill.chakraCost} CP`}
+              </span>
+              {skill.hpCost > 0 && (
+                <span className="combat-tooltip__cost--hp">{skill.hpCost} HP</span>
+              )}
+            </div>
+            {skill.allowedRanges && skill.allowedRanges.length > 0 && (
+              <div className="combat-tooltip__range">
+                {skill.allowedRanges.map((band) => formatCombatRange(band)).join(' / ')}
+              </div>
+            )}
+            <div className="combat-tooltip__preview-row">
+              {skill.cardRole !== CardRole.SUPPORT && skill.cardRole !== CardRole.MODE && (
+                <>
+                  <span className={`combat-tooltip__preview-dmg ${isSuperEffective ? 'combat-tooltip__preview-dmg--effective' : ''}`}>
+                    {predictedDamage}
+                  </span>
+                  <span className={getDamageTypeColor(skill.damageType)}>{skill.damageType}</span>
+                </>
+              )}
+              <span className={getElementColor(skill.element)}>{skill.element}</span>
+              {isSuperEffective && (
+                <span className="combat-tooltip__effectiveness--super">Super</span>
+              )}
+              {effectiveness < 1.0 && (
+                <span className="combat-tooltip__effectiveness--resist">Resisted</span>
+              )}
+            </div>
+            {skill.effects && skill.effects.length > 0 && (
+              <div className="combat-tooltip__effects">
+                {skill.effects.map((effect, idx) => (
+                  <div key={idx} className="combat-tooltip__effect">
+                    <span className={getEffectColor(effect.type)}>{getEffectIcon(effect.type)}</span>
+                    <span className="combat-tooltip__effect-text">
+                      {highlightSkillKeywords(formatEffectDescription(effect))}
                     </span>
                   </div>
-                </div>
-              </div>
-              <span className="combat-tooltip__level">Lv.{skill.level || 1}</span>
-            </div>
-
-            {/* Description */}
-            <div className="combat-tooltip__section">
-              <div className="combat-tooltip__description">{skill.description}</div>
-            </div>
-
-            {(skill.stanceBonus || skill.stanceShift) && (
-              <div className="combat-tooltip__section">
-                <div className="combat-tooltip__section-title">Stance</div>
-                {skill.stanceBonus && (
-                  <div className="combat-tooltip__description">
-                    Match {skill.stanceBonus.posture}
-                    {skill.stanceBonus.damageMultBonus
-                      ? `: +${Math.round(skill.stanceBonus.damageMultBonus * 100)}% dmg`
-                      : ''}
-                    {skill.stanceBonus.apDiscount
-                      ? `${skill.stanceBonus.damageMultBonus ? ' · ' : ': '}-${skill.stanceBonus.apDiscount} AP`
-                      : ''}
-                    {skill.stanceBonus.posture === posture ? ' · active' : ''}
-                  </div>
-                )}
-                {skill.stanceShift && (
-                  <div className="combat-tooltip__description">
-                    On play → shift to {skill.stanceShift}
-                  </div>
-                )}
+                ))}
               </div>
             )}
-
-            {/* Strike force */}
-            <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Force</div>
-              <div className="combat-tooltip__damage-row">
-                <div className="combat-tooltip__scaling">
-                  <span className={`combat-tooltip__scaling-value ${getStatColor(skill.scalingStat)}`}>
-                    {skill.baseDamage}+{skill.scalingPerPoint}/{formatScalingStat(skill.scalingStat)}
-                  </span>
-                  <span className="combat-tooltip__scaling-label">from</span>
-                </div>
-                <div className="combat-tooltip__type-tags">
-                  <span className={getDamageTypeColor(skill.damageType)}>{skill.damageType}</span>
-                  <span className={getElementColor(skill.element)}>{skill.element}</span>
-                  {skill.damageProperty && skill.damageProperty !== 'Normal' && (
-                    <span className="combat-tooltip__damage-property">{skill.damageProperty}</span>
-                  )}
-                </div>
-                <div className="combat-tooltip__mechanics">
-                  <div>- {getDamageTypeDescription(skill.damageType)}</div>
-                  {skill.damageProperty && skill.damageProperty !== 'Normal' && (
-                    <div>- {getDamagePropertyDescription(skill.damageProperty)}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Precision / delivery */}
-            <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Precision</div>
-              <div className="combat-tooltip__hit-chance">
-                <span className="combat-tooltip__attack-method">{skill.attackMethod}</span> - {getAttackMethodDescription(skill.attackMethod)}
-              </div>
-            </div>
-
-            {/* Toll & cooldown */}
-            <div className="combat-tooltip__section">
-              <div className="combat-tooltip__section-title">Toll</div>
-              <div className="combat-tooltip__cost-row">
-                <span className="combat-tooltip__cost--ap">{apCost} AP</span>
-                <span className={effectiveChakra > 0 ? 'combat-tooltip__cost--cp' : 'combat-tooltip__cost--none'}>
-                  {skipFirstSkillCost && skill.chakraCost > 0
-                    ? `0 CP (waived · base ${skill.chakraCost})`
-                    : `${skill.chakraCost} CP`}
-                </span>
-                {skill.hpCost > 0 && (
-                  <span className="combat-tooltip__cost--hp">{skill.hpCost} HP</span>
-                )}
-                <span className={skill.cooldown > 0 ? 'combat-tooltip__cost--cd' : 'combat-tooltip__cost--none'}>
-                  {skill.cooldown > 0 ? `${skill.cooldown} turn cooldown` : 'No cooldown'}
-                </span>
-              </div>
-            </div>
-
-            {/* Lingering marks */}
-            {skill.effects && skill.effects.length > 0 && (
-              <div className="combat-tooltip__section">
-                <div className="combat-tooltip__section-title">Marks</div>
-                <div className="combat-tooltip__effects">
-                  {skill.effects.map((effect, idx) => (
-                    <div key={idx} className="combat-tooltip__effect">
-                      <span className={getEffectColor(effect.type)}>{getEffectIcon(effect.type)}</span>
-                      <span className="combat-tooltip__effect-text">{formatEffectDescription(effect)}</span>
-                    </div>
-                  ))}
-                </div>
+            {skill.stanceBonus?.posture === posture && (
+              <div className="combat-tooltip__description">
+                {skill.stanceBonus.posture}
+                {skill.stanceBonus.damageMultBonus
+                  ? ` +${Math.round(skill.stanceBonus.damageMultBonus * 100)}%`
+                  : ''}
+                {skill.stanceBonus.apDiscount ? ` −${skill.stanceBonus.apDiscount} AP` : ''}
               </div>
             )}
-
-            {/* Bonus Stats */}
-            {(skill.critBonus || skill.penetration) && (
-              <div className="combat-tooltip__section combat-tooltip__bonus-row">
-                {skill.critBonus && (
-                  <div className="combat-tooltip__crit-bonus">+{skill.critBonus}% Crit Chance</div>
-                )}
-                {skill.penetration && (
-                  <div className="combat-tooltip__pen-bonus">{Math.round(skill.penetration * 100)}% Defense Penetration</div>
-                )}
-              </div>
-            )}
-
-            {/* Toggle Skill Info */}
-            {(skill.isToggle || skill.actionType === ActionType.TOGGLE) && (
-              <div className="combat-tooltip__section">
-                <div className="combat-tooltip__toggle-info">
-                  Stance lock · {skill.upkeepCost || 0} CP/turn upkeep
-                </div>
-              </div>
-            )}
-
-            {/* Damage Preview vs Enemy (includes posture + launch mult like live hits) */}
-            <div className="combat-tooltip__section combat-tooltip__preview">
-              <div className="combat-tooltip__preview-target">vs {enemy.name}</div>
-              <div className="combat-tooltip__preview-row">
-                <div>
-                  <span className="combat-tooltip__preview-dmg-label">Predicted: </span>
-                  <span className={`combat-tooltip__preview-dmg ${isSuperEffective ? 'combat-tooltip__preview-dmg--effective' : ''}`}>
-                    {predictedDamage} dmg
-                  </span>
-                </div>
-                {isSuperEffective && (
-                  <span className="combat-tooltip__effectiveness--super">SUPER EFFECTIVE!</span>
-                )}
-                {effectiveness < 1.0 && (
-                  <span className="combat-tooltip__effectiveness--resist">Resisted</span>
-                )}
-              </div>
-            </div>
           </div>
         }
       >

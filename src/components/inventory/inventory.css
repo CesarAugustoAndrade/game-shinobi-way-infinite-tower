@@ -571,25 +571,30 @@
   flex-direction: column;
   gap: var(--sw-space-2);
   padding: var(--sw-space-1);
-  max-width: 200px;
+  max-width: 16rem;
   color: var(--sw-bone-dim, #b8b4a8);
 }
 
 .bag__tooltip-name {
   font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.2;
   color: var(--sw-bone, #e8e4d9);
   font-family: var(--sw-font-display);
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
 .bag__tooltip-art {
   flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 .bag__tooltip-desc {
-  font-size: 10px;
+  font-size: 0.85rem;
+  line-height: 1.35;
   color: var(--sw-bone-muted, #7a766c);
 }
 
@@ -597,7 +602,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-1);
-  font-size: 10px;
+  font-size: 0.85rem;
   font-family: var(--sw-font-mono);
   color: var(--sw-bone-dim, #b8b4a8);
   padding-top: var(--sw-space-2);
@@ -611,72 +616,6 @@
 
 .bag__tooltip-stat-value {
   color: var(--sw-bone, #e8e4d9);
-}
-
-.bag__tooltip-recipes {
-  padding-top: var(--sw-space-2);
-  border-top: 1px solid var(--sw-rust-border, rgba(154, 52, 18, 0.35));
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.bag__tooltip-recipes-title {
-  font-size: 9px;
-  color: var(--sw-rust-light, #c2410c);
-  text-transform: uppercase;
-  letter-spacing: var(--sw-tracking-wider);
-  margin-bottom: 1px;
-}
-
-.bag__tooltip-recipe {
-  font-size: 9px;
-  color: var(--sw-bone-dim, #b8b4a8);
-}
-
-/* Result-first recipe row (art + name + partner need) */
-.bag__tooltip-recipe--result {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.bag__tooltip-recipe--result img,
-.bag__tooltip-recipe--result .art-icon,
-.bag__tooltip-recipe--result > span[role='img'] {
-  width: 1rem !important;
-  height: 1rem !important;
-  object-fit: cover;
-  border-radius: 2px;
-  flex-shrink: 0;
-  background: rgba(5, 6, 8, 0.65);
-}
-
-.bag__tooltip-recipe-name {
-  flex: 1;
-  min-width: 0;
-  color: var(--sw-bone, #e8e4d9);
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bag__tooltip-recipe-need {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  flex-shrink: 0;
-  font-size: 9px;
-  color: var(--sw-bone-muted, #7a766c);
-}
-
-.bag__tooltip-recipe-need img,
-.bag__tooltip-recipe-need .art-icon,
-.bag__tooltip-recipe-need span[role='img'] {
-  width: 0.85rem !important;
-  height: 0.85rem !important;
 }
 
 .bag__tooltip-sell {
@@ -961,19 +900,22 @@
 
 .equipment-panel__tooltip-name {
   font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.2;
   color: var(--sw-bone, #e8e4d9);
   font-family: var(--sw-font-display);
 }
 
 .equipment-panel__tooltip-type {
-  font-size: 10px;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: var(--sw-tracking-wider);
   color: var(--sw-bone-muted, #7a766c);
 }
 
 .equipment-panel__tooltip-desc {
-  font-size: 10px;
+  font-size: 0.85rem;
+  line-height: 1.35;
   color: var(--sw-bone-muted, #7a766c);
   font-style: italic;
 }
@@ -991,7 +933,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sw-space-1);
-  font-size: 10px;
+  font-size: 0.85rem;
   font-family: var(--sw-font-mono);
   color: var(--sw-bone-dim, #b8b4a8);
   text-transform: uppercase;

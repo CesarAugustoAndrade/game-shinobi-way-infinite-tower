@@ -214,7 +214,6 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
         {canDisassemble && (
           <div className="equipment-panel__tooltip-disassemble">Can unmake (half returned)</div>
         )}
-        <div className="equipment-panel__tooltip-hint">Drag to shift · click to act · sell at shop</div>
       </div>
     ) : (
       <div className="equipment-panel__tooltip-empty">A hollow groove — nothing worn here</div>

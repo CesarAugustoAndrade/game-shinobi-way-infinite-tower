@@ -54,6 +54,8 @@ import {
   BranchingFloor,
   BranchingRoom,
   Enemy,
+  ApproachType,
+  Clan,
 } from '../game/types';
 import {
   generateLoot,
@@ -127,6 +129,12 @@ export interface CampaignConfig {
    * Default 1.5 (50% over base item value).
    */
   merchantMarkupMultiplier: number;
+  /** Visit heat forwarded into resolveBattle (CLI --heat). */
+  visitHeat?: number;
+  /** Opening approach for each fight (CLI --approach). Default null = none. */
+  approach?: ApproachType | null;
+  /** Optional clan filter (CLI --clan). */
+  clan?: Clan;
 }
 
 export const DEFAULT_CAMPAIGN_CONFIG: CampaignConfig = {
@@ -485,9 +493,10 @@ export function simulateCampaignLocation(
             enemy,
             battleConfig,
             runId * 100000 + locationSeq * 1000 + battleSeq++,
-            null,
+            config.approach ?? null,
             current.terrain,
             roomMods,
+            config.visitHeat ?? 0,
           );
           combats++;
 
@@ -619,6 +628,9 @@ export function simulateCampaignRun(
 ): CampaignRunResult {
   // Create a fresh player at the configured starting level
   let player = createSimPlayer({ ...build, level: config.playerLevel });
+  if (config.approach) {
+    player = { ...player, preferredApproach: config.approach };
+  }
 
   const locationStats: LocationStats[] = [];
   let locationsCleared = 0;

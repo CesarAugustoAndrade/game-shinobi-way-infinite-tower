@@ -83,6 +83,7 @@ import {
   consumeSupportWeightBonuses,
   type PendingSupportWeight,
 } from './SupportWeightSystem';
+import { applyCpUpkeepDiscount } from './FocusedBreathingDiscountSystem';
 import {
   resolveSkill,
   type PendingDiscover,
@@ -191,19 +192,54 @@ function modeCostsForBoard(modes: readonly ActiveModeRuntime[]): Record<string, 
   return costs;
 }
 
+/** Apply T-067 one-shot CP discount to Mode upkeep costs (same order as applyModeUpkeep). */
+function modeCostsWithCpDiscount(
+  modes: readonly ActiveModeRuntime[],
+  priority: readonly string[],
+  pending: number,
+): { costs: Record<string, TypedCost>; remaining: number } {
+  const costs = modeCostsForBoard(modes);
+  let remainingDiscount = Math.max(0, pending);
+  if (remainingDiscount <= 0) {
+    return { costs, remaining: 0 };
+  }
+  const seen = new Set<string>();
+  const payOrder: string[] = [];
+  for (const id of priority) {
+    if (modes.some((mode) => mode.id === id) && !seen.has(id)) {
+      payOrder.push(id);
+      seen.add(id);
+    }
+  }
+  for (const mode of modes) {
+    if (!seen.has(mode.id)) payOrder.push(mode.id);
+  }
+  for (const id of payOrder) {
+    const base = costs[id];
+    if (!base) continue;
+    const applied = applyCpUpkeepDiscount(base, remainingDiscount);
+    costs[id] = applied.cost;
+    if (applied.consumed) {
+      remainingDiscount = applied.remaining;
+    }
+  }
+  return { costs, remaining: remainingDiscount };
+}
+
 function persistModeBoard(
   parked: readonly ActiveModeRuntime[],
   remainingOn: readonly ActiveModeRuntime[],
-  endedIds: readonly string[],
+  ended: readonly { id: string; readyOnTurn: number }[],
 ): ActiveModeRuntime[] {
-  const cooling: ActiveModeRuntime[] = endedIds.map((id) => {
-    const def = getModeDefinition(id);
+  const cooling: ActiveModeRuntime[] = ended.map((endedMode) => {
+    const def = getModeDefinition(endedMode.id);
     return {
-      id,
+      id: endedMode.id,
       family: def?.family ?? '',
       charges: 0,
       cooldown: def?.cooldown ?? 0,
       state: ModeRuntimeState.COOLDOWN,
+      readyOnTurn: endedMode.readyOnTurn,
       stage: def?.stage,
     };
   });
@@ -300,6 +336,11 @@ export function processUpkeep(
         : onModes.map((mode) => mode.id);
 
   const weightCtx = buildUpkeepWeightContext(updatedPlayer, combatState);
+  const discounted = modeCostsWithCpDiscount(
+    onModes,
+    priority,
+    combatState.pendingCpUpkeepDiscount ?? 0,
+  );
   const clock = runTurnStartClock({
     turnIndex,
     chakra: updatedPlayer.currentChakra,
@@ -311,7 +352,7 @@ export function processUpkeep(
       maxHp: playerStats.derived.maxHp,
     },
     modes: onModes,
-    modeCosts: modeCostsForBoard(onModes),
+    modeCosts: discounted.costs,
     modeUpkeepPriority: priority,
     marks: combatState.marks ?? [],
     hand: combatState.hand,
@@ -351,11 +392,13 @@ export function processUpkeep(
     activeModes: persistModeBoard(
       parked,
       clock.modes,
-      clock.endedModes.map((ended) => ended.id),
+      clock.endedModes,
     ),
     marks: clock.marks,
     pendingSupportWeights: [],
     pendingDiscover: combatState.pendingDiscover,
+    pendingCpUpkeepDiscount:
+      discounted.remaining > 0 ? discounted.remaining : undefined,
   };
 }
 
@@ -448,6 +491,7 @@ export interface LiveCombatBoardPatch {
   pendingSupportWeights?: PendingSupportWeight[];
   pendingDiscover?: PendingDiscover;
   pendingGateHpDiscount?: boolean;
+  pendingCpUpkeepDiscount?: number;
 }
 
 export type LiveCombatResult = CombatResult & Partial<LiveCombatBoardPatch>;
@@ -492,6 +536,8 @@ function toResolveSkillState(
     playablePool: combatState?.playablePool,
     pendingDiscover: combatState?.pendingDiscover,
     pendingSupportWeights: combatState?.pendingSupportWeights,
+    pendingGateHpDiscount: combatState?.pendingGateHpDiscount,
+    pendingCpUpkeepDiscount: combatState?.pendingCpUpkeepDiscount,
     enemyBuffs: enemy.activeBuffs,
   };
 }
@@ -539,7 +585,7 @@ function toResolveSkillPorts(
     },
     damageOptions: {
       damageBonus:
-        resolvePassiveDamageBonus(playerStats.passiveBonuses, skill.element)
+        resolvePassiveDamageBonus(playerStats.passiveBonuses, skill.element, skill.tags)
         + getEventFlagRunModifiers(player).damageBonus,
       defenseBypass: getTotalDefenseBypass(player),
       critDefenseBypass: getCritDefenseBypass(player),
@@ -755,6 +801,7 @@ export function useSkill(
       pendingSupportWeights: resolved.state.pendingSupportWeights,
       pendingDiscover: resolved.state.pendingDiscover,
       pendingGateHpDiscount: resolved.state.pendingGateHpDiscount,
+      pendingCpUpkeepDiscount: resolved.state.pendingCpUpkeepDiscount,
     };
     logFlowCheckpoint('useSkill END', {
       damageDealt: result.damageDealt,
@@ -803,6 +850,7 @@ export function useSkill(
     pendingSupportWeights: resolved.state.pendingSupportWeights,
     pendingDiscover: resolved.state.pendingDiscover,
     pendingGateHpDiscount: resolved.state.pendingGateHpDiscount,
+    pendingCpUpkeepDiscount: resolved.state.pendingCpUpkeepDiscount,
   };
 
   logFlowCheckpoint('useSkill END', {

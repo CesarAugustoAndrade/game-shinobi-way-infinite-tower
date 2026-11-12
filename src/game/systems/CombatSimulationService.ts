@@ -292,7 +292,7 @@ function executeAttack(
     isPlayer
       ? {
           damageBonus:
-            resolvePassiveDamageBonus(attackerStats.passiveBonuses, skill.element)
+            resolvePassiveDamageBonus(attackerStats.passiveBonuses, skill.element, skill.tags)
             + getEventFlagRunModifiers(ctx.player).damageBonus,
           defenseBypass: getTotalDefenseBypass(ctx.player),
           critDefenseBypass: getCritDefenseBypass(ctx.player),

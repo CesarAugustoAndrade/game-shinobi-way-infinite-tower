@@ -167,6 +167,8 @@ function buildSkillPlayContext(
     modeAlreadyOn,
     grantedRanges: grantedRangesForSkill(skill, combatState),
     turnIndex: combatState.turnIndex,
+    activeModes: combatState.activeModes ?? [],
+    marks: combatState.marks ?? [],
   };
 }
 
@@ -330,6 +332,10 @@ export function useCombat({
             pendingSupportWeights:
               live.pendingSupportWeights ?? prev.pendingSupportWeights,
             pendingDiscover: live.pendingDiscover ?? prev.pendingDiscover,
+            pendingGateHpDiscount:
+              live.pendingGateHpDiscount ?? prev.pendingGateHpDiscount,
+            pendingCpUpkeepDiscount:
+              live.pendingCpUpkeepDiscount ?? prev.pendingCpUpkeepDiscount,
             skipFirstSkillCost: combatState.skipFirstSkillCost
               ? false
               : prev.skipFirstSkillCost,
@@ -408,6 +414,9 @@ export function useCombat({
             setPlayer(prev => prev ? { ...prev, skills: onKillResult.player.skills } : null);
           }
         }
+        // Victory early-return used to skip finishCardPlay — project board
+        // (marks/modes/range/AP) before reward path so kill-blow Marks stick.
+        finishCardPlay(result.newPosture);
         handleVictory();
         setTurnState('PLAYER'); // Stop enemy turn effect from re-running
         skillActionLockRef.current = false;
@@ -893,7 +902,7 @@ export function useCombat({
             : null
         );
 
-        // Update combatState: artifact guts + F2 range/enemy AP after enemy action
+        // Update combatState: artifact guts + F2 range/enemy AP + marks after enemy action
         setCombatState((prev) => {
           if (!prev) return null;
           return {
@@ -906,6 +915,7 @@ export function useCombat({
             enemyMoveUsedThisTurn: result.enemyMoveUsedThisTurn ?? false,
             // Player turn starts next — reset player move flag on upkeep path
             playerMoveUsedThisTurn: false,
+            marks: result.marks ?? prev.marks,
           };
         });
 
@@ -1000,6 +1010,7 @@ export function useCombat({
           turnIndex: upkeepResult.turnIndex,
           pendingSupportWeights: upkeepResult.pendingSupportWeights ?? [],
           pendingDiscover: upkeepResult.pendingDiscover,
+          pendingCpUpkeepDiscount: upkeepResult.pendingCpUpkeepDiscount,
           playerMoveUsedThisTurn: false,
           enemyMoveUsedThisTurn: false,
           enemyMaxAp: eMax,

@@ -20,7 +20,7 @@ import {
 } from '../StatSystem';
 import { getElementEffectiveness } from '../../constants';
 import { SKILLS } from '../../constants';
-import { ElementType, EquipmentSlot, Clan, AttackMethod, SkillTier, ActionType } from '../../types';
+import { ElementType, EquipmentSlot, Clan, AttackMethod, SkillTier, ActionType, SkillTag } from '../../types';
 import { STAT_FORMULAS, DamageType, DamageProperty } from '../../types';
 import {
   BASE_STATS,
@@ -642,12 +642,18 @@ describe('passive skill damageBonus and defenseBonus (A-014)', () => {
     expect(resolvePassiveDamageBonus(bonuses, ElementType.PHYSICAL)).toBe(0);
   });
 
-  it('applies global damageBonus to all elements (WEAPON_PROFICIENCY)', () => {
+  it('scopes WEAPON_PROFICIENCY damageBonus to WEAPON-tagged skills only', () => {
     const bonuses = aggregatePassiveSkillBonuses([SKILLS.WEAPON_PROFICIENCY]);
 
-    expect(bonuses.damageBonus).toBe(0.1);
-    expect(resolvePassiveDamageBonus(bonuses, ElementType.FIRE)).toBe(0.1);
-    expect(resolvePassiveDamageBonus(bonuses, ElementType.PHYSICAL)).toBe(0.1);
+    expect(bonuses.damageBonus).toBe(0);
+    expect(bonuses.taggedDamageBonus[SkillTag.WEAPON]).toBe(0.1);
+    expect(resolvePassiveDamageBonus(bonuses, ElementType.PHYSICAL)).toBe(0);
+    expect(
+      resolvePassiveDamageBonus(bonuses, ElementType.PHYSICAL, [SkillTag.WEAPON])
+    ).toBe(0.1);
+    expect(
+      resolvePassiveDamageBonus(bonuses, ElementType.FIRE, [SkillTag.TAIJUTSU])
+    ).toBe(0);
   });
 
   it('damageBonus increases rawDamage from calculateDamage', () => {

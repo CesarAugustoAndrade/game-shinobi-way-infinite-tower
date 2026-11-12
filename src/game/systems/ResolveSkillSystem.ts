@@ -47,7 +47,9 @@ import {
   tryRestoreCharges,
   trySpendCharges,
   type FamilyTransition,
+  type ModeActivateOpts,
   type ModeBoard,
+  type ModeFailReason,
   type ModeOpResult,
   type ModePools,
 } from './CombatModeSystem';
@@ -75,6 +77,7 @@ import {
 import {
   applySupportWeightOnPlay,
   enqueueSupportWeightBonuses,
+  CHAKRA_CONTROL_DRILL_ID,
   GATE_PREP_ID,
   type PendingSupportWeight,
 } from './SupportWeightSystem';
@@ -84,6 +87,9 @@ import {
   armFocusedBreathingDiscount,
   grantFocusedBreathingChakra,
 } from './FocusedBreathingDiscountSystem';
+
+/** Instant CP restore on play (T-008 catalog; mute CHAKRA_REGEN effects[] removed). */
+const CHAKRA_CONTROL_DRILL_GRANT = 4;
 
 export interface ResolveSkillPools {
   ap: number;
@@ -163,6 +169,7 @@ export interface ResolveSkillPorts {
     def: ModeDefinition,
     pools: ModePools,
     turn: number,
+    opts?: ModeActivateOpts,
   ) => ModeOpResult;
   manualOff?: (
     board: ModeBoard,
@@ -301,6 +308,32 @@ function isFamilyPay(classified: FamilyTransition | undefined): classified is
   | { kind: 'ascent'; fromId: string }
   | { kind: 'lateral'; fromId: string } {
   return classified?.kind === 'ascent' || classified?.kind === 'lateral';
+}
+
+function modeOpRejectReason(reason: ModeFailReason | undefined): ResolveRejectReason {
+  if (reason === 'cannot-afford') return 'ap';
+  if (reason === 'hp-floor') return 'hp';
+  if (reason === 'not-ready') return 'not-ready';
+  return 'mode-family';
+}
+
+function applyModePools(
+  state: ResolveSkillState,
+  result: ModeOpResult,
+): ResolveSkillState {
+  return {
+    ...state,
+    modes: result.board,
+    pools: {
+      ...state.pools,
+      ap: result.pools.ap,
+      chakra: result.pools.chakra,
+      hp: result.pools.hp,
+    },
+    ...(result.gateHpDiscount !== undefined
+      ? { pendingGateHpDiscount: result.gateHpDiscount }
+      : {}),
+  };
 }
 
 function isModeOnBoard(board: ModeBoard, modeId: string): boolean {
@@ -883,9 +916,13 @@ export function resolveSkill(
   const classified = classifyModeIntent(intent, original);
   const familyPay = isFamilyPay(classified);
 
-  const apCost = familyPay ? 0 : getApCost(skill);
-  const chakraCost = familyPay ? 0 : effectiveChakraCost(skill, next.skipFirstSkillCost);
-  const hpCost = familyPay ? 0 : skill.hpCost ?? 0;
+  // MODE cold activate: skip front-door skill debit — activateMode pays activationCost.
+  const modeColdActivate =
+    role === CardRole.MODE && (intent.modeOp ?? 'activate') === 'activate' && !familyPay;
+  const skipSkillCost = familyPay || modeColdActivate;
+  const apCost = skipSkillCost ? 0 : getApCost(skill);
+  const chakraCost = skipSkillCost ? 0 : effectiveChakraCost(skill, next.skipFirstSkillCost);
+  const hpCost = skipSkillCost ? 0 : skill.hpCost ?? 0;
   next = {
     ...next,
     pools: {
@@ -1040,31 +1077,34 @@ export function resolveSkill(
     };
     if (op === 'manual-off') {
       const result = off(next.modes, modeId, modePoolsFrom(next.pools), next.turnIndex);
+      if (!result.ok) {
+        return reject(original, modeOpRejectReason(result.reason));
+      }
       modeActivations += 1;
-      if (result.ok) next = { ...next, modes: result.board };
+      next = applyModePools(next, result);
     } else if (isFamilyPay(classified) && def) {
       const result =
         classified.kind === 'ascent'
           ? climb(next.modes, classified.fromId, def, modePoolsFrom(next.pools), next.turnIndex)
           : replace(next.modes, classified.fromId, def, modePoolsFrom(next.pools), next.turnIndex);
-      modeActivations += 1;
       if (!result.ok) {
-        return reject(original, result.reason === 'cannot-afford' ? 'ap' : 'mode-family');
+        return reject(original, modeOpRejectReason(result.reason));
       }
-      next = {
-        ...next,
-        modes: result.board,
-        pools: {
-          ...next.pools,
-          ap: result.pools.ap,
-          chakra: result.pools.chakra,
-          hp: result.pools.hp,
-        },
-      };
-    } else {
-      const result = activate(next.modes, stubDef, modePoolsFrom(next.pools), next.turnIndex);
       modeActivations += 1;
-      if (result.ok) next = { ...next, modes: result.board };
+      next = applyModePools(next, result);
+    } else {
+      const result = activate(
+        next.modes,
+        stubDef,
+        modePoolsFrom(next.pools),
+        next.turnIndex,
+        { gateHpDiscount: Boolean(next.pendingGateHpDiscount) },
+      );
+      if (!result.ok) {
+        return reject(original, modeOpRejectReason(result.reason));
+      }
+      modeActivations += 1;
+      next = applyModePools(next, result);
     }
   } else if (role === CardRole.SUPPORT) {
     next = applySkillMarkEffects(next, skill);
@@ -1465,6 +1505,15 @@ export function resolveSkill(
         chakra: grantFocusedBreathingChakra(next.pools.chakra),
       },
       pendingCpUpkeepDiscount: armFocusedBreathingDiscount(),
+    };
+  }
+  if (skill.id === CHAKRA_CONTROL_DRILL_ID) {
+    next = {
+      ...next,
+      pools: {
+        ...next.pools,
+        chakra: next.pools.chakra + CHAKRA_CONTROL_DRILL_GRANT,
+      },
     };
   }
 

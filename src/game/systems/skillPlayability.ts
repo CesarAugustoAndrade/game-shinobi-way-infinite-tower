@@ -6,7 +6,16 @@
  * Zero DOM. Callers assemble SkillPlayContext from player + combat fields.
  */
 
-import { Buff, CombatRange, EffectType, Skill } from '../types';
+import {
+  ActiveModeRuntime,
+  Buff,
+  CombatActor,
+  CombatRange,
+  EffectType,
+  Mark,
+  ModeRuntimeState,
+  Skill,
+} from '../types';
 import { getApCost } from '../constants/combatCards';
 import { canActivateModeAt, skillAllowedAt } from './RangeSystem';
 import { canAffordHpCost } from './StatSystem';
@@ -39,6 +48,10 @@ export interface SkillPlayContext {
    * When omitted, legacy `currentCooldown > 0` still blocks.
    */
   turnIndex?: number;
+  /** Live Modes board. When undefined, requireOn gate is skipped. */
+  activeModes?: readonly ActiveModeRuntime[];
+  /** Live Marks board. When undefined, requireMarkHard gate is skipped. */
+  marks?: readonly Mark[];
 }
 
 /**
@@ -53,7 +66,37 @@ export type SkillBlockReason =
   | 'hp'
   | 'ap'
   | 'range'
+  | 'mode-required'
+  | 'mark-required'
   | null;
+
+// ============================================================================
+// HELPERS (mirror ResolveSkillSystem validateIntent)
+// ============================================================================
+
+function isModeOn(mode: ActiveModeRuntime): boolean {
+  return mode.state === ModeRuntimeState.ON || mode.state === undefined;
+}
+
+/** Fixed modeId, else the ON instance matching requireFamily / family. */
+function bindLiveModeId(
+  modes: readonly ActiveModeRuntime[],
+  mi: NonNullable<Skill['modeInteraction']>,
+): string | undefined {
+  if (mi.modeId) return mi.modeId;
+  const family = mi.requireFamily ?? mi.family;
+  if (!family) return undefined;
+  return modes.find((mode) => mode.family === family && isModeOn(mode))?.id;
+}
+
+function modeChargesOnBoard(modes: readonly ActiveModeRuntime[], modeId: string): number {
+  const current = modes.find((mode) => mode.id === modeId && isModeOn(mode));
+  return current?.charges ?? 0;
+}
+
+function hasEnemyMark(marks: readonly Mark[], markId: string): boolean {
+  return marks.some((mark) => mark.id === markId && mark.target === CombatActor.ENEMY);
+}
 
 // ============================================================================
 // PLAYABILITY
@@ -64,9 +107,10 @@ export type SkillBlockReason =
  *
  * Check order (stable for UI tooltips / sims):
  * stun → silence → cooldown → range (skip if Mode already ON) → ap → chakra → hp
+ * → mode-required → mark-required
  * Mode activation uses canActivateModeAt. FREE_FIRST waives chakra only.
  *
- * Gates mirror useSkill:
+ * Gates mirror useSkill / validateIntent:
  * - cooldown: readyOnTurn vs turnIndex when provided, else currentCooldown > 0
  * - STUN buff present
  * - SILENCE && skill.chakraCost > 0 (base cost; free-first does not bypass silence)
@@ -74,6 +118,8 @@ export type SkillBlockReason =
  * - canAffordHpCost(skill, currentHp, maxHp)
  * - AP when currentAp is defined
  * - skillAllowedAt when currentRange is defined
+ * - requireOn: Mode ON + charges (consumeAllCharges → ≥1, else consumeCharges ?? 1)
+ * - requireMarkHard + requireMarkId: enemy mark present
  */
 export function getSkillBlockReason(ctx: SkillPlayContext): SkillBlockReason {
   const { skill, activeBuffs } = ctx;
@@ -117,6 +163,25 @@ export function getSkillBlockReason(ctx: SkillPlayContext): SkillBlockReason {
 
   if (!canAffordHpCost(skill, ctx.currentHp, ctx.maxHp)) {
     return 'hp';
+  }
+
+  const mi = skill.modeInteraction;
+  if (mi?.requireOn && ctx.activeModes !== undefined) {
+    const boundId = bindLiveModeId(ctx.activeModes, mi);
+    const charges = boundId ? modeChargesOnBoard(ctx.activeModes, boundId) : 0;
+    const need = mi.consumeAllCharges ? 1 : (mi.consumeCharges ?? 1);
+    if (!boundId || charges < need) {
+      return 'mode-required';
+    }
+  }
+
+  if (
+    mi?.requireMarkHard &&
+    mi.requireMarkId &&
+    ctx.marks !== undefined &&
+    !hasEnemyMark(ctx.marks, mi.requireMarkId)
+  ) {
+    return 'mark-required';
   }
 
   return null;

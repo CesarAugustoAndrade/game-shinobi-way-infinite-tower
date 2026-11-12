@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Skill, DamageType, ActionType, ElementType } from '../../game/types';
+import { Skill, DamageType, ActionType, CardRole, ElementType } from '../../game/types';
 import { getSkillArt } from '../../game/constants/artRegistry';
 import { getEffectIcon } from '../../game/utils/tooltipFormatters';
 import {
@@ -154,6 +154,11 @@ export const SkillCard: React.FC<SkillCardProps> = ({
   const effectivelyUsable = !isPassive && canUse;
   const resolvedAp = apCost ?? 0;
   const channel = damageChannel(skill.damageType);
+  const hideDamage =
+    skill.cardRole === CardRole.SUPPORT || skill.cardRole === CardRole.MODE;
+  const showHits = Boolean(skill.hitCount && skill.hitCount > 1);
+  const showCd = skill.currentCooldown > 0;
+  const showTypeRow = !hideDamage || showHits || showCd;
   // FREE_FIRST or naturally free CP skills both read as free on the face.
   const cpIsFree = freeChakra || skill.chakraCost <= 0;
   const cpIsWaived = freeChakra && skill.chakraCost > 0;
@@ -208,22 +213,26 @@ export const SkillCard: React.FC<SkillCardProps> = ({
         <div className="skill-card__header">
           <div className="skill-card__title-block">
             <h3 className="skill-card__name">{skill.name}</h3>
-            <div className="skill-card__type-row">
-              <span className={`skill-card__damage-type skill-card__damage-type--${channel}`}>
-                {skill.damageType.charAt(0)} · {skill.element}
+            {showTypeRow && (
+              <div className="skill-card__type-row">
+                {!hideDamage && (
+                  <span className={`skill-card__damage-type skill-card__damage-type--${channel}`}>
+                    {skill.damageType.charAt(0)} · {skill.element}
+                  </span>
+                )}
+                {showHits && (
+                  <span className="skill-card__hits">{skill.hitCount} hits</span>
+                )}
+                {showCd && (
+                  <span className="skill-card__cd">CD {skill.currentCooldown}</span>
+                )}
+              </div>
+            )}
+            {skill.allowedRanges && skill.allowedRanges.length > 0 && (
+              <span className="skill-card__range">
+                {skill.allowedRanges.map((band) => formatCombatRange(band)).join(' / ')}
               </span>
-              {skill.hitCount && skill.hitCount > 1 && (
-                <span className="skill-card__hits">{skill.hitCount} hits</span>
-              )}
-              {skill.allowedRanges && skill.allowedRanges.length > 0 && (
-                <span className="skill-card__range">
-                  {skill.allowedRanges.map((band) => formatCombatRange(band)).join('/')}
-                </span>
-              )}
-              {skill.currentCooldown > 0 && (
-                <span className="skill-card__cd">CD {skill.currentCooldown}</span>
-              )}
-            </div>
+            )}
           </div>
           <div className="skill-card__badges">
             {/* Cost stack first — AP rust, CP cool blue — primary affordance (WAVE9 legibility) */}
@@ -290,21 +299,22 @@ export const SkillCard: React.FC<SkillCardProps> = ({
           </div>
         </div>
 
-        {/* Damage Display */}
-        <div className="skill-card__damage">
-          <div className="skill-card__damage-label">DMG</div>
-          <div
-            className={[
-              'skill-card__damage-value',
-              `skill-card__damage-value--${channel}`,
-              isEffective ? 'skill-card__damage-value--effective' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            {predictedDamage > 0 ? predictedDamage : '—'}
+        {!hideDamage && (
+          <div className="skill-card__damage">
+            <div className="skill-card__damage-label">DMG</div>
+            <div
+              className={[
+                'skill-card__damage-value',
+                `skill-card__damage-value--${channel}`,
+                isEffective ? 'skill-card__damage-value--effective' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              {predictedDamage > 0 ? predictedDamage : '—'}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Trade-off / secondary costs + status chip */}
         <div className="skill-card__costs">

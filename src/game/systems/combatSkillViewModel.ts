@@ -90,6 +90,21 @@ export function formatSkillBlockReason(
     }
     case 'hp':
       return `Need more HP (costs ${skill.hpCost})`;
+    case 'mode-required': {
+      const mi = skill.modeInteraction;
+      const modeName = modePanelDisplayName(mi?.modeId ?? mi?.requireFamily ?? mi?.family ?? 'Mode');
+      if (mi?.consumeAllCharges) {
+        return `Need ${modeName} ON with ≥1 charge`;
+      }
+      const need = mi?.consumeCharges ?? 1;
+      return need > 1
+        ? `Need ${modeName} ON with ${need} charges`
+        : `Requires ${modeName} ON`;
+    }
+    case 'mark-required': {
+      const markId = skill.modeInteraction?.requireMarkId ?? 'mark';
+      return `Requires ${markPanelDisplayName(markId)} on enemy`;
+    }
     default:
       return 'Cannot play this card';
   }
@@ -159,7 +174,7 @@ export function previewSkillDamageForUi(input: SkillDamagePreviewInput): {
     enemy.element,
     {
       damageBonus:
-        resolvePassiveDamageBonus(playerStats.passiveBonuses, skill.element) + flagDmg,
+        resolvePassiveDamageBonus(playerStats.passiveBonuses, skill.element, skill.tags) + flagDmg,
       defenseBypass: getTotalDefenseBypass(player),
       critDefenseBypass: getCritDefenseBypass(player),
       forceSuperEffective: hasAllElementsPassive(player),
@@ -269,7 +284,12 @@ export function buildHonestyPreview(base: number, sources: readonly PreviewSourc
 }
 
 export function chargeConsumeWarning(skill: Pick<Skill, 'modeInteraction'>): string | null {
-  const n = skill.modeInteraction?.consumeCharges;
+  const mi = skill.modeInteraction;
+  if (!mi) return null;
+  if (mi.consumeAllCharges) {
+    return 'Consumes all Mode charges — Mode closes';
+  }
+  const n = mi.consumeCharges;
   if (!n || n <= 0) return null;
   return `Consumes ${n} Mode charge${n === 1 ? '' : 's'}`;
 }

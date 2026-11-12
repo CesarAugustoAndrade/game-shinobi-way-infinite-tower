@@ -17,10 +17,13 @@ import {
   getCurrentRoom,
   calculateExitProbability,
   generateChildrenForRoom,
+  pickRoomActivityKeys,
+  countFloorActivityOccupancy,
 } from '../LocationSystem';
-import { BranchingRoomType, ACTIVITY_ORDER } from '../../types';
+import { BranchingRoomType, ACTIVITY_ORDER, LOCATION_UNIQUE_ACTIVITIES } from '../../types';
 import { createMockPlayer } from './testFixtures';
 import { EVENTS } from '../../constants';
+import { createSeededRng } from '../../utils/rng';
 
 describe('generateBranchingFloor', () => {
   const player = createMockPlayer();
@@ -176,6 +179,21 @@ describe('getCurrentActivity', () => {
     // Entry hub has no activities
     const activity = getCurrentActivity(hub);
     expect(activity).toBeNull();
+  });
+
+  it('returns a later activity after the first of several is completed', () => {
+    const floor = generateBranchingFloor(1, 50, player);
+    const multi = floor.rooms.find(
+      (r) => ACTIVITY_ORDER.filter((k) => r.activities[k]).length >= 2,
+    );
+    expect(multi).toBeDefined();
+    if (!multi) return;
+    const first = getCurrentActivity(multi);
+    expect(first).not.toBeNull();
+    const after = completeActivity(floor, multi.id, first!);
+    const remaining = getCurrentActivity(getRoomById(after, multi.id)!);
+    expect(remaining).not.toBeNull();
+    expect(remaining).not.toBe(first);
   });
 });
 
@@ -511,5 +529,82 @@ describe('generateBranchingFloorFromConfig — dangerLevel plumbing (no double-c
       player,
     });
     expect(floor.wealthLevel).toBe(6);
+  });
+});
+
+describe('pickRoomActivityKeys — weighted shuffle + floor mix', () => {
+  it('START rooms pick no activities', () => {
+    expect(pickRoomActivityKeys(BranchingRoomType.START, {}, () => 0.5)).toEqual([]);
+  });
+
+  it('never repeats an activity key inside one room', () => {
+    const rng = createSeededRng(42);
+    for (let i = 0; i < 80; i++) {
+      const keys = pickRoomActivityKeys(BranchingRoomType.RUINS, {}, () => rng.random());
+      expect(new Set(keys).size).toBe(keys.length);
+      expect(keys.includes('combat') && keys.includes('eliteChallenge')).toBe(false);
+    }
+  });
+
+  it('strips unique amenities already present on the floor', () => {
+    const rng = createSeededRng(7);
+    for (let i = 0; i < 60; i++) {
+      const keys = pickRoomActivityKeys(
+        BranchingRoomType.VILLAGE,
+        { merchant: 1, rest: 1 },
+        () => rng.random(),
+      );
+      expect(keys).not.toContain('merchant');
+      expect(keys).not.toContain('rest');
+    }
+  });
+
+  it('dampens combat when the floor already has many fights', () => {
+    const freshRng = createSeededRng(101);
+    const saturatedRng = createSeededRng(101);
+    let combatFresh = 0;
+    let combatSaturated = 0;
+    const n = 240;
+    for (let i = 0; i < n; i++) {
+      if (pickRoomActivityKeys(BranchingRoomType.OUTPOST, {}, () => freshRng.random()).includes('combat')) {
+        combatFresh += 1;
+      }
+      if (pickRoomActivityKeys(BranchingRoomType.OUTPOST, { combat: 4 }, () => saturatedRng.random()).includes('combat')) {
+        combatSaturated += 1;
+      }
+    }
+    expect(combatFresh).toBeGreaterThan(combatSaturated);
+    expect(combatSaturated / n).toBeLessThan(0.55);
+    expect(combatFresh / n).toBeGreaterThan(0.55);
+  });
+});
+
+describe('generateBranchingFloorFromConfig — location unique amenities + mix', () => {
+  const player = createMockPlayer();
+
+  it('places at most one merchant and one rest among generated rooms', () => {
+    for (let seed = 1; seed <= 24; seed++) {
+      const rng = createSeededRng(8000 + seed);
+      const floor = generateBranchingFloorFromConfig({
+        floor: 3,
+        arc: 'WAVES_ARC',
+        biome: 'Mist Covered Bridge',
+        dangerLevel: 2,
+        wealthLevel: 4,
+        roomGenerationMode: 'dynamic',
+        targetRoomCount: 10,
+        difficulty: 45,
+        player,
+        rng: () => rng.random(),
+      });
+      const playable = floor.rooms.filter((r) => r.type !== BranchingRoomType.START);
+      for (const key of LOCATION_UNIQUE_ACTIVITIES) {
+        const copies = playable.filter((r) => r.activities[key] != null).length;
+        expect(copies).toBeLessThanOrEqual(1);
+      }
+      const occupancy = countFloorActivityOccupancy(floor.rooms);
+      expect(occupancy.merchant ?? 0).toBeLessThanOrEqual(1);
+      expect(occupancy.rest ?? 0).toBeLessThanOrEqual(1);
+    }
   });
 });

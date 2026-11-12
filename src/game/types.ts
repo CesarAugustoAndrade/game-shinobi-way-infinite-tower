@@ -752,6 +752,13 @@ export interface PassiveSkillEffect {
    * auto-scope to that element; PHYSICAL/MENTAL passives stay global.
    */
   damageBonusElement?: ElementType;
+  /**
+   * When set, damageBonus only applies to attacking skills whose `tags`
+   * include this SkillTag (e.g. WEAPON / TAIJUTSU). Takes precedence over
+   * element scoping for that bonus — do not combine with damageBonusElement
+   * on the same effect.
+   */
+  damageBonusTag?: SkillTag;
   defenseBonus?: number;         // % bonus added to all percent defenses
   regenBonus?: { hp?: number; chakra?: number };  // Per-turn regeneration
   specialEffect?: string;        // Unique effect identifier
@@ -771,6 +778,11 @@ export interface PassiveBonuses {
    * Applied when the attacking skill's element matches the key.
    */
   elementalDamageBonus: Partial<Record<ElementType, number>>;
+  /**
+   * Tag-scoped damage bonuses (e.g. WEAPON_PROFICIENCY → WEAPON-tagged skills).
+   * Applied when the attacking skill's tags include the key.
+   */
+  taggedDamageBonus: Partial<Record<SkillTag, number>>;
   /** Percentage bonus added to all percent defenses (0.1 = +10%) */
   defenseBonus: number;
   /** Flat HP regeneration per turn (added to derived hpRegen) */
@@ -1829,6 +1841,16 @@ export const ACTIVITY_EXCLUSIONS: Partial<Record<keyof RoomActivities, (keyof Ro
   combat: ['eliteChallenge'],
   eliteChallenge: ['combat'],
 };
+
+/**
+ * Amenities that may appear in at most one room per location.
+ * Further copies are stripped from the weighted pool (ensureLocationFlagActivities
+ * can still inject a missing flag-promised merchant/rest/training).
+ */
+export const LOCATION_UNIQUE_ACTIVITIES: ReadonlyArray<keyof RoomActivities> = [
+  'merchant',
+  'rest',
+];
 
 export interface RoomRevealRequirement {
   skill?: string;          // Skill ID required to reveal

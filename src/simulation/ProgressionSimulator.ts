@@ -366,7 +366,9 @@ export function printProgressionSummary(summaries: ProgressionSummary[]): void {
 export async function runFullProgressionSimulation(
   config: ProgressionConfig = DEFAULT_PROGRESSION_CONFIG
 ): Promise<ProgressionSummary[]> {
-  const clans = [Clan.UZUMAKI, Clan.UCHIHA, Clan.HYUGA, Clan.LEE, Clan.YAMANAKA];
+  const clans = config.clan
+    ? [config.clan]
+    : [Clan.UZUMAKI, Clan.UCHIHA, Clan.HYUGA, Clan.LEE, Clan.YAMANAKA];
   const summaries: ProgressionSummary[] = [];
 
   console.log('\n╔════════════════════════════════════════════════════════════╗');

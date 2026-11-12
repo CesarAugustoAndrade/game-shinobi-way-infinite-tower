@@ -24,7 +24,7 @@ import {
   canAddPlayableSkill,
   getPlayableDeckSize,
 } from './game/systems/DeckSystem';
-import { applyForgetSkill, applyLearnSkill } from './game/systems/SkillConfigLive';
+import { applyForgetSkill, applyLearnSkill, setMainAttack } from './game/systems/SkillConfigLive';
 import { applyLevelUp } from './game/systems/LevelSystem';
 import { generateEnemy } from './game/systems/EnemySystem';
 
@@ -230,6 +230,8 @@ const App: React.FC = () => {
   /** T-022: explore overlays — bag (I) and character (C) can be open together */
   const [exploreBagOpen, setExploreBagOpen] = useState(false);
   const [exploreCharacterOpen, setExploreCharacterOpen] = useState(false);
+  const [exploreMainMenuOpen, setExploreMainMenuOpen] = useState(false);
+  const [exploreApproachMenuOpen, setExploreApproachMenuOpen] = useState(false);
   /** T-023: campaign index into REGION_ORDER + interlude boons */
   const [campaignRegionIndex, setCampaignRegionIndex] = useState(0);
   const [regionsCompleted, setRegionsCompleted] = useState(0);
@@ -769,6 +771,8 @@ const App: React.FC = () => {
     setInterludeMeta(null);
     setExploreBagOpen(false);
     setExploreCharacterOpen(false);
+    setExploreMainMenuOpen(false);
+    setExploreApproachMenuOpen(false);
     setRunMode(mode);
     setInfiniteFloor(0);
     // Drop prior-run modals / activity payloads — leftover combatReward/rest
@@ -1272,12 +1276,22 @@ const App: React.FC = () => {
     startCombat(combatEnemy, result, playerAfterCosts, terrain, locMods, roomMods);
   };
 
+  const handleChangeMainAttack = (skillId: string) => {
+    if (!player) return;
+    const result = setMainAttack(player, skillId, gameState);
+    if (result.refused) return;
+    setPlayer(result.player);
+    const name = result.player.skills.find((skill) => skill.id === skillId)?.name ?? skillId;
+    addLog(`Main Attack: ${name}`, 'info');
+    setExploreMainMenuOpen(false);
+  };
+
   /** HUD preference picker — lock approach for all future encounters */
   const handlePreferredApproachSelect = (approach: ApproachType) => {
     if (!player) return;
     const name = APPROACH_DEFINITIONS[approach]?.name ?? approach;
     setPlayer({ ...player, preferredApproach: approach });
-    setShowApproachSelector(false);
+    setExploreApproachMenuOpen(false);
     addLog(`Approach set: ${name}. Applies to all encounters until changed.`, 'info');
   };
 
@@ -1642,6 +1656,8 @@ const App: React.FC = () => {
     if (!showExploreChrome) {
       setExploreBagOpen(false);
       setExploreCharacterOpen(false);
+      setExploreMainMenuOpen(false);
+      setExploreApproachMenuOpen(false);
     }
   }, [showExploreChrome]);
 
@@ -1659,6 +1675,8 @@ const App: React.FC = () => {
     if (blocking) {
       setExploreBagOpen(false);
       setExploreCharacterOpen(false);
+      setExploreMainMenuOpen(false);
+      setExploreApproachMenuOpen(false);
     }
   }, [
     combatReward,
@@ -1669,7 +1687,14 @@ const App: React.FC = () => {
     showApproachSelector,
   ]);
 
-  // A / I / C / Esc — approach · bag · character
+  useEffect(() => {
+    if (isCombat) {
+      setExploreMainMenuOpen(false);
+      setExploreApproachMenuOpen(false);
+    }
+  }, [isCombat]);
+
+  // A / I / C / M / Esc — approach · bag · character · main attack
   // Combat: C is hand slot 3 — only open character via HUD button, not C key.
   // Do not open bag/character under result/approach modals.
   useEffect(() => {
@@ -1696,27 +1721,43 @@ const App: React.FC = () => {
       if (key === 'a') {
         // Toggle approach preference (A is free on explore; combat uses number keys for hand)
         if (isCombat) return;
-        // Allow A to toggle when approach is open; block under other result modals
-        if (chromeBlocked && !showApproachSelector) return;
+        if (chromeBlocked) return;
         event.preventDefault();
         setExploreBagOpen(false);
         setExploreCharacterOpen(false);
-        setShowApproachSelector((prev) => !prev);
+        setExploreMainMenuOpen(false);
+        setExploreApproachMenuOpen((prev) => !prev);
+      } else if (key === 'm') {
+        if (isCombat) return;
+        if (chromeBlocked) return;
+        event.preventDefault();
+        setExploreBagOpen(false);
+        setExploreCharacterOpen(false);
+        setExploreApproachMenuOpen(false);
+        setExploreMainMenuOpen((prev) => !prev);
       } else if (key === 'i') {
         if (chromeBlocked) return;
         event.preventDefault();
+        setExploreMainMenuOpen(false);
+        setExploreApproachMenuOpen(false);
         setExploreBagOpen((prev) => !prev);
       } else if (key === 'c') {
         // Combat hand uses C for the 3rd skill card
         if (isCombat) return;
         if (chromeBlocked) return;
         event.preventDefault();
+        setExploreMainMenuOpen(false);
+        setExploreApproachMenuOpen(false);
         setExploreCharacterOpen((prev) => !prev);
-      } else if (event.key === 'Escape' && (exploreBagOpen || exploreCharacterOpen)) {
-        // Progressive close: bag first, then character (overlays may also handle Esc)
+      } else if (
+        event.key === 'Escape' &&
+        (exploreBagOpen || exploreCharacterOpen || exploreMainMenuOpen || exploreApproachMenuOpen)
+      ) {
         event.preventDefault();
         if (exploreBagOpen) setExploreBagOpen(false);
-        else setExploreCharacterOpen(false);
+        else if (exploreCharacterOpen) setExploreCharacterOpen(false);
+        else if (exploreMainMenuOpen) setExploreMainMenuOpen(false);
+        else setExploreApproachMenuOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1726,6 +1767,8 @@ const App: React.FC = () => {
     isCombat,
     exploreBagOpen,
     exploreCharacterOpen,
+    exploreMainMenuOpen,
+    exploreApproachMenuOpen,
     showApproachSelector,
     combatReward,
     eventOutcome,
@@ -1951,22 +1994,39 @@ const App: React.FC = () => {
             maxChakra={playerStats.derived.maxChakra}
             onOpenBag={() => {
               if (exploreModalBlocksHud) return;
+              setExploreMainMenuOpen(false);
+              setExploreApproachMenuOpen(false);
               setExploreBagOpen((p) => !p);
             }}
             onOpenCharacter={() => {
               if (exploreModalBlocksHud) return;
+              setExploreMainMenuOpen(false);
+              setExploreApproachMenuOpen(false);
               setExploreCharacterOpen((p) => !p);
             }}
-            onOpenApproach={() => {
-              // Allow toggle when approach is already open (parity with A key)
-              if (exploreModalBlocksHud && !showApproachSelector) return;
+            onChangeApproach={handlePreferredApproachSelect}
+            onToggleApproachMenu={() => {
+              if (exploreModalBlocksHud || isCombat) return;
               setExploreBagOpen(false);
               setExploreCharacterOpen(false);
-              setShowApproachSelector((p) => !p);
+              setExploreMainMenuOpen(false);
+              setExploreApproachMenuOpen((p) => !p);
             }}
+            onCloseApproachMenu={() => setExploreApproachMenuOpen(false)}
+            onChangeMainAttack={handleChangeMainAttack}
+            onToggleMainMenu={() => {
+              if (exploreModalBlocksHud || isCombat) return;
+              setExploreBagOpen(false);
+              setExploreCharacterOpen(false);
+              setExploreApproachMenuOpen(false);
+              setExploreMainMenuOpen((p) => !p);
+            }}
+            onCloseMainMenu={() => setExploreMainMenuOpen(false)}
             bagOpen={exploreBagOpen}
             characterOpen={exploreCharacterOpen}
-            approachOpen={showApproachSelector}
+            approachMenuOpen={exploreApproachMenuOpen}
+            mainMenuOpen={exploreMainMenuOpen}
+            mainLocked={isCombat}
             lootTheme={region?.lootTheme}
             locationLabel={
               gameState === GameState.LOCATION_EXPLORE || isMissionScene
@@ -2037,6 +2097,9 @@ const App: React.FC = () => {
                 roomConditionNames={combatState?.roomConditionNames ?? null}
                 pendingDiscover={combatState?.pendingDiscover}
                 onCommitDiscover={commitDiscover}
+                activeModes={combatState?.activeModes ?? []}
+                marks={combatState?.marks ?? []}
+                modeUpkeepPriority={player?.skillConfig?.modeUpkeepPriority}
               />
             </ErrorBoundary>
           )}
@@ -2371,7 +2434,7 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Approach preference picker (HUD) — applies to all encounters until changed */}
+      {/* Fallback picker if a combat path opens the selector without auto-engage */}
       {showApproachSelector && player && playerStats && (
         <ApproachSelector
           mode="preference"

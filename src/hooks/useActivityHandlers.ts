@@ -54,6 +54,7 @@ import {
   visitToFloorPatch,
   applyVisitActivityComplete,
   resolvePostActivityGameState,
+  getPendingActivityOnFloor,
   bindEventSessionRoom,
   clearEventSessionRoom,
   getEventSessionRoomId,
@@ -1736,8 +1737,31 @@ export function useActivityHandlers(
       setBranchingFloor(workingBranchingFloor);
     }
 
-    // Show result panel; close only grants intel + leave (activity already done)
+    // Show result panel; close only grants intel + leave (activity already done).
+    // Skip that Continue when the event is sealed and this room still has work.
     if (result.outcome) {
+      const pendingNext =
+        inLocationMode &&
+        eventAlreadyCompleted &&
+        !result.nextEventId &&
+        workingLocationFloor &&
+        eventRoomId
+          ? getPendingActivityOnFloor(workingLocationFloor, eventRoomId)
+          : null;
+      if (pendingNext && workingLocationFloor) {
+        const nextIntel = Math.min(100, currentIntel + effectiveIntelGain);
+        logExplorationCheckpoint('handleEventChoice: skip outcome — same-room chain', {
+          roomId: eventRoomId,
+          nextActivity: pendingNext,
+          eventCompletedAfter: true,
+        });
+        setCameFromChain(false);
+        setActiveEvent(null);
+        setCurrentIntel(nextIntel);
+        logIntelGain('Event', effectiveIntelGain, nextIntel);
+        returnToMapActivityComplete(workingLocationFloor, { intel: nextIntel });
+        return true;
+      }
       logExplorationCheckpoint('handleEventChoice: outcome', {
         branch: 'outcome',
         roomId: eventRoomId,
@@ -1808,7 +1832,7 @@ export function useActivityHandlers(
       reason: 'no-outcome path complete failed',
     });
     return true;
-  }, [player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty, region, locationFloor, branchingFloor, selectedBranchingRoom, currentLocation, eventOutcome, setPlayer, setRegion, setLocationFloor, setBranchingFloor, setSelectedBranchingRoom, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, addLog, checkLevelUp, handleCombatVictory, startCombat, returnToMapActivityComplete]);
+  }, [player, playerStats, currentDangerLevel, currentBaseDifficulty, difficulty, region, locationFloor, branchingFloor, selectedBranchingRoom, currentLocation, currentIntel, eventOutcome, setPlayer, setRegion, setLocationFloor, setBranchingFloor, setSelectedBranchingRoom, setActiveEvent, setGameState, setEventOutcome, setCameFromChain, setCurrentIntel, addLog, checkLevelUp, handleCombatVictory, startCombat, returnToMapActivityComplete]);
 
   const handleEventOutcomeClose = useCallback(() => {
     logModalClose('EventOutcomeModal');

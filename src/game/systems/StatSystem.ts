@@ -73,6 +73,7 @@ import {
   STAT_FORMULAS,
   ActionType,
   PassiveBonuses,
+  SkillTag,
   CombatActor,
   Mark,
 } from '../types';
@@ -118,6 +119,7 @@ export function aggregatePassiveSkillBonuses(skills: Skill[]): PassiveBonuses {
     statBonus: {},
     damageBonus: 0,
     elementalDamageBonus: {},
+    taggedDamageBonus: {},
     defenseBonus: 0,
     hpRegen: 0,
     chakraRegen: 0
@@ -142,17 +144,23 @@ export function aggregatePassiveSkillBonuses(skills: Skill[]): PassiveBonuses {
       });
     }
 
-    // Aggregate damage bonus (global or element-scoped)
+    // Aggregate damage bonus (tag-scoped, element-scoped, or global)
     if (effect.damageBonus) {
-      const elementFilter =
-        effect.damageBonusElement ??
-        (NATURE_ELEMENTS.has(skill.element) ? skill.element : undefined);
-
-      if (elementFilter) {
-        bonuses.elementalDamageBonus[elementFilter] =
-          (bonuses.elementalDamageBonus[elementFilter] || 0) + effect.damageBonus;
+      if (effect.damageBonusTag) {
+        const tag = effect.damageBonusTag;
+        bonuses.taggedDamageBonus[tag] =
+          (bonuses.taggedDamageBonus[tag] || 0) + effect.damageBonus;
       } else {
-        bonuses.damageBonus += effect.damageBonus;
+        const elementFilter =
+          effect.damageBonusElement ??
+          (NATURE_ELEMENTS.has(skill.element) ? skill.element : undefined);
+
+        if (elementFilter) {
+          bonuses.elementalDamageBonus[elementFilter] =
+            (bonuses.elementalDamageBonus[elementFilter] || 0) + effect.damageBonus;
+        } else {
+          bonuses.damageBonus += effect.damageBonus;
+        }
       }
     }
 
@@ -176,20 +184,28 @@ export function aggregatePassiveSkillBonuses(skills: Skill[]): PassiveBonuses {
 }
 
 /**
- * Resolves the total passive damage multiplier bonus for a given attack element.
- * Combines global damageBonus with any matching elementalDamageBonus.
+ * Resolves the total passive damage multiplier bonus for a given attack.
+ * Combines global damageBonus with matching elemental and tag-scoped bonuses.
  *
  * @param passiveBonuses - Aggregated passive skill bonuses
  * @param skillElement - Element of the skill being used
+ * @param skillTags - Tags of the skill being used (for WEAPON/TAIJUTSU scopes)
  * @returns Combined damage bonus fraction (0.15 = +15%)
  */
 export function resolvePassiveDamageBonus(
   passiveBonuses: PassiveBonuses | undefined,
-  skillElement: ElementType
+  skillElement: ElementType,
+  skillTags?: readonly SkillTag[]
 ): number {
   if (!passiveBonuses) return 0;
   const elemental = passiveBonuses.elementalDamageBonus[skillElement] || 0;
-  return passiveBonuses.damageBonus + elemental;
+  let tagged = 0;
+  if (skillTags && skillTags.length > 0 && passiveBonuses.taggedDamageBonus) {
+    for (const tag of skillTags) {
+      tagged += passiveBonuses.taggedDamageBonus[tag] || 0;
+    }
+  }
+  return passiveBonuses.damageBonus + elemental + tagged;
 }
 
 // ============================================================================

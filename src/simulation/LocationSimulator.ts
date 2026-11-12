@@ -53,6 +53,8 @@ import {
   BranchingFloor,
   BranchingRoom,
   RoomActivities,
+  ApproachType,
+  Clan,
 } from '../game/types';
 import {
   generateBranchingFloorFromConfig,
@@ -86,6 +88,14 @@ export interface LocationRunConfig {
   maxRoomsPerRun: number;
   /** Whether the (optional, in-game escapable) eliteChallenge rooms are fought. */
   fightEliteChallenges: boolean;
+  /** Visit heat forwarded into resolveBattle (CLI --heat). */
+  visitHeat?: number;
+  /** Opening approach for each fight (CLI --approach). Default null = none. */
+  approach?: ApproachType | null;
+  /** When set, run only this danger (CLI --danger) instead of 1–7. */
+  pinnedDanger?: number;
+  /** Optional clan filter (CLI --clan). */
+  clan?: Clan;
 }
 
 export const DEFAULT_LOCATION_CONFIG: LocationRunConfig = {
@@ -164,6 +174,9 @@ export function simulateLocationRun(
 ): LocationRunResult {
   // Build the player ONCE; HP/chakra carry across rooms from here on.
   let player = createSimPlayer({ ...build, level: config.playerLevel });
+  if (config.approach) {
+    player = { ...player, preferredApproach: config.approach };
+  }
   const derived = getPlayerFullStats(player).derived;
   const maxHp = derived.maxHp;
   const maxChakra = derived.maxChakra;
@@ -228,9 +241,10 @@ export function simulateLocationRun(
             enemy,
             battleConfig,
             runId * 10000 + battleSeq++,
-            null,
+            config.approach ?? null,
             current.terrain,
             roomMods,
+            config.visitHeat ?? 0,
           );
           combats++;
 

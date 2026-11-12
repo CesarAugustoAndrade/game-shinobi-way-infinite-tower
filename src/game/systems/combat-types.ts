@@ -108,6 +108,10 @@ export interface CombatState {
   pendingSupportWeights?: PendingSupportWeight[];
   /** T-085: Discover offer from resolveSkill (not consumed at upkeep). */
   pendingDiscover?: PendingDiscover;
+  /** T-017: one-shot next Gate HP activation −50% (armed by Gate Prep). */
+  pendingGateHpDiscount?: boolean;
+  /** T-067: one-shot next CP Mode upkeep −N (armed by Focused Breathing). */
+  pendingCpUpkeepDiscount?: number;
 }
 
 // ============================================================================
@@ -172,6 +176,8 @@ export interface UpkeepResult {
   pendingSupportWeights?: PendingSupportWeight[];
   /** T-085: Discover offer is not consumed at upkeep. */
   pendingDiscover?: PendingDiscover;
+  /** T-067: remaining CP upkeep discount after Mode pay (cleared when consumed). */
+  pendingCpUpkeepDiscount?: number;
 }
 
 /**

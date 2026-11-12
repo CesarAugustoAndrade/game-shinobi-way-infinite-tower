@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Item, MAX_BAG_SLOTS, Rarity, DragData, RegionLootTheme, ComponentId } from '../../game/types';
-import { getRecipesUsingComponent } from '../../game/constants/synthesis';
-import { COMPONENT_DEFINITIONS } from '../../game/constants/components';
+import { Item, MAX_BAG_SLOTS, Rarity, DragData, RegionLootTheme } from '../../game/types';
 import {
   resolveItemArt,
   getArtifactArt,
@@ -36,9 +34,6 @@ function craftResultArt(combo: CraftCombination, partner: Item) {
   return getArtifactArt(combo.previewName);
 }
 
-function partnerComponentId(recipe: [ComponentId, ComponentId], selfId: ComponentId): ComponentId {
-  return recipe[0] === selfId ? recipe[1] : recipe[0];
-}
 
 export interface CraftResultInfo {
   item: Item;
@@ -84,7 +79,6 @@ interface BagSlotProps {
   globalDragging: boolean;
   onItemClick: (item: Item) => void;
   getRarityColor: (r: Rarity) => string;
-  getCompatibleRecipes: (item: Item) => { name: string; recipe: [ComponentId, ComponentId] }[];
   children?: React.ReactNode;
   /** T-096 */
   equipmentFocus?: string[] | null;
@@ -98,7 +92,6 @@ const BagSlot: React.FC<BagSlotProps> = ({
   globalDragging,
   onItemClick,
   getRarityColor,
-  getCompatibleRecipes,
   children,
   equipmentFocus = null,
 }) => {
@@ -169,7 +162,10 @@ const BagSlot: React.FC<BagSlotProps> = ({
                   <span className="bag__tooltip-focus" title="Matches region Focus"> · Focus</span>
                 )}
               </div>
-              <div className="bag__tooltip-desc">{item.description}</div>
+              {item.description ? (
+                <div className="bag__tooltip-desc">{item.description}</div>
+              ) : null}
+              {Object.keys(item.stats).length > 0 && (
               <div className="bag__tooltip-stats">
                 {Object.entries(item.stats).map(([key, val]) => (
                   <div
@@ -186,44 +182,7 @@ const BagSlot: React.FC<BagSlotProps> = ({
                   </div>
                 ))}
               </div>
-              {item.isComponent && item.rarity === Rarity.BROKEN && item.componentId && (
-                <div className="bag__tooltip-recipes">
-                  <div className="bag__tooltip-recipes-title">Forge path</div>
-                  <div className="bag__tooltip-recipe bag__tooltip-recipe--result">
-                    <ArtIcon
-                      art={getComponentArt(item.componentId)}
-                      size="xs"
-                      title={item.name}
-                    />
-                    <span className="bag__tooltip-recipe-name">{item.name}</span>
-                    <span className="bag__tooltip-recipe-need">2× Broken</span>
-                  </div>
-                </div>
               )}
-              {item.isComponent && item.rarity === Rarity.COMMON && item.componentId && (
-                <div className="bag__tooltip-recipes">
-                  <div className="bag__tooltip-recipes-title">Forges into</div>
-                  {getCompatibleRecipes(item).slice(0, 3).map((recipe) => {
-                    const partnerId = partnerComponentId(recipe.recipe, item.componentId!);
-                    const partnerDef = COMPONENT_DEFINITIONS[partnerId];
-                    return (
-                      <div key={recipe.name} className="bag__tooltip-recipe bag__tooltip-recipe--result">
-                        <ArtIcon art={getArtifactArt(recipe.name)} size="xs" title={recipe.name} />
-                        <span className="bag__tooltip-recipe-name">{recipe.name}</span>
-                        <span className="bag__tooltip-recipe-need" title={partnerDef?.name}>
-                          +
-                          <ArtIcon
-                            art={getComponentArt(partnerId)}
-                            size="xs"
-                            title={partnerDef?.name ?? partnerId}
-                          />
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="bag__tooltip-hint">Drag to shift · click to act · sell at shop</div>
             </div>
           ) : (
             <div className="bag__tooltip-hint">Hollow pocket — the mist holds nothing yet</div>
@@ -390,11 +349,6 @@ const Bag: React.FC<BagProps> = ({
     onSelectComponent(null);
   };
 
-  const getCompatibleRecipes = (item: Item) => {
-    if (!item.componentId) return [];
-    return getRecipesUsingComponent(item.componentId).slice(0, 4);
-  };
-
   const canCombineWithSelected = (item: Item) => {
     if (!synthesisMode || !selectedComponent) return false;
     if (selectedComponent.id === item.id) return false;
@@ -438,7 +392,6 @@ const Bag: React.FC<BagProps> = ({
               globalDragging={globalDragging}
               onItemClick={handleComponentClick}
               getRarityColor={getRarityColor}
-              getCompatibleRecipes={getCompatibleRecipes}
             >
               {isMenuOpen && item && (
                 <div className="bag__menu">

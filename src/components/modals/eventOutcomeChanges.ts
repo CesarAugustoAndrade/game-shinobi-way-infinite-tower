@@ -35,6 +35,19 @@ export interface OutcomeChange {
   tone: OutcomeTone;
 }
 
+/** Player-facing names for narrative run flags (not combat Marks). */
+const FLAG_LABELS: Record<string, string> = {
+  inari_met: 'Met Inari',
+  inspired_inari: 'Inari inspired',
+};
+
+function flagDisplayName(flag: string): string {
+  if (FLAG_LABELS[flag]) return FLAG_LABELS[flag];
+  return flag
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
 /** Title-case display names for the primary stats touched by statChanges. */
 const STAT_LABELS: Record<string, string> = {
   willpower: 'Willpower',
@@ -180,7 +193,13 @@ export function buildOutcomeChanges(
   // Narrative flags: surfaced quietly so the player knows a decision was recorded.
   if (effects.setFlags) {
     for (const flag of Object.keys(effects.setFlags)) {
-      changes.push({ key: `flag-${flag}`, icon: 'MK', label: 'Mark', value: flag.replace(/_/g, ' '), tone: 'flag' });
+      changes.push({
+        key: `flag-${flag}`,
+        icon: 'LG',
+        label: 'Ledger',
+        value: flagDisplayName(flag),
+        tone: 'flag',
+      });
     }
   }
 

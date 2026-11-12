@@ -25,7 +25,9 @@
     "simulate:progression": "npx tsx src/simulation/index.ts --progression",
     "simulate:progression:quick": "npx tsx src/simulation/index.ts --progression --quick",
     "simulate:campaign": "npx tsx src/simulation/index.ts --campaign",
-    "simulate:campaign:quick": "npx tsx src/simulation/index.ts --campaign --quick"
+    "simulate:campaign:quick": "npx tsx src/simulation/index.ts --campaign --quick",
+    "simulate:location": "npx tsx src/simulation/index.ts --location",
+    "simulate:location:quick": "npx tsx src/simulation/index.ts --location --quick"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

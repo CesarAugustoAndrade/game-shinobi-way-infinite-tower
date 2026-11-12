@@ -3,6 +3,21 @@
 All notable changes to SHINOBI WAY: THE INFINITE TOWER will be documented in this file.
 
 ## [Unreleased]
+- **Sim live turn loop:** Balance `resolveBattle` (1v1 / location / campaign) now runs `processUpkeep` → `useSkill` → `processEnemyTurn` via a headless driver. Modes, Marks, Discover, and enemy opportunity share the live commands.
+- **Sim CLI pins:** `--clan`, `--approach`, `--heat`, `--danger` actually reach battle/location/campaign (and clan on progression). 1v1 with a pin skips the skill-probe dump. `npm run simulate:location[:quick]`.
+- **Approach HUD dropdown:** Preferred approach is a top-bar list like Main Attack (A). Hover shows win/fail/cost tooltip. Full ApproachSelector stays as combat fallback.
+- **Event ledger chips:** Outcome panel labels story flags `Ledger` (not `Mark` / MK), so they do not collide with combat Marks.
+- **Main Attack HUD menu:** Exploration top bar lists loadout ATTACK skills; pick one as Main (M). Locked in combat via Skill Config.
+- **Combat tactical column:** Combat Modes, Tactical Setup, and Skill Config stack as the left deck column; AP/stance/hand stay on the right at the original height.
+- **Same-room activity chain:** Rest / intel / terminal events skip the result Continue when another activity is still pending in that room. Last-in-room, location-complete, story-chain, and combat-victory Continues stay.
+- **Room activity mix:** Floor generation weighted-shuffles activities (not uniform repeats), caps merchant/rest at one room per location, and damps already-seen activities (combat+elite as one fight family) so paths cluster less.
+- **Combat HUD icons:** Modes / Setup rows are glanceable glyphs (hover = 1–2 line effect). Enemy status/marks sit under the HP bar; player buffs/marks sit on the left rail. Skill hand tooltips are compact (cost, range, damage/effect). Bottom dock stays the skill hand.
+- **Combat Modes/Marks live wire:** `App` passes `activeModes` / `marks` into Combat; Modes panel filters ON-only; Setup labels by mark target.
+- **MODE cold activate pay-once:** `resolveSkill` no longer double-charges activation; failed Mode ops reject instead of soft-skip. Gate Prep HP discount + Focused Breathing CP upkeep discount persist on `CombatState`.
+- **Marks writeback:** Enemy-turn projection keeps `result.marks` (shield drain / reflect consume). Kill-blow calls `finishCardPlay` before victory.
+- **Playability:** Hand greys `requireOn` / hard mark gates. `consumeAllCharges` warning copy. Compact combat GameLog.
+- **Catalog honesty:** Fireball / Phoenix / Dragon Flame plant Burn via `markEffects`; Chidori Stream `impactStun`; Chakra Control Drill grants +4 CP.
+- **Combat tactical strip UI:** Modes / Setup / Skill Config denser; Main shows skill name; Weight breakdown hidden until terms exist.
 - **T-148 Skill Config mount:** Combat dock mounts `SkillConfigInspector` (Main, upkeep order, weight toggle). Combat-locked; collapsed by default.
 - **T-147 Bound sim parity:** `BattleSimulator` enemy voluntary moves call `enemyVoluntaryMoveBlocked` before `shiftRange`. Bound enemies no longer walk the band in sim.
 - **T-146 Discover picker:** After a Discover SUPPORT, a picker lists up to 3 candidates. Choosing one commits via `commitDiscoverChoice` into the hand (CD entries insert disabled). Other plays wait until the choice.

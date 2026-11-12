@@ -24,6 +24,12 @@ export interface SimulationConfig {
   difficulty: number;            // Enemy difficulty 0-100
   enableApproaches: boolean;     // Whether to test approach modifiers
   approaches: ApproachType[];    // Which approaches to test
+  /** Visit heat 0–100 forwarded to resolveBattle (CLI --heat). Default 0. */
+  visitHeat: number;
+  /** When set, 1v1 uses this approach instead of null (CLI --approach). */
+  approach: ApproachType | null;
+  /** Optional clan filter (CLI --clan). */
+  clan?: Clan;
 }
 
 export const DEFAULT_CONFIG: SimulationConfig = {
@@ -38,7 +44,9 @@ export const DEFAULT_CONFIG: SimulationConfig = {
     ApproachType.STEALTH_AMBUSH,
     ApproachType.GENJUTSU_SETUP,
     ApproachType.ENVIRONMENTAL_TRAP
-  ]
+  ],
+  visitHeat: 0,
+  approach: null,
 };
 
 // ============================================================================
@@ -291,6 +299,8 @@ export interface ProgressionConfig {
   skillPool: string[];             // Available skills to learn
   maxBattles: number;              // Safety limit (default: 500)
   runsToSimulate: number;          // Number of full runs (default: 100)
+  /** Optional clan filter (CLI --clan). */
+  clan?: Clan;
 }
 
 export const DEFAULT_PROGRESSION_CONFIG: ProgressionConfig = {

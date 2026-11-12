@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   GameState, Player, BranchingRoom, BranchingFloor, CharacterStats,
   Location, Item, GameEvent, Skill, Enemy, LogEntry,
@@ -16,7 +16,7 @@ import {
   applyVisibilityToIntelGain,
   getLocationTerrainMods,
 } from '../game/systems/LocationTerrainSystem';
-import { bindEventSessionRoom } from '../game/session';
+import { bindEventSessionRoom, getPendingActivityOnFloor } from '../game/session';
 
 /**
  * Activity scene data setters - passed from App.tsx
@@ -91,6 +91,12 @@ export interface ActivityHandlerDeps {
   onAutoCombat?: (room: BranchingRoom, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
   // Auto-elite-combat callback for elite challenges when ENABLE_MANUAL_COMBAT is false
   onAutoEliteCombat?: (room: BranchingRoom, enemy: Enemy, artifact: Item, floor: BranchingFloor, setFloor: React.Dispatch<React.SetStateAction<BranchingFloor | null>>) => void;
+  /**
+   * After rest/intel complete: skip the result Continue when this room still
+   * has a pending activity. Receives the post-complete floor snapshot (do not
+   * use returnToMap — locationFloor is stale in the same tick as setFloor).
+   */
+  onSameRoomActivityChain?: (updatedFloor: BranchingFloor) => void;
 }
 
 /**
@@ -125,7 +131,11 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
     onEngageCombat,
     onAutoCombat,
     onAutoEliteCombat,
+    onSameRoomActivityChain,
   } = deps;
+
+  const onSameRoomActivityChainRef = useRef(onSameRoomActivityChain);
+  onSameRoomActivityChainRef.current = onSameRoomActivityChain;
 
   const {
     setMerchantItems,
@@ -268,19 +278,33 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
           const floorAfterRest = completeActivity(updatedFloor, currentRoom.id, 'rest');
           setFloor(floorAfterRest);
           logActivityComplete(currentRoom.id, 'rest');
-          // T-050: visual heal payoff
-          setRestResult?.({
-            hpHeal,
-            chakraHeal,
-            healPercent: restData.healPercent,
-            chakraRestorePercent: restData.chakraRestorePercent,
-            hpBefore,
-            hpAfter,
-            chakraBefore,
-            chakraAfter,
-            maxHp,
-            maxChakra,
-          });
+          const nextAfterRest = getPendingActivityOnFloor(floorAfterRest, currentRoom.id);
+          const chainSameRoom = onSameRoomActivityChainRef.current;
+          if (
+            nextAfterRest &&
+            exploreState === GameState.LOCATION_EXPLORE &&
+            chainSameRoom
+          ) {
+            logExplorationCheckpoint('skip rest result — same-room chain', {
+              roomId: currentRoom.id,
+              nextActivity: nextAfterRest,
+            });
+            chainSameRoom(floorAfterRest);
+          } else {
+            // Last activity in the room (or no chain hook): keep the heal Continue
+            setRestResult?.({
+              hpHeal,
+              chakraHeal,
+              healPercent: restData.healPercent,
+              chakraRestorePercent: restData.chakraRestorePercent,
+              hpBefore,
+              hpAfter,
+              chakraBefore,
+              chakraAfter,
+              maxHp,
+              maxChakra,
+            });
+          }
         }
         break;
 
@@ -379,19 +403,33 @@ export function useActivityHandler(deps: ActivityHandlerDeps): UseActivityHandle
           const floorAfterInfo = completeActivity(updatedFloor, currentRoom.id, 'infoGathering');
           setFloor(floorAfterInfo);
           logActivityComplete(currentRoom.id, 'infoGathering');
-          // T-049/T-086: visual payoff; show fog honesty when gain was reduced
-          const fogReduced = effectiveGain !== baseGain;
-          const fogPct = Math.round((locMods.visibilityPenalty || 0) * 100);
-          setIntelResult?.({
-            flavorText: infoActivity.flavorText,
-            intelGain: effectiveGain,
-            intelBefore,
-            intelAfter,
-            baseIntelGain: fogReduced ? baseGain : undefined,
-            fogNote: fogReduced
-              ? `Fog reduced intel (visibility ${fogPct > 0 ? '+' : ''}${fogPct}%)`
-              : null,
-          });
+          const nextAfterInfo = getPendingActivityOnFloor(floorAfterInfo, currentRoom.id);
+          const chainSameRoom = onSameRoomActivityChainRef.current;
+          if (
+            nextAfterInfo &&
+            exploreState === GameState.LOCATION_EXPLORE &&
+            chainSameRoom
+          ) {
+            logExplorationCheckpoint('skip intel result — same-room chain', {
+              roomId: currentRoom.id,
+              nextActivity: nextAfterInfo,
+            });
+            chainSameRoom(floorAfterInfo);
+          } else {
+            // T-049/T-086: last-in-room payoff; show fog honesty when gain was reduced
+            const fogReduced = effectiveGain !== baseGain;
+            const fogPct = Math.round((locMods.visibilityPenalty || 0) * 100);
+            setIntelResult?.({
+              flavorText: infoActivity.flavorText,
+              intelGain: effectiveGain,
+              intelBefore,
+              intelAfter,
+              baseIntelGain: fogReduced ? baseGain : undefined,
+              fogNote: fogReduced
+                ? `Fog reduced intel (visibility ${fogPct > 0 ? '+' : ''}${fogPct}%)`
+                : null,
+            });
+          }
         }
         break;
     }

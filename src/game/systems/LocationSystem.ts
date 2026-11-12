@@ -37,6 +37,10 @@
  * 6. rest - Heal HP and restore chakra
  * 7. training - Spend HP/chakra to gain stats
  * 8. treasure - Collect components and ryo
+ *
+ * Selection is a weighted shuffle (not uniform), then floor mix: merchant/rest
+ * cap at one room per location; already-seen activities (combat↔elite as one
+ * fight family) have their remaining weight damped so paths do not cluster.
  * ## EXIT ROOM PROBABILITY
  * When generating a room's 2 children (after min rooms visited):
  * one roll decides if the batch contains the exit; if so, exactly one of the
@@ -57,6 +61,8 @@ import {
   Item,
   PrimaryStat,
   ACTIVITY_EXCLUSIONS,
+  ACTIVITY_ORDER,
+  LOCATION_UNIQUE_ACTIVITIES,
   ActivityCountWeights,
   ActivityWeights,
   DEFAULT_MERCHANT_SLOTS,
@@ -182,30 +188,134 @@ function buildActivityPool(
     .map(([activity, weight]) => ({ activity, weight }));
 }
 
+// ============================================================================
+// FLOOR MIX / ANTI-SPAM
+// ============================================================================
+
+/** Per-location counts of rooms that already contain each activity. */
+export type ActivityOccupancy = Partial<Record<keyof RoomActivities, number>>;
+
 /**
- * Select an activity from weighted pool using weighted random selection.
- * Each activity's weight represents relative probability.
- * Returns null if pool is empty.
- * @param rng - Optional [0,1) source for deterministic generation
+ * Each prior room with the same mix key multiplies remaining weight.
+ * 0.4^1 ≈ 40% after one copy, 16% after two, 6% after three.
  */
-function selectWeightedActivity(
+export const ACTIVITY_REPEAT_WEIGHT_FACTOR = 0.4;
+
+function mixOccupancyKey(activity: keyof RoomActivities): keyof RoomActivities {
+  return activity === 'eliteChallenge' ? 'combat' : activity;
+}
+
+/**
+ * Count playable rooms on the floor that already host each activity.
+ * START hubs are structural and ignored. Elite fights also bump `combat`
+ * so fight-vs-fight clustering is damped as one family.
+ */
+export function countFloorActivityOccupancy(
+  rooms: readonly BranchingRoom[],
+): ActivityOccupancy {
+  const occupancy: ActivityOccupancy = {};
+  for (const room of rooms) {
+    if (room.type === BranchingRoomType.START) continue;
+    addRoomOccupancyInPlace(occupancy, room.activities);
+  }
+  return occupancy;
+}
+
+function addRoomOccupancyInPlace(
+  occupancy: ActivityOccupancy,
+  activities: RoomActivities,
+): void {
+  for (const key of ACTIVITY_ORDER) {
+    if (!activities[key]) continue;
+    occupancy[key] = (occupancy[key] ?? 0) + 1;
+    if (key === 'eliteChallenge') {
+      occupancy.combat = (occupancy.combat ?? 0) + 1;
+    }
+  }
+}
+
+/** Immutable occupancy bump after a room's activities are committed. */
+export function addRoomOccupancy(
+  occupancy: ActivityOccupancy,
+  activities: RoomActivities,
+): ActivityOccupancy {
+  const next: ActivityOccupancy = { ...occupancy };
+  addRoomOccupancyInPlace(next, activities);
+  return next;
+}
+
+function applyFloorMixToPool(
   pool: { activity: keyof RoomActivities; weight: number }[],
-  rng: () => number = defaultFloorRng,
-): keyof RoomActivities | null {
-  if (pool.length === 0) return null;
-
-  const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
-  if (totalWeight === 0) return null;
-
-  let roll = rng() * totalWeight;
-
+  occupancy: ActivityOccupancy,
+): { activity: keyof RoomActivities; weight: number }[] {
+  const unique = new Set<keyof RoomActivities>(LOCATION_UNIQUE_ACTIVITIES);
+  const mixed: { activity: keyof RoomActivities; weight: number }[] = [];
   for (const item of pool) {
-    roll -= item.weight;
-    if (roll <= 0) return item.activity;
+    if (unique.has(item.activity) && (occupancy[item.activity] ?? 0) > 0) {
+      continue;
+    }
+    const prior = occupancy[mixOccupancyKey(item.activity)] ?? 0;
+    const weight = prior > 0
+      ? item.weight * Math.pow(ACTIVITY_REPEAT_WEIGHT_FACTOR, prior)
+      : item.weight;
+    if (weight > 0) mixed.push({ activity: item.activity, weight });
+  }
+  return mixed;
+}
+
+/**
+ * Weighted shuffle (Efraimidis–Spirakis): key = u^(1/w), highest first.
+ * Replaces naive uniform shuffle / independent uniform repeats.
+ */
+function weightedShuffleActivities(
+  pool: { activity: keyof RoomActivities; weight: number }[],
+  rng: () => number,
+): { activity: keyof RoomActivities; weight: number }[] {
+  return pool
+    .map((item) => {
+      const w = Math.max(item.weight, 1e-9);
+      const u = Math.min(0.999999, Math.max(1e-12, rng()));
+      return { item, key: Math.pow(u, 1 / w) };
+    })
+    .sort((a, b) => b.key - a.key)
+    .map((entry) => entry.item);
+}
+
+/**
+ * Pick 1–3 activity keys for a room type: weighted shuffle of the mixed pool,
+ * without replacement, honoring ACTIVITY_EXCLUSIONS and floor occupancy.
+ */
+export function pickRoomActivityKeys(
+  roomType: BranchingRoomType,
+  occupancy: ActivityOccupancy = {},
+  rng: () => number = defaultFloorRng,
+): (keyof RoomActivities)[] {
+  const activityConfig = ROOM_TYPE_ACTIVITY_CONFIGS[roomType];
+  const isStartRoom = roomType === BranchingRoomType.START;
+  const targetCount = selectActivityCount(activityConfig.activityCountWeights, isStartRoom, rng);
+  if (targetCount === 0) return [];
+
+  const rawPool = buildActivityPool(activityConfig.activityWeights);
+  const pool = applyFloorMixToPool(rawPool, occupancy);
+  const shuffled = weightedShuffleActivities(pool, rng);
+
+  const selected: (keyof RoomActivities)[] = [];
+  const excluded = new Set<keyof RoomActivities>();
+  for (const item of shuffled) {
+    if (selected.length >= targetCount) break;
+    if (excluded.has(item.activity)) continue;
+    selected.push(item.activity);
+    const exclusions = ACTIVITY_EXCLUSIONS[item.activity] || [];
+    exclusions.forEach((e) => excluded.add(e));
   }
 
-  // Fallback to last item (shouldn't happen, but safe)
-  return pool[pool.length - 1].activity;
+  if (selected.length === 0 && !isStartRoom) {
+    const fallbackPool = pool.length > 0 ? pool : rawPool;
+    const sorted = [...fallbackPool].sort((a, b) => b.weight - a.weight);
+    if (sorted[0]) selected.push(sorted[0].activity);
+  }
+
+  return selected;
 }
 
 // ============================================================================
@@ -319,6 +429,7 @@ function createRoom(
   treasureHunt?: import('../types').TreasureHunt | null,
   clanRiteUsed?: boolean,
   rng: () => number = defaultFloorRng,
+  occupancy: ActivityOccupancy = {},
 ): BranchingRoom {
   // Select room type
   const type = forceType ?? selectRandomRoomType(tier, [], rng);
@@ -362,7 +473,7 @@ function createRoom(
     room, config, floor, difficulty, arc, player, wealthLevel,
     treasureHunt ?? null,
     preferredEventIds, enemyPool, lootTable, ambushChanceBonus, preferredElement, lootTheme,
-    dangerLevel, clanRiteUsed, rng,
+    dangerLevel, clanRiteUsed, rng, occupancy,
   );
 
   return room;
@@ -914,12 +1025,8 @@ function generateActivityData(
  * Generate all activities for a room using the weighted probability system.
  *
  * Algorithm:
- * 1. Get activity config for room type
- * 2. Determine activity count (1, 2, or 3) from weights
- * 3. Build pool of available activities (weight > 0)
- * 4. Select activities via weighted random, respecting exclusions
- * 5. Generate data for each selected activity
- * 6. Ensure minimum 1 activity (except START rooms)
+ * 1. Weighted-shuffle pick 1–3 keys (floor occupancy damps repeats / unique caps)
+ * 2. Generate data for each selected activity
  */
 function generateActivities(
   room: BranchingRoom,
@@ -939,55 +1046,11 @@ function generateActivities(
   dangerLevel: number = 4,
   clanRiteUsed?: boolean,
   rng: () => number = defaultFloorRng,
+  occupancy: ActivityOccupancy = {},
 ): RoomActivities {
-  const roomType = room.type;
-  const activityConfig = ROOM_TYPE_ACTIVITY_CONFIGS[roomType];
+  const selectedActivities = pickRoomActivityKeys(room.type, occupancy, rng);
 
-  // Step 1: Determine how many activities this room will have
-  const isStartRoom = roomType === BranchingRoomType.START;
-  const targetCount = selectActivityCount(activityConfig.activityCountWeights, isStartRoom, rng);
-
-  if (targetCount === 0) {
-    return {}; // START room - no activities
-  }
-
-  // Step 2: Build weighted activity pool
-  const pool = buildActivityPool(activityConfig.activityWeights);
-
-  // Step 3: Select activities via weighted random
-  const selectedActivities: (keyof RoomActivities)[] = [];
-  const excludedActivities = new Set<keyof RoomActivities>();
-
-  for (let i = 0; i < targetCount && pool.length > 0; i++) {
-    // Filter pool: remove already selected and excluded activities
-    const availablePool = pool.filter(
-      item => !selectedActivities.includes(item.activity) &&
-              !excludedActivities.has(item.activity)
-    );
-
-    if (availablePool.length === 0) break;
-
-    // Weighted random selection
-    const selected = selectWeightedActivity(availablePool, rng);
-    if (!selected) break;
-
-    selectedActivities.push(selected);
-
-    // Add exclusions for this activity (e.g., combat excludes eliteChallenge)
-    const exclusions = ACTIVITY_EXCLUSIONS[selected] || [];
-    exclusions.forEach(e => excludedActivities.add(e));
-  }
-
-  // Step 4: Ensure minimum 1 activity (fallback for non-START rooms)
-  if (selectedActivities.length === 0 && !isStartRoom && pool.length > 0) {
-    // Find highest-weight activity as fallback
-    const sortedPool = [...pool].sort((a, b) => b.weight - a.weight);
-    if (sortedPool[0]) {
-      selectedActivities.push(sortedPool[0].activity);
-    }
-  }
-
-  // Step 5: Generate activity data for each selected activity
+  // Generate activity data for each selected activity
   const activities: RoomActivities = {};
 
   for (const activityKey of selectedActivities) {
@@ -1411,6 +1474,7 @@ export function generateChildrenForRoom(
   const newRooms: BranchingRoom[] = [];
   const childDepth = room.depth + 1;
   let updatedFloor = branchingFloor;
+  let occupancy = countFloorActivityOccupancy(branchingFloor.rooms);
 
   // Always 2 children; at most one exit in the batch (uniform among the two)
   const childCount = getChildCount();
@@ -1442,6 +1506,8 @@ export function generateChildrenForRoom(
       wealthLevel,
       branchingFloor.treasureHunt,
       branchingFloor.clanRiteUsed,
+      defaultFloorRng,
+      occupancy,
     );
 
     const finalRoom = isExit
@@ -1453,6 +1519,8 @@ export function generateChildrenForRoom(
           branchingFloor.hunterArmed ?? false,
         )
       : childRoom;
+
+    occupancy = addRoomOccupancy(occupancy, finalRoom.activities);
 
     if (isExit && !updatedFloor.exitRoomId) {
       updatedFloor = { ...updatedFloor, exitRoomId: finalRoom.id };
@@ -1564,6 +1632,7 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   const ambushChanceBonus = getLocationTerrainMods(terrainEffects).ambushChance;
 
   const rooms: BranchingRoom[] = [];
+  let occupancy: ActivityOccupancy = {};
 
   // Internal entry hub (START type): pre-cleared, not played, never counted as visited.
   // Map UI hides it so the first view is 2 path choices + 4 foresight rooms.
@@ -1589,24 +1658,27 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
     undefined,
     undefined,
     rng,
+    occupancy,
   );
   entryHub.hasGeneratedChildren = true;
   entryHub.isVisible = false;
   rooms.push(entryHub);
 
-  // First choice: always 2 rooms off the hub
+  // First choice: always 2 rooms off the hub — occupancy updates so siblings do not clone.
   const tier1Left = createRoom(
     1, 'LEFT', entryHub.id, floor, difficulty, arc, undefined, 1,
     player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
     terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
-    undefined, undefined, rng,
+    undefined, undefined, rng, occupancy,
   );
+  occupancy = addRoomOccupancy(occupancy, tier1Left.activities);
   const tier1Right = createRoom(
     1, 'RIGHT', entryHub.id, floor, difficulty, arc, undefined, 1,
     player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
     terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
-    undefined, undefined, rng,
+    undefined, undefined, rng, occupancy,
   );
+  occupancy = addRoomOccupancy(occupancy, tier1Right.activities);
 
   tier1Left.isAccessible = true;
   tier1Right.isAccessible = true;
@@ -1624,14 +1696,14 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   const leftPositions = getChildPositions(leftChildCount);
   const leftChildren: BranchingRoom[] = [];
   for (let i = 0; i < leftChildCount; i++) {
-    leftChildren.push(
-      createRoom(
-        2, leftPositions[i], tier1Left.id, floor, difficulty, arc, undefined, 2,
-        player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
-        terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
-        undefined, undefined, rng,
-      ),
+    const child = createRoom(
+      2, leftPositions[i], tier1Left.id, floor, difficulty, arc, undefined, 2,
+      player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
+      terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+      undefined, undefined, rng, occupancy,
     );
+    occupancy = addRoomOccupancy(occupancy, child.activities);
+    leftChildren.push(child);
   }
   tier2Rooms.push(...leftChildren);
   tier1Left.childIds = leftChildren.map(r => r.id);
@@ -1640,14 +1712,14 @@ export function generateBranchingFloorFromConfig(config: FloorGenerationConfig):
   const rightPositions = getChildPositions(rightChildCount);
   const rightChildren: BranchingRoom[] = [];
   for (let i = 0; i < rightChildCount; i++) {
-    rightChildren.push(
-      createRoom(
-        2, rightPositions[i], tier1Right.id, floor, difficulty, arc, undefined, 2,
-        player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
-        terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
-        undefined, undefined, rng,
-      ),
+    const child = createRoom(
+      2, rightPositions[i], tier1Right.id, floor, difficulty, arc, undefined, 2,
+      player, preferredEventIds, enemyPool, lootTable, ambushChanceBonus,
+      terrainEffects, preferredElement, lootTheme, dangerLevel, wealthLevel,
+      undefined, undefined, rng, occupancy,
     );
+    occupancy = addRoomOccupancy(occupancy, child.activities);
+    rightChildren.push(child);
   }
   tier2Rooms.push(...rightChildren);
   tier1Right.childIds = rightChildren.map(r => r.id);
